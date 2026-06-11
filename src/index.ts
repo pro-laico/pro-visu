@@ -8,3 +8,4 @@ export type {
   LogLevel,
 } from "@/config/define-config";
 export type { ScrollReelOptions } from "@/generators/scroll-reel/options";
+export type { ScreenshotsOptions } from "@/generators/screenshots/options";

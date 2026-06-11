@@ -1,4 +1,5 @@
 import type { ScrollReelOptions } from "@/generators/scroll-reel/options";
+import type { ScreenshotsOptions } from "@/generators/screenshots/options";
 
 /**
  * Author-facing config types. These power editor autocomplete in `showcase.config.ts`.
@@ -24,16 +25,14 @@ export interface ShowcaseSettingsInput {
   /** Per-generator option defaults, keyed by generator id, merged under each asset. */
   defaults?: {
     "scroll-reel"?: ScrollReelOptions;
+    screenshots?: ScreenshotsOptions;
   };
 }
 
 /** Discriminated by `generator` so each asset gets the right `options` autocomplete. */
-export type AssetSpecInput = {
-  name: string;
-  url: string;
-  generator: "scroll-reel";
-  options?: ScrollReelOptions;
-};
+export type AssetSpecInput =
+  | { name: string; url: string; generator: "scroll-reel"; options?: ScrollReelOptions }
+  | { name: string; url: string; generator: "screenshots"; options?: ScreenshotsOptions };
 
 export interface ShowcaseUserConfig {
   settings?: ShowcaseSettingsInput;
