@@ -48,6 +48,25 @@ export function buildTranscodeArgs(args: TranscodeArgs): string[] {
   ];
 }
 
+/** Read a video's pixel dimensions by parsing ffmpeg's stream info (no ffprobe needed). */
+export async function probeVideoDimensions(
+  file: string,
+): Promise<{ width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    const child = spawn(ffmpegPath(), ["-hide_banner", "-i", file], {
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    let stderr = "";
+    child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
+    child.on("error", () => resolve(null));
+    // ffmpeg exits non-zero with no output file; the info we want is already on stderr.
+    child.on("close", () => {
+      const match = /,\s(\d+)x(\d+)[\s,]/.exec(stderr);
+      resolve(match ? { width: Number(match[1]), height: Number(match[2]) } : null);
+    });
+  });
+}
+
 /** Re-encode the recorded webm into an mp4 at outputPath. */
 export async function transcodeToMp4(
   args: TranscodeArgs & { logger?: Logger },

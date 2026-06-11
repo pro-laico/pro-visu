@@ -1,6 +1,7 @@
 import type { Generator } from "@/generators/types";
 import { scrollReelGenerator } from "@/generators/scroll-reel";
 import { screenshotsGenerator } from "@/generators/screenshots";
+import { deviceFrameGenerator } from "@/generators/device-frame";
 
 const registry = new Map<string, Generator<unknown>>();
 
@@ -23,3 +24,4 @@ export function generatorIds(): string[] {
 // Register built-in generators. New asset types add a line here.
 register(scrollReelGenerator);
 register(screenshotsGenerator);
+register(deviceFrameGenerator);

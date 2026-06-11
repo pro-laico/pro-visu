@@ -3,3 +3,7 @@
 allowBuilds:
   esbuild: true
   ffmpeg-static: true
+  # Skip puppeteer's Chromium download — the Revideo renderer reuses the Chromium we
+  # already manage via Playwright (PUPPETEER_EXECUTABLE_PATH). And telemetry: no thanks.
+  puppeteer: false
+  '@revideo/telemetry': false
