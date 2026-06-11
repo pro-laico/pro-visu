@@ -1,0 +1,5 @@
+# pnpm reads build-script allowlist and other settings from here.
+# These packages run install/build scripts to fetch their native binaries.
+allowBuilds:
+  esbuild: true
+  ffmpeg-static: true

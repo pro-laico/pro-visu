@@ -1,0 +1,10 @@
+// Public API consumed by `showcase.config.ts`.
+export { defineConfig } from "@/config/define-config";
+export type {
+  ShowcaseUserConfig,
+  ShowcaseSettingsInput,
+  BrowserSettingsInput,
+  AssetSpecInput,
+  LogLevel,
+} from "@/config/define-config";
+export type { ScrollReelOptions } from "@/generators/scroll-reel/options";

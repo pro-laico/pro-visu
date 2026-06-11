@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+.idea/
+.vscode/
+# local scratch / e2e sandbox
+/.scratch/
+/test-site/
