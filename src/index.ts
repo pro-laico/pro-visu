@@ -4,6 +4,7 @@ export type {
   ShowcaseUserConfig,
   ShowcaseSettingsInput,
   BrowserSettingsInput,
+  ServerSettingsInput,
   AssetSpecInput,
   LogLevel,
 } from "@/config/define-config";

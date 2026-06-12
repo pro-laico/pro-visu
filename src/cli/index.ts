@@ -22,6 +22,7 @@ cli
   .option("--asset <name>", "Only generate these assets (repeatable)")
   .option("--concurrency <n>", "Override parallelism")
   .option("--skip-browser", "Skip the Chromium check/install")
+  .option("--skip-server", "Skip the managed server (use an already-running site)")
   .option("--verbose", "Verbose (debug) logging")
   .action(runGenerate);
 

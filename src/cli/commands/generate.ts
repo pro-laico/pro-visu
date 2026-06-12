@@ -3,6 +3,7 @@ import { createLogger, type Logger } from "@/utils/logger";
 import { loadShowcaseConfig } from "@/config/load";
 import { ensureChromium } from "@/browser-install/ensure-chromium";
 import { ensureFfmpeg } from "@/media/ensure-ffmpeg";
+import { startManagedServer, type ServerHandle } from "@/server/manage-server";
 import { runPipeline } from "@/pipeline/runner";
 import { TOOL_VERSION } from "@/version";
 import { reportConfigError, printSummary } from "@/cli/ui";
@@ -13,6 +14,8 @@ export interface GenerateOptions {
   asset?: string | string[];
   concurrency?: string | number;
   skipBrowser?: boolean;
+  /** Skip the managed server (use an already-running site at the asset URLs). */
+  skipServer?: boolean;
   verbose?: boolean;
 }
 
@@ -64,22 +67,39 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     return;
   }
 
-  const concurrency = options.concurrency != null ? Number(options.concurrency) : undefined;
-  const count = requested ? requested.length : config.assets.length;
-  logger.start(`Generating ${count} asset(s)…`);
+  // Optionally manage the server (build → start → wait), tearing it down in `finally`.
+  let server: ServerHandle | null = null;
+  if (config.settings.server && !options.skipServer) {
+    try {
+      server = await startManagedServer(config.settings.server, cwd, logger);
+    } catch (err) {
+      logger.error(`Could not start the server: ${(err as Error).message}`);
+      process.exitCode = 1;
+      return;
+    }
+  }
 
-  const outcomes = await runPipeline({
-    config,
-    outDir,
-    logger,
-    toolVersion: TOOL_VERSION,
-    assetNames: requested,
-    concurrency: Number.isFinite(concurrency) ? concurrency : undefined,
-  });
+  try {
+    const concurrency =
+      options.concurrency != null ? Number(options.concurrency) : undefined;
+    const count = requested ? requested.length : config.assets.length;
+    logger.start(`Generating ${count} asset(s)…`);
 
-  printSummary(logger, outcomes, outDir);
-  if (outcomes.some((outcome) => outcome.status === "failed")) {
-    process.exitCode = 1;
+    const outcomes = await runPipeline({
+      config,
+      outDir,
+      logger,
+      toolVersion: TOOL_VERSION,
+      assetNames: requested,
+      concurrency: Number.isFinite(concurrency) ? concurrency : undefined,
+    });
+
+    printSummary(logger, outcomes, outDir);
+    if (outcomes.some((outcome) => outcome.status === "failed")) {
+      process.exitCode = 1;
+    }
+  } finally {
+    await server?.stop();
   }
 }
 
