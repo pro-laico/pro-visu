@@ -34,12 +34,14 @@
   },
   "packageManager": "pnpm@11.5.2",
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && pnpm build:scene",
+    "build:scene": "vite build -c scene-app/vite.config.ts",
+    "build:cli": "tsup",
     "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p scene-app/tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepare": "tsup",
+    "prepare": "pnpm build",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
@@ -54,8 +56,14 @@
   },
   "devDependencies": {
     "@types/node": "^25.9.2",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "tsup": "^8.5.1",
     "typescript": "^6.0.3",
+    "vite": "^6.0.0",
     "vitest": "^4.1.8"
   }
 }

@@ -7,6 +7,7 @@ import {
 import { renderChrome } from "@/generators/device-frame/chrome";
 import { buildDeviceFrameArgs } from "@/generators/device-frame/composite";
 import { captureScrollWebm } from "@/generators/scroll-reel/capture";
+import { requireUrl } from "@/generators/require-url";
 import { probeVideoDimensions, runFfmpeg, transcodeToMp4 } from "@/media/ffmpeg";
 import { ensureDir } from "@/utils/fs";
 import { sha256File } from "@/utils/hash";
@@ -22,12 +23,13 @@ async function run(
 ): Promise<{ assets: AssetRecord[] }> {
   const fileName = options.fileName ?? `${slugify(ctx.target.name)}.mp4`;
   const outPath = ctx.resolveOutPath(fileName);
+  const url = requireUrl(ctx);
 
   // 1. Record the site (same capture path as scroll-reel), then transcode to mp4.
-  ctx.logger.info(`recording ${ctx.target.url}`);
+  ctx.logger.info(`recording ${url}`);
   const { webmPath } = await captureScrollWebm({
     browser: ctx.browser,
-    url: ctx.target.url,
+    url,
     options,
     tmpDir: ctx.tmpDir,
     logger: ctx.logger,
@@ -95,7 +97,7 @@ async function run(
   const record: AssetRecord = {
     id: ctx.target.name,
     generator: DEVICE_FRAME_ID,
-    sourceUrl: ctx.target.url,
+    sourceUrl: url,
     file: ctx.toManifestPath(outPath),
     format: "mp4",
     width: dims?.width ?? chrome.frameWidthPx,

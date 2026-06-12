@@ -1,0 +1,34 @@
+import { z } from "zod";
+
+/**
+ * A "scene" composites input assets inside a web page (a React component shipped with the
+ * tool, selected by `scene`) and captures the rendered result. Inputs come from the asset's
+ * `inputs` map; per-scene knobs go in `sceneOptions`.
+ */
+export const sceneOptionsSchema = z
+  .object({
+    /** Built-in scene id (e.g. "phone"). */
+    scene: z.string().default("phone"),
+    /** Output frame size (CSS px). */
+    width: z.number().int().positive().default(1080),
+    height: z.number().int().positive().default(1080),
+    /** Backdrop behind the scene. */
+    background: z.string().default("#0b0b0f"),
+    /** Render scale (2 = retina-crisp). */
+    deviceScaleFactor: z.number().positive().max(4).default(2),
+    fps: z.number().int().positive().max(120).default(30),
+    /** Capture length (seconds). */
+    durationSeconds: z.number().positive().default(6),
+    /** Capture strategy. "realtime" records live; "frames" steps deterministically (Phase 3). */
+    capture: z.enum(["realtime", "frames"]).default("realtime"),
+    /** x264 quality, 0–51 (lower = better/larger). */
+    crf: z.number().int().min(0).max(51).default(18),
+    /** Output filename; defaults to "<slug(asset name)>.mp4". */
+    fileName: z.string().optional(),
+    /** Arbitrary knobs forwarded to the scene component. */
+    sceneOptions: z.record(z.string(), z.unknown()).default({}),
+  })
+  .strict();
+
+export type SceneOptions = z.input<typeof sceneOptionsSchema>;
+export type ResolvedSceneOptions = z.infer<typeof sceneOptionsSchema>;

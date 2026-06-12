@@ -2,6 +2,7 @@ import type { Generator } from "@/generators/types";
 import { scrollReelGenerator } from "@/generators/scroll-reel";
 import { screenshotsGenerator } from "@/generators/screenshots";
 import { deviceFrameGenerator } from "@/generators/device-frame";
+import { sceneGenerator } from "@/generators/scene";
 
 const registry = new Map<string, Generator<unknown>>();
 
@@ -25,3 +26,4 @@ export function generatorIds(): string[] {
 register(scrollReelGenerator);
 register(screenshotsGenerator);
 register(deviceFrameGenerator);
+register(sceneGenerator);

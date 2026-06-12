@@ -9,6 +9,7 @@ function spec(over: Partial<ResolvedAssetSpec> = {}): ResolvedAssetSpec {
     url: "https://example.com",
     generator: "scroll-reel",
     options: {},
+    inputs: {},
     ...over,
   };
 }

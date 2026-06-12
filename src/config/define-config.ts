@@ -1,6 +1,7 @@
 import type { ScrollReelOptions } from "@/generators/scroll-reel/options";
 import type { ScreenshotsOptions } from "@/generators/screenshots/options";
 import type { DeviceFrameOptions } from "@/generators/device-frame/options";
+import type { SceneOptions } from "@/generators/scene/options";
 
 /**
  * Author-facing config types. These power editor autocomplete in `showcase.config.ts`.
@@ -50,11 +51,22 @@ export interface ShowcaseSettingsInput {
   };
 }
 
-/** Discriminated by `generator` so each asset gets the right `options` autocomplete. */
+/** Fields common to every asset. */
+export interface AssetBaseInput {
+  name: string;
+  /** Other assets this one consumes, as `{ slotName: assetName }`. Producers run first. */
+  inputs?: Record<string, string>;
+}
+
+/**
+ * Discriminated by `generator` so each asset gets the right `options` autocomplete. URL-based
+ * generators require `url`; a local `scene` composites its `inputs` and needs none.
+ */
 export type AssetSpecInput =
-  | { name: string; url: string; generator: "scroll-reel"; options?: ScrollReelOptions }
-  | { name: string; url: string; generator: "screenshots"; options?: ScreenshotsOptions }
-  | { name: string; url: string; generator: "device-frame"; options?: DeviceFrameOptions };
+  | (AssetBaseInput & { url: string; generator: "scroll-reel"; options?: ScrollReelOptions })
+  | (AssetBaseInput & { url: string; generator: "screenshots"; options?: ScreenshotsOptions })
+  | (AssetBaseInput & { url: string; generator: "device-frame"; options?: DeviceFrameOptions })
+  | (AssetBaseInput & { url?: string; generator: "scene"; options?: SceneOptions });
 
 export interface ShowcaseUserConfig {
   settings?: ShowcaseSettingsInput;

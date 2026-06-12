@@ -27,7 +27,7 @@ describe("screenshots generator", () => {
   it("merges defaults keyed by generator id", () => {
     const merged = mergeGeneratorOptions(
       { screenshots: { format: "jpeg", quality: 80 } },
-      { name: "a", url: "https://example.com", generator: "screenshots", options: {} },
+      { name: "a", url: "https://example.com", generator: "screenshots", options: {}, inputs: {} },
     );
     const opts = screenshotsOptionsSchema.parse(merged);
     expect(opts.format).toBe("jpeg");

@@ -5,6 +5,7 @@ import {
   type ResolvedScreenshotsOptions,
 } from "@/generators/screenshots/options";
 import { captureScreenshots } from "@/generators/screenshots/capture";
+import { requireUrl } from "@/generators/require-url";
 import { sha256Buffer } from "@/utils/hash";
 import { slugify } from "@/utils/paths";
 import type { Generator, PipelineContext } from "@/generators/types";
@@ -26,11 +27,12 @@ async function run(
   options: ResolvedScreenshotsOptions,
 ): Promise<{ assets: AssetRecord[] }> {
   const ext = options.format === "jpeg" ? "jpg" : "png";
-  ctx.logger.info(`capturing ${ctx.target.url}`);
+  const url = requireUrl(ctx);
+  ctx.logger.info(`capturing ${url}`);
 
   const shots = await captureScreenshots({
     browser: ctx.browser,
-    url: ctx.target.url,
+    url,
     options,
     logger: ctx.logger,
   });
@@ -45,7 +47,7 @@ async function run(
     const record: AssetRecord = {
       id: `${ctx.target.name}-${shot.key}`,
       generator: SCREENSHOTS_ID,
-      sourceUrl: ctx.target.url,
+      sourceUrl: url,
       file: ctx.toManifestPath(outPath),
       format: ext,
       width,

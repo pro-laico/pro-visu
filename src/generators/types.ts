@@ -3,10 +3,10 @@ import type { ZodType, ZodTypeDef } from "zod";
 import type { Logger } from "@/utils/logger";
 import type { AssetRecord } from "@/manifest/schema";
 
-/** The site/page an asset is generated for. */
+/** The site/page an asset is generated for. `url` is absent for local `scene` assets. */
 export interface AssetTarget {
   name: string;
-  url: string;
+  url?: string;
 }
 
 /**
@@ -17,6 +17,8 @@ export interface PipelineContext {
   /** Shared, already-launched browser. Generators create their own contexts. */
   browser: Browser;
   target: AssetTarget;
+  /** Absolute file paths of this asset's declared `inputs`, keyed by slot name. */
+  resolvedInputs: Record<string, string>;
   /** Absolute output root (e.g. <repo>/showcase). */
   outDir: string;
   /** Resolve a filename inside this generator's subdir: <outDir>/<generatorId>/<filename>. */

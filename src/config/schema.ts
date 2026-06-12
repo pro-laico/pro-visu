@@ -70,9 +70,16 @@ export type ResolvedSettings = z.infer<typeof settingsSchema>;
 export const assetSpecSchema = z
   .object({
     name: z.string().min(1),
-    url: z.string().url(),
+    /** Page to capture. Required by url-based generators; omitted for local `scene` assets. */
+    url: z.string().url().optional(),
     generator: z.string().min(1),
     options: z.record(z.string(), z.unknown()).default({}),
+    /**
+     * Other assets this one consumes, as `{ slotName: assetName }`. The producing assets run
+     * first and their output files are exposed to this asset (e.g. a scene playing an earlier
+     * recording). Forms a DAG; cycles are rejected.
+     */
+    inputs: z.record(z.string(), z.string()).default({}),
   })
   .strict();
 export type ResolvedAssetSpec = z.infer<typeof assetSpecSchema>;

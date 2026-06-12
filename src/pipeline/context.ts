@@ -10,6 +10,8 @@ export interface CreateContextArgs {
   browser: Browser;
   generatorId: string;
   target: AssetTarget;
+  /** Absolute file paths of declared `inputs`, keyed by slot name. */
+  resolvedInputs: Record<string, string>;
   /** Absolute output root. */
   outDir: string;
   tmpDir: string;
@@ -26,6 +28,7 @@ export async function createContext(args: CreateContextArgs): Promise<PipelineCo
   return {
     browser: args.browser,
     target: args.target,
+    resolvedInputs: args.resolvedInputs,
     outDir: args.outDir,
     resolveOutPath: (filename) => path.join(genDir, filename),
     toManifestPath: (absPath) => relPosix(args.outDir, absPath),

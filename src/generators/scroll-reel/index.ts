@@ -4,6 +4,7 @@ import {
   type ResolvedScrollReelOptions,
 } from "@/generators/scroll-reel/options";
 import { captureScrollWebm } from "@/generators/scroll-reel/capture";
+import { requireUrl } from "@/generators/require-url";
 import { transcodeToMp4 } from "@/media/ffmpeg";
 import { sha256File } from "@/utils/hash";
 import { slugify } from "@/utils/paths";
@@ -18,11 +19,12 @@ async function run(
 ): Promise<{ assets: AssetRecord[] }> {
   const fileName = options.fileName ?? `${slugify(ctx.target.name)}.mp4`;
   const outPath = ctx.resolveOutPath(fileName);
+  const url = requireUrl(ctx);
 
-  ctx.logger.info(`recording ${ctx.target.url}`);
+  ctx.logger.info(`recording ${url}`);
   const { webmPath } = await captureScrollWebm({
     browser: ctx.browser,
-    url: ctx.target.url,
+    url,
     options,
     tmpDir: ctx.tmpDir,
     logger: ctx.logger,
@@ -43,7 +45,7 @@ async function run(
   const record: AssetRecord = {
     id: ctx.target.name,
     generator: SCROLL_REEL_ID,
-    sourceUrl: ctx.target.url,
+    sourceUrl: url,
     file: ctx.toManifestPath(outPath),
     format: "mp4",
     width: options.width,

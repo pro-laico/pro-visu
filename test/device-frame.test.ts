@@ -26,7 +26,7 @@ describe("device-frame generator", () => {
   it("merges defaults keyed by generator id", () => {
     const merged = mergeGeneratorOptions(
       { "device-frame": { background: "#ffffff", frameWidth: 1000 } },
-      { name: "a", url: "https://example.com", generator: "device-frame", options: {} },
+      { name: "a", url: "https://example.com", generator: "device-frame", options: {}, inputs: {} },
     );
     const opts = deviceFrameOptionsSchema.parse(merged);
     expect(opts.background).toBe("#ffffff");
