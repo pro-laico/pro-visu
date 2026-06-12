@@ -16,3 +16,37 @@ export type Logger = ConsolaInstance;
 export function createLogger(level: LogLevel = "info"): Logger {
   return createConsola({ level: LEVEL_MAP[level] });
 }
+
+/** A destination for tagged log entries (the live job tracker implements this). */
+export interface LogSink {
+  /** Consume a tagged log line. Return true if handled (suppress normal printing). */
+  route(tag: string, type: string, message: string): boolean;
+}
+
+/**
+ * A logger that diverts *tagged* entries (e.g. `logger.withTag("home-reel").info(…)`) to a
+ * sink — used to feed each asset's progress into the live tracker — while untagged entries
+ * (and anything the sink declines) print normally.
+ */
+export function createReportingLogger(level: LogLevel, sink: LogSink): Logger {
+  const passthrough = createConsola({ level: LEVEL_MAP[level] });
+  return createConsola({
+    level: LEVEL_MAP[level],
+    reporters: [
+      {
+        log(logObj) {
+          const tag = typeof logObj.tag === "string" ? logObj.tag : "";
+          const args = (logObj.args ?? []) as unknown[];
+          const message = args.map((a) => (typeof a === "string" ? a : String(a))).join(" ");
+          if (tag && sink.route(tag, logObj.type, message)) return;
+          const fn = (passthrough as unknown as Record<string, unknown>)[logObj.type];
+          const emit =
+            typeof fn === "function"
+              ? (fn as (...a: unknown[]) => void)
+              : (passthrough.log as unknown as (...a: unknown[]) => void);
+          emit.call(passthrough, ...args);
+        },
+      },
+    ],
+  });
+}

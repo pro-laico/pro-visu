@@ -1,10 +1,18 @@
 import { resolveCwd, resolveOutDir } from "@/utils/paths";
-import { createLogger, type Logger } from "@/utils/logger";
+import { createLogger, createReportingLogger, type Logger } from "@/utils/logger";
 import { loadShowcaseConfig } from "@/config/load";
 import { ensureChromium } from "@/browser-install/ensure-chromium";
 import { ensureFfmpeg } from "@/media/ensure-ffmpeg";
-import { startManagedServer, type ServerHandle } from "@/server/manage-server";
-import { runPipeline } from "@/pipeline/runner";
+import {
+  startManagedServer,
+  type ServerHandle,
+  type ServerTasks,
+  type TaskHandle,
+} from "@/server/manage-server";
+import { runPipeline, type AssetOutcome } from "@/pipeline/runner";
+import { expandSelection, dependenciesOf } from "@/pipeline/graph";
+import { createReporter } from "@/cli/live-reporter";
+import type { Reporter } from "@/pipeline/reporter";
 import { TOOL_VERSION } from "@/version";
 import { reportConfigError, printSummary } from "@/cli/ui";
 
@@ -36,7 +44,10 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     return;
   }
   const { config } = loaded;
-  const logger = createLogger(options.verbose ? "debug" : config.settings.logLevel);
+  const level = options.verbose ? "debug" : config.settings.logLevel;
+  // Live job tracker on an interactive TTY; per-asset logs feed each row's current step.
+  const reporter = createReporter({ tty: Boolean(process.stdout.isTTY), verbose: !!options.verbose });
+  const logger = reporter.isLive ? createReportingLogger(level, reporter) : createLogger(level);
   const outDir = resolveOutDir(cwd, config.settings.outDir);
 
   const requested = normalizeAssetNames(options.asset);
@@ -71,25 +82,56 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     return;
   }
 
-  // Optionally manage the server (build → start → wait), tearing it down in `finally`.
+  // From here the live tracker owns the terminal. Plan ALL rows up front — setup (build/server)
+  // then every asset, with the assets gated on setup so they read "waiting for build" until it
+  // finishes. The build no longer dumps raw CLI output; it feeds the "build" row's step.
+  reporter.begin();
+
+  const serverCfg = options.skipServer ? undefined : config.settings.server;
+  const gates: string[] = [];
+  const tasks: ServerTasks = {};
+  if (reporter.isLive && serverCfg) {
+    if (serverCfg.build) {
+      reporter.add({ id: "@build", name: "build", detail: "server", system: true });
+      gates.push("@build");
+      tasks.build = taskHandle(reporter, "@build");
+    }
+    reporter.add({ id: "@server", name: "server", detail: "server", system: true });
+    gates.push("@server");
+    tasks.server = taskHandle(reporter, "@server");
+  }
+  if (reporter.isLive) {
+    for (const spec of expandSelection(config.assets, requested)) {
+      reporter.add({
+        id: spec.name,
+        name: spec.name,
+        detail: spec.generator,
+        deps: dependenciesOf(spec),
+        gatedBy: gates,
+      });
+    }
+  }
+
   let server: ServerHandle | null = null;
-  if (config.settings.server && !options.skipServer) {
+  if (serverCfg) {
     try {
-      server = await startManagedServer(config.settings.server, cwd, logger);
+      server = await startManagedServer(serverCfg, cwd, logger, tasks);
     } catch (err) {
+      reporter.stop();
       logger.error(`Could not start the server: ${(err as Error).message}`);
       process.exitCode = 1;
       return;
     }
   }
 
+  let outcomes: AssetOutcome[] = [];
   try {
     const concurrency =
       options.concurrency != null ? Number(options.concurrency) : undefined;
     const count = requested ? requested.length : config.assets.length;
-    logger.start(`Generating ${count} asset(s)…`);
+    if (!reporter.isLive) logger.start(`Generating ${count} asset(s)…`);
 
-    const outcomes = await runPipeline({
+    outcomes = await runPipeline({
       config,
       outDir,
       logger,
@@ -98,15 +140,27 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
       concurrency: Number.isFinite(concurrency) ? concurrency : undefined,
       quality: options.draft ? "draft" : undefined,
       cache: options.cache,
+      reporter,
     });
-
-    printSummary(logger, outcomes, outDir);
-    if (outcomes.some((outcome) => outcome.status === "failed")) {
-      process.exitCode = 1;
-    }
   } finally {
+    reporter.stop(); // erase the live block before the final summary
     await server?.stop();
   }
+
+  printSummary(logger, outcomes, outDir);
+  if (outcomes.some((outcome) => outcome.status === "failed")) {
+    process.exitCode = 1;
+  }
+}
+
+/** A live-tracker row handle the managed-server lifecycle drives (build/server steps). */
+function taskHandle(reporter: Reporter, id: string): TaskHandle {
+  return {
+    start: () => reporter.status(id, "running"),
+    step: (t) => reporter.step(id, t),
+    ok: () => reporter.status(id, "ok"),
+    fail: () => reporter.status(id, "failed"),
+  };
 }
 
 function normalizeAssetNames(value?: string | string[]): string[] | undefined {

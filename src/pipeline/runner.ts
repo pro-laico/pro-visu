@@ -6,6 +6,7 @@ import { launchBrowser } from "@/pipeline/browser";
 import { createContext } from "@/pipeline/context";
 import { buildGraph, dependenciesOf, expandSelection } from "@/pipeline/graph";
 import { computeCacheKey } from "@/pipeline/cache";
+import type { Reporter } from "@/pipeline/reporter";
 import { getGenerator } from "@/generators/registry";
 import { ManifestStore } from "@/manifest/manifest";
 import { ensureDir, removeDir } from "@/utils/fs";
@@ -35,6 +36,8 @@ export interface RunOptions {
   quality?: "draft" | "final";
   /** Override settings.cache (skip unchanged assets). */
   cache?: boolean;
+  /** Live progress sink (job tracker). Optional. */
+  reporter?: Reporter;
 }
 
 /**
@@ -71,6 +74,10 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
   const concurrency = Math.max(1, opts.concurrency ?? opts.config.settings.concurrency);
   const quality = opts.quality ?? opts.config.settings.quality;
   const cacheEnabled = opts.cache ?? opts.config.settings.cache;
+  const reporter = opts.reporter;
+  for (const s of specs) {
+    reporter?.add({ id: s.name, name: s.name, detail: s.generator, deps: dependenciesOf(s) });
+  }
 
   const outcomes = new Map<string, AssetOutcome>();
   /** Primary output (absolute path) per completed asset, for consumers' `inputs`. */
@@ -121,10 +128,13 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
           existsSync(path.resolve(opts.outDir, existing.file))
         ) {
           log.info("cached — unchanged, skipped");
+          reporter?.status(spec.name, "cached");
           recordDone(spec.name, existing);
           return { name: spec.name, generator: spec.generator, status: "ok", records: [existing] };
         }
       }
+
+      reporter?.status(spec.name, "running");
 
       const ctx = await createContext({
         browser,
@@ -146,18 +156,21 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
         await manifest.upsert(record);
       }
       recordDone(spec.name, result.assets[0]);
+      reporter?.status(spec.name, "ok");
       return { name: spec.name, generator: spec.generator, status: "ok", records: result.assets };
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       log.error(err.message);
+      reporter?.status(spec.name, "failed");
       return { name: spec.name, generator: spec.generator, status: "failed", records: [], error: err };
     }
   };
 
   try {
-    await scheduleDag(specs, concurrency, outcomes, runSpec);
+    await scheduleDag(specs, concurrency, outcomes, runSpec, reporter);
     return specs.map((s) => outcomes.get(s.name)).filter((o): o is AssetOutcome => Boolean(o));
   } finally {
+    // The caller owns begin()/stop() (it spans the build/server setup rows too).
     await browser.close();
     await removeDir(tmpRoot);
   }
@@ -173,6 +186,7 @@ async function scheduleDag(
   concurrency: number,
   outcomes: Map<string, AssetOutcome>,
   runSpec: (spec: ResolvedAssetSpec) => Promise<AssetOutcome>,
+  reporter?: Reporter,
 ): Promise<void> {
   const remaining = new Map(specs.map((s) => [s.name, s]));
   const inflight = new Map<string, Promise<void>>();
@@ -201,6 +215,7 @@ async function scheduleDag(
           records: [],
           error: new Error("Skipped — a dependency failed."),
         });
+        reporter?.status(name, "failed");
         continue;
       }
       const p = runSpec(spec)

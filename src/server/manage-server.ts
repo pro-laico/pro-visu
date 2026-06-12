@@ -42,13 +42,61 @@ async function waitForUrl(url: string, timeoutMs: number): Promise<boolean> {
   return false;
 }
 
-/** Run a one-shot command (e.g. a build) to completion, rejecting on non-zero exit. */
-function runOnce(command: string, cwd: string, logger: Logger): Promise<void> {
+/** A row in the live tracker the server lifecycle can drive (build / server steps). */
+export interface TaskHandle {
+  /** Mark the row active (spinner + ticking elapsed). */
+  start(): void;
+  step(text: string): void;
+  ok(): void;
+  fail(): void;
+}
+
+export interface ServerTasks {
+  build?: TaskHandle;
+  server?: TaskHandle;
+}
+
+/**
+ * Run a one-shot command (e.g. a build) to completion, rejecting on non-zero exit. With a
+ * `task`, output is captured and the latest line feeds the tracker row (instead of streaming
+ * raw to the terminal); the captured tail is included in the error on failure.
+ */
+function runOnce(
+  command: string,
+  cwd: string,
+  task?: TaskHandle,
+): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, { cwd, shell: true, stdio: "inherit" });
+    const tracked = Boolean(task);
+    const child = spawn(command, {
+      cwd,
+      shell: true,
+      stdio: tracked ? ["ignore", "pipe", "pipe"] : "inherit",
+    });
+    let tail = "";
+    const onData = (b: Buffer): void => {
+      const text = b.toString();
+      tail = (tail + text).slice(-4000);
+      const last = text
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .at(-1);
+      if (last) task?.step(last);
+    };
+    if (tracked) {
+      child.stdout?.on("data", onData);
+      child.stderr?.on("data", onData);
+    }
     child.on("error", reject);
     child.on("close", (code) =>
-      code === 0 ? resolve() : reject(new Error(`"${command}" failed (exit ${code}).`)),
+      code === 0
+        ? resolve()
+        : reject(
+            new Error(
+              `"${command}" failed (exit ${code}).${tracked ? `\n${tail.slice(-1500)}` : ""}`,
+            ),
+          ),
     );
   });
 }
@@ -88,21 +136,48 @@ export async function startManagedServer(
   server: ResolvedServerSettings,
   baseCwd: string,
   logger: Logger,
+  tasks: ServerTasks = {},
 ): Promise<ServerHandle | null> {
   const cwd = server.cwd ? path.resolve(baseCwd, server.cwd) : baseCwd;
   const url = resolveServerUrl(server);
 
+  // In live mode the rows convey progress; avoid untagged logs that would corrupt the block.
+  const live = Boolean(tasks.build || tasks.server);
+
   if (server.reuseExisting && (await probe(url))) {
-    logger.info(`Reusing the server already running at ${url}`);
+    if (live) {
+      tasks.build?.step("reused");
+      tasks.build?.ok();
+      tasks.server?.step(`reusing existing server at ${url}`);
+      tasks.server?.ok();
+    } else {
+      logger.info(`Reusing the server already running at ${url}`);
+    }
     return null;
   }
 
   if (server.build) {
-    logger.info(`Building: ${server.build}`);
-    await runOnce(server.build, cwd, logger);
+    if (live) {
+      tasks.build?.start();
+      tasks.build?.step(`building (${server.build})…`);
+    } else {
+      logger.info(`Building: ${server.build}`);
+    }
+    try {
+      await runOnce(server.build, cwd, tasks.build);
+    } catch (err) {
+      tasks.build?.fail();
+      throw err;
+    }
+    tasks.build?.ok();
   }
 
-  logger.info(`Starting server: ${server.command}`);
+  if (live) {
+    tasks.server?.start();
+    tasks.server?.step(`starting (${server.command})…`);
+  } else {
+    logger.info(`Starting server: ${server.command}`);
+  }
   const child = spawn(server.command, {
     cwd,
     shell: true,
@@ -116,8 +191,10 @@ export async function startManagedServer(
     exited = true;
   });
 
+  tasks.server?.step(`waiting for ${url}…`);
   const ready = await waitForUrl(url, server.readyTimeoutMs);
   if (!ready) {
+    tasks.server?.fail();
     await killTree(child);
     throw new Error(
       exited
@@ -125,6 +202,8 @@ export async function startManagedServer(
         : `Server did not become reachable at ${url} within ${server.readyTimeoutMs}ms.`,
     );
   }
+  tasks.server?.step(`ready at ${url}`);
+  tasks.server?.ok();
   logger.success(`Server ready at ${url}`);
 
   return {
