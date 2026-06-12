@@ -19,6 +19,12 @@ declare global {
   interface Window {
     __showcase?: ShowcaseRuntime;
     __showcaseReady?: boolean;
+    /**
+     * Optional readiness gate a scene can publish to hold capture until it has actually painted its
+     * content (not just until fonts/videos load). The runtime awaits it before flipping
+     * `__showcaseReady`, so the first recorded frame is never an un-seeded/blank state.
+     */
+    __sceneReady?: Promise<void>;
   }
 }
 
@@ -74,10 +80,13 @@ export function initRuntime(): void {
   scan();
 
   const readyPromise = (async () => {
-    await nextFrame(); // let late-mounted videos attach
+    await nextFrame(); // let late-mounted videos attach (and the scene publish __sceneReady)
     scan();
     const fontsReady = document.fonts?.ready ?? Promise.resolve(undefined);
-    await Promise.all([fontsReady, ...videos.map(whenLoaded)]);
+    // A scene can gate capture on its own first paint (e.g. the specimen, which seeds its glyphs
+    // asynchronously after the font loads). Absent that, this is a no-op.
+    const sceneReady = (globalThis as { __sceneReady?: Promise<void> }).__sceneReady ?? Promise.resolve();
+    await Promise.all([fontsReady, sceneReady, ...videos.map(whenLoaded)]);
     await nextFrame(); // ensure a first paint
   })();
   void readyPromise.then(() => {

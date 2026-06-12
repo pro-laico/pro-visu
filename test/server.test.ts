@@ -17,8 +17,10 @@ describe("server settings", () => {
     expect(resolveServerUrl(server)).toBe("http://localhost:4321");
   });
 
-  it("requires either a url or a port", () => {
-    expect(serverSettingsSchema.safeParse({ command: "next start" }).success).toBe(false);
+  it("defaults the port (and thus the readiness url) to 3101 when neither is set", () => {
+    const server = serverSettingsSchema.parse({ command: "next start" });
+    expect(server.port).toBe(3101);
+    expect(resolveServerUrl(server)).toBe("http://127.0.0.1:3101");
   });
 
   it("defaults reuseExisting on and applies a readiness timeout", () => {

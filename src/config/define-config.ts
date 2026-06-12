@@ -13,21 +13,29 @@ import type { SpecimenOptions } from "@/generators/specimen/options";
 export type LogLevel = "silent" | "error" | "warn" | "info" | "debug";
 
 export interface BrowserSettingsInput {
+  /** Run the browser without a visible window (default true). Set false to watch captures. */
   headless?: boolean;
+  /** Browser channel, e.g. "chrome" or "msedge". Omit to use the managed Chromium. */
   channel?: string;
+  /** Absolute path to a browser executable (overrides `channel` + managed Chromium). */
   executablePath?: string;
+  /** Extra launch args, e.g. ["--no-sandbox"] on CI. */
   args?: string[];
+  /** Browser launch timeout (ms). */
   timeout?: number;
 }
 
 export interface ServerSettingsInput {
-  /** Command that starts the server, run via the shell, e.g. "next start -p 3000". */
+  /** Command that starts the server, run via the shell, e.g. "next start -p 3101". */
   command: string;
   /** Optional one-shot build to run first, e.g. "next build". */
   build?: string;
   /** Health-check URL polled until it responds. Defaults to http://127.0.0.1:<port>. */
   url?: string;
-  /** Port — used to derive `url` when `url` is omitted. One of `url`/`port` is required. */
+  /**
+   * Port the readiness check polls — also derives `url` when `url` is omitted. Defaults to 3101.
+   * Note: this is only where the tool probes; your `command` must actually bind this port.
+   */
   port?: number;
   /** Working dir for build + command, relative to the config dir. Defaults to it. */
   cwd?: string;
@@ -38,9 +46,13 @@ export interface ServerSettingsInput {
 }
 
 export interface ShowcaseSettingsInput {
+  /** Output directory for generated assets, relative to the repo root (default "showcase"). */
   outDir?: string;
+  /** How many assets to generate in parallel (shared browser, separate contexts). */
   concurrency?: number;
+  /** CLI log verbosity. */
   logLevel?: LogLevel;
+  /** Playwright launch controls. */
   browser?: BrowserSettingsInput;
   /** Build → start → wait → capture → stop a server automatically. */
   server?: ServerSettingsInput;
@@ -53,11 +65,13 @@ export interface ShowcaseSettingsInput {
     "scroll-reel"?: ScrollReelOptions;
     screenshots?: ScreenshotsOptions;
     "device-frame"?: DeviceFrameOptions;
+    specimen?: SpecimenOptions;
   };
 }
 
 /** Fields common to every asset. */
 export interface AssetBaseInput {
+  /** Unique id for this asset — also the output filename (`<slug(name)>.mp4`) and manifest key. */
   name: string;
   /** Other assets this one consumes, as `{ slotName: assetName }`. Producers run first. */
   inputs?: Record<string, string>;

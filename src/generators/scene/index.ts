@@ -98,7 +98,7 @@ export async function renderScene(
       });
     } else {
       ctx.logger.info(`rendering scene "${options.scene}" (realtime)`);
-      const webmPath = await recordSceneRealtime({
+      const recording = await recordSceneRealtime({
         browser: ctx.browser,
         url: sceneUrl.toString(),
         width: options.width,
@@ -109,12 +109,14 @@ export async function renderScene(
         logger: ctx.logger,
       });
       await transcodeToMp4({
-        inputPath: webmPath,
+        inputPath: recording.path,
         outputPath: composedTmp,
         fps: options.fps,
         width: options.width,
         height: options.height,
         crf: options.crf,
+        // Trim the blank navigation/readiness lead so the clip opens on the first painted frame.
+        startOffsetSeconds: recording.leadSeconds,
         logger: ctx.logger,
       });
     }

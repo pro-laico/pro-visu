@@ -8,6 +8,8 @@ import type { Logger } from "@/utils/logger";
 /** A started server we own and must tear down (null when we reused an existing one). */
 export interface ServerHandle {
   stop: () => Promise<void>;
+  /** Process id of the spawned server tree's root (for orphan cleanup after a hard kill). */
+  pid?: number;
 }
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -33,9 +35,10 @@ function probe(url: string): Promise<boolean> {
   });
 }
 
-async function waitForUrl(url: string, timeoutMs: number): Promise<boolean> {
+async function waitForUrl(url: string, timeoutMs: number, signal?: AbortSignal): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
+    if (signal?.aborted) return false;
     if (await probe(url)) return true;
     await delay(500);
   }
@@ -65,8 +68,10 @@ function runOnce(
   command: string,
   cwd: string,
   task?: TaskHandle,
+  signal?: AbortSignal,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new Error("Aborted."));
     const tracked = Boolean(task);
     const child = spawn(command, {
       cwd,
@@ -88,15 +93,26 @@ function runOnce(
       child.stdout?.on("data", onData);
       child.stderr?.on("data", onData);
     }
-    child.on("error", reject);
+    const onAbort = (): void => {
+      void killTree(child); // stop the build (and its tree) on a graceful interrupt
+      reject(new Error("Aborted."));
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    const settle = (fn: () => void): void => {
+      signal?.removeEventListener("abort", onAbort);
+      fn();
+    };
+    child.on("error", (err) => settle(() => reject(err)));
     child.on("close", (code) =>
-      code === 0
-        ? resolve()
-        : reject(
-            new Error(
-              `"${command}" failed (exit ${code}).${tracked ? `\n${tail.slice(-1500)}` : ""}`,
+      settle(() =>
+        code === 0
+          ? resolve()
+          : reject(
+              new Error(
+                `"${command}" failed (exit ${code}).${tracked ? `\n${tail.slice(-1500)}` : ""}`,
+              ),
             ),
-          ),
+      ),
     );
   });
 }
@@ -137,6 +153,7 @@ export async function startManagedServer(
   baseCwd: string,
   logger: Logger,
   tasks: ServerTasks = {},
+  signal?: AbortSignal,
 ): Promise<ServerHandle | null> {
   const cwd = server.cwd ? path.resolve(baseCwd, server.cwd) : baseCwd;
   const url = resolveServerUrl(server);
@@ -164,7 +181,7 @@ export async function startManagedServer(
       logger.info(`Building: ${server.build}`);
     }
     try {
-      await runOnce(server.build, cwd, tasks.build);
+      await runOnce(server.build, cwd, tasks.build, signal);
     } catch (err) {
       tasks.build?.fail();
       throw err;
@@ -192,21 +209,24 @@ export async function startManagedServer(
   });
 
   tasks.server?.step(`waiting for ${url}…`);
-  const ready = await waitForUrl(url, server.readyTimeoutMs);
+  const ready = await waitForUrl(url, server.readyTimeoutMs, signal);
   if (!ready) {
     tasks.server?.fail();
     await killTree(child);
     throw new Error(
-      exited
-        ? `Server command exited before ${url} became reachable.`
-        : `Server did not become reachable at ${url} within ${server.readyTimeoutMs}ms.`,
+      signal?.aborted
+        ? "Aborted."
+        : exited
+          ? `Server command exited before ${url} became reachable.`
+          : `Server did not become reachable at ${url} within ${server.readyTimeoutMs}ms.`,
     );
   }
   tasks.server?.step(`ready at ${url}`);
   tasks.server?.ok();
-  logger.success(`Server ready at ${url}`);
+  if (!live) logger.success(`Server ready at ${url}`); // in live mode the row conveys this
 
   return {
+    pid: child.pid,
     stop: async () => {
       logger.info("Shutting down server…");
       await killTree(child);

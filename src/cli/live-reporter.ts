@@ -23,6 +23,7 @@ export class NoopReporter implements Reporter {
   add(): void {}
   status(): void {}
   step(): void {}
+  cancelling(): void {}
   stop(): void {}
   route(): boolean {
     return false;
@@ -38,6 +39,7 @@ export class LiveReporter implements Reporter {
   private prevLines = 0;
   private startTime = 0;
   private started = false;
+  private cancelRequested = false;
   private timer?: ReturnType<typeof setInterval>;
 
   constructor(private readonly out: NodeJS.WriteStream = process.stdout) {}
@@ -103,6 +105,14 @@ export class LiveReporter implements Reporter {
     if (j) j.step = text;
   }
 
+  /** Esc/Ctrl+C was pressed: we're winding down. Flip the footer to a "cancelling…" banner so the
+   *  user sees the request landed while in-flight work finishes. Idempotent. */
+  cancelling(): void {
+    if (this.cancelRequested) return;
+    this.cancelRequested = true;
+    this.render();
+  }
+
   route(tag: string, _type: string, message: string): boolean {
     if (!this.jobs.has(tag)) return false;
     this.step(tag, message);
@@ -119,8 +129,11 @@ export class LiveReporter implements Reporter {
 
   private glyph(v: JobView): string {
     switch (v.status) {
-      case "running":
-        return pc.cyan(SPINNER[this.frame % SPINNER.length] ?? "◐");
+      case "running": {
+        const spin = SPINNER[this.frame % SPINNER.length] ?? "◐";
+        // While cancelling, the still-running rows are what we're waiting on — flag them amber.
+        return (this.cancelRequested ? pc.yellow : pc.cyan)(spin);
+      }
       case "ok":
         return pc.green("✓");
       case "failed":
@@ -147,8 +160,11 @@ export class LiveReporter implements Reporter {
     const lines = views.map((v) => {
       const elapsed = this.elapsed(v);
       const prefix = 2 + 1 + 1 + nameW + 2 + genW + 2; // indent+glyph+sp+name+sp+gen+sp
-      const budget = Math.max(8, cols - prefix - (elapsed ? elapsed.length + 1 : 0));
-      const text = v.status === "waiting" ? this.waitingReason(v) : v.step;
+      // Reserve a trailing column: a line that exactly fills `cols` auto-wraps on most terminals,
+      // which throws off the cursor-up redraw and leaves a duplicate row every frame.
+      const budget = Math.max(8, cols - prefix - (elapsed ? elapsed.length + 1 : 0) - 1);
+      // Collapse any newlines/tabs so each row is a single physical line (routed logs can be multi-line).
+      const text = (v.status === "waiting" ? this.waitingReason(v) : v.step).replace(/[\r\n\t]+/g, " ");
       const rawStep = truncate(text, budget);
       const step =
         v.status === "failed"
@@ -156,8 +172,13 @@ export class LiveReporter implements Reporter {
           : v.status === "running"
             ? rawStep
             : pc.dim(rawStep);
+      // Truncate (not just pad) the name/detail to their columns — padEnd alone would let a long
+      // asset name overrun `cols`, wrapping the row and breaking the cursor-up redraw (a wall of
+      // stale rows). truncate() caps the width; padEnd fills short ones so columns stay aligned.
+      const name = truncate(v.name, nameW).padEnd(nameW);
+      const detail = truncate(v.detail, genW).padEnd(genW);
       return (
-        `  ${this.glyph(v)} ${pc.bold(v.name.padEnd(nameW))}  ${pc.dim(v.detail.padEnd(genW))}  ` +
+        `  ${this.glyph(v)} ${pc.bold(name)}  ${pc.dim(detail)}  ` +
         `${step}${elapsed ? ` ${pc.dim(elapsed)}` : ""}`
       );
     });
@@ -168,14 +189,28 @@ export class LiveReporter implements Reporter {
     const failed = jobs.filter((v) => v.status === "failed").length;
     const running = jobs.filter((v) => v.status === "running").length;
     const waiting = jobs.filter((v) => v.status === "waiting").length;
-    const parts = [pc.green(`${ok}/${jobs.length} done`)];
-    if (running) parts.push(pc.cyan(`${running} running`));
-    if (waiting) parts.push(pc.dim(`${waiting} waiting`));
-    if (failed) parts.push(pc.red(`${failed} failed`));
-    parts.push(pc.dim(formatElapsed(Date.now() - this.startTime)));
+    const cells: [string, (s: string) => string][] = [[`${ok}/${jobs.length} done`, pc.green]];
+    if (running) cells.push([`${running} running`, pc.cyan]);
+    if (waiting) cells.push([`${waiting} waiting`, pc.dim]);
+    if (failed) cells.push([`${failed} failed`, pc.red]);
+    cells.push([formatElapsed(Date.now() - this.startTime), pc.dim]);
+    const plainTally = cells.map(([t]) => t).join(" · ");
+    const coloredTally = cells.map(([t, color]) => color(t)).join(pc.dim(" · "));
 
     lines.push(pc.dim(`  ${"─".repeat(Math.min(40, cols - 2))}`));
-    lines.push(`  ${parts.join(pc.dim(" · "))}`);
+    // Tally on the left; pin a hint bottom-right when there's room (keeping the line strictly under
+    // `cols` so it never wraps). Once Esc is pressed the hint becomes an amber "cancelling…" banner
+    // that names how much in-flight work is still finishing, so the request visibly registered.
+    const hint = this.cancelRequested
+      ? running
+        ? `cancelling… finishing ${running} · esc to force`
+        : "cancelling… · esc to force"
+      : "esc to cancel";
+    const paint = this.cancelRequested ? pc.yellow : pc.dim;
+    const room = cols - 1 - (2 + plainTally.length) - hint.length;
+    lines.push(
+      room >= 2 ? `  ${coloredTally}${" ".repeat(room)}${paint(hint)}` : `  ${coloredTally}`,
+    );
     return lines;
   }
 

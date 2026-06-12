@@ -15,16 +15,25 @@ export interface RecordSceneArgs {
   logger: Logger;
 }
 
+/** The recorded .webm plus the lead time (seconds) of blank navigation/readiness before play()
+ *  started — Playwright records the whole context lifetime, so the caller trims this off the front. */
+export interface RecordSceneResult {
+  path: string;
+  leadSeconds: number;
+}
+
 /**
- * Realtime capture: load the scene, wait until its videos are ready, play them, and record
- * the page for `durationSeconds` via Playwright's native recorder. Real-time (wall-clock) —
- * simple, but not frame-accurate; the deterministic frame-stepper is the precise path.
- * Returns the recorded .webm path.
+ * Realtime capture: load the scene, wait until it's ready (fonts loaded and the scene has painted
+ * its first frame), play it, and record the page for `durationSeconds` via Playwright's native
+ * recorder. Real-time (wall-clock) — simple, but not frame-accurate; the deterministic frame-stepper
+ * is the precise path. Playwright records from context creation, so we also return `leadSeconds` (the
+ * blank navigation/readiness span before play()) for the caller to trim off the recording's head.
  */
-export async function recordSceneRealtime(args: RecordSceneArgs): Promise<string> {
+export async function recordSceneRealtime(args: RecordSceneArgs): Promise<RecordSceneResult> {
   await ensureDir(args.tmpDir);
   const recordDir = await mkdtemp(path.join(args.tmpDir, "scene-rec-"));
 
+  const recStart = Date.now(); // recording effectively begins at context creation
   const context = await args.browser.newContext({
     viewport: { width: args.width, height: args.height },
     deviceScaleFactor: args.deviceScaleFactor,
@@ -35,6 +44,7 @@ export async function recordSceneRealtime(args: RecordSceneArgs): Promise<string
   page.on("console", (m) => args.logger.debug(`[scene] ${m.text()}`));
   page.on("pageerror", (e) => args.logger.debug(`[scene error] ${e.message}`));
 
+  let leadSeconds = 0;
   try {
     args.logger.debug(`loading scene ${args.url}`);
     await page.goto(args.url, { waitUntil: "load" });
@@ -68,6 +78,9 @@ export async function recordSceneRealtime(args: RecordSceneArgs): Promise<string
       args.logger.error(`scene never became ready: ${JSON.stringify(diag)}`);
       throw err;
     }
+    // Everything up to here (navigation + readiness) is blank in the recording; the scene is now
+    // painted, so the head trim lands on the first real frame.
+    leadSeconds = (Date.now() - recStart) / 1000;
     await page.evaluate(() =>
       (globalThis as { __showcase?: { play(): void } }).__showcase?.play(),
     );
@@ -77,5 +90,5 @@ export async function recordSceneRealtime(args: RecordSceneArgs): Promise<string
   }
 
   if (!video) throw new Error("Playwright did not record a scene video.");
-  return await video.path();
+  return { path: await video.path(), leadSeconds };
 }

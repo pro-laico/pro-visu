@@ -30,6 +30,8 @@ export interface Reporter extends LogSink {
   add(row: RowInit): void;
   status(id: string, status: JobStatus): void;
   step(id: string, text: string): void;
+  /** Signal a graceful cancellation is underway, so the UI can show it's winding down. */
+  cancelling(): void;
   stop(): void;
 }
 

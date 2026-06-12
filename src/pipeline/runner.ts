@@ -38,6 +38,10 @@ export interface RunOptions {
   cache?: boolean;
   /** Live progress sink (job tracker). Optional. */
   reporter?: Reporter;
+  /** Aborts the run gracefully: stop launching new assets and let in-flight ones finish. */
+  signal?: AbortSignal;
+  /** Reports the run's temp working dir so the caller can track it for cleanup after a hard kill. */
+  onResources?: (info: { tmpDir: string }) => void;
 }
 
 /**
@@ -71,6 +75,7 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
   const manifest = await ManifestStore.load(opts.outDir);
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "auto-showcase-"));
   const browser = await launchBrowser(opts.config.settings.browser);
+  opts.onResources?.({ tmpDir: tmpRoot });
   const concurrency = Math.max(1, opts.concurrency ?? opts.config.settings.concurrency);
   const quality = opts.quality ?? opts.config.settings.quality;
   const cacheEnabled = opts.cache ?? opts.config.settings.cache;
@@ -167,7 +172,7 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
   };
 
   try {
-    await scheduleDag(specs, concurrency, outcomes, runSpec, reporter);
+    await scheduleDag(specs, concurrency, outcomes, runSpec, reporter, opts.signal);
     return specs.map((s) => outcomes.get(s.name)).filter((o): o is AssetOutcome => Boolean(o));
   } finally {
     // The caller owns begin()/stop() (it spans the build/server setup rows too).
@@ -187,6 +192,7 @@ async function scheduleDag(
   outcomes: Map<string, AssetOutcome>,
   runSpec: (spec: ResolvedAssetSpec) => Promise<AssetOutcome>,
   reporter?: Reporter,
+  signal?: AbortSignal,
 ): Promise<void> {
   const remaining = new Map(specs.map((s) => [s.name, s]));
   const inflight = new Map<string, Promise<void>>();
@@ -202,6 +208,9 @@ async function scheduleDag(
   };
 
   while (remaining.size > 0 || inflight.size > 0) {
+    // Graceful stop: don't launch anything new; let in-flight assets finish, then drain. Un-started
+    // assets are simply omitted from the results (not marked failed).
+    if (signal?.aborted) remaining.clear();
     for (const [name, spec] of [...remaining]) {
       if (inflight.size >= concurrency) break;
       const state = depState(spec);

@@ -12,6 +12,8 @@ export interface TranscodeArgs {
   width: number;
   height: number;
   crf: number;
+  /** Seconds to trim off the head of the input (e.g. the blank navigation lead of a recording). */
+  startOffsetSeconds?: number;
 }
 
 /** Absolute path to the bundled ffmpeg binary. */
@@ -28,8 +30,15 @@ export function ffmpegPath(): string {
  * h264 mp4 at a fixed fps. Pure — unit-tested.
  */
 export function buildTranscodeArgs(args: TranscodeArgs): string[] {
+  // Input-side seek (`-ss` before `-i`) skips the blank navigation/readiness lead Playwright records
+  // before playback starts, so the mp4 opens on the first real frame instead of a blank one.
+  const seek =
+    args.startOffsetSeconds && args.startOffsetSeconds > 0
+      ? ["-ss", args.startOffsetSeconds.toFixed(3)]
+      : [];
   return [
     "-y",
+    ...seek,
     "-i",
     args.inputPath,
     "-vf",

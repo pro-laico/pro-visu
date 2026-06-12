@@ -4,6 +4,7 @@ import { TOOL_VERSION } from "@/version";
 import { runInit } from "@/cli/commands/init";
 import { runGenerate } from "@/cli/commands/generate";
 import { runList } from "@/cli/commands/list";
+import { runReset } from "@/cli/commands/reset";
 
 const cli = cac("showcase");
 
@@ -34,6 +35,13 @@ cli
   .option("--config <path>", "Path to a config file")
   .option("--cwd <dir>", "Working directory")
   .action(runList);
+
+cli
+  .command("reset", "Clean up orphaned processes/temp from an interrupted run")
+  .option("--config <path>", "Path to a config file")
+  .option("--cwd <dir>", "Working directory")
+  .option("--force", "Clean up even if a run still looks active")
+  .action(runReset);
 
 cli.help();
 cli.version(TOOL_VERSION);

@@ -29,6 +29,37 @@ describe("buildTranscodeArgs", () => {
     expect(joined).toContain("fps=30");
     expect(args[args.indexOf("-crf") + 1]).toBe("18");
   });
+
+  it("omits the head trim by default", () => {
+    expect(args).not.toContain("-ss");
+  });
+
+  it("trims the head with an input-side seek before -i when startOffsetSeconds is set", () => {
+    const trimmed = buildTranscodeArgs({
+      inputPath: "in.webm",
+      outputPath: "out.mp4",
+      fps: 30,
+      width: 1280,
+      height: 720,
+      crf: 18,
+      startOffsetSeconds: 1.25,
+    });
+    expect(trimmed[trimmed.indexOf("-ss") + 1]).toBe("1.250");
+    expect(trimmed.indexOf("-ss")).toBeLessThan(trimmed.indexOf("-i")); // input-side seek (fast + accurate)
+  });
+
+  it("treats a zero or negative offset as no trim", () => {
+    const zero = buildTranscodeArgs({
+      inputPath: "in.webm",
+      outputPath: "out.mp4",
+      fps: 30,
+      width: 1280,
+      height: 720,
+      crf: 18,
+      startOffsetSeconds: 0,
+    });
+    expect(zero).not.toContain("-ss");
+  });
 });
 
 describe("buildFramePipeArgs", () => {

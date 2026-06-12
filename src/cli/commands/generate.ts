@@ -1,6 +1,9 @@
 import { resolveCwd, resolveOutDir } from "@/utils/paths";
+import { ensureDir } from "@/utils/fs";
 import { createLogger, createReportingLogger, type Logger } from "@/utils/logger";
 import { loadShowcaseConfig } from "@/config/load";
+import { watchForInterrupt } from "@/cli/interrupt";
+import { startRunState, updateRunState, clearRunState } from "@/cli/run-state";
 import { ensureChromium } from "@/browser-install/ensure-chromium";
 import { ensureFfmpeg } from "@/media/ensure-ffmpeg";
 import {
@@ -82,9 +85,35 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     return;
   }
 
+  // Track this run on disk so `showcase reset` can clean up if it's killed hard, and let Esc /
+  // Ctrl+C stop it gracefully (a second press bails immediately; reset mops up any orphans).
+  await ensureDir(outDir);
+  await startRunState(outDir);
+  const abort = new AbortController();
+  let interrupted = false;
+  const disposeInterrupt = watchForInterrupt(
+    () => {
+      interrupted = true;
+      abort.abort(); // graceful: stop launching new work, let in-flight finish, then tear down
+      // Acknowledge the keypress immediately: the live tracker flips to a "cancelling…" banner;
+      // without it (non-TTY/--verbose) print a line, since in-flight renders can take seconds.
+      if (reporter.isLive) reporter.cancelling();
+      else logger.warn("Cancelling — finishing in-flight work… (press again to force-quit)");
+    },
+    () => {
+      try {
+        process.stdin.setRawMode?.(false); // restore the terminal before bailing
+      } catch {
+        /* ignore */
+      }
+      process.exit(130);
+    },
+  );
+
   // From here the live tracker owns the terminal. Plan ALL rows up front — setup (build/server)
   // then every asset, with the assets gated on setup so they read "waiting for build" until it
-  // finishes. The build no longer dumps raw CLI output; it feeds the "build" row's step.
+  // finishes. The build no longer dumps raw CLI output; it feeds the "build" row's step. The
+  // tracker's footer shows the "esc to cancel" hint.
   reporter.begin();
 
   const serverCfg = options.skipServer ? undefined : config.settings.server;
@@ -113,19 +142,14 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   }
 
   let server: ServerHandle | null = null;
-  if (serverCfg) {
-    try {
-      server = await startManagedServer(serverCfg, cwd, logger, tasks);
-    } catch (err) {
-      reporter.stop();
-      logger.error(`Could not start the server: ${(err as Error).message}`);
-      process.exitCode = 1;
-      return;
-    }
-  }
-
   let outcomes: AssetOutcome[] = [];
+  let setupFailed = false;
   try {
+    if (serverCfg) {
+      server = await startManagedServer(serverCfg, cwd, logger, tasks, abort.signal);
+      await updateRunState(outDir, { serverPid: server?.pid });
+    }
+
     const concurrency =
       options.concurrency != null ? Number(options.concurrency) : undefined;
     const count = requested ? requested.length : config.assets.length;
@@ -141,11 +165,31 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
       quality: options.draft ? "draft" : undefined,
       cache: options.cache,
       reporter,
+      signal: abort.signal,
+      onResources: (r) => void updateRunState(outDir, { tmpDirs: [r.tmpDir] }),
     });
+  } catch (err) {
+    reporter.stop();
+    if (!interrupted) {
+      logger.error((err as Error).message);
+      process.exitCode = 1;
+      setupFailed = true;
+    }
   } finally {
     reporter.stop(); // erase the live block before the final summary
+    disposeInterrupt();
     await server?.stop();
+    await clearRunState(outDir);
   }
+
+  if (interrupted) {
+    // A graceful cancel is a clean stop, not a failure — exit 0 so the shell/pnpm doesn't print a
+    // scary "command failed with exit code 130" wrapper. (A second Esc force-quits with 130 above.)
+    logger.warn(`Interrupted — stopped cleanly (${outcomes.length} asset(s) finished).`);
+    process.exitCode = 0;
+    return;
+  }
+  if (setupFailed) return; // error already reported; no summary to show
 
   printSummary(logger, outcomes, outDir);
   if (outcomes.some((outcome) => outcome.status === "failed")) {

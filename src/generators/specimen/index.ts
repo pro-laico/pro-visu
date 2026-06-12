@@ -14,26 +14,37 @@ async function run(
   ctx: PipelineContext,
   o: ResolvedSpecimenOptions,
 ): Promise<{ assets: AssetRecord[] }> {
+  // Clip length follows the composed pulses (doubled when mirrored for a seamless loop) unless
+  // explicitly overridden.
+  const pulsesTotal = o.pulses.reduce((sum, p) => sum + p.duration, 0);
+  const durationSeconds = o.durationSeconds ?? (o.mirror ? pulsesTotal * 2 : pulsesTotal);
+
   const sceneOptions: ResolvedSceneOptions = {
     scene: "specimen",
-    width: o.width,
-    height: o.height,
-    background: o.background,
+    // Standardized 16:9 frame — the specimen is always rendered at 1920×1080.
+    width: 1920,
+    height: 1080,
+    background: o.colors.background,
     deviceScaleFactor: o.deviceScaleFactor,
     fps: o.fps,
-    durationSeconds: o.durationSeconds,
-    capture: "realtime", // the grid animates itself; record it live
+    durationSeconds,
+    capture: "realtime", // the scene animates itself on a timeline; record it live
     crf: o.crf,
     fileName: o.fileName,
     files: { font: o.font },
     sceneOptions: {
       label: o.name,
-      columns: o.columns,
-      rows: o.rows,
+      demo: o.demo,
       weight: o.weight,
-      bold: o.bold,
-      mid: o.mid,
-      dim: o.dim,
+      characters: o.characters,
+      fontSize: o.fontSize,
+      blacklist: o.blacklist,
+      colors: o.colors,
+      colorWeights: o.colorWeights,
+      pulses: o.pulses,
+      mirror: o.mirror,
+      characterIntensity: o.characterIntensity,
+      colorIntensity: o.colorIntensity,
     },
   };
   return renderScene(ctx, sceneOptions, SPECIMEN_ID);

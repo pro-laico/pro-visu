@@ -27,14 +27,18 @@ export type ResolvedBrowserSettings = z.infer<typeof browserSettingsSchema>;
  */
 export const serverSettingsSchema = z
   .object({
-    /** Command that starts the server, run via the shell, e.g. "next start -p 3000". */
+    /** Command that starts the server, run via the shell, e.g. "next start -p 3101". */
     command: z.string().min(1),
     /** Optional one-shot build to run first, e.g. "next build". */
     build: z.string().min(1).optional(),
     /** Health-check URL polled until it responds. Defaults to http://127.0.0.1:<port>. */
     url: z.string().url().optional(),
-    /** Port — used to derive `url` when `url` is omitted. */
-    port: z.number().int().positive().optional(),
+    /**
+     * Port the readiness check polls — also derives `url` when `url` is omitted. Defaults to 3101
+     * (off the common 3000 dev port). This is only where we *probe*; your `command` must actually
+     * bind this port (e.g. `next start -p 3101`).
+     */
+    port: z.number().int().positive().default(3101),
     /** Working dir for build + command, relative to the config dir. Defaults to it. */
     cwd: z.string().optional(),
     /** Max time to wait for the server to become reachable (ms). */
@@ -42,10 +46,7 @@ export const serverSettingsSchema = z
     /** If a server is already reachable at the URL, use it as-is (don't start or stop one). */
     reuseExisting: z.boolean().default(true),
   })
-  .strict()
-  .refine((s) => Boolean(s.url) || s.port != null, {
-    message: "server requires `url` or `port`.",
-  });
+  .strict();
 export type ResolvedServerSettings = z.infer<typeof serverSettingsSchema>;
 
 /** Repo-level CLI behavior (the `settings` block). */
