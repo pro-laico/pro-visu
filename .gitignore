@@ -8,3 +8,6 @@ coverage/
 # local scratch / e2e sandbox
 /.scratch/
 /test-site/
+# personal / machine-specific
+.claude/settings.local.json
+*.code-workspace
