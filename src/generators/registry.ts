@@ -3,6 +3,7 @@ import { scrollReelGenerator } from "@/generators/scroll-reel";
 import { screenshotsGenerator } from "@/generators/screenshots";
 import { deviceFrameGenerator } from "@/generators/device-frame";
 import { sceneGenerator } from "@/generators/scene";
+import { specimenGenerator } from "@/generators/specimen";
 
 const registry = new Map<string, Generator<unknown>>();
 
@@ -27,3 +28,4 @@ register(scrollReelGenerator);
 register(screenshotsGenerator);
 register(deviceFrameGenerator);
 register(sceneGenerator);
+register(specimenGenerator);

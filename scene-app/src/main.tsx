@@ -10,6 +10,7 @@ const FALLBACK: SceneProps = {
   durationSeconds: 6,
   fps: 30,
   inputs: {},
+  files: {},
   options: {},
 };
 

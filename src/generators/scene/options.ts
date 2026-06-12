@@ -27,6 +27,11 @@ export const sceneOptionsSchema = z
     crf: z.number().int().min(0).max(51).default(18),
     /** Output filename; defaults to "<slug(asset name)>.mp4". */
     fileName: z.string().optional(),
+    /**
+     * Static files to serve into the scene, as `{ name: path }` (paths relative to the cwd,
+     * or absolute). Their URLs are exposed to the scene as `files.<name>` — e.g. a font.
+     */
+    files: z.record(z.string(), z.string()).default({}),
     /** Arbitrary knobs forwarded to the scene component. */
     sceneOptions: z.record(z.string(), z.unknown()).default({}),
   })

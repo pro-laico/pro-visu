@@ -76,7 +76,8 @@ export function initRuntime(): void {
   const readyPromise = (async () => {
     await nextFrame(); // let late-mounted videos attach
     scan();
-    await Promise.all(videos.map(whenLoaded));
+    const fontsReady = document.fonts?.ready ?? Promise.resolve(undefined);
+    await Promise.all([fontsReady, ...videos.map(whenLoaded)]);
     await nextFrame(); // ensure a first paint
   })();
   void readyPromise.then(() => {

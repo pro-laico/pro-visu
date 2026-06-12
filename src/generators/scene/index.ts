@@ -24,22 +24,37 @@ function sceneAppDir(): string {
   return path.resolve(here, "..", "scene-app");
 }
 
-async function run(
+/**
+ * Render a scene to an mp4 and record it. Shared by the `scene` generator and friendly
+ * wrappers (e.g. `specimen`), which pass their own `generatorId` for the manifest.
+ */
+export async function renderScene(
   ctx: PipelineContext,
   options: ResolvedSceneOptions,
+  generatorId: string = SCENE_ID,
 ): Promise<{ assets: AssetRecord[] }> {
   const fileName = options.fileName ?? `${slugify(ctx.target.name)}.mp4`;
   const outPath = ctx.resolveOutPath(fileName);
 
+  // Resolve served files (e.g. fonts) to absolute paths (relative to the working dir).
+  const filePaths: Record<string, string> = {};
+  for (const [name, p] of Object.entries(options.files)) {
+    filePaths[name] = path.isAbsolute(p) ? p : path.resolve(process.cwd(), p);
+  }
+
   const server = await startSceneServer({
     staticDir: sceneAppDir(),
-    inputs: ctx.resolvedInputs,
+    inputs: { ...ctx.resolvedInputs, ...filePaths },
   });
 
   try {
     const inputUrls: Record<string, string> = {};
     for (const slot of Object.keys(ctx.resolvedInputs)) {
       inputUrls[slot] = server.inputUrl(slot);
+    }
+    const fileUrls: Record<string, string> = {};
+    for (const name of Object.keys(filePaths)) {
+      fileUrls[name] = server.inputUrl(name);
     }
 
     const props = {
@@ -49,6 +64,7 @@ async function run(
       durationSeconds: options.durationSeconds,
       fps: options.fps,
       inputs: inputUrls,
+      files: fileUrls,
       options: options.sceneOptions,
     };
     const sceneUrl = new URL(`${server.origin}/`);
@@ -116,7 +132,7 @@ async function run(
     ]);
     const record: AssetRecord = {
       id: ctx.target.name,
-      generator: SCENE_ID,
+      generator: generatorId,
       sourceUrl: ctx.target.url ?? `scene:${options.scene}`,
       file: ctx.toManifestPath(outPath),
       format: "mp4",
@@ -145,5 +161,5 @@ function autoWorkers(): number {
 export const sceneGenerator: Generator<ResolvedSceneOptions> = {
   id: SCENE_ID,
   optionsSchema: sceneOptionsSchema,
-  run,
+  run: (ctx, options) => renderScene(ctx, options),
 };

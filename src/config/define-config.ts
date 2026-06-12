@@ -2,6 +2,7 @@ import type { ScrollReelOptions } from "@/generators/scroll-reel/options";
 import type { ScreenshotsOptions } from "@/generators/screenshots/options";
 import type { DeviceFrameOptions } from "@/generators/device-frame/options";
 import type { SceneOptions } from "@/generators/scene/options";
+import type { SpecimenOptions } from "@/generators/specimen/options";
 
 /**
  * Author-facing config types. These power editor autocomplete in `showcase.config.ts`.
@@ -70,7 +71,8 @@ export type AssetSpecInput =
   | (AssetBaseInput & { url: string; generator: "scroll-reel"; options?: ScrollReelOptions })
   | (AssetBaseInput & { url: string; generator: "screenshots"; options?: ScreenshotsOptions })
   | (AssetBaseInput & { url: string; generator: "device-frame"; options?: DeviceFrameOptions })
-  | (AssetBaseInput & { url?: string; generator: "scene"; options?: SceneOptions });
+  | (AssetBaseInput & { url?: string; generator: "scene"; options?: SceneOptions })
+  | (AssetBaseInput & { generator: "specimen"; options: SpecimenOptions });
 
 export interface ShowcaseUserConfig {
   settings?: ShowcaseSettingsInput;
