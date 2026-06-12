@@ -1,5 +1,6 @@
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { rm, writeFile } from "node:fs/promises";
 import ffmpegStatic from "ffmpeg-static";
 import { ensureDir } from "@/utils/fs";
 import type { Logger } from "@/utils/logger";
@@ -153,6 +154,42 @@ export function startFrameEncoder(a: FramePipeArgs, logger?: Logger): FrameEncod
         );
       }),
   };
+}
+
+/** ffmpeg argv to losslessly concat mp4 segments (same codec params) via the concat demuxer. */
+export function buildConcatArgs(listFile: string, outPath: string): string[] {
+  return [
+    "-y",
+    "-f",
+    "concat",
+    "-safe",
+    "0",
+    "-i",
+    listFile,
+    "-c",
+    "copy",
+    "-movflags",
+    "+faststart",
+    outPath,
+  ];
+}
+
+/** Concatenate mp4 segments into one file (stream copy — no re-encode). */
+export async function concatMp4(
+  segments: string[],
+  outPath: string,
+  logger?: Logger,
+): Promise<void> {
+  await ensureDir(path.dirname(outPath));
+  // concat demuxer wants forward slashes and single-quoted paths.
+  const listFile = `${outPath}.concat.txt`;
+  const list = segments.map((s) => `file '${s.replace(/\\/g, "/")}'`).join("\n");
+  await writeFile(listFile, `${list}\n`, "utf8");
+  try {
+    await runFfmpeg(buildConcatArgs(listFile, outPath), logger);
+  } finally {
+    await rm(listFile, { force: true });
+  }
 }
 
 /** Run ffmpeg with an explicit argv, rejecting on a non-zero exit. */

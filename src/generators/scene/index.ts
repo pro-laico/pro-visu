@@ -1,3 +1,4 @@
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { copyFile, rename, stat } from "node:fs/promises";
@@ -58,8 +59,11 @@ async function run(
     const composedTmp = path.join(ctx.tmpDir, `${slugify(ctx.target.name)}-scene.mp4`);
 
     if (options.capture === "frames") {
-      ctx.logger.info(`rendering scene "${options.scene}" (frame-stepped)`);
       const draft = ctx.quality === "draft";
+      const workers = options.workers ?? autoWorkers();
+      ctx.logger.info(
+        `rendering scene "${options.scene}" (frame-stepped, ${workers} worker(s))`,
+      );
       await captureSceneFrames({
         browser: ctx.browser,
         url: sceneUrl.toString(),
@@ -72,6 +76,8 @@ async function run(
         outPath: composedTmp,
         preset: draft ? "ultrafast" : "medium",
         jpegQuality: draft ? 70 : 90,
+        workers,
+        tmpDir: ctx.tmpDir,
         logger: ctx.logger,
       });
     } else {
@@ -128,6 +134,12 @@ async function run(
   } finally {
     await server.close();
   }
+}
+
+/** Default parallel workers: about half the cores, capped at 6 (each is a browser context). */
+function autoWorkers(): number {
+  const cores = os.cpus()?.length ?? 2;
+  return Math.max(1, Math.min(6, Math.floor(cores / 2)));
 }
 
 export const sceneGenerator: Generator<ResolvedSceneOptions> = {

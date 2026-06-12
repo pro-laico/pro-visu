@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTranscodeArgs, buildFramePipeArgs } from "@/media/ffmpeg";
+import { buildTranscodeArgs, buildFramePipeArgs, buildConcatArgs } from "@/media/ffmpeg";
 
 describe("buildTranscodeArgs", () => {
   const args = buildTranscodeArgs({
@@ -54,6 +54,19 @@ describe("buildFramePipeArgs", () => {
     expect(args).toContain("libx264");
     expect(args).toContain("yuv420p");
     expect(args[args.indexOf("-preset") + 1]).toBe("ultrafast");
+    expect(args[args.length - 1]).toBe("out.mp4");
+  });
+});
+
+describe("buildConcatArgs", () => {
+  const args = buildConcatArgs("list.txt", "out.mp4");
+
+  it("uses the concat demuxer with stream copy (no re-encode)", () => {
+    const joined = args.join(" ");
+    expect(joined).toContain("-f concat");
+    expect(joined).toContain("-safe 0");
+    expect(args[args.indexOf("-i") + 1]).toBe("list.txt");
+    expect(joined).toContain("-c copy");
     expect(args[args.length - 1]).toBe("out.mp4");
   });
 });

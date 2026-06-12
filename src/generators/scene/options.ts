@@ -19,8 +19,10 @@ export const sceneOptionsSchema = z
     fps: z.number().int().positive().max(120).default(30),
     /** Capture length (seconds). */
     durationSeconds: z.number().positive().default(6),
-    /** Capture strategy. "realtime" records live; "frames" steps deterministically (Phase 3). */
+    /** Capture strategy. "realtime" records live; "frames" steps deterministically. */
     capture: z.enum(["realtime", "frames"]).default("realtime"),
+    /** Parallel frame-render workers (frames capture only). Omit to auto-pick from cores. */
+    workers: z.number().int().positive().optional(),
     /** x264 quality, 0–51 (lower = better/larger). */
     crf: z.number().int().min(0).max(51).default(18),
     /** Output filename; defaults to "<slug(asset name)>.mp4". */

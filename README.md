@@ -58,7 +58,8 @@ and are merged beneath each asset's own `options`.
 |---|---|---|
 | `scroll-reel` | mp4 of a smooth top-to-bottom scroll | `width`, `height`, `fps`, `duration`, `easing`, `waitForSelector` |
 | `screenshots` | png/jpeg page + element captures per breakpoint | `breakpoints[]`, `fullPage`, `format`, `elements[]`, `deviceScaleFactor` |
-| `device-frame` | mp4 of the site composited into a browser-window mockup | `frameWidth`, `background`, plus all `scroll-reel` capture options |
+| `device-frame` | mp4 of the site composited into a browser-window mockup (one ffmpeg pass) | `frameWidth`, `background`, plus all `scroll-reel` capture options |
+| `scene` | mp4 of inputs composited inside a web scene (phone/laptop/browser) | `scene`, `inputs`, `width`, `height`, `capture`, `durationSeconds`, `workers`, `sceneOptions` |
 
 ```ts
 assets: [
@@ -84,11 +85,38 @@ assets: [
 ],
 ```
 
-> **`device-frame` is the heavy one.** It uses [Revideo](https://re.video) (which pulls in
-> Vite + puppeteer) to composite the video. To avoid a second browser download it **reuses
-> the Chromium that Playwright manages** — so there's nothing extra to install. With pnpm
-> (which doesn't run dependency build scripts by default) puppeteer's own browser download
-> is skipped automatically, which is what we want.
+`device-frame` composites a captured scroll into a static browser-window mockup using a
+single ffmpeg pass (the window chrome is painted once with the managed Chromium) — fast and
+dependency-light. For richer/animated mockups, use `scene`.
+
+## Scenes & composition
+
+Assets can depend on other assets via `inputs: { slot: assetName }` — producers run first and
+their output is fed to the consumer. A **scene** is a small React page (shipped with the tool)
+that composites those inputs; e.g. record a phone-sized scroll, then drop it inside a phone
+mockup:
+
+```ts
+assets: [
+  {
+    name: "phone-scroll",
+    url: "https://your-site.com",
+    generator: "scroll-reel",
+    options: { width: 390, height: 844 },
+  },
+  {
+    name: "phone-frame",
+    generator: "scene",                  // no url — it composites inputs
+    inputs: { screen: "phone-scroll" },  // phone-scroll runs first; its mp4 is the screen
+    options: { scene: "phone", width: 1080, height: 1350, capture: "frames" },
+  },
+],
+```
+
+- **Built-in scenes:** `phone`, `laptop`, `browser` (pass scene knobs via `sceneOptions`).
+- **Capture modes:** `capture: "realtime"` records the page live (simple, webm→mp4);
+  `capture: "frames"` steps deterministically (frame-accurate, exact duration, parallelized by
+  `workers`). Use `frames` when chaining videos.
 
 ## Commands
 
@@ -97,6 +125,11 @@ assets: [
 | `showcase init` | Scaffold config, create + gitignore the output dir, ensure Chromium |
 | `showcase generate [--asset <name>]` | Run generators per config; writes assets + `manifest.json` |
 | `showcase list` | Show generated assets recorded in the manifest |
+
+`generate` flags: `--draft` (faster, lower-fidelity iteration), `--cache` (skip assets whose
+inputs+options are unchanged), `--skip-server` (use an already-running site), `--concurrency`,
+`--verbose`. A managed server (`settings.server`) can build → start → capture → stop the site
+automatically so the npm script is just `showcase generate`.
 
 ## Using it before it's published
 
