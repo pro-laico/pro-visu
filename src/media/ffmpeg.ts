@@ -67,6 +67,94 @@ export async function probeVideoDimensions(
   });
 }
 
+export interface FramePipeArgs {
+  fps: number;
+  width: number;
+  height: number;
+  crf: number;
+  outPath: string;
+  /** x264 speed/size tradeoff; "ultrafast" for draft, "medium" for final. */
+  preset?: string;
+}
+
+/**
+ * ffmpeg argv to encode a stream of JPEG frames (image2pipe on stdin) into an mp4. Pure —
+ * unit-tested. Frames are scaled to the output size so we can screenshot at a higher device
+ * scale and downsample for crispness.
+ */
+export function buildFramePipeArgs(a: FramePipeArgs): string[] {
+  return [
+    "-y",
+    "-f",
+    "image2pipe",
+    "-framerate",
+    String(a.fps),
+    "-i",
+    "pipe:0",
+    "-vf",
+    `scale=${a.width}:${a.height}:flags=lanczos`,
+    "-r",
+    String(a.fps),
+    "-c:v",
+    "libx264",
+    "-preset",
+    a.preset ?? "medium",
+    "-crf",
+    String(a.crf),
+    "-pix_fmt",
+    "yuv420p",
+    "-movflags",
+    "+faststart",
+    "-an",
+    a.outPath,
+  ];
+}
+
+export interface FrameEncoder {
+  /** Push one encoded frame (JPEG buffer), respecting backpressure. */
+  write(frame: Buffer): Promise<void>;
+  /** Flush + wait for ffmpeg to finish writing the mp4. */
+  done(): Promise<void>;
+}
+
+/** Spawn an ffmpeg that consumes piped JPEG frames and writes an mp4 — no frames hit disk. */
+export function startFrameEncoder(a: FramePipeArgs, logger?: Logger): FrameEncoder {
+  const child = spawn(ffmpegPath(), buildFramePipeArgs(a), {
+    stdio: ["pipe", "ignore", "pipe"],
+  });
+  let stderr = "";
+  let failed: Error | null = null;
+  child.stderr.on("data", (d: Buffer) => {
+    stderr += d.toString();
+    logger?.debug(d.toString().trim());
+  });
+  child.on("error", (e) => {
+    failed = e;
+  });
+  const stdin = child.stdin;
+
+  return {
+    write: (frame) =>
+      new Promise<void>((resolve, reject) => {
+        if (failed) return reject(failed);
+        const flushed = stdin.write(frame, (err) => {
+          if (err) reject(err);
+        });
+        if (flushed) resolve();
+        else stdin.once("drain", resolve);
+      }),
+    done: () =>
+      new Promise<void>((resolve, reject) => {
+        stdin.end();
+        child.on("close", (code) =>
+          code === 0
+            ? resolve()
+            : reject(new Error(`ffmpeg frame encode failed (${code}):\n${stderr.slice(-2000)}`)),
+        );
+      }),
+  };
+}
+
 /** Run ffmpeg with an explicit argv, rejecting on a non-zero exit. */
 export async function runFfmpeg(argv: string[], logger?: Logger): Promise<void> {
   const bin = ffmpegPath();

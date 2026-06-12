@@ -7,6 +7,7 @@ import {
 } from "@/generators/scene/options";
 import { startSceneServer } from "@/scene/serve";
 import { recordSceneRealtime } from "@/scene/capture-realtime";
+import { captureSceneFrames } from "@/scene/capture-frames";
 import { probeVideoDimensions, transcodeToMp4 } from "@/media/ffmpeg";
 import { ensureDir } from "@/utils/fs";
 import { sha256File } from "@/utils/hash";
@@ -53,33 +54,49 @@ async function run(
     sceneUrl.searchParams.set("scene", options.scene);
     sceneUrl.searchParams.set("props", JSON.stringify(props));
 
-    if (options.capture === "frames") {
-      ctx.logger.warn("frame-stepping is not available yet; using realtime capture.");
-    }
-
-    ctx.logger.info(`rendering scene "${options.scene}"`);
-    const webmPath = await recordSceneRealtime({
-      browser: ctx.browser,
-      url: sceneUrl.toString(),
-      width: options.width,
-      height: options.height,
-      deviceScaleFactor: options.deviceScaleFactor,
-      durationSeconds: options.durationSeconds,
-      tmpDir: ctx.tmpDir,
-      logger: ctx.logger,
-    });
-
     await ensureDir(path.dirname(outPath));
     const composedTmp = path.join(ctx.tmpDir, `${slugify(ctx.target.name)}-scene.mp4`);
-    await transcodeToMp4({
-      inputPath: webmPath,
-      outputPath: composedTmp,
-      fps: options.fps,
-      width: options.width,
-      height: options.height,
-      crf: options.crf,
-      logger: ctx.logger,
-    });
+
+    if (options.capture === "frames") {
+      ctx.logger.info(`rendering scene "${options.scene}" (frame-stepped)`);
+      const draft = ctx.quality === "draft";
+      await captureSceneFrames({
+        browser: ctx.browser,
+        url: sceneUrl.toString(),
+        width: options.width,
+        height: options.height,
+        deviceScaleFactor: options.deviceScaleFactor,
+        fps: options.fps,
+        durationSeconds: options.durationSeconds,
+        crf: options.crf,
+        outPath: composedTmp,
+        preset: draft ? "ultrafast" : "medium",
+        jpegQuality: draft ? 70 : 90,
+        logger: ctx.logger,
+      });
+    } else {
+      ctx.logger.info(`rendering scene "${options.scene}" (realtime)`);
+      const webmPath = await recordSceneRealtime({
+        browser: ctx.browser,
+        url: sceneUrl.toString(),
+        width: options.width,
+        height: options.height,
+        deviceScaleFactor: options.deviceScaleFactor,
+        durationSeconds: options.durationSeconds,
+        tmpDir: ctx.tmpDir,
+        logger: ctx.logger,
+      });
+      await transcodeToMp4({
+        inputPath: webmPath,
+        outputPath: composedTmp,
+        fps: options.fps,
+        width: options.width,
+        height: options.height,
+        crf: options.crf,
+        logger: ctx.logger,
+      });
+    }
+
     try {
       await rename(composedTmp, outPath);
     } catch {

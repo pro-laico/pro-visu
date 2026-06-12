@@ -43,6 +43,10 @@ export interface ShowcaseSettingsInput {
   browser?: BrowserSettingsInput;
   /** Build → start → wait → capture → stop a server automatically. */
   server?: ServerSettingsInput;
+  /** "draft" lowers fps/scale and speeds the encoder for fast iteration. */
+  quality?: "draft" | "final";
+  /** Skip assets whose inputs+options+tool fingerprint is unchanged (opt-in). */
+  cache?: boolean;
   /** Per-generator option defaults, keyed by generator id, merged under each asset. */
   defaults?: {
     "scroll-reel"?: ScrollReelOptions;

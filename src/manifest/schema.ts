@@ -17,6 +17,8 @@ export const assetRecordSchema = z.object({
   contentHash: z.string(),
   createdAt: z.string(),
   toolVersion: z.string(),
+  /** Inputs+options+tool fingerprint; lets `--cache` skip unchanged assets. */
+  cacheKey: z.string().optional(),
 });
 export type AssetRecord = z.infer<typeof assetRecordSchema>;
 

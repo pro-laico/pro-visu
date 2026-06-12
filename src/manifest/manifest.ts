@@ -75,4 +75,9 @@ export class ManifestStore {
   get records(): readonly AssetRecord[] {
     return this.manifest.assets;
   }
+
+  /** Look up the existing record for an asset id (for cache checks). */
+  find(id: string): AssetRecord | undefined {
+    return this.manifest.assets.find((a) => a.id === id);
+  }
 }

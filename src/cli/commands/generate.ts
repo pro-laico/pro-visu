@@ -16,6 +16,10 @@ export interface GenerateOptions {
   skipBrowser?: boolean;
   /** Skip the managed server (use an already-running site at the asset URLs). */
   skipServer?: boolean;
+  /** Draft quality: faster, lower-fidelity renders for iteration. */
+  draft?: boolean;
+  /** Skip assets whose inputs+options+tool fingerprint is unchanged. */
+  cache?: boolean;
   verbose?: boolean;
 }
 
@@ -92,6 +96,8 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
       toolVersion: TOOL_VERSION,
       assetNames: requested,
       concurrency: Number.isFinite(concurrency) ? concurrency : undefined,
+      quality: options.draft ? "draft" : undefined,
+      cache: options.cache,
     });
 
     printSummary(logger, outcomes, outDir);

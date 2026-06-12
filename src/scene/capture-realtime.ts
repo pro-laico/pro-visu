@@ -47,15 +47,20 @@ export async function recordSceneRealtime(args: RecordSceneArgs): Promise<string
     } catch (err) {
       const diag = await page
         .evaluate(() => {
-          const vids = Array.from(document.querySelectorAll("video"));
+          // Runs in the browser; the node tsconfig has no DOM lib, so reach via globalThis.
+          const g = globalThis as unknown as {
+            __showcase?: unknown;
+            document: { querySelectorAll(s: string): ArrayLike<Record<string, unknown>> };
+          };
+          const vids = Array.from(g.document.querySelectorAll("video"));
           return {
-            hasRuntime: Boolean((globalThis as { __showcase?: unknown }).__showcase),
+            hasRuntime: Boolean(g.__showcase),
             videoCount: vids.length,
             videos: vids.map((v) => ({
               src: v.currentSrc || v.src,
               readyState: v.readyState,
               networkState: v.networkState,
-              error: v.error?.code ?? null,
+              error: (v.error as { code?: number } | null)?.code ?? null,
             })),
           };
         })

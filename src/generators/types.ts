@@ -29,6 +29,8 @@ export interface PipelineContext {
   tmpDir: string;
   logger: Logger;
   toolVersion: string;
+  /** Active render quality; generators may trade fidelity for speed in "draft". */
+  quality: "draft" | "final";
   /** Record a produced asset in the manifest (idempotent by id). */
   writeAsset: (record: AssetRecord) => Promise<void>;
 }

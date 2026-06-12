@@ -17,6 +17,7 @@ export interface CreateContextArgs {
   tmpDir: string;
   logger: Logger;
   toolVersion: string;
+  quality: "draft" | "final";
   manifest: ManifestStore;
 }
 
@@ -35,6 +36,7 @@ export async function createContext(args: CreateContextArgs): Promise<PipelineCo
     tmpDir: args.tmpDir,
     logger: args.logger,
     toolVersion: args.toolVersion,
+    quality: args.quality,
     writeAsset: (record) => args.manifest.upsert(record),
   };
 }

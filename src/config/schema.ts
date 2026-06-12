@@ -63,6 +63,10 @@ export const settingsSchema = z.object({
   defaults: z.record(z.string(), z.record(z.string(), z.unknown())).default({}),
   /** Optional managed dev/prod server lifecycle (build → start → wait → … → stop). */
   server: serverSettingsSchema.optional(),
+  /** Render quality. "draft" lowers fps/scale and speeds the encoder for fast iteration. */
+  quality: z.enum(["draft", "final"]).default("final"),
+  /** Skip assets whose inputs+options+tool fingerprint is unchanged (opt-in; can be stale). */
+  cache: z.boolean().default(false),
 });
 export type ResolvedSettings = z.infer<typeof settingsSchema>;
 

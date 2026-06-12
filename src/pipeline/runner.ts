@@ -1,9 +1,11 @@
 import os from "node:os";
 import path from "node:path";
+import { existsSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { launchBrowser } from "@/pipeline/browser";
 import { createContext } from "@/pipeline/context";
 import { buildGraph, dependenciesOf, expandSelection } from "@/pipeline/graph";
+import { computeCacheKey } from "@/pipeline/cache";
 import { getGenerator } from "@/generators/registry";
 import { ManifestStore } from "@/manifest/manifest";
 import { ensureDir, removeDir } from "@/utils/fs";
@@ -29,6 +31,26 @@ export interface RunOptions {
   assetNames?: string[];
   /** Override settings.concurrency. */
   concurrency?: number;
+  /** Override settings.quality. */
+  quality?: "draft" | "final";
+  /** Override settings.cache (skip unchanged assets). */
+  cache?: boolean;
+}
+
+/**
+ * Draft trades fidelity for iteration speed: fewer frames, no retina scale, looser quality.
+ * Applied to the common video-option names shared across generators before validation.
+ */
+export function applyQuality(
+  options: Record<string, unknown>,
+  quality: "draft" | "final",
+): Record<string, unknown> {
+  if (quality !== "draft") return options;
+  const o = { ...options };
+  if (typeof o.fps === "number") o.fps = Math.min(o.fps as number, 15);
+  if (typeof o.deviceScaleFactor === "number") o.deviceScaleFactor = 1;
+  if (typeof o.crf === "number") o.crf = Math.max(o.crf as number, 30);
+  return o;
 }
 
 /**
@@ -47,10 +69,20 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "auto-showcase-"));
   const browser = await launchBrowser(opts.config.settings.browser);
   const concurrency = Math.max(1, opts.concurrency ?? opts.config.settings.concurrency);
+  const quality = opts.quality ?? opts.config.settings.quality;
+  const cacheEnabled = opts.cache ?? opts.config.settings.cache;
 
   const outcomes = new Map<string, AssetOutcome>();
   /** Primary output (absolute path) per completed asset, for consumers' `inputs`. */
   const primaryOutput = new Map<string, string>();
+  /** Primary output contentHash per completed asset, for consumers' cache keys. */
+  const primaryHash = new Map<string, string>();
+
+  const recordDone = (name: string, record: AssetRecord | undefined): void => {
+    if (!record) return;
+    primaryOutput.set(name, path.resolve(opts.outDir, record.file));
+    primaryHash.set(name, record.contentHash);
+  };
 
   const runSpec = async (spec: ResolvedAssetSpec): Promise<AssetOutcome> => {
     const log = opts.logger.withTag(spec.name);
@@ -59,14 +91,40 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
       if (!generator) throw new Error(`Unknown generator "${spec.generator}".`);
 
       const resolvedInputs: Record<string, string> = {};
+      const inputHashes: Record<string, string> = {};
       for (const [slot, dep] of Object.entries(spec.inputs)) {
         const file = primaryOutput.get(dep);
         if (!file) throw new Error(`Input "${slot}" (asset "${dep}") produced no file.`);
         resolvedInputs[slot] = file;
+        inputHashes[slot] = primaryHash.get(dep) ?? "";
       }
 
-      const merged = mergeGeneratorOptions(opts.config.settings.defaults, spec);
+      const merged = applyQuality(
+        mergeGeneratorOptions(opts.config.settings.defaults, spec),
+        quality,
+      );
       const options = generator.optionsSchema.parse(merged);
+
+      const cacheKey = computeCacheKey({
+        generator: spec.generator,
+        url: spec.url,
+        options,
+        inputs: inputHashes,
+        quality,
+        toolVersion: opts.toolVersion,
+      });
+
+      if (cacheEnabled) {
+        const existing = manifest.find(spec.name);
+        if (
+          existing?.cacheKey === cacheKey &&
+          existsSync(path.resolve(opts.outDir, existing.file))
+        ) {
+          log.info("cached — unchanged, skipped");
+          recordDone(spec.name, existing);
+          return { name: spec.name, generator: spec.generator, status: "ok", records: [existing] };
+        }
+      }
 
       const ctx = await createContext({
         browser,
@@ -77,12 +135,17 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
         tmpDir: tmpRoot,
         logger: log,
         toolVersion: opts.toolVersion,
+        quality,
         manifest,
       });
 
       const result = await generator.run(ctx, options);
-      const primary = result.assets[0];
-      if (primary) primaryOutput.set(spec.name, path.resolve(opts.outDir, primary.file));
+      // Stamp the cache key onto produced records (primary first) so reruns can skip.
+      for (const record of result.assets) {
+        record.cacheKey = cacheKey;
+        await manifest.upsert(record);
+      }
+      recordDone(spec.name, result.assets[0]);
       return { name: spec.name, generator: spec.generator, status: "ok", records: result.assets };
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
