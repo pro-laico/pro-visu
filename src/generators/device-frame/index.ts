@@ -1,77 +1,20 @@
-import os from "node:os";
 import path from "node:path";
-import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
-import { existsSync } from "node:fs";
-import { copyFile, mkdtemp, rename, stat } from "node:fs/promises";
-import { chromium } from "playwright-core";
+import { copyFile, rename, stat } from "node:fs/promises";
 import {
   deviceFrameOptionsSchema,
   type ResolvedDeviceFrameOptions,
 } from "@/generators/device-frame/options";
+import { renderChrome } from "@/generators/device-frame/chrome";
+import { buildDeviceFrameArgs } from "@/generators/device-frame/composite";
 import { captureScrollWebm } from "@/generators/scroll-reel/capture";
-import { ffmpegPath, probeVideoDimensions, transcodeToMp4 } from "@/media/ffmpeg";
+import { probeVideoDimensions, runFfmpeg, transcodeToMp4 } from "@/media/ffmpeg";
 import { ensureDir } from "@/utils/fs";
 import { sha256File } from "@/utils/hash";
 import { slugify } from "@/utils/paths";
-import type { Logger } from "@/utils/logger";
 import type { Generator, PipelineContext } from "@/generators/types";
 import type { AssetRecord } from "@/manifest/schema";
 
 export const DEVICE_FRAME_ID = "device-frame";
-
-/** Locate the bundled Revideo project (shipped via package.json "files"). */
-function revideoDir(): string {
-  // At runtime this module is bundled into dist/cli/index.js, so package root is two up.
-  const here = path.dirname(fileURLToPath(import.meta.url));
-  return path.resolve(here, "..", "..", "revideo");
-}
-
-interface RenderArgs {
-  inputFile: string;
-  outDir: string;
-  chromiumPath: string;
-  variables: Record<string, unknown>;
-  logger: Logger;
-}
-
-/** Spawn the standalone runner that drives Revideo's renderVideo(). */
-function renderInChild(args: RenderArgs): Promise<string> {
-  const dir = revideoDir();
-  const runner = path.join(dir, "render-runner.mjs");
-  const outFile = "framed.mp4";
-
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [runner], {
-      cwd: dir,
-      env: {
-        ...process.env,
-        RV_INPUT: args.inputFile,
-        PUPPETEER_EXECUTABLE_PATH: args.chromiumPath,
-        PUPPETEER_SKIP_DOWNLOAD: "1",
-        RV_PROJECT: "./project.ts",
-        RV_OUTDIR: args.outDir,
-        RV_OUTFILE: outFile,
-        RV_FFMPEG: ffmpegPath(),
-        RV_VARS: JSON.stringify(args.variables),
-      },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    let stderr = "";
-    child.stdout.on("data", (d: Buffer) => args.logger.debug(d.toString().trim()));
-    child.stderr.on("data", (d: Buffer) => {
-      stderr += d.toString();
-      args.logger.debug(d.toString().trim());
-    });
-    child.on("error", reject);
-    child.on("close", (code) => {
-      const produced = path.join(args.outDir, outFile);
-      if (code === 0 && existsSync(produced)) resolve(produced);
-      else reject(new Error(`Revideo render failed (exit ${code}).\n${stderr.slice(-1500)}`));
-    });
-  });
-}
 
 async function run(
   ctx: PipelineContext,
@@ -80,7 +23,7 @@ async function run(
   const fileName = options.fileName ?? `${slugify(ctx.target.name)}.mp4`;
   const outPath = ctx.resolveOutPath(fileName);
 
-  // 1. Record the site (same capture path as scroll-reel).
+  // 1. Record the site (same capture path as scroll-reel), then transcode to mp4.
   ctx.logger.info(`recording ${ctx.target.url}`);
   const { webmPath } = await captureScrollWebm({
     browser: ctx.browser,
@@ -100,32 +43,48 @@ async function run(
     logger: ctx.logger,
   });
 
-  // 2. Composite the capture into the device frame via the child render runner, which
-  //    serves the input over localhost for Revideo's <Video>.
-  const renderOutDir = await mkdtemp(path.join(os.tmpdir(), "showcase-revideo-out-"));
-  const durationSeconds =
-    (options.startDelayMs + options.duration + options.endDwellMs) / 1000;
-
-  ctx.logger.debug("compositing device frame (revideo)");
-  const rendered = await renderInChild({
-    inputFile: captureMp4,
-    outDir: renderOutDir,
-    chromiumPath: chromium.executablePath(),
-    variables: {
-      videoSrc: "/input.mp4",
-      durationSeconds,
-      background: options.background,
-      videoWidth: options.frameWidth,
-    },
+  // 2. Paint the (static) browser-window chrome once via the Playwright browser, then
+  //    composite the capture into it with a single ffmpeg pass — no per-frame rendering.
+  ctx.logger.debug("rendering window chrome");
+  const chrome = await renderChrome({
+    browser: ctx.browser,
+    outDir: ctx.tmpDir,
+    videoWidth: options.width,
+    videoHeight: options.height,
+    frameWidth: options.frameWidth,
+    background: options.background,
+    scale: options.deviceScaleFactor,
     logger: ctx.logger,
   });
 
-  // 3. Move into the showcase output dir.
+  const durationSeconds =
+    (options.startDelayMs + options.duration + options.endDwellMs) / 1000;
+
+  ctx.logger.debug("compositing device frame (ffmpeg)");
   await ensureDir(path.dirname(outPath));
+  const composedTmp = path.join(ctx.tmpDir, `${slugify(ctx.target.name)}-framed.mp4`);
+  await runFfmpeg(
+    buildDeviceFrameArgs({
+      videoPath: captureMp4,
+      framePng: chrome.framePng,
+      maskPng: chrome.maskPng,
+      outPath: composedTmp,
+      frameWidth: chrome.frameWidthPx,
+      frameHeight: chrome.frameHeightPx,
+      viewport: chrome.viewport,
+      background: options.background,
+      fps: options.fps,
+      crf: options.crf,
+      durationSeconds,
+    }),
+    ctx.logger,
+  );
+
+  // 3. Move into the showcase output dir.
   try {
-    await rename(rendered, outPath);
+    await rename(composedTmp, outPath);
   } catch {
-    await copyFile(rendered, outPath); // cross-device fallback
+    await copyFile(composedTmp, outPath); // cross-device fallback
   }
 
   const [dims, stats, contentHash] = await Promise.all([
@@ -139,8 +98,8 @@ async function run(
     sourceUrl: ctx.target.url,
     file: ctx.toManifestPath(outPath),
     format: "mp4",
-    width: dims?.width ?? 0,
-    height: dims?.height ?? 0,
+    width: dims?.width ?? chrome.frameWidthPx,
+    height: dims?.height ?? chrome.frameHeightPx,
     durationMs: options.startDelayMs + options.duration + options.endDwellMs,
     bytes: stats.size,
     contentHash,

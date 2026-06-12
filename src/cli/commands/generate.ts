@@ -2,6 +2,7 @@ import { resolveCwd, resolveOutDir } from "@/utils/paths";
 import { createLogger, type Logger } from "@/utils/logger";
 import { loadShowcaseConfig } from "@/config/load";
 import { ensureChromium } from "@/browser-install/ensure-chromium";
+import { ensureFfmpeg } from "@/media/ensure-ffmpeg";
 import { runPipeline } from "@/pipeline/runner";
 import { TOOL_VERSION } from "@/version";
 import { reportConfigError, printSummary } from "@/cli/ui";
@@ -53,6 +54,14 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
       process.exitCode = 1;
       return;
     }
+  }
+
+  // Self-heal ffmpeg: scroll-reel and device-frame both shell out to it, and the bundled
+  // binary may be missing/corrupt when the consumer's package manager skipped build scripts.
+  if (!(await ensureFfmpeg({ logger }))) {
+    logger.error("A working ffmpeg is required for video generators.");
+    process.exitCode = 1;
+    return;
   }
 
   const concurrency = options.concurrency != null ? Number(options.concurrency) : undefined;

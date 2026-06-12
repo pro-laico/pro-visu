@@ -5,6 +5,7 @@ import { resolveCwd } from "@/utils/paths";
 import { ensureDir, ensureGitignoreEntry, pathExists } from "@/utils/fs";
 import { createLogger } from "@/utils/logger";
 import { ensureChromium } from "@/browser-install/ensure-chromium";
+import { ensureFfmpeg } from "@/media/ensure-ffmpeg";
 import { DEFAULT_OUTDIR } from "@/config/defaults";
 
 const CONFIG_FILES = [
@@ -96,13 +97,19 @@ export async function runInit(options: InitOptions = {}): Promise<void> {
     }
   }
 
-  // 5. Browser
+  // 5. Browser + ffmpeg
   if (!options.skipBrowser) {
     try {
       await ensureChromium({ logger });
     } catch (err) {
       logger.warn(`Could not install Chromium now: ${(err as Error).message}`);
       logger.warn("It will be installed on first `showcase generate`.");
+    }
+    try {
+      await ensureFfmpeg({ logger });
+    } catch (err) {
+      logger.warn(`Could not fetch ffmpeg now: ${(err as Error).message}`);
+      logger.warn("It will be fetched on first `showcase generate`.");
     }
   }
 

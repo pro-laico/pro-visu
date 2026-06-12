@@ -67,21 +67,16 @@ export async function probeVideoDimensions(
   });
 }
 
-/** Re-encode the recorded webm into an mp4 at outputPath. */
-export async function transcodeToMp4(
-  args: TranscodeArgs & { logger?: Logger },
-): Promise<void> {
-  await ensureDir(path.dirname(args.outputPath));
+/** Run ffmpeg with an explicit argv, rejecting on a non-zero exit. */
+export async function runFfmpeg(argv: string[], logger?: Logger): Promise<void> {
   const bin = ffmpegPath();
-  const argv = buildTranscodeArgs(args);
-
   await new Promise<void>((resolve, reject) => {
     const child = spawn(bin, argv, { stdio: ["ignore", "ignore", "pipe"] });
     let stderr = "";
     child.stderr.on("data", (chunk: Buffer) => {
       const text = chunk.toString();
       stderr += text;
-      args.logger?.debug(text.trim());
+      logger?.debug(text.trim());
     });
     child.on("error", reject);
     child.on("close", (code) => {
@@ -89,4 +84,12 @@ export async function transcodeToMp4(
       else reject(new Error(`ffmpeg exited with code ${code}:\n${stderr.slice(-2000)}`));
     });
   });
+}
+
+/** Re-encode the recorded webm into an mp4 at outputPath. */
+export async function transcodeToMp4(
+  args: TranscodeArgs & { logger?: Logger },
+): Promise<void> {
+  await ensureDir(path.dirname(args.outputPath));
+  await runFfmpeg(buildTranscodeArgs(args), args.logger);
 }
