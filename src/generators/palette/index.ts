@@ -1,0 +1,93 @@
+import path from "node:path";
+import { readFile, writeFile } from "node:fs/promises";
+import { imageSize } from "image-size";
+import {
+  paletteOptionsSchema,
+  type ResolvedPaletteOptions,
+} from "@/generators/palette/options";
+import { buildPaletteHtml } from "@/generators/palette/html";
+import { ensureDir } from "@/utils/fs";
+import { sha256Buffer } from "@/utils/hash";
+import { slugify } from "@/utils/paths";
+import type { Generator, PipelineContext } from "@/generators/types";
+import type { AssetRecord } from "@/manifest/schema";
+
+export const PALETTE_ID = "palette";
+
+const FONT_MIME: Record<string, string> = {
+  ".woff2": "font/woff2",
+  ".woff": "font/woff",
+  ".ttf": "font/ttf",
+  ".otf": "font/otf",
+};
+
+/** Read a custom font file into a base64 data URL so it can be embedded in the render (no server). */
+async function fontDataUrl(fontFile: string): Promise<string> {
+  const abs = path.isAbsolute(fontFile) ? fontFile : path.resolve(process.cwd(), fontFile);
+  const mime = FONT_MIME[path.extname(abs).toLowerCase()] ?? "font/woff2";
+  const data = await readFile(abs);
+  return `data:${mime};base64,${data.toString("base64")}`;
+}
+
+/** Render the palette HTML and screenshot it to a PNG (static — no animation). */
+async function run(
+  ctx: PipelineContext,
+  o: ResolvedPaletteOptions,
+): Promise<{ assets: AssetRecord[] }> {
+  const fileName = o.fileName ?? `${slugify(ctx.target.name)}.png`;
+  const outPath = ctx.resolveOutPath(fileName);
+
+  const dataUrl = o.fontFile ? await fontDataUrl(o.fontFile) : undefined;
+  const html = buildPaletteHtml(o, dataUrl);
+
+  ctx.logger.info(`rendering palette (${o.colors.length} colors, ${o.layout})`);
+  const context = await ctx.browser.newContext({
+    viewport: { width: o.width, height: o.height },
+    deviceScaleFactor: o.deviceScaleFactor,
+  });
+  let buffer: Buffer;
+  try {
+    const page = await context.newPage();
+    await page.setContent(html, { waitUntil: "load" });
+    // Let a custom font finish loading before the shot so it's actually applied.
+    if (dataUrl) {
+      await page.evaluate(
+        () =>
+          (globalThis as { document?: { fonts?: { ready?: Promise<unknown> } } }).document?.fonts
+            ?.ready,
+      );
+    }
+    buffer = await page.screenshot({ type: "png" });
+  } finally {
+    await context.close();
+  }
+
+  await ensureDir(path.dirname(outPath));
+  await writeFile(outPath, buffer);
+
+  const dims = imageSize(buffer);
+  const record: AssetRecord = {
+    id: ctx.target.name,
+    generator: PALETTE_ID,
+    sourceUrl: `palette:${o.colors.length}`,
+    file: ctx.toManifestPath(outPath),
+    format: "png",
+    width: dims.width ?? o.width * o.deviceScaleFactor,
+    height: dims.height ?? o.height * o.deviceScaleFactor,
+    bytes: buffer.length,
+    contentHash: sha256Buffer(buffer),
+    createdAt: new Date().toISOString(),
+    toolVersion: ctx.toolVersion,
+  };
+  await ctx.writeAsset(record);
+  ctx.logger.success(`${ctx.target.name} → ${record.file}`);
+  return { assets: [record] };
+}
+
+export const paletteGenerator: Generator<ResolvedPaletteOptions> = {
+  id: PALETTE_ID,
+  optionsSchema: paletteOptionsSchema,
+  // A custom font's content shapes the output — hash it into the cache key.
+  fileDependencies: (o) => (o.fontFile ? [o.fontFile] : []),
+  run,
+};

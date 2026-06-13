@@ -3,6 +3,7 @@ import type { ScreenshotsOptions } from "@/generators/screenshots/options";
 import type { DeviceFrameOptions } from "@/generators/device-frame/options";
 import type { SceneOptions } from "@/generators/scene/options";
 import type { SpecimenOptions } from "@/generators/specimen/options";
+import type { PaletteOptions } from "@/generators/palette/options";
 
 /**
  * Author-facing config types. These power editor autocomplete in `showcase.config.ts`.
@@ -66,6 +67,7 @@ export interface ShowcaseSettingsInput {
     screenshots?: ScreenshotsOptions;
     "device-frame"?: DeviceFrameOptions;
     specimen?: SpecimenOptions;
+    palette?: PaletteOptions;
   };
 }
 
@@ -86,7 +88,8 @@ export type AssetSpecInput =
   | (AssetBaseInput & { url: string; generator: "screenshots"; options?: ScreenshotsOptions })
   | (AssetBaseInput & { url: string; generator: "device-frame"; options?: DeviceFrameOptions })
   | (AssetBaseInput & { url?: string; generator: "scene"; options?: SceneOptions })
-  | (AssetBaseInput & { generator: "specimen"; options: SpecimenOptions });
+  | (AssetBaseInput & { generator: "specimen"; options: SpecimenOptions })
+  | (AssetBaseInput & { generator: "palette"; options: PaletteOptions });
 
 export interface ShowcaseUserConfig {
   settings?: ShowcaseSettingsInput;

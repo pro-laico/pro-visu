@@ -4,6 +4,7 @@ import { screenshotsGenerator } from "@/generators/screenshots";
 import { deviceFrameGenerator } from "@/generators/device-frame";
 import { sceneGenerator } from "@/generators/scene";
 import { specimenGenerator } from "@/generators/specimen";
+import { paletteGenerator } from "@/generators/palette";
 
 const registry = new Map<string, Generator<unknown>>();
 
@@ -29,3 +30,4 @@ register(screenshotsGenerator);
 register(deviceFrameGenerator);
 register(sceneGenerator);
 register(specimenGenerator);
+register(paletteGenerator);
