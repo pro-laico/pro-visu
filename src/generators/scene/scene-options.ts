@@ -108,23 +108,35 @@ export const specimenSceneOptionsSchema = z
  */
 export const wallSceneOptionsSchema = z
   .object({
-    /** Number of columns. */
-    columns: z.number().int().min(1).max(12).default(5),
-    /** Gap between tiles (px). */
-    gap: z.number().nonnegative().default(16),
-    /** Tile aspect ratio (width / height); 1.6 = 16:10 landscape. */
+    /** Number of columns (fewer = bigger tiles). */
+    columns: z.number().int().min(1).max(12).default(4),
+    /** Padding between columns and between their tile contents (px). */
+    padding: z.number().nonnegative().default(16),
+    /** Tile aspect ratio (width / height); 1.6 = 16:10 landscape, <1 = portrait. */
     tileAspect: z.number().positive().default(1.6),
     /** Tile corner radius (px). */
     cornerRadius: z.number().nonnegative().default(12),
-    /** Whole-clip horizontal pan cycles (0 = no pan; 1 = one slow sweep). */
+    /** Backdrop shown in the padding gaps and behind tiles. Defaults to the scene's `background`. */
+    background: z.string().optional(),
+    /** Whole-clip horizontal pan cycles (0 = no pan; 1 = one sweep, delivered via pulses). */
     panLoops: z.number().int().nonnegative().default(1),
     /** Pan direction. */
     panDirection: z.enum(["left", "right"]).default("left"),
-    /** Min/max per-column vertical scroll cycles over the clip — the speed range (varies per column). */
-    scrollLoopsMin: z.number().int().min(1).default(2),
-    scrollLoopsMax: z.number().int().min(1).default(4),
+    /** Min/max per-column vertical scroll cycles over the clip — the travel range (varies per column). */
+    scrollLoopsMin: z.number().int().min(1).default(1),
+    scrollLoopsMax: z.number().int().min(1).default(2),
     /** Alternate column scroll direction (up/down) for a livelier wall. */
     alternate: z.boolean().default(true),
+    /**
+     * The wall is passive (mostly held), moving in brief eased "pulses". `pulses` = how many bursts
+     * over the clip; `pulseDuration` = each burst's length in seconds (~1 = a quick one-second move);
+     * `baseDrift` = how much constant slow creep between pulses (0 = fully held, 1 = constant linear).
+     */
+    pulses: z.number().int().min(1).max(20).default(4),
+    pulseDuration: z.number().positive().default(1),
+    baseDrift: z.number().min(0).max(1).default(0.08),
+    /** How much pulse sizes vary (0 = uniform pulses; ~0.6 = organic, some bigger than others). */
+    pulseVariance: z.number().min(0).max(1).default(0.6),
     /** Seed for the per-column speed variation — same seed ⇒ identical wall (workers must agree). */
     seed: z.number().int().default(1),
   })
@@ -188,12 +200,14 @@ export interface BrowserSceneOptionsInput {
 export interface WallSceneOptionsInput {
   /** Number of columns. */
   columns?: number;
-  /** Gap between tiles (px). */
-  gap?: number;
+  /** Padding between columns and between their tile contents (px). */
+  padding?: number;
   /** Tile aspect ratio (width / height); 1.6 = 16:10 landscape. */
   tileAspect?: number;
   /** Tile corner radius (px). */
   cornerRadius?: number;
+  /** Backdrop shown in the padding gaps and behind tiles. Defaults to the scene's background. */
+  background?: string;
   /** Whole-clip horizontal pan cycles (0 = no pan; 1 = one slow sweep). */
   panLoops?: number;
   /** Pan direction. */
@@ -204,6 +218,14 @@ export interface WallSceneOptionsInput {
   scrollLoopsMax?: number;
   /** Alternate column scroll direction (up/down). */
   alternate?: boolean;
+  /** Number of brief eased motion pulses over the clip (the wall holds between them). */
+  pulses?: number;
+  /** Each pulse's eased ramp length, in seconds (~1 = a quick one-second move). */
+  pulseDuration?: number;
+  /** Constant slow creep between pulses: 0 = fully held, 1 = constant linear motion. */
+  baseDrift?: number;
+  /** How much pulse sizes vary (0 = uniform; ~0.6 = organic, some bigger than others). */
+  pulseVariance?: number;
   /** Seed for the per-column speed variation. */
   seed?: number;
 }

@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   assignTiles,
+  axisOffset,
+  easeProgress,
   loopTime,
-  offsetX,
-  offsetY,
+  makePulseWeights,
   planColumns,
   type Dir,
+  type MotionParams,
 } from "../scene-app/src/scenes/wall-motion";
 
 describe("planColumns", () => {
@@ -34,32 +36,56 @@ describe("planColumns", () => {
   });
 });
 
-describe("offset loop-seam (the core seamless-loop property)", () => {
-  const D = 12;
+describe("axisOffset loop-seam + pulse character", () => {
   const period = 740;
+  const mp: MotionParams = { durationSeconds: 12, pulses: 4, pulseDuration: 1, baseDrift: 0.15 };
 
-  it("offsetY returns to its t=0 value at t=D for every column plan", () => {
+  it("returns to its t=0 value at t=D for every cycle count / direction (no seam)", () => {
     const dirs: Dir[] = [1, -1];
     for (const dir of dirs) {
-      for (const loopsY of [1, 2, 3, 7]) {
-        const at0 = offsetY(loopsY, dir, 0, D, period);
-        const atD = offsetY(loopsY, dir, D, D, period);
-        expect(at0).toBeCloseTo(0, 6);
-        expect(atD).toBeCloseTo(0, 6); // ≡ offset(0) → no seam
+      for (const cycles of [1, 2, 3, 7]) {
+        expect(axisOffset(cycles, dir, 0, period, mp)).toBeCloseTo(0, 6);
+        expect(axisOffset(cycles, dir, mp.durationSeconds, period, mp)).toBeCloseTo(0, 6);
       }
     }
   });
 
-  it("offsetX returns to its t=0 value at t=D (and is 0 when panLoops=0)", () => {
-    expect(offsetX(1, 1, D, D, period)).toBeCloseTo(0, 6);
-    expect(offsetX(2, -1, D, D, period)).toBeCloseTo(0, 6);
-    expect(offsetX(0, 1, D / 2, D, period)).toBe(0); // no pan
+  it("is 0 when cycles=0 (no motion on that axis)", () => {
+    expect(axisOffset(0, 1, mp.durationSeconds / 2, period, mp)).toBe(0);
   });
 
-  it("offset is monotonic-ish within a cycle (moves off zero mid-clip)", () => {
-    const mid = offsetY(2, 1, D / 4, D, period); // quarter clip, 2 cycles → half a cycle in
-    expect(mid).toBeGreaterThan(0);
-    expect(mid).toBeLessThan(period);
+  it("holds between pulses and moves fast during them (passive, then a burst)", () => {
+    // Pure pulses (no base drift): inside the hold of segment 0 the progress barely moves; the ramp
+    // (centered in each 3s segment, 1s long → ~[1,2]s) advances much more.
+    const held: MotionParams = { ...mp, baseDrift: 0 };
+    const holdDelta = easeProgress(0.4, held) - easeProgress(0.1, held); // both inside the hold
+    const pulseDelta = easeProgress(1.7, held) - easeProgress(1.3, held); // across the pulse ramp
+    expect(holdDelta).toBeLessThan(0.01); // essentially still
+    expect(pulseDelta).toBeGreaterThan(holdDelta * 5); // the burst is far faster
+  });
+
+  it("easeProgress goes exactly 0→1 over the clip (seam math)", () => {
+    expect(easeProgress(0, mp)).toBeCloseTo(0, 6);
+    expect(easeProgress(mp.durationSeconds, mp)).toBeCloseTo(1, 6);
+  });
+
+  it("varied pulse weights make some pulses bigger, but still end at 1 (seam preserved)", () => {
+    const weights = makePulseWeights(3, 4, 0.6);
+    expect(weights).toHaveLength(4);
+    expect(new Set(weights.map((w) => w.toFixed(3))).size).toBeGreaterThan(1); // not uniform
+    const varied: MotionParams = { ...mp, baseDrift: 0, pulseWeights: weights };
+    expect(easeProgress(varied.durationSeconds, varied)).toBeCloseTo(1, 6); // seam intact
+    // The advance across each pulse differs (organic, non-uniform cadence).
+    const steps = [0, 1, 2, 3].map((i) => {
+      const seg = varied.durationSeconds / 4;
+      return easeProgress(i * seg + seg * 0.85, varied) - easeProgress(i * seg + seg * 0.15, varied);
+    });
+    expect(Math.max(...steps) - Math.min(...steps)).toBeGreaterThan(0.02);
+  });
+
+  it("makePulseWeights is deterministic and uniform at variance 0", () => {
+    expect(makePulseWeights(5, 4, 0.6)).toEqual(makePulseWeights(5, 4, 0.6));
+    expect(makePulseWeights(5, 4, 0)).toEqual([1, 1, 1, 1]);
   });
 });
 

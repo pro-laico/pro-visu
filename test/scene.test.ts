@@ -46,12 +46,18 @@ describe("per-scene option schemas", () => {
     ]);
   });
 
-  it("fills wall defaults and rejects a typo", () => {
+  it("fills wall defaults (passive pulse motion) and rejects a typo", () => {
     const o = wallSceneOptionsSchema.parse({});
-    expect(o.columns).toBe(5);
+    expect(o.columns).toBe(4);
+    expect(o.padding).toBe(16);
+    expect(o.background).toBeUndefined(); // inherits the scene background unless set
     expect(o.panLoops).toBe(1);
-    expect(o.scrollLoopsMin).toBe(2);
-    expect(o.scrollLoopsMax).toBe(4);
+    expect(o.scrollLoopsMin).toBe(1);
+    expect(o.scrollLoopsMax).toBe(2);
+    expect(o.pulses).toBe(4);
+    expect(o.pulseDuration).toBe(1);
+    expect(o.baseDrift).toBeCloseTo(0.08);
+    expect(o.pulseVariance).toBeCloseTo(0.6);
     expect(o.alternate).toBe(true);
     expect(wallSceneOptionsSchema.safeParse({ colums: 6 }).success).toBe(false);
   });
