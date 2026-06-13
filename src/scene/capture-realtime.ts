@@ -37,6 +37,9 @@ export async function recordSceneRealtime(args: RecordSceneArgs): Promise<Record
   const context = await args.browser.newContext({
     viewport: { width: args.width, height: args.height },
     deviceScaleFactor: args.deviceScaleFactor,
+    // Note: Playwright records at the viewport's CSS resolution — `size` places (does not upscale)
+    // the viewport into the frame, so it must equal width×height. Realtime can't supersample this
+    // way; the frame-stepper is the high-fidelity path. (deviceScaleFactor still sharpens rendering.)
     recordVideo: { dir: recordDir, size: { width: args.width, height: args.height } },
   });
   const page = await context.newPage();

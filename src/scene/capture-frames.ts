@@ -35,6 +35,8 @@ interface ChunkArgs {
   crf: number;
   preset?: string;
   jpegQuality: number;
+  /** Seconds advanced per frame (duration / totalFrames) — see captureSceneFrames. */
+  timeStep: number;
   /** Inclusive start frame, exclusive end frame. */
   frameStart: number;
   frameEnd: number;
@@ -65,7 +67,7 @@ async function renderChunk(a: ChunkArgs): Promise<void> {
       a.logger,
     );
     for (let frame = a.frameStart; frame < a.frameEnd; frame++) {
-      const t = frame / a.fps;
+      const t = frame * a.timeStep;
       await page.evaluate(
         (tt) =>
           (globalThis as { __showcase?: { seek(t: number): Promise<void> } }).__showcase?.seek(tt),
@@ -88,6 +90,10 @@ async function renderChunk(a: ChunkArgs): Promise<void> {
  */
 export async function captureSceneFrames(args: FrameCaptureArgs): Promise<void> {
   const totalFrames = Math.max(1, Math.round(args.durationSeconds * args.fps));
+  // Step time as duration/totalFrames (≈ 1/fps) so the N frames evenly tile [0, duration). The
+  // frame that would sit at t=duration is the loop point — which equals t=0 for a seamless scene —
+  // so omitting it (we render 0..N-1) makes the last→first wrap exactly one step: no seam hitch.
+  const timeStep = args.durationSeconds / totalFrames;
   const workers = Math.max(1, Math.min(args.workers ?? 1, totalFrames));
   const jpegQuality = args.jpegQuality ?? 90;
   const common = {
@@ -100,6 +106,7 @@ export async function captureSceneFrames(args: FrameCaptureArgs): Promise<void> 
     crf: args.crf,
     preset: args.preset,
     jpegQuality,
+    timeStep,
     logger: args.logger,
   };
 
