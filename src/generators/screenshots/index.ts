@@ -46,6 +46,14 @@ async function run(
     const { width, height } = dimensions(shot.buffer);
     if (width === 0 || height === 0) {
       ctx.logger.warn(`could not read dimensions for ${fileName} (recording 0×0)`);
+    } else {
+      ctx.logger.debug(`${fileName}: ${width}×${height}`);
+      // Chromium caps screenshots near ~32767px; a very tall fullPage shot may be clipped/huge.
+      if (width > 16000 || height > 16000) {
+        ctx.logger.warn(
+          `${fileName} is very large (${width}×${height}); a fullPage shot at deviceScaleFactor ${options.deviceScaleFactor} may be clipped or slow — consider a lower scale.`,
+        );
+      }
     }
     const record: AssetRecord = {
       id: `${ctx.target.name}-${shot.key}`,

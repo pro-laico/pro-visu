@@ -129,9 +129,10 @@ export async function prepareScroll(args: PrepareScrollArgs): Promise<void> {
  * Runs INSIDE the page. Smoothly scrolls the real scroll target top -> bottom over `durationMs`
  * using requestAnimationFrame, with a dwell before and after. Forces instant per-frame positioning
  * so a site's `scroll-behavior: smooth` can't fight the animation, and targets the actual scroll
- * container (not just the window) so app-shell layouts scroll too.
+ * container (not just the window) so app-shell layouts scroll too. Returns the scrolled distance in
+ * px (0 = nothing scrollable was found — the caller can warn).
  */
-export async function pageScroll(args: PageScrollArgs): Promise<void> {
+export async function pageScroll(args: PageScrollArgs): Promise<number> {
   const { durationMs, easing, startDelayMs, endDwellMs } = args;
 
   const ease = (t: number): number => {
@@ -173,6 +174,7 @@ export async function pageScroll(args: PageScrollArgs): Promise<void> {
   }
 
   await sleep(endDwellMs);
+  return distance;
 
   // --- inlined, self-contained scroll helpers (duplicated in prepareScroll; see note above) ---
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

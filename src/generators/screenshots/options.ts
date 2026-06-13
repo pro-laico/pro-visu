@@ -5,6 +5,8 @@ export const breakpointSchema = z
   .object({
     name: z.string().min(1),
     width: z.number().int().positive(),
+    /** Viewport height. Note: ignored for `fullPage` shots (Playwright resizes to the page height);
+     *  only affects viewport/element captures. */
     height: z.number().int().positive().default(900),
     /** Override the generator-level deviceScaleFactor for this breakpoint. */
     deviceScaleFactor: z.number().positive().max(4).optional(),

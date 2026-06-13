@@ -77,9 +77,11 @@ export async function probeVideoDimensions(
     let stderr = "";
     child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
     child.on("error", () => resolve(null));
-    // ffmpeg exits non-zero with no output file; the info we want is already on stderr.
+    // ffmpeg exits non-zero with no output file; the info we want is already on stderr. Anchor to
+    // the video stream line so a "1920x1080"-looking tag on another line can't be picked up first.
     child.on("close", () => {
-      const match = /,\s(\d+)x(\d+)[\s,]/.exec(stderr);
+      const videoLine = stderr.split("\n").find((l) => l.includes("Video:"));
+      const match = videoLine ? /,\s(\d+)x(\d+)[\s,]/.exec(videoLine) : null;
       resolve(match ? { width: Number(match[1]), height: Number(match[2]) } : null);
     });
   });

@@ -58,12 +58,17 @@ export async function captureScrollWebm(args: CaptureArgs): Promise<CaptureResul
     await page.evaluate(prepareScroll, { settleMs: PREWARM_SETTLE_MS });
     // Everything above is blank/churn in the recording; the animated scroll starts now.
     leadSeconds = (Date.now() - recStart) / 1000;
-    await page.evaluate(pageScroll, {
+    const distance = await page.evaluate(pageScroll, {
       durationMs: options.duration,
       easing: options.easing,
       startDelayMs: options.startDelayMs,
       endDwellMs: options.endDwellMs,
     });
+    if (!distance) {
+      logger.warn(
+        "page did not scroll — no scrollable content found (the reel will be static). Check the URL renders a taller-than-viewport page.",
+      );
+    }
   } finally {
     // Closing the context flushes + finalizes the recording file.
     await context.close();
