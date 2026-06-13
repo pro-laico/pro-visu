@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { sceneOptionsSchema } from "@/generators/scene/options";
+import {
+  SCENE_OPTION_SCHEMAS,
+  browserSceneOptionsSchema,
+  phoneSceneOptionsSchema,
+} from "@/generators/scene/scene-options";
 import { generatorIds, getGenerator } from "@/generators/registry";
 import { SCENE_ID } from "@/generators/scene";
 
@@ -26,5 +31,37 @@ describe("scene generator", () => {
   it("keeps a url-free asset valid in config (scene needs no url)", () => {
     // assetSpecSchema allows omitting url; scene resolves inputs instead.
     expect(sceneOptionsSchema.parse({ scene: "phone" }).scene).toBe("phone");
+  });
+});
+
+describe("per-scene option schemas", () => {
+  it("exposes a schema per built-in scene", () => {
+    expect(Object.keys(SCENE_OPTION_SCHEMAS).sort()).toEqual([
+      "browser",
+      "laptop",
+      "phone",
+      "specimen",
+    ]);
+  });
+
+  it("fills phone styling defaults to the previous hardcoded values", () => {
+    const o = phoneSceneOptionsSchema.parse({});
+    expect(o.bezel).toBe("#0a0a0a");
+    expect(o.shadow).toBe("0 40px 120px rgba(0,0,0,0.5)");
+    expect(o.radiusScale).toBe(1);
+    expect(o.screenBackground).toBe("#000");
+  });
+
+  it("defaults the browser dots + colors and accepts overrides", () => {
+    const o = browserSceneOptionsSchema.parse({});
+    expect(o.dots).toBe(true);
+    expect(o.dotColors).toEqual(["#ff5f57", "#febc2e", "#28c840"]);
+    const custom = browserSceneOptionsSchema.parse({ dots: false, dotColors: ["#111", "#222", "#333"] });
+    expect(custom.dots).toBe(false);
+    expect(custom.dotColors).toEqual(["#111", "#222", "#333"]);
+  });
+
+  it("rejects a typo'd scene option key (the whole point of typed sceneOptions)", () => {
+    expect(phoneSceneOptionsSchema.safeParse({ bezl: "#000" }).success).toBe(false);
   });
 });

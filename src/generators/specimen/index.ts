@@ -21,9 +21,8 @@ async function run(
 
   const sceneOptions: ResolvedSceneOptions = {
     scene: "specimen",
-    // Standardized 16:9 frame — the specimen is always rendered at 1920×1080.
-    width: 1920,
-    height: 1080,
+    width: o.width,
+    height: o.height,
     background: o.colors.background,
     deviceScaleFactor: o.deviceScaleFactor,
     fps: o.fps,
@@ -42,13 +41,16 @@ async function run(
       weight: o.weight,
       characters: o.characters,
       fontSize: o.fontSize,
+      leading: o.leading,
       blacklist: o.blacklist,
+      characterPool: o.characterPool,
       colors: o.colors,
       colorWeights: o.colorWeights,
       pulses: o.pulses,
       mirror: o.mirror,
       characterIntensity: o.characterIntensity,
       colorIntensity: o.colorIntensity,
+      seed: o.seed,
     },
   };
   return renderScene(ctx, sceneOptions, SPECIMEN_ID);

@@ -20,6 +20,9 @@ const CONFIG_FILES = [
 
 const CONFIG_TEMPLATE = `import { defineConfig } from "auto-showcase";
 
+// URL the capture assets point at. The optional managed server (below) binds this port.
+const URL = "http://localhost:3101";
+
 export default defineConfig({
   settings: {
     outDir: "showcase",
@@ -27,6 +30,13 @@ export default defineConfig({
     // Uses Playwright's managed Chromium by default. Set channel: "chrome" to use your
     // installed Chrome, or args: ["--no-sandbox"] on CI.
     browser: { headless: true },
+    // Optional: let the tool build + start your site, wait for it, capture, then stop it.
+    // 'port' defaults to 3101 (off the common 3000 dev port); your command must bind it.
+    // server: {
+    //   build: "npm run build",
+    //   command: "npm start -- -p 3101", // e.g. Next: "npx next start -p 3101"
+    //   port: 3101,
+    // },
     defaults: {
       // Keyed by generator id. Merged underneath each asset's own options.
       "scroll-reel": { width: 1440, height: 900, fps: 30 },
@@ -35,10 +45,16 @@ export default defineConfig({
   assets: [
     {
       name: "home-reel",
-      url: "http://localhost:3000",
+      url: URL,
       generator: "scroll-reel",
       // options: { duration: 7000, waitForSelector: "main" },
     },
+    // A looping type-specimen from a font file (no URL needed):
+    // {
+    //   name: "font-specimen",
+    //   generator: "specimen",
+    //   options: { font: "public/fonts/YourFont.woff2", name: "Your Font", template: "sweep" },
+    // },
   ],
 });
 `;

@@ -6,6 +6,7 @@ import {
   sceneOptionsSchema,
   type ResolvedSceneOptions,
 } from "@/generators/scene/options";
+import { SCENE_OPTION_SCHEMAS } from "@/generators/scene/scene-options";
 import { startSceneServer } from "@/scene/serve";
 import { recordSceneRealtime } from "@/scene/capture-realtime";
 import { captureSceneFrames } from "@/scene/capture-frames";
@@ -33,6 +34,16 @@ export async function renderScene(
   options: ResolvedSceneOptions,
   generatorId: string = SCENE_ID,
 ): Promise<{ assets: AssetRecord[] }> {
+  // Validate the per-scene knobs against the selected scene's schema: a typo'd key or an unknown
+  // scene id fails here with a named error instead of capturing a blank "Unknown scene" page.
+  const sceneSchema = SCENE_OPTION_SCHEMAS[options.scene as keyof typeof SCENE_OPTION_SCHEMAS];
+  if (!sceneSchema) {
+    throw new Error(
+      `Unknown scene "${options.scene}". Available: ${Object.keys(SCENE_OPTION_SCHEMAS).join(", ")}.`,
+    );
+  }
+  const sceneOptions = sceneSchema.parse(options.sceneOptions);
+
   const fileName = options.fileName ?? `${slugify(ctx.target.name)}.mp4`;
   const outPath = ctx.resolveOutPath(fileName);
 
@@ -65,7 +76,7 @@ export async function renderScene(
       fps: options.fps,
       inputs: inputUrls,
       files: fileUrls,
-      options: options.sceneOptions,
+      options: sceneOptions, // validated + defaulted against the scene's schema
     };
     const sceneUrl = new URL(`${server.origin}/`);
     sceneUrl.searchParams.set("scene", options.scene);

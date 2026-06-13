@@ -5,6 +5,15 @@ export function Browser({ width, height, inputs, options }: SceneProps): React.R
   const src = inputs.screen ?? Object.values(inputs)[0] ?? "";
   const frame = typeof options.frame === "string" ? options.frame : "#1b1b22";
   const label = typeof options.url === "string" ? options.url : "";
+  const showDots = options.dots !== false; // default on
+  const dotColors =
+    Array.isArray(options.dotColors) && options.dotColors.length === 3
+      ? (options.dotColors as [string, string, string])
+      : (["#ff5f57", "#febc2e", "#28c840"] as const);
+  const barColor = typeof options.barColor === "string" ? options.barColor : "#23232c";
+  const addressBarColor =
+    typeof options.addressBarColor === "string" ? options.addressBarColor : "#15151b";
+  const shadow = typeof options.shadow === "string" ? options.shadow : "0 40px 110px rgba(0,0,0,0.5)";
 
   const winW = Math.round(Math.min(width * 0.88, ((height * 0.86) * 16) / 10));
   const barH = Math.max(28, Math.round(winW * 0.05));
@@ -28,28 +37,32 @@ export function Browser({ width, height, inputs, options }: SceneProps): React.R
           border: "1px solid #2c2c36",
           borderRadius: radius,
           overflow: "hidden",
-          boxShadow: "0 40px 110px rgba(0,0,0,0.5)",
+          boxShadow: shadow,
         }}
       >
         <div
           style={{
             height: barH,
-            background: "#23232c",
+            background: barColor,
             display: "flex",
             alignItems: "center",
             gap: dot * 0.8,
             padding: `0 ${barH * 0.5}px`,
           }}
         >
-          <span style={{ width: dot, height: dot, borderRadius: 999, background: "#ff5f57" }} />
-          <span style={{ width: dot, height: dot, borderRadius: 999, background: "#febc2e" }} />
-          <span style={{ width: dot, height: dot, borderRadius: 999, background: "#28c840" }} />
+          {showDots && (
+            <>
+              <span style={{ width: dot, height: dot, borderRadius: 999, background: dotColors[0] }} />
+              <span style={{ width: dot, height: dot, borderRadius: 999, background: dotColors[1] }} />
+              <span style={{ width: dot, height: dot, borderRadius: 999, background: dotColors[2] }} />
+            </>
+          )}
           <div
             style={{
               flex: 1,
               height: barH * 0.5,
               margin: `0 ${barH * 0.4}px`,
-              background: "#15151b",
+              background: addressBarColor,
               borderRadius: 999,
               color: "#8a8a96",
               fontSize: barH * 0.28,

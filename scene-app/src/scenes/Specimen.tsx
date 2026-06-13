@@ -26,7 +26,7 @@ import {
  * specimen-timeline.ts) drives cell state through `window.__sceneSeek(t)`. The capture runtime
  * frame-steps it deterministically (`capture: "frames"`) or plays it on a rAF wall clock.
  */
-const LEADING = 0.78; // line-height: minimal leading so the cap-height lines sit close together
+const DEFAULT_LEADING = 0.78; // line-height: minimal leading so the cap-height lines sit close together
 
 // Fallback used only if the host doesn't pass `pulses` (the generator always does). These describe
 // the *outward* half; with mirroring on (default) the clip plays this out and back (~2x as long).
@@ -107,6 +107,9 @@ export function Specimen({
   const characters = typeof options.characters === "number" ? Math.max(1, options.characters) : 23;
   const blacklist = typeof options.blacklist === "string" ? options.blacklist : "";
   const fontSizeOpt = typeof options.fontSize === "number" ? options.fontSize : undefined;
+  const leading = typeof options.leading === "number" ? options.leading : DEFAULT_LEADING;
+  const characterPool =
+    typeof options.characterPool === "string" ? options.characterPool : undefined;
   // The schedule seed: same seed ⇒ identical animation in every browser context. The parallel
   // frame-stepper relies on this — each worker loads the page independently and must agree.
   const seed = typeof options.seed === "number" ? options.seed : 1;
@@ -132,8 +135,8 @@ export function Specimen({
   const labelColor = colors.label ?? foreground; // font-name label falls back to foreground
 
   // The per-character width classes. Char lists per class are measured after the font loads.
-  const specKey = `${characters}|${blacklist}`;
-  const spec = useMemo(() => buildSpec(characters, blacklist), [specKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const specKey = `${characters}|${blacklist}|${characterPool ?? ""}`;
+  const spec = useMemo(() => buildSpec(characters, blacklist, characterPool), [specKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Frame: a tight 5px top/left/right margin (near full-bleed text), and a roomy bottom (bar +
   // gap) so the font name never feels crowded.
@@ -200,9 +203,9 @@ export function Specimen({
           })
           .join("");
         const fits = (size: number): boolean =>
-          wrapLineCount(worst, adv, (lineWidth / size) * 0.99) * LEADING * size <= typeArea;
+          wrapLineCount(worst, adv, (lineWidth / size) * 0.99) * leading * size <= typeArea;
         let lo = 16;
-        let hi = Math.floor(typeArea / LEADING);
+        let hi = Math.floor(typeArea / leading);
         while (hi - lo > 1) {
           const m = (lo + hi) >> 1;
           if (fits(m)) lo = m;
@@ -242,9 +245,9 @@ export function Specimen({
       cancelled = true;
       delete window.__sceneSeek;
     };
-  }, [specKey, pulsesKey, weight, lineWidth, typeArea, fontSizeOpt, seed]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [specKey, pulsesKey, weight, lineWidth, typeArea, fontSizeOpt, leading, seed]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fontSize = fontSizeOpt ?? fit ?? Math.round(typeArea / (3 * LEADING));
+  const fontSize = fontSizeOpt ?? fit ?? Math.round(typeArea / (3 * leading));
 
   const rootStyle = {
     position: "absolute",
@@ -277,7 +280,7 @@ export function Specimen({
               width: "100%",
               fontSize,
               fontWeight: weight,
-              lineHeight: LEADING,
+              lineHeight: leading,
               color: "var(--sp-foreground)",
               wordBreak: "break-all",
             }}

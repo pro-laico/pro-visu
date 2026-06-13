@@ -4,10 +4,14 @@ import type { SceneProps } from "../types";
 export function Phone({ height, inputs, options }: SceneProps): React.ReactElement {
   const src = inputs.screen ?? Object.values(inputs)[0] ?? "";
   const bezel = typeof options.bezel === "string" ? options.bezel : "#0a0a0a";
+  const shadow = typeof options.shadow === "string" ? options.shadow : "0 40px 120px rgba(0,0,0,0.5)";
+  const radiusScale = typeof options.radiusScale === "number" ? options.radiusScale : 1;
+  const screenBackground =
+    typeof options.screenBackground === "string" ? options.screenBackground : "#000";
 
   const phoneH = Math.round(height * 0.92);
   const phoneW = Math.round((phoneH * 9) / 19.5);
-  const radius = Math.round(phoneW * 0.13);
+  const radius = Math.round(phoneW * 0.13 * radiusScale);
   const pad = Math.max(6, Math.round(phoneW * 0.028));
 
   return (
@@ -27,7 +31,7 @@ export function Phone({ height, inputs, options }: SceneProps): React.ReactEleme
           background: bezel,
           borderRadius: radius,
           padding: pad,
-          boxShadow: "0 40px 120px rgba(0,0,0,0.5)",
+          boxShadow: shadow,
           position: "relative",
         }}
       >
@@ -37,7 +41,7 @@ export function Phone({ height, inputs, options }: SceneProps): React.ReactEleme
             height: "100%",
             borderRadius: radius - pad,
             overflow: "hidden",
-            background: "#000",
+            background: screenBackground,
             position: "relative",
           }}
         >

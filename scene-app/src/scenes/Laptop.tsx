@@ -4,6 +4,10 @@ import type { SceneProps } from "../types";
 export function Laptop({ width, height, inputs, options }: SceneProps): React.ReactElement {
   const src = inputs.screen ?? Object.values(inputs)[0] ?? "";
   const bezel = typeof options.bezel === "string" ? options.bezel : "#16161a";
+  const shadow = typeof options.shadow === "string" ? options.shadow : "0 30px 90px rgba(0,0,0,0.5)";
+  const hinge = options.hinge !== false; // default on
+  const screenBackground =
+    typeof options.screenBackground === "string" ? options.screenBackground : "#000";
 
   const screenW = Math.round(Math.min(width * 0.74, ((height * 0.78) * 16) / 10));
   const screenH = Math.round((screenW * 10) / 16);
@@ -29,7 +33,7 @@ export function Laptop({ width, height, inputs, options }: SceneProps): React.Re
           background: bezel,
           borderRadius: Math.round(screenW * 0.02),
           padding: bezelPad,
-          boxShadow: "0 30px 90px rgba(0,0,0,0.5)",
+          boxShadow: shadow,
         }}
       >
         <div
@@ -38,7 +42,7 @@ export function Laptop({ width, height, inputs, options }: SceneProps): React.Re
             height: "100%",
             borderRadius: Math.round(screenW * 0.012),
             overflow: "hidden",
-            background: "#000",
+            background: screenBackground,
           }}
         >
           {src ? (
@@ -63,14 +67,16 @@ export function Laptop({ width, height, inputs, options }: SceneProps): React.Re
           boxShadow: "0 18px 40px rgba(0,0,0,0.4)",
         }}
       />
-      <div
-        style={{
-          width: Math.round(baseW * 0.16),
-          height: Math.round(baseH * 0.45),
-          background: "rgba(0,0,0,0.35)",
-          borderRadius: `0 0 ${baseH}px ${baseH}px`,
-        }}
-      />
+      {hinge && (
+        <div
+          style={{
+            width: Math.round(baseW * 0.16),
+            height: Math.round(baseH * 0.45),
+            background: "rgba(0,0,0,0.35)",
+            borderRadius: `0 0 ${baseH}px ${baseH}px`,
+          }}
+        />
+      )}
     </div>
   );
 }

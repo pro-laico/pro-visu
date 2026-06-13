@@ -9,6 +9,32 @@ describe("specimen generator", () => {
     expect(getGenerator(SPECIMEN_ID)?.id).toBe(SPECIMEN_ID);
   });
 
+  it("exposes frame size, leading, pool, and seed knobs with defaults", () => {
+    const o = specimenOptionsSchema.parse({ font: "x.woff2" });
+    expect(o.width).toBe(1920);
+    expect(o.height).toBe(1080);
+    expect(o.leading).toBe(0.78);
+    expect(o.seed).toBe(1);
+    expect(o.characterPool).toBeUndefined(); // falls back to the master pool at render
+
+    const custom = specimenOptionsSchema.parse({
+      font: "x.woff2",
+      width: 1080,
+      height: 1350,
+      leading: 0.9,
+      seed: 99,
+      characterPool: "ABCDEF",
+    });
+    expect([custom.width, custom.height, custom.leading, custom.seed]).toEqual([1080, 1350, 0.9, 99]);
+    expect(custom.characterPool).toBe("ABCDEF");
+  });
+
+  it("rejects a characterPool with fewer than 2 distinct glyphs", () => {
+    expect(specimenOptionsSchema.safeParse({ font: "x.woff2", characterPool: "AAAA" }).success).toBe(
+      false,
+    );
+  });
+
   it("needs only a font, with defaults filled in", () => {
     const o = specimenOptionsSchema.parse({ font: "fonts/X.woff2" });
     expect(o.weight).toBe(820);

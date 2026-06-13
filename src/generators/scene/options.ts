@@ -1,9 +1,15 @@
 import { z } from "zod";
+import type {
+  BrowserSceneOptionsInput,
+  LaptopSceneOptionsInput,
+  PhoneSceneOptionsInput,
+} from "@/generators/scene/scene-options";
 
 /**
  * A "scene" composites input assets inside a web page (a React component shipped with the
  * tool, selected by `scene`) and captures the rendered result. Inputs come from the asset's
- * `inputs` map; per-scene knobs go in `sceneOptions`.
+ * `inputs` map; per-scene knobs go in `sceneOptions` (validated against the selected scene's
+ * schema — see scene-options.ts).
  */
 export const sceneOptionsSchema = z
   .object({
@@ -42,5 +48,20 @@ export const sceneOptionsSchema = z
   })
   .strict();
 
-export type SceneOptions = z.input<typeof sceneOptionsSchema>;
+/** Fields shared by every scene (everything but the scene selector + its typed knobs). */
+export type SceneBaseInput = Omit<z.input<typeof sceneOptionsSchema>, "scene" | "sceneOptions">;
+
+/**
+ * Author-facing scene options: a discriminated union on `scene`, so `sceneOptions` autocompletes
+ * the knobs of the selected scene (and a typo'd knob is a type error). `"phone"` stays optional —
+ * it's the default scene. The runtime double-checks via the per-scene zod schemas in renderScene.
+ */
+export type SceneOptions =
+  | (SceneBaseInput & { scene?: "phone"; sceneOptions?: PhoneSceneOptionsInput })
+  | (SceneBaseInput & { scene: "laptop"; sceneOptions?: LaptopSceneOptionsInput })
+  | (SceneBaseInput & { scene: "browser"; sceneOptions?: BrowserSceneOptionsInput })
+  // The specimen scene's authoring surface is the `specimen` generator; this branch only keeps
+  // direct `scene: "specimen"` configs type-valid.
+  | (SceneBaseInput & { scene: "specimen"; sceneOptions?: Record<string, unknown> });
+
 export type ResolvedSceneOptions = z.infer<typeof sceneOptionsSchema>;

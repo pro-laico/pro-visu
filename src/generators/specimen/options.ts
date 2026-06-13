@@ -112,16 +112,26 @@ export interface SpecimenOptionsInput {
   fps?: number;
   /** Clip length in seconds. Defaults to the (mirrored) sum of the pulse durations; set to override. */
   durationSeconds?: number;
+  /** Output frame width in px (default 1920). */
+  width?: number;
+  /** Output frame height in px (default 1080). */
+  height?: number;
   /** Render scale (1 = 1:1; higher = crisper capture, downscaled into the video). */
   deviceScaleFactor?: number;
   /** Glyph weight on the variable-font axis, 1–1000. */
   weight?: number;
   /** Roughly how many glyphs to show — auto-grouped into the wrapping line. */
   characters?: number;
-  /** Explicit glyph size in px (on the 1920×1080 canvas). Omit to auto-fit the type area. */
+  /** Explicit glyph size in px. Omit to auto-fit the type area. */
   fontSize?: number;
+  /** Line-height of the glyph block (default 0.78 — tight, cap-height-hugging). */
+  leading?: number;
   /** Glyphs to exclude from the showcase, e.g. "QXZ" (case-insensitive). */
   blacklist?: string;
+  /** Override the glyph pool the specimen draws from (≥2 distinct characters). Default A–Z 0–9 + symbols. */
+  characterPool?: string;
+  /** Schedule seed — same seed ⇒ identical animation. Change for a different (still deterministic) take. */
+  seed?: number;
   /** Color tokens the glyphs cycle through. Override any subset. */
   colors?: SpecimenColorsInput;
   /** Relative likelihood of each color token on a random (non-targeted) color change (default 2/2/1). */
@@ -247,8 +257,8 @@ function applyTemplate(raw: unknown): unknown {
 }
 
 /**
- * A type-specimen video: point it at a font file and give it a name — the tool renders a fixed
- * 1920×1080 (16:9) clip of the typeface set as a wrapping string whose glyphs and colors change
+ * A type-specimen video: point it at a font file and give it a name — the tool renders a clip
+ * (1920×1080 by default) of the typeface set as a wrapping string whose glyphs and colors change
  * over a composed sequence of "pulses" (mirrored into a seamless loop by default), and captures it.
  * Everything else has sensible defaults.
  */
@@ -260,11 +270,19 @@ const specimenObjectSchema = z
     demo: z.boolean().default(false),
     fps: z.number().int().positive().max(120).default(30),
     durationSeconds: z.number().positive().optional(),
+    width: z.number().int().positive().default(1920),
+    height: z.number().int().positive().default(1080),
     deviceScaleFactor: z.number().positive().max(4).default(1),
     weight: z.number().int().min(1).max(1000).default(820),
     characters: z.number().int().min(1).max(120).default(23),
     fontSize: z.number().positive().optional(),
+    leading: z.number().positive().default(0.78),
     blacklist: z.string().default(""),
+    characterPool: z
+      .string()
+      .refine((s) => new Set([...s.trim()]).size >= 2, "characterPool needs ≥2 distinct characters")
+      .optional(),
+    seed: z.number().int().default(1),
     colors: z
       .object({
         background: z.string().default("#eceef1"),
