@@ -31,10 +31,15 @@ export interface ChromeResult {
   framePng: string;
   /** White rounded-bottom rect on transparent — alpha mask for the video corners. */
   maskPng: string;
-  /** Output frame size in device px (even). */
+  /** Output frame size in device px (even, for yuv420p). */
   frameWidthPx: number;
   frameHeightPx: number;
-  /** Where the video goes, in device px (even), relative to the full frame. */
+  /**
+   * Where the video goes, in device px, relative to the full frame. w/h are plain-rounded (not
+   * even-rounded) so they exactly match the mask PNG's natural pixel size — the composite then
+   * scales the mask to w×h as a no-op, keeping the baked corner radius crisp and the video's aspect
+   * undistorted. (Only the final frame needs even dimensions; this masked overlay is an intermediate.)
+   */
   viewport: { x: number; y: number; w: number; h: number };
 }
 
@@ -102,8 +107,10 @@ html,body{background:transparent}
       viewport: {
         x: Math.round(vp.x * scale),
         y: Math.round(vp.y * scale),
-        w: evenRound(vp.width * scale),
-        h: evenRound(vp.height * scale),
+        // Plain round (not even): matches the mask's native pixel size exactly, so the composite's
+        // scale-to-w×h is a no-op — no corner-radius stretch, no aspect distortion.
+        w: Math.round(vp.width * scale),
+        h: Math.round(vp.height * scale),
       },
     };
   } finally {
