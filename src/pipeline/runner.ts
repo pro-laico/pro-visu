@@ -10,6 +10,7 @@ import type { Reporter } from "@/pipeline/reporter";
 import { getGenerator } from "@/generators/registry";
 import { ManifestStore } from "@/manifest/manifest";
 import { ensureDir, removeDir } from "@/utils/fs";
+import { sha256File } from "@/utils/hash";
 import type { ResolvedAssetSpec, ResolvedConfig } from "@/config/schema";
 import type { Logger } from "@/utils/logger";
 import type { AssetRecord } from "@/manifest/schema";
@@ -117,11 +118,25 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
       );
       const options = generator.optionsSchema.parse(merged);
 
+      // Hash the content of declared file dependencies (e.g. fonts) into the cache key, so
+      // editing the file regenerates the asset. Missing files fail here, early and clearly,
+      // instead of producing a blank render from a 404'd URL later.
+      let fileHashes: Record<string, string> | undefined;
+      for (const dep of generator.fileDependencies?.(options) ?? []) {
+        const resolved = path.isAbsolute(dep) ? dep : path.resolve(process.cwd(), dep);
+        try {
+          (fileHashes ??= {})[resolved] = await sha256File(resolved);
+        } catch {
+          throw new Error(`File dependency not found: ${dep}`);
+        }
+      }
+
       const cacheKey = computeCacheKey({
         generator: spec.generator,
         url: spec.url,
         options,
         inputs: inputHashes,
+        files: fileHashes,
         quality,
         toolVersion: opts.toolVersion,
       });

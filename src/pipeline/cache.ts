@@ -7,6 +7,12 @@ export interface CacheKeyParts {
   options: unknown;
   /** Slot name → producing asset's output contentHash. */
   inputs: Record<string, string>;
+  /**
+   * Resolved path → content hash of the generator's declared file dependencies (e.g. fonts).
+   * Pass `undefined` when there are none — stableStringify drops undefined entries, keeping keys
+   * byte-identical for generators that don't use the feature.
+   */
+  files?: Record<string, string>;
   quality: string;
   toolVersion: string;
 }

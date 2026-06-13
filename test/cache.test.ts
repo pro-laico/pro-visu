@@ -30,6 +30,31 @@ describe("computeCacheKey", () => {
       computeCacheKey({ ...base, toolVersion: "0.2.0" }),
     );
   });
+
+  it("is byte-identical when file dependencies are absent vs undefined (key stability)", () => {
+    expect(computeCacheKey({ ...base, files: undefined })).toBe(computeCacheKey(base));
+  });
+
+  it("changes when a file dependency's content hash changes", () => {
+    const withFont = computeCacheKey({ ...base, files: { "C:/fonts/x.woff2": "aaa" } });
+    expect(withFont).not.toBe(computeCacheKey(base));
+    expect(withFont).not.toBe(
+      computeCacheKey({ ...base, files: { "C:/fonts/x.woff2": "bbb" } }),
+    );
+  });
+});
+
+describe("generator file dependencies", () => {
+  it("specimen declares its font; scene declares its served files", async () => {
+    const { specimenGenerator } = await import("@/generators/specimen");
+    const { sceneGenerator } = await import("@/generators/scene");
+    const specimenOpts = specimenGenerator.optionsSchema.parse({ font: "fonts/X.woff2" });
+    expect(specimenGenerator.fileDependencies?.(specimenOpts)).toEqual(["fonts/X.woff2"]);
+    const sceneOpts = sceneGenerator.optionsSchema.parse({
+      files: { font: "a.woff2", logo: "b.png" },
+    });
+    expect(sceneGenerator.fileDependencies?.(sceneOpts)).toEqual(["a.woff2", "b.png"]);
+  });
 });
 
 describe("applyQuality", () => {

@@ -24,6 +24,7 @@ cli
   .option("--concurrency <n>", "Override parallelism")
   .option("--skip-browser", "Skip the Chromium check/install")
   .option("--skip-server", "Skip the managed server (use an already-running site)")
+  .option("--skip-build", "Skip the server build step (fast iteration when the site is unchanged)")
   .option("--draft", "Draft quality: faster, lower-fidelity renders for iteration")
   .option("--cache", "Skip assets whose inputs+options are unchanged")
   .option("--verbose", "Verbose (debug) logging")

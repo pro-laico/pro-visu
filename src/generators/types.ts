@@ -48,5 +48,12 @@ export interface Generator<TOptions = unknown> {
   id: string;
   /** zod schema validating + defaulting this generator's options. Input is loose. */
   optionsSchema: ZodType<TOptions, ZodTypeDef, unknown>;
+  /**
+   * Local files (beyond declared asset inputs) whose CONTENT affects the output — e.g. a font
+   * file. Paths as authored (relative to the cwd, or absolute). The pipeline hashes their content
+   * into the cache key, so editing the file invalidates the cache; a missing file fails the asset
+   * early with a clear error instead of rendering blank.
+   */
+  fileDependencies?(options: TOptions): string[];
   run(ctx: PipelineContext, options: TOptions): Promise<GeneratorResult>;
 }

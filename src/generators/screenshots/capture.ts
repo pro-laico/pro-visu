@@ -1,5 +1,6 @@
 import type { Browser, Page } from "playwright-core";
 import type { Logger } from "@/utils/logger";
+import { mapLimit } from "@/utils/concurrency";
 import { prepareScroll } from "@/generators/scroll-reel/scroll";
 import type { ResolvedScreenshotsOptions } from "@/generators/screenshots/options";
 
@@ -21,12 +22,30 @@ export interface CaptureArgs {
 
 type PageShotOptions = NonNullable<Parameters<Page["screenshot"]>[0]>;
 
-/** Capture page (and optional element) screenshots across every configured breakpoint. */
+/**
+ * Capture page (and optional element) screenshots across every configured breakpoint.
+ * Breakpoints render in parallel (each in its own isolated context, modest cap — full-page
+ * buffers are memory-heavy); element shots stay sequential within a breakpoint. mapLimit
+ * preserves input order, so filenames/manifest ids are stable.
+ */
 export async function captureScreenshots(args: CaptureArgs): Promise<Shot[]> {
+  const { options } = args;
+  const perBreakpoint = await mapLimit(
+    options.breakpoints,
+    Math.min(3, options.breakpoints.length),
+    (bp) => captureBreakpoint(args, bp),
+  );
+  return perBreakpoint.flat();
+}
+
+/** One breakpoint: fresh context → navigate → warm the page → page shot + element shots. */
+async function captureBreakpoint(
+  args: CaptureArgs,
+  bp: ResolvedScreenshotsOptions["breakpoints"][number],
+): Promise<Shot[]> {
   const { browser, url, options, logger } = args;
   const shots: Shot[] = [];
-
-  for (const bp of options.breakpoints) {
+  {
     const context = await browser.newContext({
       viewport: { width: bp.width, height: bp.height },
       deviceScaleFactor: bp.deviceScaleFactor ?? options.deviceScaleFactor,

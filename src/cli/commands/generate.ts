@@ -27,6 +27,8 @@ export interface GenerateOptions {
   skipBrowser?: boolean;
   /** Skip the managed server (use an already-running site at the asset URLs). */
   skipServer?: boolean;
+  /** Keep the managed server but skip its build step (fast iteration when the site is unchanged). */
+  skipBuild?: boolean;
   /** Draft quality: faster, lower-fidelity renders for iteration. */
   draft?: boolean;
   /** Skip assets whose inputs+options+tool fingerprint is unchanged. */
@@ -116,7 +118,10 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   // tracker's footer shows the "esc to cancel" hint.
   reporter.begin();
 
-  const serverCfg = options.skipServer ? undefined : config.settings.server;
+  const baseServerCfg = options.skipServer ? undefined : config.settings.server;
+  // --skip-build keeps the managed server but drops its one-shot build (the site is unchanged).
+  const serverCfg =
+    baseServerCfg && options.skipBuild ? { ...baseServerCfg, build: undefined } : baseServerCfg;
   const gates: string[] = [];
   const tasks: ServerTasks = {};
   if (reporter.isLive && serverCfg) {

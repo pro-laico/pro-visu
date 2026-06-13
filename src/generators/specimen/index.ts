@@ -57,5 +57,7 @@ async function run(
 export const specimenGenerator: Generator<ResolvedSpecimenOptions> = {
   id: SPECIMEN_ID,
   optionsSchema: specimenOptionsSchema,
+  // The font's CONTENT shapes the output — hash it into the cache key (edit font → regenerate).
+  fileDependencies: (o) => [o.font],
   run,
 };

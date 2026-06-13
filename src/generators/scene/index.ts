@@ -169,5 +169,7 @@ function autoWorkers(): number {
 export const sceneGenerator: Generator<ResolvedSceneOptions> = {
   id: SCENE_ID,
   optionsSchema: sceneOptionsSchema,
+  // Served files (e.g. fonts) shape the output — hash their content into the cache key.
+  fileDependencies: (options) => Object.values(options.files),
   run: (ctx, options) => renderScene(ctx, options),
 };
