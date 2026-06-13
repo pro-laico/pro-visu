@@ -28,7 +28,11 @@ async function run(
     deviceScaleFactor: o.deviceScaleFactor,
     fps: o.fps,
     durationSeconds,
-    capture: "realtime", // the scene animates itself on a timeline; record it live
+    // The specimen's animation is a seeded, deterministic function of time (it publishes
+    // __sceneSeek), so the frame-stepper renders it frame-exact: single encode, supersampling via
+    // deviceScaleFactor, and a perfect loop seam — no realtime recording jitter.
+    capture: "frames",
+    frameFormat: "jpeg",
     crf: o.crf,
     fileName: o.fileName,
     files: { font: o.font },

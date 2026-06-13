@@ -16,7 +16,9 @@ export interface FrameCaptureArgs {
   outPath: string;
   /** "ultrafast" in draft, "medium" otherwise. */
   preset?: string;
-  /** JPEG quality for intermediate frames (perf vs fidelity). */
+  /** Intermediate frame format; "png" is lossless into the encoder. Default "jpeg". */
+  frameFormat?: "jpeg" | "png";
+  /** JPEG quality for intermediate frames (perf vs fidelity; ignored for png). */
   jpegQuality?: number;
   /** Parallel render workers (each its own browser context). Default 1. */
   workers?: number;
@@ -34,6 +36,7 @@ interface ChunkArgs {
   fps: number;
   crf: number;
   preset?: string;
+  frameFormat: "jpeg" | "png";
   jpegQuality: number;
   /** Seconds advanced per frame (duration / totalFrames) — see captureSceneFrames. */
   timeStep: number;
@@ -63,9 +66,22 @@ async function renderChunk(a: ChunkArgs): Promise<void> {
     );
 
     const encoder = startFrameEncoder(
-      { fps: a.fps, width: a.width, height: a.height, crf: a.crf, outPath: a.outPath, preset: a.preset },
+      {
+        fps: a.fps,
+        width: a.width,
+        height: a.height,
+        crf: a.crf,
+        outPath: a.outPath,
+        preset: a.preset,
+        inputFormat: a.frameFormat,
+      },
       a.logger,
     );
+    // Playwright rejects `quality` for png screenshots, so only pass it on the jpeg path.
+    const shotOptions =
+      a.frameFormat === "png"
+        ? ({ type: "png" } as const)
+        : ({ type: "jpeg", quality: a.jpegQuality } as const);
     for (let frame = a.frameStart; frame < a.frameEnd; frame++) {
       const t = frame * a.timeStep;
       await page.evaluate(
@@ -73,7 +89,7 @@ async function renderChunk(a: ChunkArgs): Promise<void> {
           (globalThis as { __showcase?: { seek(t: number): Promise<void> } }).__showcase?.seek(tt),
         t,
       );
-      const buf = await page.screenshot({ type: "jpeg", quality: a.jpegQuality });
+      const buf = await page.screenshot(shotOptions);
       await encoder.write(buf);
     }
     await encoder.done();
@@ -96,6 +112,7 @@ export async function captureSceneFrames(args: FrameCaptureArgs): Promise<void> 
   const timeStep = args.durationSeconds / totalFrames;
   const workers = Math.max(1, Math.min(args.workers ?? 1, totalFrames));
   const jpegQuality = args.jpegQuality ?? 90;
+  const frameFormat = args.frameFormat ?? "jpeg";
   const common = {
     browser: args.browser,
     url: args.url,
@@ -105,6 +122,7 @@ export async function captureSceneFrames(args: FrameCaptureArgs): Promise<void> 
     fps: args.fps,
     crf: args.crf,
     preset: args.preset,
+    frameFormat,
     jpegQuality,
     timeStep,
     logger: args.logger,

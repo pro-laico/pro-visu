@@ -25,6 +25,13 @@ declare global {
      * `__showcaseReady`, so the first recorded frame is never an un-seeded/blank state.
      */
     __sceneReady?: Promise<void>;
+    /**
+     * Optional scene timeline hook: render the scene's own animation state for absolute time `t`
+     * (seconds). When present, `__showcase.seek(t)` awaits it (deterministic frame-stepping) and
+     * `play()` drives it from a rAF wall clock (realtime preview/recording). Scenes whose content
+     * is only <video> elements don't need it.
+     */
+    __sceneSeek?: (t: number) => void | Promise<void>;
   }
 }
 
@@ -100,6 +107,9 @@ export function initRuntime(): void {
     window.__showcaseReady = true;
   });
 
+  // Realtime driver for a scene timeline (__sceneSeek): a rAF wall clock from play() to pause().
+  let rafId: number | null = null;
+
   window.__showcase = {
     ready: () => readyPromise,
     play: () => {
@@ -107,12 +117,29 @@ export function initRuntime(): void {
         v.currentTime = 0;
         void v.play().catch(() => {});
       }
+      const sceneSeek = window.__sceneSeek;
+      if (sceneSeek) {
+        const t0 = performance.now();
+        const tick = (): void => {
+          void sceneSeek((performance.now() - t0) / 1000);
+          rafId = requestAnimationFrame(tick);
+        };
+        void sceneSeek(0);
+        rafId = requestAnimationFrame(tick);
+      }
     },
     pause: () => {
       for (const v of videos) v.pause();
+      if (rafId != null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
     },
     seek: async (t: number) => {
-      await Promise.all(videos.map((v) => seekTo(v, t)));
+      await Promise.all([
+        ...videos.map((v) => seekTo(v, t)),
+        Promise.resolve(window.__sceneSeek?.(t)),
+      ]);
       await nextFrame();
     },
     get duration() {

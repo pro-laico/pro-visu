@@ -39,6 +39,7 @@ async function run(
     width: options.width,
     height: options.height,
     crf: options.crf,
+    preset: ctx.quality === "draft" ? "ultrafast" : "medium",
     // Drop the navigation + warm-up lead, then clamp to the intended length so the clip opens on
     // the start-of-scroll frame and is exactly startDelay + duration + endDwell long.
     startOffsetSeconds: leadSeconds,

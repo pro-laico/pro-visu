@@ -12,11 +12,35 @@ export interface TranscodeArgs {
   width: number;
   height: number;
   crf: number;
+  /** x264 speed/size tradeoff; "ultrafast" for draft, "medium" (default) for final. */
+  preset?: string;
   /** Seconds to trim off the head of the input (e.g. the blank navigation lead of a recording). */
   startOffsetSeconds?: number;
   /** Clamp the output to exactly this many seconds (after any head trim) so length is deterministic. */
   durationSeconds?: number;
 }
+
+/**
+ * Color correctness: every encode converts to and TAGS bt709 limited (tv) range — the standard for
+ * web/HD video. Untagged output forces players to guess the matrix (bt601 vs bt709), which shifts
+ * colors subtly; explicit conversion + tagging keeps brand colors exact everywhere.
+ *
+ * `SCALE_COLOR` goes on the scale filter (which performs the conversion); `format=yuv420p` must
+ * directly follow scale in the chain so scale itself does the RGB→YUV conversion with the declared
+ * matrix (for RGB inputs like PNG frames/overlays, a later auto-inserted converter would otherwise
+ * use an unspecified matrix). `COLOR_TAGS` writes the matching metadata into the x264 VUI/container.
+ */
+export const SCALE_COLOR = "out_color_matrix=bt709:out_range=tv";
+export const COLOR_TAGS = [
+  "-colorspace",
+  "bt709",
+  "-color_primaries",
+  "bt709",
+  "-color_trc",
+  "bt709",
+  "-color_range",
+  "tv",
+];
 
 /** Absolute path to the bundled ffmpeg binary. */
 export function ffmpegPath(): string {
@@ -49,15 +73,16 @@ export function buildTranscodeArgs(args: TranscodeArgs): string[] {
     "-i",
     args.inputPath,
     "-vf",
-    `scale=${args.width}:${args.height}:flags=lanczos,fps=${args.fps}`,
+    `scale=${args.width}:${args.height}:flags=lanczos:${SCALE_COLOR},format=yuv420p,fps=${args.fps}`,
     "-c:v",
     "libx264",
     "-preset",
-    "medium",
+    args.preset ?? "medium",
     "-crf",
     String(args.crf),
     "-pix_fmt",
     "yuv420p",
+    ...COLOR_TAGS,
     "-movflags",
     "+faststart",
     "-an",
@@ -95,12 +120,15 @@ export interface FramePipeArgs {
   outPath: string;
   /** x264 speed/size tradeoff; "ultrafast" for draft, "medium" for final. */
   preset?: string;
+  /** Piped frame format; "png" is the lossless (slower) path. Default "jpeg". */
+  inputFormat?: "jpeg" | "png";
 }
 
 /**
- * ffmpeg argv to encode a stream of JPEG frames (image2pipe on stdin) into an mp4. Pure —
+ * ffmpeg argv to encode a stream of image frames (image2pipe on stdin) into an mp4. Pure —
  * unit-tested. Frames are scaled to the output size so we can screenshot at a higher device
- * scale and downsample for crispness.
+ * scale and downsample for crispness. The input codec is set explicitly (mjpeg/png) rather than
+ * relying on pipe content probing, so behavior is deterministic.
  */
 export function buildFramePipeArgs(a: FramePipeArgs): string[] {
   return [
@@ -109,10 +137,12 @@ export function buildFramePipeArgs(a: FramePipeArgs): string[] {
     "image2pipe",
     "-framerate",
     String(a.fps),
+    "-c:v",
+    a.inputFormat === "png" ? "png" : "mjpeg",
     "-i",
     "pipe:0",
     "-vf",
-    `scale=${a.width}:${a.height}:flags=lanczos`,
+    `scale=${a.width}:${a.height}:flags=lanczos:${SCALE_COLOR},format=yuv420p`,
     "-r",
     String(a.fps),
     "-c:v",
@@ -123,6 +153,7 @@ export function buildFramePipeArgs(a: FramePipeArgs): string[] {
     String(a.crf),
     "-pix_fmt",
     "yuv420p",
+    ...COLOR_TAGS,
     "-movflags",
     "+faststart",
     "-an",

@@ -23,6 +23,11 @@ export const sceneOptionsSchema = z
     capture: z.enum(["realtime", "frames"]).default("realtime"),
     /** Parallel frame-render workers (frames capture only). Omit to auto-pick from cores. */
     workers: z.number().int().positive().optional(),
+    /**
+     * Intermediate frame format (frames capture only). "jpeg" (default) is fast and high quality;
+     * "png" is lossless into the encoder — maximum fidelity, slower screenshots.
+     */
+    frameFormat: z.enum(["jpeg", "png"]).default("jpeg"),
     /** x264 quality, 0–51 (lower = better/larger). */
     crf: z.number().int().min(0).max(51).default(18),
     /** Output filename; defaults to "<slug(asset name)>.mp4". */

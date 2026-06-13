@@ -74,8 +74,9 @@ export async function renderScene(
     await ensureDir(path.dirname(outPath));
     const composedTmp = path.join(ctx.tmpDir, `${slugify(ctx.target.name)}-scene.mp4`);
 
+    const draft = ctx.quality === "draft";
+    const preset = draft ? "ultrafast" : "medium";
     if (options.capture === "frames") {
-      const draft = ctx.quality === "draft";
       const workers = options.workers ?? autoWorkers();
       ctx.logger.info(
         `rendering scene "${options.scene}" (frame-stepped, ${workers} worker(s))`,
@@ -90,7 +91,9 @@ export async function renderScene(
         durationSeconds: options.durationSeconds,
         crf: options.crf,
         outPath: composedTmp,
-        preset: draft ? "ultrafast" : "medium",
+        preset,
+        // Draft always uses fast jpeg intermediates; final uses the configured format (png = lossless).
+        frameFormat: draft ? "jpeg" : options.frameFormat,
         jpegQuality: draft ? 70 : 90,
         workers,
         tmpDir: ctx.tmpDir,
@@ -115,6 +118,7 @@ export async function renderScene(
         width: options.width,
         height: options.height,
         crf: options.crf,
+        preset,
         // Trim the blank navigation/readiness lead so the clip opens on the first painted frame,
         // then clamp to the intended length so the output matches the manifest's durationMs.
         startOffsetSeconds: recording.leadSeconds,

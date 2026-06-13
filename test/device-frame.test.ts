@@ -75,4 +75,22 @@ describe("buildDeviceFrameArgs", () => {
     expect(argv).toContain("yuv420p");
     expect(argv[argv.length - 1]).toBe("out.mp4");
   });
+
+  it("converts and tags the output as bt709 tv-range (no untagged color guessing)", () => {
+    const argv = buildDeviceFrameArgs(base);
+    const filter = argv[argv.indexOf("-filter_complex") + 1] ?? "";
+    // The final RGBA→YUV conversion declares the matrix on the scale that performs it.
+    expect(filter).toContain("scale=out_color_matrix=bt709:out_range=tv,format=yuv420p[out]");
+    expect(argv[argv.indexOf("-colorspace") + 1]).toBe("bt709");
+    expect(argv[argv.indexOf("-color_primaries") + 1]).toBe("bt709");
+    expect(argv[argv.indexOf("-color_trc") + 1]).toBe("bt709");
+    expect(argv[argv.indexOf("-color_range") + 1]).toBe("tv");
+  });
+
+  it("defaults the preset to medium and honors an override", () => {
+    const argv = buildDeviceFrameArgs(base);
+    expect(argv[argv.indexOf("-preset") + 1]).toBe("medium");
+    const draft = buildDeviceFrameArgs({ ...base, preset: "ultrafast" });
+    expect(draft[draft.indexOf("-preset") + 1]).toBe("ultrafast");
+  });
 });

@@ -36,6 +36,7 @@ async function run(
   });
   const durationSeconds =
     (options.startDelayMs + options.duration + options.endDwellMs) / 1000;
+  const preset = ctx.quality === "draft" ? "ultrafast" : "medium";
   const captureMp4 = path.join(ctx.tmpDir, `${slugify(ctx.target.name)}-capture.mp4`);
   await transcodeToMp4({
     inputPath: webmPath,
@@ -44,6 +45,7 @@ async function run(
     width: options.width,
     height: options.height,
     crf: options.crf,
+    preset,
     // Trim the navigation + warm-up lead and clamp to the intended length, so the framed clip opens
     // on the scroll and the backdrop's `d=durationSeconds` (below) stays aligned with the content.
     startOffsetSeconds: leadSeconds,
@@ -81,6 +83,7 @@ async function run(
       fps: options.fps,
       crf: options.crf,
       durationSeconds,
+      preset,
     }),
     ctx.logger,
   );

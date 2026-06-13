@@ -1,3 +1,5 @@
+import { COLOR_TAGS, SCALE_COLOR } from "@/media/ffmpeg";
+
 export interface DeviceFrameCompositeArgs {
   /** Captured site video (mp4). */
   videoPath: string;
@@ -13,12 +15,15 @@ export interface DeviceFrameCompositeArgs {
   fps: number;
   crf: number;
   durationSeconds: number;
+  /** x264 speed/size tradeoff; "ultrafast" for draft, "medium" (default) for final. */
+  preset?: string;
 }
 
 /**
  * Build the ffmpeg filtergraph that composites the device frame in a single pass:
  *   backdrop color → opaque window chrome → corner-masked capture in the viewport.
- * Pure (no I/O) so it can be unit-tested.
+ * The final RGBA→YUV conversion is done by a scale with an explicit bt709/tv matrix (and the
+ * stream is tagged to match) so colors stay exact. Pure (no I/O) so it can be unit-tested.
  */
 export function buildDeviceFrameArgs(args: DeviceFrameCompositeArgs): string[] {
   const { viewport: v } = args;
@@ -28,7 +33,7 @@ export function buildDeviceFrameArgs(args: DeviceFrameCompositeArgs): string[] {
     `[0:v]fps=${args.fps},scale=${v.w}:${v.h}:flags=lanczos,format=rgba[vs]`,
     `[vs][ma]alphamerge[vr]`,
     `[bg][1:v]overlay=0:0[wc]`,
-    `[wc][vr]overlay=${v.x}:${v.y}:format=auto,format=yuv420p[out]`,
+    `[wc][vr]overlay=${v.x}:${v.y}:format=auto,scale=${SCALE_COLOR},format=yuv420p[out]`,
   ].join(";");
 
   return [
@@ -46,11 +51,12 @@ export function buildDeviceFrameArgs(args: DeviceFrameCompositeArgs): string[] {
     "-c:v",
     "libx264",
     "-preset",
-    "medium",
+    args.preset ?? "medium",
     "-crf",
     String(args.crf),
     "-pix_fmt",
     "yuv420p",
+    ...COLOR_TAGS,
     "-movflags",
     "+faststart",
     "-an",

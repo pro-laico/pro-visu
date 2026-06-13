@@ -80,6 +80,31 @@ describe("buildTranscodeArgs", () => {
   it("omits -t by default", () => {
     expect(args).not.toContain("-t");
   });
+
+  it("converts and tags the output as bt709 tv-range", () => {
+    const vf = args[args.indexOf("-vf") + 1] ?? "";
+    // scale performs the conversion with a declared matrix; format=yuv420p directly after scale
+    // makes scale itself do the (R)GB/601→709 conversion rather than a later untagged converter.
+    expect(vf).toContain("out_color_matrix=bt709:out_range=tv,format=yuv420p");
+    expect(args[args.indexOf("-colorspace") + 1]).toBe("bt709");
+    expect(args[args.indexOf("-color_primaries") + 1]).toBe("bt709");
+    expect(args[args.indexOf("-color_trc") + 1]).toBe("bt709");
+    expect(args[args.indexOf("-color_range") + 1]).toBe("tv");
+  });
+
+  it("defaults the preset to medium and honors an override (draft)", () => {
+    expect(args[args.indexOf("-preset") + 1]).toBe("medium");
+    const draft = buildTranscodeArgs({
+      inputPath: "in.webm",
+      outputPath: "out.mp4",
+      fps: 30,
+      width: 1280,
+      height: 720,
+      crf: 18,
+      preset: "ultrafast",
+    });
+    expect(draft[draft.indexOf("-preset") + 1]).toBe("ultrafast");
+  });
 });
 
 describe("buildFramePipeArgs", () => {
@@ -106,6 +131,28 @@ describe("buildFramePipeArgs", () => {
     expect(args).toContain("yuv420p");
     expect(args[args.indexOf("-preset") + 1]).toBe("ultrafast");
     expect(args[args.length - 1]).toBe("out.mp4");
+  });
+
+  it("declares the piped input codec explicitly: mjpeg by default, png for the lossless path", () => {
+    // The first -c:v is an input option (before -i); the second is the libx264 output codec.
+    expect(args[args.indexOf("-c:v") + 1]).toBe("mjpeg");
+    const png = buildFramePipeArgs({
+      fps: 30,
+      width: 1080,
+      height: 1350,
+      crf: 20,
+      outPath: "out.mp4",
+      inputFormat: "png",
+    });
+    expect(png[png.indexOf("-c:v") + 1]).toBe("png");
+    expect(png.indexOf("-c:v")).toBeLessThan(png.indexOf("-i")); // input-side option
+  });
+
+  it("converts and tags the output as bt709 tv-range", () => {
+    const vf = args[args.indexOf("-vf") + 1] ?? "";
+    expect(vf).toContain("out_color_matrix=bt709:out_range=tv,format=yuv420p");
+    expect(args[args.indexOf("-colorspace") + 1]).toBe("bt709");
+    expect(args[args.indexOf("-color_range") + 1]).toBe("tv");
   });
 });
 
