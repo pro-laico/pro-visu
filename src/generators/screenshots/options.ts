@@ -47,7 +47,11 @@ export const screenshotsOptionsSchema = z
     /** Extra settle time after load before capturing (ms). */
     settleMs: z.number().int().nonnegative().default(0),
   })
-  .strict();
+  .strict()
+  .refine((o) => !(o.format === "png" && o.quality != null), {
+    message: "`quality` only applies to jpeg; remove it or set format: \"jpeg\".",
+    path: ["quality"],
+  });
 
 export type ScreenshotsOptions = z.input<typeof screenshotsOptionsSchema>;
 export type ResolvedScreenshotsOptions = z.infer<typeof screenshotsOptionsSchema>;

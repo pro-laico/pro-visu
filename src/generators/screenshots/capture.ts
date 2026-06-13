@@ -1,6 +1,10 @@
 import type { Browser, Page } from "playwright-core";
 import type { Logger } from "@/utils/logger";
+import { prepareScroll } from "@/generators/scroll-reel/scroll";
 import type { ResolvedScreenshotsOptions } from "@/generators/screenshots/options";
+
+/** Minimum settle at the bottom for lazy/below-the-fold content (esp. for fullPage shots). */
+const MIN_PREPARE_SETTLE_MS = 600;
 
 export interface Shot {
   /** Suffix appended to the asset name for the filename + manifest id. */
@@ -34,7 +38,12 @@ export async function captureScreenshots(args: CaptureArgs): Promise<Shot[]> {
       if (options.waitForSelector) {
         await page.waitForSelector(options.waitForSelector, { state: "visible" });
       }
-      if (options.settleMs > 0) await page.waitForTimeout(options.settleMs);
+      // Drive the page so lazy-loaded / intersection-mounted content, web fonts, and image decode
+      // are done before we shoot — otherwise fullPage shots capture blank/placeholder regions and
+      // fallback fonts. Returns to the top when finished.
+      await page.evaluate(prepareScroll, {
+        settleMs: Math.max(options.settleMs, MIN_PREPARE_SETTLE_MS),
+      });
 
       const pageShotOptions: PageShotOptions = {
         type: options.format,
@@ -61,10 +70,18 @@ export async function captureScreenshots(args: CaptureArgs): Promise<Shot[]> {
         if (options.format === "jpeg" && options.quality != null) {
           elShotOptions.quality = options.quality;
         }
-        shots.push({
-          key: `${bp.name}-${element.name}`,
-          buffer: await locator.screenshot(elShotOptions),
-        });
+        // A present-but-hidden element (display:none until interaction) makes locator.screenshot
+        // throw; warn + skip it instead of aborting the whole breakpoint loop.
+        try {
+          shots.push({
+            key: `${bp.name}-${element.name}`,
+            buffer: await locator.screenshot(elShotOptions),
+          });
+        } catch (err) {
+          logger.warn(
+            `[${bp.name}] could not capture "${element.selector}": ${(err as Error).message}`,
+          );
+        }
       }
     } finally {
       await context.close();

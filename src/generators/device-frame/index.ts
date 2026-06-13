@@ -27,13 +27,15 @@ async function run(
 
   // 1. Record the site (same capture path as scroll-reel), then transcode to mp4.
   ctx.logger.info(`recording ${url}`);
-  const { webmPath } = await captureScrollWebm({
+  const { webmPath, leadSeconds } = await captureScrollWebm({
     browser: ctx.browser,
     url,
     options,
     tmpDir: ctx.tmpDir,
     logger: ctx.logger,
   });
+  const durationSeconds =
+    (options.startDelayMs + options.duration + options.endDwellMs) / 1000;
   const captureMp4 = path.join(ctx.tmpDir, `${slugify(ctx.target.name)}-capture.mp4`);
   await transcodeToMp4({
     inputPath: webmPath,
@@ -42,6 +44,10 @@ async function run(
     width: options.width,
     height: options.height,
     crf: options.crf,
+    // Trim the navigation + warm-up lead and clamp to the intended length, so the framed clip opens
+    // on the scroll and the backdrop's `d=durationSeconds` (below) stays aligned with the content.
+    startOffsetSeconds: leadSeconds,
+    durationSeconds,
     logger: ctx.logger,
   });
 
@@ -58,9 +64,6 @@ async function run(
     scale: options.deviceScaleFactor,
     logger: ctx.logger,
   });
-
-  const durationSeconds =
-    (options.startDelayMs + options.duration + options.endDwellMs) / 1000;
 
   ctx.logger.debug("compositing device frame (ffmpeg)");
   await ensureDir(path.dirname(outPath));

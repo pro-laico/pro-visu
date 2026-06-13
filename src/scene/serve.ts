@@ -28,6 +28,38 @@ const MIME: Record<string, string> = {
 const mimeFor = (p: string): string =>
   MIME[path.extname(p).toLowerCase()] ?? "application/octet-stream";
 
+/**
+ * Parse a single HTTP byte-range header against a known size. Handles `bytes=start-end`,
+ * `bytes=start-` (open-ended), and `bytes=-N` (suffix: the last N bytes — which Chromium's media
+ * stack does issue). Returns null for absent/malformed/unsatisfiable/multi ranges, in which case the
+ * caller should serve the full body (200) rather than mis-claim a 206. Pure — unit-tested.
+ */
+export function parseByteRange(
+  header: string | undefined,
+  size: number,
+): { start: number; end: number } | null {
+  if (!header) return null;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!m) return null; // not a single bytes range (e.g. multi-range) → caller serves full
+  const [, startRaw, endRaw] = m;
+  let start: number;
+  let end: number;
+  if (startRaw === "") {
+    if (endRaw === "") return null;
+    const n = Number(endRaw);
+    if (!(n > 0)) return null;
+    start = Math.max(0, size - n);
+    end = size - 1;
+  } else {
+    start = Number(startRaw);
+    end = endRaw === "" ? size - 1 : Number(endRaw);
+  }
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  end = Math.min(end, size - 1);
+  if (start < 0 || start > end || start >= size) return null;
+  return { start, end };
+}
+
 export interface SceneServer {
   origin: string;
   /** Absolute URL of a served input asset by slot name. */
@@ -76,18 +108,16 @@ export async function startSceneServer(args: SceneServerArgs): Promise<SceneServ
     const rangeable = type.startsWith("video/");
     if (rangeable) res.setHeader("Accept-Ranges", "bytes");
 
-    const range = rangeable ? req.headers.range : undefined;
-    if (range) {
-      const m = /bytes=(\d+)-(\d*)/.exec(range);
-      const start = m ? Number(m[1]) : 0;
-      const end = m && m[2] ? Number(m[2]) : info.size - 1;
+    const parsed = rangeable ? parseByteRange(req.headers.range, info.size) : null;
+    if (parsed) {
       res.writeHead(206, {
         "Content-Type": type,
-        "Content-Range": `bytes ${start}-${end}/${info.size}`,
-        "Content-Length": end - start + 1,
+        "Content-Range": `bytes ${parsed.start}-${parsed.end}/${info.size}`,
+        "Content-Length": parsed.end - parsed.start + 1,
       });
-      createReadStream(file, { start, end }).pipe(res);
+      createReadStream(file, { start: parsed.start, end: parsed.end }).pipe(res);
     } else {
+      // No range, or malformed/unsatisfiable — serve the whole body rather than mis-claim a 206.
       res.writeHead(200, { "Content-Type": type, "Content-Length": info.size });
       createReadStream(file).pipe(res);
     }
@@ -129,7 +159,11 @@ export async function startSceneServer(args: SceneServerArgs): Promise<SceneServ
 
   return {
     origin,
-    inputUrl: (slot) => origin + (slotToUrl.get(slot) ?? ""),
+    inputUrl: (slot) => {
+      const rel = slotToUrl.get(slot);
+      if (!rel) throw new Error(`Unknown scene input slot "${slot}".`); // don't silently serve the SPA
+      return origin + rel;
+    },
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
 }

@@ -19,8 +19,15 @@ function readConfig(): { scene: string; props: SceneProps } {
   const q = new URLSearchParams(window.location.search);
   const scene = q.get("scene") ?? "phone";
   const raw = q.get("props");
-  const props = raw ? ({ ...FALLBACK, ...JSON.parse(raw) } as SceneProps) : FALLBACK;
-  return { scene, props };
+  let parsed: Partial<SceneProps> = {};
+  if (raw) {
+    try {
+      parsed = JSON.parse(raw) as Partial<SceneProps>;
+    } catch {
+      parsed = {}; // malformed props → fall back rather than crash to a blank capture
+    }
+  }
+  return { scene, props: { ...FALLBACK, ...parsed } };
 }
 
 const { scene, props } = readConfig();

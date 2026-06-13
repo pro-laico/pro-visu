@@ -84,9 +84,16 @@ export function initRuntime(): void {
     scan();
     const fontsReady = document.fonts?.ready ?? Promise.resolve(undefined);
     // A scene can gate capture on its own first paint (e.g. the specimen, which seeds its glyphs
-    // asynchronously after the font loads). Absent that, this is a no-op.
-    const sceneReady = (globalThis as { __sceneReady?: Promise<void> }).__sceneReady ?? Promise.resolve();
-    await Promise.all([fontsReady, sceneReady, ...videos.map(whenLoaded)]);
+    // asynchronously after the font loads). React's first render may not have run yet when this
+    // starts, so poll a few frames for the gate before proceeding without it (absent → no-op).
+    const read = (): Promise<void> | undefined =>
+      (globalThis as { __sceneReady?: Promise<void> }).__sceneReady;
+    let sceneReady = read();
+    for (let i = 0; !sceneReady && i < 10; i++) {
+      await nextFrame();
+      sceneReady = read();
+    }
+    await Promise.all([fontsReady, sceneReady ?? Promise.resolve(), ...videos.map(whenLoaded)]);
     await nextFrame(); // ensure a first paint
   })();
   void readyPromise.then(() => {

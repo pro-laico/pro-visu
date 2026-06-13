@@ -3,8 +3,11 @@ import { mkdtemp } from "node:fs/promises";
 import type { Browser } from "playwright-core";
 import type { Logger } from "@/utils/logger";
 import { ensureDir } from "@/utils/fs";
-import { pageScroll } from "@/generators/scroll-reel/scroll";
+import { pageScroll, prepareScroll } from "@/generators/scroll-reel/scroll";
 import type { ResolvedScrollReelOptions } from "@/generators/scroll-reel/options";
+
+/** Time at the bottom for lazy/below-the-fold content to load during the (trimmed) warm-up pass. */
+const PREWARM_SETTLE_MS = 700;
 
 export interface CaptureArgs {
   browser: Browser;
@@ -18,6 +21,8 @@ export interface CaptureArgs {
 export interface CaptureResult {
   /** Absolute path to the recorded .webm. */
   webmPath: string;
+  /** Seconds of navigation + warm-up before the animated scroll began — trim this off the head. */
+  leadSeconds: number;
 }
 
 /**
@@ -40,6 +45,8 @@ export async function captureScrollWebm(args: CaptureArgs): Promise<CaptureResul
   const page = await context.newPage();
   const video = page.video();
 
+  const recStart = Date.now(); // Playwright records the whole context lifetime
+  let leadSeconds = 0;
   try {
     logger.debug(`navigating to ${url} (waitUntil=${options.waitUntil})`);
     await page.goto(url, { waitUntil: options.waitUntil });
@@ -47,6 +54,10 @@ export async function captureScrollWebm(args: CaptureArgs): Promise<CaptureResul
       logger.debug(`waiting for selector ${options.waitForSelector}`);
       await page.waitForSelector(options.waitForSelector, { state: "visible" });
     }
+    // Warm-up (trimmed from the head): load lazy content, fonts and images, settle at the top.
+    await page.evaluate(prepareScroll, { settleMs: PREWARM_SETTLE_MS });
+    // Everything above is blank/churn in the recording; the animated scroll starts now.
+    leadSeconds = (Date.now() - recStart) / 1000;
     await page.evaluate(pageScroll, {
       durationMs: options.duration,
       easing: options.easing,
@@ -61,5 +72,5 @@ export async function captureScrollWebm(args: CaptureArgs): Promise<CaptureResul
   if (!video) {
     throw new Error("Playwright did not record a video (recordVideo inactive).");
   }
-  return { webmPath: await video.path() };
+  return { webmPath: await video.path(), leadSeconds };
 }

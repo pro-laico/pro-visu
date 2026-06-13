@@ -115,8 +115,10 @@ export async function renderScene(
         width: options.width,
         height: options.height,
         crf: options.crf,
-        // Trim the blank navigation/readiness lead so the clip opens on the first painted frame.
+        // Trim the blank navigation/readiness lead so the clip opens on the first painted frame,
+        // then clamp to the intended length so the output matches the manifest's durationMs.
         startOffsetSeconds: recording.leadSeconds,
+        durationSeconds: options.durationSeconds,
         logger: ctx.logger,
       });
     }

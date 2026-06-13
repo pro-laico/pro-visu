@@ -60,6 +60,26 @@ describe("buildTranscodeArgs", () => {
     });
     expect(zero).not.toContain("-ss");
   });
+
+  it("clamps the output length with an output-side -t when durationSeconds is set", () => {
+    const clamped = buildTranscodeArgs({
+      inputPath: "in.webm",
+      outputPath: "out.mp4",
+      fps: 30,
+      width: 1280,
+      height: 720,
+      crf: 18,
+      startOffsetSeconds: 1.5,
+      durationSeconds: 7.25,
+    });
+    expect(clamped[clamped.indexOf("-t") + 1]).toBe("7.250");
+    expect(clamped.indexOf("-t")).toBeGreaterThan(clamped.indexOf("-i")); // output-side limit
+    expect(clamped.indexOf("-t")).toBeLessThan(clamped.length - 1); // before the output path
+  });
+
+  it("omits -t by default", () => {
+    expect(args).not.toContain("-t");
+  });
 });
 
 describe("buildFramePipeArgs", () => {

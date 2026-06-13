@@ -44,6 +44,9 @@ async function run(
     await writeFile(outPath, shot.buffer);
 
     const { width, height } = dimensions(shot.buffer);
+    if (width === 0 || height === 0) {
+      ctx.logger.warn(`could not read dimensions for ${fileName} (recording 0×0)`);
+    }
     const record: AssetRecord = {
       id: `${ctx.target.name}-${shot.key}`,
       generator: SCREENSHOTS_ID,

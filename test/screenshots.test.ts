@@ -24,6 +24,11 @@ describe("screenshots generator", () => {
     expect(screenshotsOptionsSchema.safeParse({ fullpage: true }).success).toBe(false);
   });
 
+  it("rejects `quality` on a png (it would be silently ignored otherwise)", () => {
+    expect(screenshotsOptionsSchema.safeParse({ format: "png", quality: 80 }).success).toBe(false);
+    expect(screenshotsOptionsSchema.safeParse({ format: "jpeg", quality: 80 }).success).toBe(true);
+  });
+
   it("merges defaults keyed by generator id", () => {
     const merged = mergeGeneratorOptions(
       { screenshots: { format: "jpeg", quality: 80 } },

@@ -14,6 +14,8 @@ export interface TranscodeArgs {
   crf: number;
   /** Seconds to trim off the head of the input (e.g. the blank navigation lead of a recording). */
   startOffsetSeconds?: number;
+  /** Clamp the output to exactly this many seconds (after any head trim) so length is deterministic. */
+  durationSeconds?: number;
 }
 
 /** Absolute path to the bundled ffmpeg binary. */
@@ -36,6 +38,11 @@ export function buildTranscodeArgs(args: TranscodeArgs): string[] {
     args.startOffsetSeconds && args.startOffsetSeconds > 0
       ? ["-ss", args.startOffsetSeconds.toFixed(3)]
       : [];
+  // Output-side limit (after the head seek) so the clip is exactly `durationSeconds` long.
+  const limit =
+    args.durationSeconds && args.durationSeconds > 0
+      ? ["-t", args.durationSeconds.toFixed(3)]
+      : [];
   return [
     "-y",
     ...seek,
@@ -54,6 +61,7 @@ export function buildTranscodeArgs(args: TranscodeArgs): string[] {
     "-movflags",
     "+faststart",
     "-an",
+    ...limit,
     args.outputPath,
   ];
 }

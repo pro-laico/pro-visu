@@ -22,7 +22,7 @@ async function run(
   const url = requireUrl(ctx);
 
   ctx.logger.info(`recording ${url}`);
-  const { webmPath } = await captureScrollWebm({
+  const { webmPath, leadSeconds } = await captureScrollWebm({
     browser: ctx.browser,
     url,
     options,
@@ -31,6 +31,7 @@ async function run(
   });
 
   ctx.logger.debug("transcoding to mp4");
+  const durationSeconds = (options.startDelayMs + options.duration + options.endDwellMs) / 1000;
   await transcodeToMp4({
     inputPath: webmPath,
     outputPath: outPath,
@@ -38,6 +39,10 @@ async function run(
     width: options.width,
     height: options.height,
     crf: options.crf,
+    // Drop the navigation + warm-up lead, then clamp to the intended length so the clip opens on
+    // the start-of-scroll frame and is exactly startDelay + duration + endDwell long.
+    startOffsetSeconds: leadSeconds,
+    durationSeconds,
     logger: ctx.logger,
   });
 
