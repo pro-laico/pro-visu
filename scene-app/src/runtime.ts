@@ -3,6 +3,8 @@
 // calls ready() then seek(t) per frame. Kept framework-agnostic: it just operates on the
 // <video> elements the scene rendered.
 
+import { loopTime } from "./scenes/wall-motion";
+
 export interface ShowcaseRuntime {
   /** Resolves once every scene video can render/seek. */
   ready(): Promise<void>;
@@ -64,8 +66,12 @@ function whenLoaded(v: HTMLVideoElement): Promise<void> {
 }
 
 function seekTo(v: HTMLVideoElement, t: number): Promise<void> {
-  const max = Number.isFinite(v.duration) ? Math.max(0, v.duration - 1e-3) : t;
-  const target = Math.min(t, max);
+  // Loop short videos across a longer clip (e.g. tiles in the media wall) instead of freezing on
+  // the last frame. For existing scenes the input reel ≈ the clip length, so t < duration and the
+  // wrap is a no-op (t % duration === t) — non-breaking.
+  const dur = v.duration;
+  const target =
+    Number.isFinite(dur) && dur > 0 ? Math.min(loopTime(t, dur), dur - 1e-3) : t;
   if (Math.abs(v.currentTime - target) < 1e-4 && v.readyState >= 2) return Promise.resolve();
   return new Promise((resolve) => {
     const done = (): void => {

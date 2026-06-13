@@ -101,12 +101,42 @@ export const specimenSceneOptionsSchema = z
   })
   .strict();
 
+/**
+ * The "wall" scene: a marquee of media tiles (the asset's video/screenshot inputs, cycled across
+ * the grid). The whole wall pans on X while each column scrolls on Y at its own seeded, varying
+ * speed (columns alternating up/down), looping seamlessly.
+ */
+export const wallSceneOptionsSchema = z
+  .object({
+    /** Number of columns. */
+    columns: z.number().int().min(1).max(12).default(5),
+    /** Gap between tiles (px). */
+    gap: z.number().nonnegative().default(16),
+    /** Tile aspect ratio (width / height); 1.6 = 16:10 landscape. */
+    tileAspect: z.number().positive().default(1.6),
+    /** Tile corner radius (px). */
+    cornerRadius: z.number().nonnegative().default(12),
+    /** Whole-clip horizontal pan cycles (0 = no pan; 1 = one slow sweep). */
+    panLoops: z.number().int().nonnegative().default(1),
+    /** Pan direction. */
+    panDirection: z.enum(["left", "right"]).default("left"),
+    /** Min/max per-column vertical scroll cycles over the clip — the speed range (varies per column). */
+    scrollLoopsMin: z.number().int().min(1).default(2),
+    scrollLoopsMax: z.number().int().min(1).default(4),
+    /** Alternate column scroll direction (up/down) for a livelier wall. */
+    alternate: z.boolean().default(true),
+    /** Seed for the per-column speed variation — same seed ⇒ identical wall (workers must agree). */
+    seed: z.number().int().default(1),
+  })
+  .strict();
+
 /** Scene id → its sceneOptions validator. The single source of truth for known scenes. */
 export const SCENE_OPTION_SCHEMAS = {
   phone: phoneSceneOptionsSchema,
   laptop: laptopSceneOptionsSchema,
   browser: browserSceneOptionsSchema,
   specimen: specimenSceneOptionsSchema,
+  wall: wallSceneOptionsSchema,
 } as const;
 
 export type SceneId = keyof typeof SCENE_OPTION_SCHEMAS;
@@ -155,12 +185,37 @@ export interface BrowserSceneOptionsInput {
   shadow?: string;
 }
 
+export interface WallSceneOptionsInput {
+  /** Number of columns. */
+  columns?: number;
+  /** Gap between tiles (px). */
+  gap?: number;
+  /** Tile aspect ratio (width / height); 1.6 = 16:10 landscape. */
+  tileAspect?: number;
+  /** Tile corner radius (px). */
+  cornerRadius?: number;
+  /** Whole-clip horizontal pan cycles (0 = no pan; 1 = one slow sweep). */
+  panLoops?: number;
+  /** Pan direction. */
+  panDirection?: "left" | "right";
+  /** Min per-column vertical scroll cycles over the clip. */
+  scrollLoopsMin?: number;
+  /** Max per-column vertical scroll cycles over the clip. */
+  scrollLoopsMax?: number;
+  /** Alternate column scroll direction (up/down). */
+  alternate?: boolean;
+  /** Seed for the per-column speed variation. */
+  seed?: number;
+}
+
 // Compile-time guards: the documented authoring types must stay in sync with the schemas.
 type Exact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
 const _phoneInSync: Exact<PhoneSceneOptionsInput, z.input<typeof phoneSceneOptionsSchema>> = true;
 const _laptopInSync: Exact<LaptopSceneOptionsInput, z.input<typeof laptopSceneOptionsSchema>> = true;
 const _browserInSync: Exact<BrowserSceneOptionsInput, z.input<typeof browserSceneOptionsSchema>> =
   true;
+const _wallInSync: Exact<WallSceneOptionsInput, z.input<typeof wallSceneOptionsSchema>> = true;
 void _phoneInSync;
 void _laptopInSync;
 void _browserInSync;
+void _wallInSync;

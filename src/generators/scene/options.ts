@@ -3,6 +3,7 @@ import type {
   BrowserSceneOptionsInput,
   LaptopSceneOptionsInput,
   PhoneSceneOptionsInput,
+  WallSceneOptionsInput,
 } from "@/generators/scene/scene-options";
 
 /**
@@ -60,6 +61,7 @@ export type SceneOptions =
   | (SceneBaseInput & { scene?: "phone"; sceneOptions?: PhoneSceneOptionsInput })
   | (SceneBaseInput & { scene: "laptop"; sceneOptions?: LaptopSceneOptionsInput })
   | (SceneBaseInput & { scene: "browser"; sceneOptions?: BrowserSceneOptionsInput })
+  | (SceneBaseInput & { scene: "wall"; sceneOptions?: WallSceneOptionsInput })
   // The specimen scene's authoring surface is the `specimen` generator; this branch only keeps
   // direct `scene: "specimen"` configs type-valid.
   | (SceneBaseInput & { scene: "specimen"; sceneOptions?: Record<string, unknown> });

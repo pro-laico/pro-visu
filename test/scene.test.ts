@@ -4,6 +4,7 @@ import {
   SCENE_OPTION_SCHEMAS,
   browserSceneOptionsSchema,
   phoneSceneOptionsSchema,
+  wallSceneOptionsSchema,
 } from "@/generators/scene/scene-options";
 import { generatorIds, getGenerator } from "@/generators/registry";
 import { SCENE_ID } from "@/generators/scene";
@@ -41,7 +42,18 @@ describe("per-scene option schemas", () => {
       "laptop",
       "phone",
       "specimen",
+      "wall",
     ]);
+  });
+
+  it("fills wall defaults and rejects a typo", () => {
+    const o = wallSceneOptionsSchema.parse({});
+    expect(o.columns).toBe(5);
+    expect(o.panLoops).toBe(1);
+    expect(o.scrollLoopsMin).toBe(2);
+    expect(o.scrollLoopsMax).toBe(4);
+    expect(o.alternate).toBe(true);
+    expect(wallSceneOptionsSchema.safeParse({ colums: 6 }).success).toBe(false);
   });
 
   it("fills phone styling defaults to the previous hardcoded values", () => {
