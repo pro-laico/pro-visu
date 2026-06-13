@@ -4,6 +4,7 @@ import type { DeviceFrameOptions } from "@/generators/device-frame/options";
 import type { SceneOptions } from "@/generators/scene/options";
 import type { SpecimenOptions } from "@/generators/specimen/options";
 import type { PaletteOptions } from "@/generators/palette/options";
+import type { PaletteReelOptions } from "@/generators/palette-reel/options";
 
 /**
  * Author-facing config types. These power editor autocomplete in `showcase.config.ts`.
@@ -68,6 +69,7 @@ export interface ShowcaseSettingsInput {
     "device-frame"?: DeviceFrameOptions;
     specimen?: SpecimenOptions;
     palette?: PaletteOptions;
+    "palette-reel"?: PaletteReelOptions;
   };
 }
 
@@ -89,7 +91,8 @@ export type AssetSpecInput =
   | (AssetBaseInput & { url: string; generator: "device-frame"; options?: DeviceFrameOptions })
   | (AssetBaseInput & { url?: string; generator: "scene"; options?: SceneOptions })
   | (AssetBaseInput & { generator: "specimen"; options: SpecimenOptions })
-  | (AssetBaseInput & { generator: "palette"; options: PaletteOptions });
+  | (AssetBaseInput & { generator: "palette"; options: PaletteOptions })
+  | (AssetBaseInput & { generator: "palette-reel"; options: PaletteReelOptions });
 
 export interface ShowcaseUserConfig {
   settings?: ShowcaseSettingsInput;

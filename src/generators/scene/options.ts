@@ -2,6 +2,7 @@ import { z } from "zod";
 import type {
   BrowserSceneOptionsInput,
   LaptopSceneOptionsInput,
+  PaletteReelSceneOptionsInput,
   PhoneSceneOptionsInput,
   WallSceneOptionsInput,
 } from "@/generators/scene/scene-options";
@@ -64,6 +65,9 @@ export type SceneOptions =
   | (SceneBaseInput & { scene: "wall"; sceneOptions?: WallSceneOptionsInput })
   // The specimen scene's authoring surface is the `specimen` generator; this branch only keeps
   // direct `scene: "specimen"` configs type-valid.
-  | (SceneBaseInput & { scene: "specimen"; sceneOptions?: Record<string, unknown> });
+  | (SceneBaseInput & { scene: "specimen"; sceneOptions?: Record<string, unknown> })
+  // Likewise, the palette-reel scene's authoring surface is the `palette-reel` generator; this
+  // branch keeps direct `scene: "palette-reel"` configs type-valid.
+  | (SceneBaseInput & { scene: "palette-reel"; sceneOptions?: PaletteReelSceneOptionsInput });
 
 export type ResolvedSceneOptions = z.infer<typeof sceneOptionsSchema>;

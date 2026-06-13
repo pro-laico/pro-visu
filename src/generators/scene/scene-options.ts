@@ -142,6 +142,46 @@ export const wallSceneOptionsSchema = z
   })
   .strict();
 
+/**
+ * The "palette-reel" scene's wire format — produced by the `palette-reel` *generator* (its friendly
+ * options are the real authoring surface; it precomputes the per-color display strings since the
+ * scene can't import the color math), validated here so generator and scene can't drift apart. The
+ * colors start as name-only slivers; one at a time a band expands to reveal its `details`, holds, and
+ * collapses, looping seamlessly. Defaults mirror the friendly schema so a direct `scene:
+ * "palette-reel"` config still renders.
+ */
+const reelItemSchema = z
+  .object({
+    /** Color display name (already cased per `uppercase`). */
+    name: z.string(),
+    /** Swatch background hex (`#RRGGBB`). */
+    hex: z.string(),
+    /** Contrast-picked text color for this band. */
+    textColor: z.string(),
+    /** Preformatted detail lines revealed on expand (hex / oklch / rgb …). */
+    details: z.array(z.string()),
+  })
+  .strict();
+
+export const paletteReelSceneOptionsSchema = z
+  .object({
+    items: z.array(reelItemSchema).min(1),
+    orientation: z.enum(["rows", "columns"]).default("rows"),
+    holdSeconds: z.number().positive().default(2),
+    transitionSeconds: z.number().positive().default(0.7),
+    bounce: z.boolean().default(true),
+    easing: z.enum(["linear", "ease-in", "ease-out", "ease-in-out"]).default("ease-in-out"),
+    grownFlex: z.number().min(1).default(12),
+    minCrossPx: z.number().nonnegative().default(0),
+    nameAlwaysVisible: z.boolean().default(true),
+    fontWeight: z.number().int().min(1).max(1000).default(700),
+    fontSize: z.number().positive().optional(),
+    detailFontScale: z.number().positive().default(0.62),
+    gap: z.number().nonnegative().default(0),
+    cornerRadius: z.number().nonnegative().default(0),
+  })
+  .strict();
+
 /** Scene id → its sceneOptions validator. The single source of truth for known scenes. */
 export const SCENE_OPTION_SCHEMAS = {
   phone: phoneSceneOptionsSchema,
@@ -149,6 +189,7 @@ export const SCENE_OPTION_SCHEMAS = {
   browser: browserSceneOptionsSchema,
   specimen: specimenSceneOptionsSchema,
   wall: wallSceneOptionsSchema,
+  "palette-reel": paletteReelSceneOptionsSchema,
 } as const;
 
 export type SceneId = keyof typeof SCENE_OPTION_SCHEMAS;
@@ -230,6 +271,49 @@ export interface WallSceneOptionsInput {
   seed?: number;
 }
 
+/** One precomputed color in a palette-reel (the generator builds these from the friendly options). */
+export interface ReelItem {
+  /** Color display name (already cased per `uppercase`). */
+  name: string;
+  /** Swatch background hex (`#RRGGBB`). */
+  hex: string;
+  /** Contrast-picked text color for this band. */
+  textColor: string;
+  /** Preformatted detail lines revealed on expand (hex / oklch / rgb …). */
+  details: string[];
+}
+
+export interface PaletteReelSceneOptionsInput {
+  /** Precomputed colors to reveal. */
+  items: ReelItem[];
+  /** Sliver arrangement. */
+  orientation?: "rows" | "columns";
+  /** How long each color stays fully open before handing off (s). */
+  holdSeconds?: number;
+  /** Crossfade length from one open color to the next (s). */
+  transitionSeconds?: number;
+  /** Ping-pong the sweep so every handoff is between neighbours (no last→first pinch at the seam). */
+  bounce?: boolean;
+  /** Easing applied to the crossfade. */
+  easing?: "linear" | "ease-in" | "ease-out" | "ease-in-out";
+  /** How many times a sliver's share a fully-open band takes. */
+  grownFlex?: number;
+  /** Minimum cross-size of a sliver in px (0 = derive). */
+  minCrossPx?: number;
+  /** Keep the name visible even in a collapsed sliver. */
+  nameAlwaysVisible?: boolean;
+  /** Label font weight. */
+  fontWeight?: number;
+  /** Name font size in px (omit to derive from the frame size). */
+  fontSize?: number;
+  /** Detail-line font size as a fraction of the name size. */
+  detailFontScale?: number;
+  /** Gap between bands (px). */
+  gap?: number;
+  /** Band corner radius (px). */
+  cornerRadius?: number;
+}
+
 // Compile-time guards: the documented authoring types must stay in sync with the schemas.
 type Exact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
 const _phoneInSync: Exact<PhoneSceneOptionsInput, z.input<typeof phoneSceneOptionsSchema>> = true;
@@ -237,7 +321,12 @@ const _laptopInSync: Exact<LaptopSceneOptionsInput, z.input<typeof laptopSceneOp
 const _browserInSync: Exact<BrowserSceneOptionsInput, z.input<typeof browserSceneOptionsSchema>> =
   true;
 const _wallInSync: Exact<WallSceneOptionsInput, z.input<typeof wallSceneOptionsSchema>> = true;
+const _paletteReelInSync: Exact<
+  PaletteReelSceneOptionsInput,
+  z.input<typeof paletteReelSceneOptionsSchema>
+> = true;
 void _phoneInSync;
 void _laptopInSync;
 void _browserInSync;
 void _wallInSync;
+void _paletteReelInSync;

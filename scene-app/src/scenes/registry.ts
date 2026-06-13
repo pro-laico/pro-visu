@@ -4,6 +4,7 @@ import { Laptop } from "./Laptop";
 import { Browser } from "./Browser";
 import { Specimen } from "./Specimen";
 import { Wall } from "./Wall";
+import { PaletteReel } from "./PaletteReel";
 
 /** Built-in scenes, keyed by the id used in config (`options.scene`). */
 export const scenes: Record<string, SceneComponent> = {
@@ -12,4 +13,5 @@ export const scenes: Record<string, SceneComponent> = {
   browser: Browser,
   specimen: Specimen,
   wall: Wall,
+  "palette-reel": PaletteReel,
 };

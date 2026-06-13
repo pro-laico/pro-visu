@@ -40,6 +40,7 @@ describe("per-scene option schemas", () => {
     expect(Object.keys(SCENE_OPTION_SCHEMAS).sort()).toEqual([
       "browser",
       "laptop",
+      "palette-reel",
       "phone",
       "specimen",
       "wall",
