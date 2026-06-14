@@ -49,9 +49,12 @@ async function run(
     options.outputs.length !== 1 ||
     options.outputs[0] !== "mp4" ||
     options.intro ||
-    options.outro
+    options.outro ||
+    options.annotations?.length
   ) {
-    ctx.logger.warn("device-frame ignores aspect / outputs / intro / outro — emitting a single mp4");
+    ctx.logger.warn(
+      "device-frame ignores aspect / outputs / intro / outro / annotations — emitting a single mp4",
+    );
   }
   if (options.actions?.length) {
     ctx.logger.warn("device-frame ignores actions — use the scroll-reel generator for interaction reels");

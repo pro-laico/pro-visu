@@ -33,8 +33,8 @@ async function run(
     if (options.viewports?.length || options.colorScheme === "both") {
       ctx.logger.warn('viewports / colorScheme:"both" are not expanded for interaction reels');
     }
-    if (options.intro || options.outro) {
-      ctx.logger.warn("intro/outro cards are not applied to interaction reels");
+    if (options.intro || options.outro || options.annotations?.length) {
+      ctx.logger.warn("intro/outro/annotations are not applied to interaction reels");
     }
     const scheme =
       options.colorScheme === "dark" ? "dark" : options.colorScheme === "light" ? "light" : undefined;
@@ -155,8 +155,8 @@ async function run(
     if (options.viewports?.length || options.colorScheme === "both") {
       ctx.logger.warn('viewports / colorScheme:"both" are ignored for capture:"realtime"');
     }
-    if (options.intro || options.outro) {
-      ctx.logger.warn('intro/outro cards are not applied to capture:"realtime"');
+    if (options.intro || options.outro || options.annotations?.length) {
+      ctx.logger.warn('intro/outro/annotations are not applied to capture:"realtime"');
     }
     const fileName = options.fileName ?? `${slugify(ctx.target.name)}.mp4`;
     const outPath = ctx.resolveOutPath(fileName);

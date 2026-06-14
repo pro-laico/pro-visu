@@ -74,6 +74,24 @@ export const cardSchema = z
   })
   .strict();
 
+/** A timed on-screen annotation (see `annotations`). */
+export const annotationSchema = z
+  .object({
+    /** Caption text shown while active. */
+    text: z.string().optional(),
+    /** Selector to outline with a highlight ring. */
+    ring: z.string().optional(),
+    /** Selector to spotlight (everything else dimmed). */
+    spotlight: z.string().optional(),
+    /** When it appears (clip time, ms). Default 0. */
+    atMs: z.number().int().nonnegative().optional(),
+    /** When it disappears (clip time, ms). Default = end. */
+    untilMs: z.number().int().positive().optional(),
+    /** Caption placement. Default "bottom". */
+    position: z.enum(["top", "bottom", "center"]).optional(),
+  })
+  .strict();
+
 export const scrollReelOptionsSchema = z
   .object({
     /** Viewport + output width in CSS pixels. */
@@ -254,6 +272,8 @@ export const scrollReelOptionsSchema = z
     intro: cardSchema.optional(),
     /** Outro / end card shown after the reel. */
     outro: cardSchema.optional(),
+    /** Timed on-screen annotations (caption text, a highlight ring, or a spotlight on a selector). */
+    annotations: z.array(annotationSchema).optional(),
 
     /** Output filename; defaults to "<slug(asset name)>.mp4". */
     fileName: z.string().optional(),

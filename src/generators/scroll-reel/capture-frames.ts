@@ -13,6 +13,10 @@ import {
   installPreNav,
 } from "@/generators/scroll-reel/clean-capture";
 import {
+  annotationStateAt,
+  installAnnotationRuntime,
+} from "@/generators/scroll-reel/annotations";
+import {
   autoSectionSteps,
   autoSectionsBudgetMs,
   boomerangSpec,
@@ -202,6 +206,9 @@ export async function captureScrollFrames(a: ScrollFramesArgs): Promise<void> {
       await applyPostNav(page, options, logger);
       // Warm-up (not recorded): load lazy content, fonts and images, then settle back at the top.
       await page.evaluate(prepareScroll, { settleMs: PREWARM_SETTLE_MS });
+      if (options.annotations && options.annotations.length > 0) {
+        await page.evaluate(installAnnotationRuntime, { color: "#7c9cff" });
+      }
       // Resolve the timeline against the (now stable) page; deterministic across workers.
       return buildScrollTimeline(page, options, totalSeconds, logger);
     },
@@ -228,6 +235,14 @@ export async function captureScrollFrames(a: ScrollFramesArgs): Promise<void> {
         originX,
         originY,
       });
+      if (options.annotations && options.annotations.length > 0) {
+        const state = annotationStateAt(options.annotations, t * 1000, totalSeconds * 1000);
+        await page.evaluate(
+          (s) =>
+            (globalThis as { __scAnno?: { update(x: unknown): Promise<void> } }).__scAnno?.update(s),
+          state,
+        );
+      }
       if (a.settlePerFrame) {
         // Bound the in-page settle Node-side so a stuck decode can't hang the frame.
         await Promise.race([
