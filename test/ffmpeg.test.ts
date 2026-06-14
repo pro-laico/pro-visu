@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { buildTranscodeArgs, buildFramePipeArgs, buildConcatArgs } from "@/media/ffmpeg";
+import {
+  buildTranscodeArgs,
+  buildFramePipeArgs,
+  buildConcatArgs,
+  aspectTarget,
+  buildAspectArgs,
+  buildGifArgs,
+  buildWebpArgs,
+  buildPosterArgs,
+} from "@/media/ffmpeg";
 
 describe("buildTranscodeArgs", () => {
   const args = buildTranscodeArgs({
@@ -166,5 +175,91 @@ describe("buildConcatArgs", () => {
     expect(args[args.indexOf("-i") + 1]).toBe("list.txt");
     expect(joined).toContain("-c copy");
     expect(args[args.length - 1]).toBe("out.mp4");
+  });
+});
+
+describe("aspectTarget", () => {
+  it("maps presets to dimensions", () => {
+    expect(aspectTarget("16:9")).toEqual({ width: 1920, height: 1080 });
+    expect(aspectTarget("9:16")).toEqual({ width: 1080, height: 1920 });
+    expect(aspectTarget("1:1")).toEqual({ width: 1080, height: 1080 });
+  });
+  it("passes explicit sizes through", () => {
+    expect(aspectTarget({ width: 800, height: 600 })).toEqual({ width: 800, height: 600 });
+  });
+});
+
+describe("buildAspectArgs", () => {
+  it("cover scales-to-fill then center-crops, keeping color tags", () => {
+    const a = buildAspectArgs({
+      inputPath: "in.mp4",
+      outputPath: "out.mp4",
+      width: 1080,
+      height: 1920,
+      fit: "cover",
+      padColor: "#000",
+      fps: 30,
+      crf: 18,
+    });
+    const f = a[a.indexOf("-vf") + 1]!;
+    expect(f).toContain("force_original_aspect_ratio=increase");
+    expect(f).toContain("crop=1080:1920");
+    expect(f).toContain("out_color_matrix=bt709");
+    expect(a).toContain("libx264");
+    expect(a).toContain("-colorspace");
+  });
+
+  it("contain scales-to-fit then pads with the pad color", () => {
+    const a = buildAspectArgs({
+      inputPath: "in.mp4",
+      outputPath: "out.mp4",
+      width: 1080,
+      height: 1080,
+      fit: "contain",
+      padColor: "#0b0b0f",
+      fps: 30,
+      crf: 18,
+    });
+    const f = a[a.indexOf("-vf") + 1]!;
+    expect(f).toContain("force_original_aspect_ratio=decrease");
+    expect(f).toContain("pad=1080:1080");
+    expect(f).toContain("#0b0b0f");
+  });
+});
+
+describe("buildGifArgs", () => {
+  it("builds a two-stage palette gif", () => {
+    const a = buildGifArgs({ inputPath: "in.mp4", outputPath: "out.gif", fps: 15 });
+    const f = a[a.indexOf("-filter_complex") + 1]!;
+    expect(f).toContain("fps=15");
+    expect(f).toContain("palettegen");
+    expect(f).toContain("paletteuse");
+    expect(a[a.length - 1]).toBe("out.gif");
+  });
+  it("includes a scale when width is set", () => {
+    const a = buildGifArgs({ inputPath: "in.mp4", outputPath: "out.gif", fps: 12, width: 480 });
+    expect(a[a.indexOf("-filter_complex") + 1]!).toContain("scale=480:-1");
+  });
+});
+
+describe("buildWebpArgs", () => {
+  it("uses libwebp with a looping animation", () => {
+    const a = buildWebpArgs({ inputPath: "in.mp4", outputPath: "out.webp", fps: 15, quality: 75 });
+    expect(a).toContain("libwebp");
+    expect(a[a.indexOf("-q:v") + 1]).toBe("75");
+    expect(a[a.indexOf("-loop") + 1]).toBe("0");
+    expect(a[a.length - 1]).toBe("out.webp");
+  });
+});
+
+describe("buildPosterArgs", () => {
+  it("grabs one frame from the start by default", () => {
+    const a = buildPosterArgs({ inputPath: "in.mp4", outputPath: "out.png", atSeconds: 0 });
+    expect(a).not.toContain("-ss");
+    expect(a[a.indexOf("-frames:v") + 1]).toBe("1");
+  });
+  it("seeks when atSeconds > 0", () => {
+    const a = buildPosterArgs({ inputPath: "in.mp4", outputPath: "out.png", atSeconds: 1.5 });
+    expect(a[a.indexOf("-ss") + 1]).toBe("1.500");
   });
 });

@@ -162,6 +162,23 @@ export const scrollReelOptionsSchema = z
     /** Max time (ms) to wait per frame for settling before screenshotting anyway. */
     settleMaxMs: z.number().int().nonnegative().default(250),
 
+    // --- output formats & reframing ("frames" path) ---
+    /** Reframe the output to a target aspect: a preset ("16:9"|"9:16"|"1:1") or explicit {width,height}. */
+    aspect: z
+      .union([
+        z.enum(["16:9", "9:16", "1:1"]),
+        z.object({ width: z.number().int().positive(), height: z.number().int().positive() }).strict(),
+      ])
+      .optional(),
+    /** How to fit the capture into the aspect: "cover" (scale + center-crop) or "contain" (scale + pad). */
+    fit: z.enum(["cover", "contain"]).default("cover"),
+    /** Pad color used by "contain". */
+    padColor: z.string().default("#0b0b0f"),
+    /** Files to emit per variant; each becomes its own asset. */
+    outputs: z.array(z.enum(["mp4", "gif", "webp", "poster"])).default(["mp4"]),
+    /** GIF / animated-WebP frame rate. Defaults to min(fps, 15). */
+    gifFps: z.number().int().positive().max(50).optional(),
+
     /** Output filename; defaults to "<slug(asset name)>.mp4". */
     fileName: z.string().optional(),
   })

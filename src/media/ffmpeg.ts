@@ -268,3 +268,129 @@ export async function transcodeToMp4(
   await ensureDir(path.dirname(args.outputPath));
   await runFfmpeg(buildTranscodeArgs(args), args.logger);
 }
+
+// --- output transforms: aspect reframing + alternate formats (gif / webp / poster) ---
+
+export type AspectPreset = "16:9" | "9:16" | "1:1";
+
+/** Pure: resolve an aspect preset (or explicit size) to concrete output pixel dimensions. */
+export function aspectTarget(
+  aspect: AspectPreset | { width: number; height: number },
+): { width: number; height: number } {
+  if (typeof aspect === "object") return { width: aspect.width, height: aspect.height };
+  switch (aspect) {
+    case "9:16":
+      return { width: 1080, height: 1920 };
+    case "1:1":
+      return { width: 1080, height: 1080 };
+    case "16:9":
+    default:
+      return { width: 1920, height: 1080 };
+  }
+}
+
+export interface AspectArgs {
+  inputPath: string;
+  outputPath: string;
+  width: number;
+  height: number;
+  /** "cover" scales to fill + center-crops; "contain" scales to fit + pads. */
+  fit: "cover" | "contain";
+  padColor: string;
+  fps: number;
+  crf: number;
+  preset?: string;
+}
+
+/** ffmpeg argv to reframe a video to a target aspect (h264, bt709 preserved). Pure — unit-tested. */
+export function buildAspectArgs(a: AspectArgs): string[] {
+  const vf =
+    a.fit === "contain"
+      ? `scale=${a.width}:${a.height}:force_original_aspect_ratio=decrease:flags=lanczos:${SCALE_COLOR},` +
+        `pad=${a.width}:${a.height}:(ow-iw)/2:(oh-ih)/2:${a.padColor},format=yuv420p`
+      : `scale=${a.width}:${a.height}:force_original_aspect_ratio=increase:flags=lanczos:${SCALE_COLOR},` +
+        `crop=${a.width}:${a.height},format=yuv420p`;
+  return [
+    "-y",
+    "-i",
+    a.inputPath,
+    "-vf",
+    vf,
+    "-r",
+    String(a.fps),
+    "-c:v",
+    "libx264",
+    "-preset",
+    a.preset ?? "medium",
+    "-crf",
+    String(a.crf),
+    "-pix_fmt",
+    "yuv420p",
+    ...COLOR_TAGS,
+    "-movflags",
+    "+faststart",
+    "-an",
+    a.outputPath,
+  ];
+}
+
+export interface GifArgs {
+  inputPath: string;
+  outputPath: string;
+  fps: number;
+  /** Optional output width (height auto, keeps aspect). */
+  width?: number;
+}
+
+/** ffmpeg argv to encode an optimized GIF (per-clip palette). Pure — unit-tested. */
+export function buildGifArgs(a: GifArgs): string[] {
+  const scale = a.width ? `,scale=${a.width}:-1:flags=lanczos` : "";
+  const filter =
+    `[0:v] fps=${a.fps}${scale},split [s0][s1];` +
+    `[s0] palettegen=stats_mode=diff [p];[s1][p] paletteuse=dither=bayer:bayer_scale=5`;
+  return ["-y", "-i", a.inputPath, "-filter_complex", filter, a.outputPath];
+}
+
+export interface WebpArgs {
+  inputPath: string;
+  outputPath: string;
+  fps: number;
+  /** 0–100 (libwebp q:v). */
+  quality: number;
+}
+
+/** ffmpeg argv to encode an animated WebP. Pure — unit-tested. */
+export function buildWebpArgs(a: WebpArgs): string[] {
+  return [
+    "-y",
+    "-i",
+    a.inputPath,
+    "-vcodec",
+    "libwebp",
+    "-filter:v",
+    `fps=${a.fps}`,
+    "-lossless",
+    "0",
+    "-q:v",
+    String(a.quality),
+    "-loop",
+    "0",
+    "-an",
+    "-vsync",
+    "0",
+    a.outputPath,
+  ];
+}
+
+export interface PosterArgs {
+  inputPath: string;
+  outputPath: string;
+  /** Seek to this time (seconds) before grabbing one frame. */
+  atSeconds: number;
+}
+
+/** ffmpeg argv to grab a single still frame (poster/thumbnail). Pure — unit-tested. */
+export function buildPosterArgs(a: PosterArgs): string[] {
+  const seek = a.atSeconds > 0 ? ["-ss", a.atSeconds.toFixed(3)] : [];
+  return ["-y", ...seek, "-i", a.inputPath, "-frames:v", "1", a.outputPath];
+}

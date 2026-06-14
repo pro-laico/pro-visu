@@ -1,3 +1,4 @@
+import path from "node:path";
 import { stat } from "node:fs/promises";
 import {
   scrollReelOptionsSchema,
@@ -7,6 +8,7 @@ import { captureScrollWebm } from "@/generators/scroll-reel/capture";
 import { captureScrollFrames } from "@/generators/scroll-reel/capture-frames";
 import { scrollTimelineTotalMs } from "@/generators/scroll-reel/timeline";
 import { buildVariants } from "@/generators/scroll-reel/variants";
+import { produceOutputs } from "@/generators/scroll-reel/outputs";
 import { requireUrl } from "@/generators/require-url";
 import { transcodeToMp4 } from "@/media/ffmpeg";
 import { autoWorkers } from "@/media/frame-capture";
@@ -91,8 +93,9 @@ async function run(
   const assets: AssetRecord[] = [];
 
   for (const v of variants) {
-    const fileName = v.suffix ? `${baseName}-${v.suffix}.mp4` : `${baseName}.mp4`;
-    const outPath = ctx.resolveOutPath(fileName);
+    const fileBase = v.suffix ? `${baseName}-${v.suffix}` : baseName;
+    const assetId = v.suffix ? `${ctx.target.name}-${v.suffix}` : ctx.target.name;
+    const captureMp4 = path.join(ctx.tmpDir, `${slugify(assetId)}-capture.mp4`);
     const vopts = {
       ...options,
       width: v.width,
@@ -105,7 +108,7 @@ async function run(
       browser: ctx.browser,
       url,
       options: vopts,
-      outPath,
+      outPath: captureMp4,
       preset,
       workers,
       // Draft always uses fast jpeg intermediates; final uses the configured format (png = lossless).
@@ -118,26 +121,22 @@ async function run(
       tmpDir: ctx.tmpDir,
       logger: ctx.logger,
     });
-    const durationMs = scrollTimelineTotalMs(vopts);
-    const [stats, contentHash] = await Promise.all([stat(outPath), sha256File(outPath)]);
-    const id = v.suffix ? `${ctx.target.name}-${v.suffix}` : ctx.target.name;
-    const record: AssetRecord = {
-      id,
-      generator: SCROLL_REEL_ID,
+    // Reframe to the requested aspect (if any) and emit each output format as its own asset.
+    const recs = await produceOutputs({
+      ctx,
+      generatorId: SCROLL_REEL_ID,
+      sourceMp4: captureMp4,
+      fileBase,
+      assetId,
       sourceUrl: url,
-      file: ctx.toManifestPath(outPath),
-      format: "mp4",
       width: v.width,
       height: v.height,
-      durationMs,
-      bytes: stats.size,
-      contentHash,
-      createdAt: new Date().toISOString(),
-      toolVersion: ctx.toolVersion,
-    };
-    await ctx.writeAsset(record);
-    ctx.logger.success(`${id} → ${record.file}`);
-    assets.push(record);
+      durationMs: scrollTimelineTotalMs(vopts),
+      options,
+      preset,
+    });
+    for (const r of recs) await ctx.writeAsset(r);
+    assets.push(...recs);
   }
 
   return { assets };
