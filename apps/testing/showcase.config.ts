@@ -19,7 +19,7 @@ export default defineConfig({
     },
   },
   assets: [
-    // motion: auto-detected sections + intro/outro cards + a timed caption
+    // motion: auto-detected sections + branded intro/outro cards + a timed caption
     {
       name: "home",
       url: URL,
@@ -27,9 +27,9 @@ export default defineConfig({
       options: {
         autoSections: { durationMs: 12000 },
         kenBurns: { scaleTo: 1.04 },
-        intro: { title: "auto-showcase", subtitle: "testing target" },
-        outro: { title: "Fin." },
-        annotations: [{ text: "Auto-detected sections", atMs: 1500, untilMs: 5000, position: "top" }],
+        intro: { title: "VESPER", subtitle: "Autumn / Winter 2026" },
+        outro: { title: "Maison Vesper" },
+        annotations: [{ text: "New Arrivals", atMs: 4000, untilMs: 7500, position: "top" }],
       },
     },
     // social vertical + multiple output formats
@@ -46,7 +46,7 @@ export default defineConfig({
         outputs: ["mp4", "gif", "poster"],
       },
     },
-    // responsive screenshots
+    // responsive screenshots of the storefront
     {
       name: "shots",
       url: URL,
@@ -59,7 +59,7 @@ export default defineConfig({
       },
     },
     // browser-window device frame
-    { name: "frame", url: URL, generator: "device-frame", options: { frameWidth: 1280, background: "#0b0b0f" } },
+    { name: "frame", url: URL, generator: "device-frame", options: { frameWidth: 1280, background: "#1a1714" } },
     // scene: a phone-width capture composited into a phone mockup
     { name: "phone-cap", url: URL, generator: "scroll-reel", options: { width: 390, height: 844, duration: 5000 } },
     {
@@ -68,34 +68,47 @@ export default defineConfig({
       inputs: { screen: "phone-cap" },
       options: { scene: "phone", width: 1080, height: 1350, capture: "frames", durationSeconds: 6 },
     },
-    // colour palette (no URL needed)
+    // brand colour palette (no URL needed)
     {
       name: "colors",
       generator: "palette",
       options: {
         colors: [
-          { name: "Ink", hex: "#0b0b0f" },
-          { name: "Blue", hex: "#7c9cff" },
-          { name: "Pink", hex: "#e91e63" },
-          { name: "Amber", hex: "#ffc107" },
-          { name: "Cyan", hex: "#00bcd4" },
+          { name: "Ink", hex: "#1a1714" },
+          { name: "Paper", hex: "#f6f3ed" },
+          { name: "Camel", hex: "#b49a77" },
+          { name: "Loden", hex: "#5c5e4c" },
+          { name: "Cognac", hex: "#8a5a3c" },
         ],
       },
     },
-    // scripted interaction with a synthetic cursor
+    // scripted interaction: open the navigation mega-menu and hover a category
     {
-      name: "interaction",
+      name: "menu",
       url: URL,
       generator: "scroll-reel",
       options: {
-        cursor: { color: "#e91e63" },
+        cursor: { color: "#8c7355" },
         actions: [
           { do: "click", selector: "#menu-button" },
           { do: "hover", selector: "#menu-panel a" },
         ],
       },
     },
-    // element-focused clip (trigger the card, crop to it)
+    // scripted interaction: add the featured piece to the bag, then open the cart drawer
+    {
+      name: "cart",
+      url: URL,
+      generator: "scroll-reel",
+      options: {
+        cursor: { color: "#8c7355" },
+        actions: [
+          { do: "click", selector: "#feature-card button" },
+          { do: "click", selector: "#cart-button" },
+        ],
+      },
+    },
+    // element-focused clip: trigger the featured product card, crop to it
     {
       name: "card",
       url: URL,
@@ -104,7 +117,7 @@ export default defineConfig({
         focus: { selector: "#feature-card", actions: [{ do: "click", selector: "#feature-card button" }] },
       },
     },
-    // multi-page tour
-    { name: "tour", url: URL, generator: "scroll-reel", options: { routes: [URL, `${URL}/about`] } },
+    // multi-page tour: home → collection → product detail
+    { name: "tour", url: URL, generator: "scroll-reel", options: { routes: [URL, `${URL}/shop`, `${URL}/products/the-camel-coat`] } },
   ],
 });
