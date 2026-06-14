@@ -44,8 +44,14 @@ async function run(
   if (options.viewports?.length || options.colorScheme === "both") {
     ctx.logger.warn("device-frame does not expand viewports / colorScheme:\"both\" — capturing one variant");
   }
-  if (options.aspect || options.outputs.length !== 1 || options.outputs[0] !== "mp4") {
-    ctx.logger.warn("device-frame ignores aspect / outputs — emitting a single mp4");
+  if (
+    options.aspect ||
+    options.outputs.length !== 1 ||
+    options.outputs[0] !== "mp4" ||
+    options.intro ||
+    options.outro
+  ) {
+    ctx.logger.warn("device-frame ignores aspect / outputs / intro / outro — emitting a single mp4");
   }
   if (options.actions?.length) {
     ctx.logger.warn("device-frame ignores actions — use the scroll-reel generator for interaction reels");

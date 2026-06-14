@@ -112,6 +112,24 @@ export async function probeVideoDimensions(
   });
 }
 
+/** Read a video's duration in ms by parsing ffmpeg's stream info (no ffprobe needed). */
+export async function probeVideoDurationMs(file: string): Promise<number | null> {
+  return new Promise((resolve) => {
+    const child = spawn(ffmpegPath(), ["-hide_banner", "-i", file], {
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    let stderr = "";
+    child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
+    child.on("error", () => resolve(null));
+    child.on("close", () => {
+      const m = /Duration:\s*(\d+):(\d+):(\d+)\.(\d+)/.exec(stderr);
+      if (!m) return resolve(null);
+      const frac = Number(`0.${m[4]}`);
+      resolve((Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) + frac) * 1000);
+    });
+  });
+}
+
 export interface FramePipeArgs {
   fps: number;
   width: number;
@@ -393,4 +411,58 @@ export interface PosterArgs {
 export function buildPosterArgs(a: PosterArgs): string[] {
   const seek = a.atSeconds > 0 ? ["-ss", a.atSeconds.toFixed(3)] : [];
   return ["-y", ...seek, "-i", a.inputPath, "-frames:v", "1", a.outputPath];
+}
+
+export interface StillSegmentArgs {
+  pngPath: string;
+  outPath: string;
+  seconds: number;
+  fps: number;
+  width: number;
+  height: number;
+  /** Fade-from-black duration at the start (s); 0 to disable. */
+  fadeInSec: number;
+  /** Fade-to-black duration at the end (s); 0 to disable. */
+  fadeOutSec: number;
+  crf: number;
+  preset?: string;
+}
+
+/**
+ * ffmpeg argv to turn a still PNG into a fixed-length mp4 segment with optional fade in/out — used for
+ * intro/outro cards. Same h264 / bt709 / yuv420p settings as the main clip so segments concat cleanly.
+ * Pure — unit-tested.
+ */
+export function buildStillSegmentArgs(a: StillSegmentArgs): string[] {
+  const filters = [`scale=${a.width}:${a.height}:flags=lanczos:${SCALE_COLOR}`, "format=yuv420p"];
+  if (a.fadeInSec > 0) filters.push(`fade=t=in:st=0:d=${a.fadeInSec.toFixed(3)}`);
+  if (a.fadeOutSec > 0) {
+    filters.push(`fade=t=out:st=${Math.max(0, a.seconds - a.fadeOutSec).toFixed(3)}:d=${a.fadeOutSec.toFixed(3)}`);
+  }
+  return [
+    "-y",
+    "-loop",
+    "1",
+    "-t",
+    a.seconds.toFixed(3),
+    "-i",
+    a.pngPath,
+    "-vf",
+    filters.join(","),
+    "-r",
+    String(a.fps),
+    "-c:v",
+    "libx264",
+    "-preset",
+    a.preset ?? "medium",
+    "-crf",
+    String(a.crf),
+    "-pix_fmt",
+    "yuv420p",
+    ...COLOR_TAGS,
+    "-movflags",
+    "+faststart",
+    "-an",
+    a.outPath,
+  ];
 }

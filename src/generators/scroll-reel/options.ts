@@ -62,6 +62,18 @@ export const autoSectionsSchema = z
   })
   .strict();
 
+/** An intro/outro card (see `intro` / `outro`). */
+export const cardSchema = z
+  .object({
+    title: z.string().optional(),
+    subtitle: z.string().optional(),
+    background: z.string().optional(),
+    color: z.string().optional(),
+    durationMs: z.number().int().positive().optional(),
+    fadeMs: z.number().int().nonnegative().optional(),
+  })
+  .strict();
+
 export const scrollReelOptionsSchema = z
   .object({
     /** Viewport + output width in CSS pixels. */
@@ -238,6 +250,10 @@ export const scrollReelOptionsSchema = z
     outputs: z.array(z.enum(["mp4", "gif", "webp", "poster"])).default(["mp4"]),
     /** GIF / animated-WebP frame rate. Defaults to min(fps, 15). */
     gifFps: z.number().int().positive().max(50).optional(),
+    /** Intro card shown before the reel (fades from black). Applies to frames / route tours. */
+    intro: cardSchema.optional(),
+    /** Outro / end card shown after the reel. */
+    outro: cardSchema.optional(),
 
     /** Output filename; defaults to "<slug(asset name)>.mp4". */
     fileName: z.string().optional(),

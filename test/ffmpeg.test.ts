@@ -8,6 +8,7 @@ import {
   buildGifArgs,
   buildWebpArgs,
   buildPosterArgs,
+  buildStillSegmentArgs,
 } from "@/media/ffmpeg";
 
 describe("buildTranscodeArgs", () => {
@@ -261,5 +262,43 @@ describe("buildPosterArgs", () => {
   it("seeks when atSeconds > 0", () => {
     const a = buildPosterArgs({ inputPath: "in.mp4", outputPath: "out.png", atSeconds: 1.5 });
     expect(a[a.indexOf("-ss") + 1]).toBe("1.500");
+  });
+});
+
+describe("buildStillSegmentArgs", () => {
+  it("loops a still for the duration with fade in/out and color tags", () => {
+    const a = buildStillSegmentArgs({
+      pngPath: "card.png",
+      outPath: "card.mp4",
+      seconds: 2,
+      fps: 30,
+      width: 1920,
+      height: 1080,
+      fadeInSec: 0.4,
+      fadeOutSec: 0.4,
+      crf: 18,
+    });
+    expect(a).toContain("-loop");
+    expect(a[a.indexOf("-t") + 1]).toBe("2.000");
+    const f = a[a.indexOf("-vf") + 1]!;
+    expect(f).toContain("fade=t=in:st=0:d=0.400");
+    expect(f).toContain("fade=t=out:st=1.600:d=0.400"); // 2 − 0.4
+    expect(f).toContain("out_color_matrix=bt709");
+    expect(a).toContain("libx264");
+  });
+
+  it("omits fades when zero", () => {
+    const a = buildStillSegmentArgs({
+      pngPath: "c.png",
+      outPath: "c.mp4",
+      seconds: 1,
+      fps: 30,
+      width: 100,
+      height: 100,
+      fadeInSec: 0,
+      fadeOutSec: 0,
+      crf: 18,
+    });
+    expect(a[a.indexOf("-vf") + 1]!).not.toContain("fade");
   });
 });
