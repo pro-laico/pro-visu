@@ -24,6 +24,26 @@ export const choreographyStepSchema = z
   })
   .strict();
 
+/** One step of a scripted interaction (see `actions` below). */
+export const interactionActionSchema = z
+  .object({
+    do: z.enum(["move", "click", "hover", "type", "scrollTo", "wait"]),
+    /** Target element for move/click/hover/type. */
+    selector: z.string().optional(),
+    /** Viewport-relative target for `move` without a selector (0..1). */
+    x: z.number().min(0).max(1).optional(),
+    y: z.number().min(0).max(1).optional(),
+    /** Text to type (for `type`). */
+    text: z.string().optional(),
+    /** Scroll target for `scrollTo`: a 0..1 number, an "NN%" string, or a CSS selector. */
+    to: z.union([z.number(), z.string()]).optional(),
+    /** Cursor travel / scroll animation time (ms). Default 700. */
+    durationMs: z.number().int().nonnegative().optional(),
+    /** Pause after the step (ms). Default 600. */
+    holdMs: z.number().int().nonnegative().optional(),
+  })
+  .strict();
+
 /** Tuning for auto-section choreography (see `autoSections` below). */
 export const autoSectionsSchema = z
   .object({
@@ -113,6 +133,24 @@ export const scrollReelOptionsSchema = z
         originX: z.number().min(0).max(1).optional(),
         /** Zoom origin Y within the viewport (0 = top, 1 = bottom). Default 0.5. */
         originY: z.number().min(0).max(1).optional(),
+      })
+      .strict()
+      .optional(),
+
+    // --- interaction (scripted realtime "tour" with a synthetic cursor) ---
+    /**
+     * Drive a scripted interaction instead of an auto-scroll: a sequence of steps (move / click /
+     * hover / type / scrollTo / wait) performed live with a visible cursor. Setting this records in
+     * REALTIME (interactions and their animations are inherently time-based) and emits a single asset
+     * (variants / aspect / extra outputs are skipped).
+     */
+    actions: z.array(interactionActionSchema).optional(),
+    /** The synthetic cursor shown during an interaction. */
+    cursor: z
+      .object({
+        show: z.boolean().optional(),
+        size: z.number().int().positive().optional(),
+        color: z.string().optional(),
       })
       .strict()
       .optional(),
