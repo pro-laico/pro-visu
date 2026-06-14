@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { EASINGS } from "@/generators/scroll-reel/scroll";
 import {
+  autoSectionSteps,
+  autoSectionsBudgetMs,
   choreographyTimelineSpec,
   defaultTimelineSpec,
   normalizedScrollAt,
   resolveTimeline,
   scrollTimelineTotalMs,
+  DEFAULT_AUTO_DURATION_MS,
   type TimelineSpec,
 } from "@/generators/scroll-reel/timeline";
 
@@ -181,5 +184,89 @@ describe("scrollTimelineTotalMs", () => {
     });
     // step1 defaults 1200 + 800 = 2000; step2 500 + 100 = 600 → 2600
     expect(total).toBe(2600);
+  });
+
+  it("returns the auto-sections budget when autoSections is set", () => {
+    expect(scrollTimelineTotalMs({ startDelayMs: 9, duration: 9, endDwellMs: 9, autoSections: true })).toBe(
+      DEFAULT_AUTO_DURATION_MS,
+    );
+    expect(
+      scrollTimelineTotalMs({ startDelayMs: 0, duration: 0, endDwellMs: 0, autoSections: { durationMs: 5000 } }),
+    ).toBe(5000);
+  });
+});
+
+describe("autoSectionsBudgetMs", () => {
+  it("uses the default budget for `true`", () => {
+    expect(autoSectionsBudgetMs(true)).toBe(DEFAULT_AUTO_DURATION_MS);
+  });
+  it("honors an explicit durationMs", () => {
+    expect(autoSectionsBudgetMs({ durationMs: 5000 })).toBe(5000);
+  });
+});
+
+describe("autoSectionSteps", () => {
+  it("returns [] when no sections are detected", () => {
+    expect(
+      autoSectionSteps({
+        offsets: [],
+        budgetMs: 10000,
+        startDelayMs: 0,
+        endDwellMs: 0,
+        holdMs: 1000,
+        constantVelocity: true,
+        easing: "linear",
+      }),
+    ).toEqual([]);
+  });
+
+  it("fits steps exactly into the budget with constant velocity (travel ∝ distance)", () => {
+    const steps = autoSectionSteps({
+      offsets: [0.25, 0.5, 1],
+      budgetMs: 10000,
+      startDelayMs: 0,
+      endDwellMs: 0,
+      holdMs: 1000,
+      constantVelocity: true,
+      easing: "linear",
+    });
+    expect(steps).toHaveLength(3);
+    const total = steps.reduce((s, st) => s + st.durationMs + st.holdMs, 0);
+    expect(total).toBeCloseTo(10000);
+    expect(steps.map((s) => s.toY)).toEqual([0.25, 0.5, 1]);
+    // travel budget 7000 split 0.25/0.25/0.5 → 1750/1750/3500
+    expect(steps[0]!.durationMs).toBeCloseTo(1750);
+    expect(steps[1]!.durationMs).toBeCloseTo(1750);
+    expect(steps[2]!.durationMs).toBeCloseTo(3500);
+  });
+
+  it("reserves the start delay and end dwell from the budget", () => {
+    const steps = autoSectionSteps({
+      offsets: [0.5, 1],
+      budgetMs: 6000,
+      startDelayMs: 500,
+      endDwellMs: 500,
+      holdMs: 500,
+      constantVelocity: false,
+      easing: "linear",
+    });
+    const total = steps.reduce((s, st) => s + st.durationMs + st.holdMs, 0);
+    expect(total).toBeCloseTo(5000); // 6000 − 500 − 500
+  });
+
+  it("caps holds so travel always has time", () => {
+    const steps = autoSectionSteps({
+      offsets: [0.5, 1],
+      budgetMs: 1000,
+      startDelayMs: 0,
+      endDwellMs: 0,
+      holdMs: 1000,
+      constantVelocity: true,
+      easing: "linear",
+    });
+    const totalHold = steps.reduce((s, st) => s + st.holdMs, 0);
+    const totalTravel = steps.reduce((s, st) => s + st.durationMs, 0);
+    expect(totalHold).toBeCloseTo(700); // capped at 70% of the 1000ms budget
+    expect(totalTravel).toBeCloseTo(300);
   });
 });

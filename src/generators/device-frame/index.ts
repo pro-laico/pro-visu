@@ -59,8 +59,8 @@ async function run(
       logger: ctx.logger,
     });
   } else {
-    if (options.choreography?.length) {
-      ctx.logger.warn('choreography is ignored for capture:"realtime"');
+    if (options.choreography?.length || options.autoSections) {
+      ctx.logger.warn('choreography/autoSections are ignored for capture:"realtime"');
     }
     ctx.logger.info(`recording ${url} (realtime)`);
     const { webmPath, leadSeconds } = await captureScrollWebm({

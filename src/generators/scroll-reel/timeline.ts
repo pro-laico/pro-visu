@@ -172,25 +172,111 @@ export function choreographyTimelineSpec(a: ChoreographyTimelineArgs): TimelineS
   return { segments };
 }
 
+// --- auto-section detection (auto-generated choreography) ---
+
+/** Default total clip length (ms) for an auto-section reel. */
+export const DEFAULT_AUTO_DURATION_MS = 12000;
+/** Default hold (ms) at each detected section. */
+export const DEFAULT_AUTO_HOLD_MS = 700;
+/** Default minimum element height (as a fraction of the viewport) to count as a section. */
+export const DEFAULT_AUTO_MIN_HEIGHT_FRACTION = 0.5;
+/** Default cap on the number of detected sections (keeps clips a reasonable length). */
+export const DEFAULT_AUTO_MAX_SECTIONS = 8;
+
+export interface AutoSectionsConfig {
+  minHeightFraction?: number;
+  selector?: string;
+  holdMs?: number;
+  /** Total clip length in ms (the budget split across detected sections). */
+  durationMs?: number;
+  maxSections?: number;
+  constantVelocity?: boolean;
+}
+
+/** The total clip length (ms) for an auto-section config — a fixed, page-independent budget. */
+export function autoSectionsBudgetMs(cfg: boolean | AutoSectionsConfig): number {
+  const c = typeof cfg === "object" ? cfg : {};
+  return c.durationMs ?? DEFAULT_AUTO_DURATION_MS;
+}
+
+export interface AutoSectionStepsArgs {
+  /** Detected section positions, normalized 0..1, sorted ascending. */
+  offsets: number[];
+  /** Total clip budget in ms (== autoSectionsBudgetMs). */
+  budgetMs: number;
+  startDelayMs: number;
+  endDwellMs: number;
+  holdMs: number;
+  /** Distribute travel time by distance so scroll speed is uniform. */
+  constantVelocity: boolean;
+  easing: EasingName;
+}
+
+/**
+ * Pure: turn detected section offsets into choreography steps that fit exactly into `budgetMs`. The
+ * start delay and end dwell are reserved; the remainder is split into a hold at each section plus travel
+ * between them. With `constantVelocity`, travel time is proportional to the distance covered (uniform
+ * scroll speed); otherwise it's split evenly. Holds are capped so travel always has time. Returns []
+ * when there are no offsets (the caller falls back to a default sweep).
+ */
+export function autoSectionSteps(a: AutoSectionStepsArgs): ResolvedChoreographyStep[] {
+  const n = a.offsets.length;
+  if (n === 0) return [];
+  const remaining = Math.max(0, a.budgetMs - a.startDelayMs - a.endDwellMs);
+  let holdEach = a.holdMs;
+  if (holdEach * n > remaining * 0.7) holdEach = (remaining * 0.7) / n;
+  const travelTotal = Math.max(0, remaining - holdEach * n);
+
+  let prev = 0;
+  const dists = a.offsets.map((o) => {
+    const d = Math.max(0, o - prev);
+    prev = o;
+    return d;
+  });
+  const sumD = dists.reduce((s, d) => s + d, 0);
+  const useVelocity = a.constantVelocity && sumD > 0;
+
+  const steps: ResolvedChoreographyStep[] = [];
+  let usedTravel = 0;
+  for (let i = 0; i < n; i++) {
+    const isLast = i === n - 1;
+    const weight = useVelocity ? dists[i]! / sumD : 1 / n;
+    // Last step absorbs any rounding so travel sums exactly to travelTotal.
+    const travel = isLast ? travelTotal - usedTravel : travelTotal * weight;
+    usedTravel += travel;
+    steps.push({
+      toY: clamp01(a.offsets[i]!),
+      durationMs: Math.max(0, travel),
+      holdMs: holdEach,
+      easing: a.easing,
+    });
+  }
+  return steps;
+}
+
 export interface ScrollTimelineTotalArgs {
   startDelayMs: number;
   duration: number;
   endDwellMs: number;
   choreography?: Array<{ durationMs?: number; holdMs?: number }>;
+  autoSections?: boolean | AutoSectionsConfig;
 }
 
 /**
- * Pure: total clip length in ms. With choreography it's the start delay + end dwell + each step's
- * (travel + hold), applying the per-step defaults; otherwise the classic startDelay + duration +
- * endDwell. The capture layer and the manifest's `durationMs` both use this so they always agree.
+ * Pure: total clip length in ms. Explicit choreography wins; then auto-sections use their fixed budget;
+ * otherwise the classic startDelay + duration + endDwell. The capture layer and the manifest's
+ * `durationMs` both use this so they always agree.
  */
 export function scrollTimelineTotalMs(o: ScrollTimelineTotalArgs): number {
-  if (!o.choreography || o.choreography.length === 0) {
-    return o.startDelayMs + o.duration + o.endDwellMs;
+  if (o.choreography && o.choreography.length > 0) {
+    let total = o.startDelayMs + o.endDwellMs;
+    for (const s of o.choreography) {
+      total += (s.durationMs ?? DEFAULT_STEP_DURATION_MS) + (s.holdMs ?? DEFAULT_STEP_HOLD_MS);
+    }
+    return total;
   }
-  let total = o.startDelayMs + o.endDwellMs;
-  for (const s of o.choreography) {
-    total += (s.durationMs ?? DEFAULT_STEP_DURATION_MS) + (s.holdMs ?? DEFAULT_STEP_HOLD_MS);
+  if (o.autoSections) {
+    return autoSectionsBudgetMs(o.autoSections);
   }
-  return total;
+  return o.startDelayMs + o.duration + o.endDwellMs;
 }

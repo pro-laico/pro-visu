@@ -1,6 +1,7 @@
 import type { Browser, Page } from "playwright-core";
 import { captureFramedVideo } from "@/media/frame-capture";
 import {
+  detectSectionOffsets,
   measureNormalizedOffsets,
   prepareScroll,
   seekScrollTo,
@@ -8,11 +9,16 @@ import {
 } from "@/generators/scroll-reel/scroll";
 import { applyPostNav, installPreNav } from "@/generators/scroll-reel/clean-capture";
 import {
+  autoSectionSteps,
+  autoSectionsBudgetMs,
   choreographyTimelineSpec,
   clamp01,
   defaultTimelineSpec,
   resolveTimeline,
   scrollTimelineTotalMs,
+  DEFAULT_AUTO_HOLD_MS,
+  DEFAULT_AUTO_MAX_SECTIONS,
+  DEFAULT_AUTO_MIN_HEIGHT_FRACTION,
   DEFAULT_STEP_DURATION_MS,
   DEFAULT_STEP_HOLD_MS,
   type ResolvedChoreographyStep,
@@ -55,58 +61,89 @@ async function buildScrollTimeline(
   logger: Logger,
 ): Promise<ResolvedTimeline> {
   const steps = options.choreography;
-  if (!steps || steps.length === 0) {
+
+  // 1. Explicit choreography wins: resolve selector targets in one in-page pass (numbers/% in Node).
+  if (steps && steps.length > 0) {
+    const selectors = steps
+      .map((s) => s.to)
+      .filter((to): to is string => typeof to === "string" && !to.trim().endsWith("%"));
+    const measured =
+      selectors.length > 0 ? await page.evaluate(measureNormalizedOffsets, { selectors }) : [];
+
+    let mi = 0;
+    let prevY = 0;
+    const resolved: ResolvedChoreographyStep[] = steps.map((s) => {
+      let toY: number;
+      if (typeof s.to === "number") {
+        toY = clamp01(s.to);
+      } else if (s.to.trim().endsWith("%")) {
+        toY = clamp01(parseFloat(s.to) / 100);
+      } else {
+        const m = measured[mi++];
+        if (m == null) {
+          logger.warn(`choreography: selector "${s.to}" not found — holding position`);
+          toY = prevY;
+        } else {
+          toY = clamp01(m);
+        }
+      }
+      prevY = toY;
+      return {
+        toY,
+        durationMs: s.durationMs ?? DEFAULT_STEP_DURATION_MS,
+        holdMs: s.holdMs ?? DEFAULT_STEP_HOLD_MS,
+        easing: s.easing ?? options.easing,
+      };
+    });
+
     return resolveTimeline(
-      defaultTimelineSpec({
+      choreographyTimelineSpec({
         startDelayMs: options.startDelayMs,
-        durationMs: options.duration,
         endDwellMs: options.endDwellMs,
-        easing: options.easing,
+        steps: resolved,
       }),
       totalSeconds,
     );
   }
 
-  // Resolve selector targets in one in-page pass; numbers and "NN%" resolve in Node.
-  const selectors = steps
-    .map((s) => s.to)
-    .filter((to): to is string => typeof to === "string" && !to.trim().endsWith("%"));
-  const measured =
-    selectors.length > 0
-      ? await page.evaluate(measureNormalizedOffsets, { selectors })
-      : [];
-
-  let mi = 0;
-  let prevY = 0;
-  const resolved: ResolvedChoreographyStep[] = steps.map((s) => {
-    let toY: number;
-    if (typeof s.to === "number") {
-      toY = clamp01(s.to);
-    } else if (s.to.trim().endsWith("%")) {
-      toY = clamp01(parseFloat(s.to) / 100);
-    } else {
-      const m = measured[mi++];
-      if (m == null) {
-        logger.warn(`choreography: selector "${s.to}" not found — holding position`);
-        toY = prevY;
-      } else {
-        toY = clamp01(m);
-      }
-    }
-    prevY = toY;
-    return {
-      toY,
-      durationMs: s.durationMs ?? DEFAULT_STEP_DURATION_MS,
-      holdMs: s.holdMs ?? DEFAULT_STEP_HOLD_MS,
-      easing: s.easing ?? options.easing,
-    };
-  });
-
-  return resolveTimeline(
-    choreographyTimelineSpec({
+  // 2. Auto-sections: detect the page's sections and pan/hold through them within a fixed budget.
+  if (options.autoSections) {
+    const cfg = options.autoSections === true ? {} : options.autoSections;
+    const offsets = await page.evaluate(detectSectionOffsets, {
+      minHeightFraction: cfg.minHeightFraction ?? DEFAULT_AUTO_MIN_HEIGHT_FRACTION,
+      selector: cfg.selector ?? null,
+      maxSections: cfg.maxSections ?? DEFAULT_AUTO_MAX_SECTIONS,
+    });
+    const autoSteps = autoSectionSteps({
+      offsets,
+      budgetMs: autoSectionsBudgetMs(options.autoSections),
       startDelayMs: options.startDelayMs,
       endDwellMs: options.endDwellMs,
-      steps: resolved,
+      holdMs: cfg.holdMs ?? DEFAULT_AUTO_HOLD_MS,
+      constantVelocity: cfg.constantVelocity ?? true,
+      easing: options.easing,
+    });
+    if (autoSteps.length > 0) {
+      logger.debug(`autoSections: ${autoSteps.length} section(s) detected`);
+      return resolveTimeline(
+        choreographyTimelineSpec({
+          startDelayMs: options.startDelayMs,
+          endDwellMs: options.endDwellMs,
+          steps: autoSteps,
+        }),
+        totalSeconds,
+      );
+    }
+    logger.warn("autoSections: no scrollable sections detected — using a default sweep");
+  }
+
+  // 3. Default: a single eased top→bottom sweep.
+  return resolveTimeline(
+    defaultTimelineSpec({
+      startDelayMs: options.startDelayMs,
+      durationMs: options.duration,
+      endDwellMs: options.endDwellMs,
+      easing: options.easing,
     }),
     totalSeconds,
   );

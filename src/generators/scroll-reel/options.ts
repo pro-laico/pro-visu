@@ -5,6 +5,9 @@ export const easingSchema = z.enum([
   "easeInOutCubic",
   "easeInOutQuad",
   "easeOutCubic",
+  "easeInOutSine",
+  "easeInOutExpo",
+  "easeOutQuint",
 ]);
 export type Easing = z.infer<typeof easingSchema>;
 
@@ -18,6 +21,24 @@ export const choreographyStepSchema = z
     /** Hold time at this target after arriving (ms). Default 800. */
     holdMs: z.number().int().nonnegative().optional(),
     easing: easingSchema.optional(),
+  })
+  .strict();
+
+/** Tuning for auto-section choreography (see `autoSections` below). */
+export const autoSectionsSchema = z
+  .object({
+    /** Min element height (as a fraction of the viewport) to count as a section. Default 0.5. */
+    minHeightFraction: z.number().positive().max(2).optional(),
+    /** Explicit section selector; overrides the heuristic. */
+    selector: z.string().optional(),
+    /** Hold at each detected section (ms). Default 700. */
+    holdMs: z.number().int().nonnegative().optional(),
+    /** Total clip length (ms) split across detected sections. Default 12000. */
+    durationMs: z.number().int().positive().optional(),
+    /** Cap on the number of sections. Default 8. */
+    maxSections: z.number().int().positive().optional(),
+    /** Distribute travel time by distance for uniform scroll speed. Default true. */
+    constantVelocity: z.boolean().optional(),
   })
   .strict();
 
@@ -64,6 +85,14 @@ export const scrollReelOptionsSchema = z
      * default single eased sweep. Clip length becomes startDelay + Σ(step travel + hold) + endDwell.
      */
     choreography: z.array(choreographyStepSchema).optional(),
+
+    /**
+     * Auto-choreograph: detect the page's sections and pan/hold through them automatically (no manual
+     * selectors). `true` for defaults, or an object to tune. The clip is a fixed budget (`durationMs`,
+     * default 12000) split across detected sections. "frames" capture only; ignored if `choreography`
+     * is set.
+     */
+    autoSections: z.union([z.boolean(), autoSectionsSchema]).optional(),
 
     // --- clean capture (suppress real-site noise; applied on the "frames" path) ---
     /** Hide elements matching these CSS selectors before capture (cookie banners, chat widgets, …). */

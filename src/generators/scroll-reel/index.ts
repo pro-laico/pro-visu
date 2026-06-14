@@ -47,8 +47,8 @@ async function run(
       logger: ctx.logger,
     });
   } else {
-    if (options.choreography?.length) {
-      ctx.logger.warn('choreography is ignored for capture:"realtime"');
+    if (options.choreography?.length || options.autoSections) {
+      ctx.logger.warn('choreography/autoSections are ignored for capture:"realtime"');
     }
     const durationSeconds = (options.startDelayMs + options.duration + options.endDwellMs) / 1000;
     ctx.logger.info(`recording ${url} (realtime)`);

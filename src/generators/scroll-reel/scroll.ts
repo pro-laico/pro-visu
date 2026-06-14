@@ -1,4 +1,11 @@
-export type EasingName = "linear" | "easeInOutCubic" | "easeInOutQuad" | "easeOutCubic";
+export type EasingName =
+  | "linear"
+  | "easeInOutCubic"
+  | "easeInOutQuad"
+  | "easeOutCubic"
+  | "easeInOutSine"
+  | "easeInOutExpo"
+  | "easeOutQuint";
 
 /**
  * Pure easing functions, t in [0,1] -> [0,1]. Unit-tested on the Node side; the formula inside
@@ -9,6 +16,16 @@ export const EASINGS: Record<EasingName, (t: number) => number> = {
   easeInOutCubic: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
   easeInOutQuad: (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2),
   easeOutCubic: (t) => 1 - Math.pow(1 - t, 3),
+  easeInOutSine: (t) => -(Math.cos(Math.PI * t) - 1) / 2,
+  easeInOutExpo: (t) =>
+    t === 0
+      ? 0
+      : t === 1
+        ? 1
+        : t < 0.5
+          ? Math.pow(2, 20 * t - 10) / 2
+          : (2 - Math.pow(2, -20 * t + 10)) / 2,
+  easeOutQuint: (t) => 1 - Math.pow(1 - t, 5),
 };
 
 export interface PageScrollArgs {
@@ -31,6 +48,15 @@ export interface SeekScrollArgs {
 export interface MeasureOffsetsArgs {
   /** CSS selectors to resolve to normalized scroll positions (0..1). */
   selectors: string[];
+}
+
+export interface DetectSectionsArgs {
+  /** Minimum element height as a fraction of the viewport to count as a section. */
+  minHeightFraction: number;
+  /** Explicit section selector; overrides the heuristic when set (non-null). */
+  selector: string | null;
+  /** Cap on the number of returned sections. */
+  maxSections: number;
 }
 
 // Browser globals — declared loosely (no DOM lib in this Node project). The exported functions are
@@ -136,6 +162,99 @@ export async function prepareScroll(args: PrepareScrollArgs): Promise<void> {
     } catch {
       /* ignore */
     }
+  }
+}
+
+/**
+ * Runs INSIDE the page. Auto-detects the page's section boundaries as normalized scroll positions
+ * (0..1), sorted ascending and deduped, with the bottom (1) always included. Uses an explicit selector
+ * when given, else a heuristic (<section>, direct children of <main>, [data-section]) filtered to
+ * elements at least `minHeightFraction` of the viewport tall. Returns [] for a non-scrollable page.
+ * Self-contained (serialized via page.evaluate).
+ */
+export async function detectSectionOffsets(args: DetectSectionsArgs): Promise<number[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const target = findScrollTarget(document, getComputedStyle) as any;
+  const distance = maxScrollOf(target);
+  if (distance <= 0) return [];
+  const docTarget = isDocTarget(target);
+  const vh = window.innerHeight || document.documentElement.clientHeight || 1;
+  const containerTop = docTarget ? 0 : target.getBoundingClientRect().top;
+  const curScroll = docTarget
+    ? window.pageYOffset || document.documentElement.scrollTop || 0
+    : target.scrollTop;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let els: any[] = [];
+  try {
+    els = Array.from(
+      document.querySelectorAll(args.selector || "section, main > *, [data-section]"),
+    );
+  } catch {
+    els = [];
+  }
+  const minH = vh * args.minHeightFraction;
+  const offsets: number[] = [];
+  for (const el of els) {
+    let rect: { top: number; height: number };
+    try {
+      rect = el.getBoundingClientRect();
+    } catch {
+      continue;
+    }
+    // Apply the height filter only to the heuristic; trust an explicit selector verbatim.
+    if (!args.selector && rect.height < minH) continue;
+    const top = docTarget ? rect.top + curScroll : rect.top - containerTop + curScroll;
+    const y = Math.max(0, Math.min(distance, top));
+    offsets.push(y / distance);
+  }
+  offsets.sort((a, b) => a - b);
+  const deduped: number[] = [];
+  for (const o of offsets) {
+    if (deduped.length === 0 || o - deduped[deduped.length - 1]! > 0.01) deduped.push(o);
+  }
+  // Always end the reel at the bottom.
+  if (deduped.length === 0 || deduped[deduped.length - 1]! < 0.99) deduped.push(1);
+  return deduped.slice(0, args.maxSections);
+
+  // --- inlined, self-contained scroll helpers (duplicated elsewhere in this file; see note above) ---
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function findScrollTarget(doc: any, gcs: (el: any) => { overflowY: string }): unknown {
+    const se = doc.scrollingElement || doc.documentElement;
+    if (se && se.scrollHeight - se.clientHeight > 1) return se;
+    let best: unknown = null;
+    let bestArea = 0;
+    const all = doc.querySelectorAll("*");
+    for (let i = 0; i < all.length; i++) {
+      const el = all[i];
+      let oy = "";
+      try {
+        oy = gcs(el).overflowY;
+      } catch {
+        oy = "";
+      }
+      const scrollable = oy === "auto" || oy === "scroll" || oy === "overlay";
+      if (scrollable && el.scrollHeight - el.clientHeight > 1) {
+        const area = el.clientWidth * el.clientHeight;
+        if (area > bestArea) {
+          bestArea = area;
+          best = el;
+        }
+      }
+    }
+    return best || se;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function isDocTarget(t: any): boolean {
+    return (
+      t === (document.scrollingElement || document.documentElement) ||
+      t === document.documentElement ||
+      t === document.body
+    );
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function maxScrollOf(t: any): number {
+    return Math.max(0, t.scrollHeight - t.clientHeight);
   }
 }
 
@@ -339,6 +458,18 @@ export async function pageScroll(args: PageScrollArgs): Promise<number> {
         return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
       case "easeOutCubic":
         return 1 - Math.pow(1 - t, 3);
+      case "easeInOutSine":
+        return -(Math.cos(Math.PI * t) - 1) / 2;
+      case "easeInOutExpo":
+        return t === 0
+          ? 0
+          : t === 1
+            ? 1
+            : t < 0.5
+              ? Math.pow(2, 20 * t - 10) / 2
+              : (2 - Math.pow(2, -20 * t + 10)) / 2;
+      case "easeOutQuint":
+        return 1 - Math.pow(1 - t, 5);
       default:
         return t;
     }
