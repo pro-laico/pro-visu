@@ -11,9 +11,12 @@ import { applyPostNav, installPreNav } from "@/generators/scroll-reel/clean-capt
 import {
   autoSectionSteps,
   autoSectionsBudgetMs,
+  boomerangSpec,
   choreographyTimelineSpec,
   clamp01,
   defaultTimelineSpec,
+  foldProgress,
+  kenBurnsScaleAt,
   resolveTimeline,
   scrollTimelineTotalMs,
   DEFAULT_AUTO_HOLD_MS,
@@ -23,6 +26,7 @@ import {
   DEFAULT_STEP_HOLD_MS,
   type ResolvedChoreographyStep,
   type ResolvedTimeline,
+  type TimelineSpec,
 } from "@/generators/scroll-reel/timeline";
 import type { ResolvedScrollReelOptions } from "@/generators/scroll-reel/options";
 import type { Logger } from "@/utils/logger";
@@ -61,6 +65,9 @@ async function buildScrollTimeline(
   logger: Logger,
 ): Promise<ResolvedTimeline> {
   const steps = options.choreography;
+  // Apply the loop transform (boomerang mirrors the spec) before binding to wall-clock time.
+  const finalize = (spec: TimelineSpec): ResolvedTimeline =>
+    resolveTimeline(options.loop === "boomerang" ? boomerangSpec(spec) : spec, totalSeconds);
 
   // 1. Explicit choreography wins: resolve selector targets in one in-page pass (numbers/% in Node).
   if (steps && steps.length > 0) {
@@ -96,13 +103,12 @@ async function buildScrollTimeline(
       };
     });
 
-    return resolveTimeline(
+    return finalize(
       choreographyTimelineSpec({
         startDelayMs: options.startDelayMs,
         endDwellMs: options.endDwellMs,
         steps: resolved,
       }),
-      totalSeconds,
     );
   }
 
@@ -125,27 +131,25 @@ async function buildScrollTimeline(
     });
     if (autoSteps.length > 0) {
       logger.debug(`autoSections: ${autoSteps.length} section(s) detected`);
-      return resolveTimeline(
+      return finalize(
         choreographyTimelineSpec({
           startDelayMs: options.startDelayMs,
           endDwellMs: options.endDwellMs,
           steps: autoSteps,
         }),
-        totalSeconds,
       );
     }
     logger.warn("autoSections: no scrollable sections detected — using a default sweep");
   }
 
   // 3. Default: a single eased top→bottom sweep.
-  return resolveTimeline(
+  return finalize(
     defaultTimelineSpec({
       startDelayMs: options.startDelayMs,
       durationMs: options.duration,
       endDwellMs: options.endDwellMs,
       easing: options.easing,
     }),
-    totalSeconds,
   );
 }
 
@@ -192,7 +196,28 @@ export async function captureScrollFrames(a: ScrollFramesArgs): Promise<void> {
       return buildScrollTimeline(page, options, totalSeconds, logger);
     },
     seekToFrame: async (page, t, timeline) => {
-      await page.evaluate(seekScrollTo, { normalizedY: timeline.scrollAt(t) });
+      const kb = options.kenBurns;
+      let scale: number | undefined;
+      let originX: number | undefined;
+      let originY: number | undefined;
+      if (kb) {
+        const p = totalSeconds > 0 ? t / totalSeconds : 1;
+        // Fold the zoom progress under a boomerang loop so the zoom returns to its start (seamless).
+        const zp = options.loop === "boomerang" ? foldProgress(p) : p;
+        scale = kenBurnsScaleAt(zp, {
+          scaleFrom: kb.scaleFrom ?? 1,
+          scaleTo: kb.scaleTo ?? 1.08,
+          easing: kb.easing ?? options.easing,
+        });
+        originX = kb.originX ?? 0.5;
+        originY = kb.originY ?? 0.5;
+      }
+      await page.evaluate(seekScrollTo, {
+        normalizedY: timeline.scrollAt(t),
+        scale,
+        originX,
+        originY,
+      });
       if (a.settlePerFrame) {
         // Bound the in-page settle Node-side so a stuck decode can't hang the frame.
         await Promise.race([

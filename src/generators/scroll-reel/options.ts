@@ -94,6 +94,29 @@ export const scrollReelOptionsSchema = z
      */
     autoSections: z.union([z.boolean(), autoSectionsSchema]).optional(),
 
+    /** Loop style. "boomerang" plays the scroll forward then back within the clip for a seamless loop. */
+    loop: z.enum(["none", "boomerang"]).default("none"),
+
+    /**
+     * Ken Burns: a slow zoom over the clip ("frames" only). Scales the page toward an origin each frame
+     * (folds automatically under a boomerang loop to stay seamless). May affect position:fixed elements —
+     * pair with clean-capture if needed.
+     */
+    kenBurns: z
+      .object({
+        /** Start scale (1 = no zoom). Default 1. */
+        scaleFrom: z.number().positive().optional(),
+        /** End scale. Default 1.08. */
+        scaleTo: z.number().positive().optional(),
+        easing: easingSchema.optional(),
+        /** Zoom origin X within the viewport (0 = left, 1 = right). Default 0.5. */
+        originX: z.number().min(0).max(1).optional(),
+        /** Zoom origin Y within the viewport (0 = top, 1 = bottom). Default 0.5. */
+        originY: z.number().min(0).max(1).optional(),
+      })
+      .strict()
+      .optional(),
+
     // --- clean capture (suppress real-site noise; applied on the "frames" path) ---
     /** Hide elements matching these CSS selectors before capture (cookie banners, chat widgets, …). */
     hideSelectors: z.array(z.string()).default([]),

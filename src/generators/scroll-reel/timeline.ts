@@ -280,3 +280,45 @@ export function scrollTimelineTotalMs(o: ScrollTimelineTotalArgs): number {
   }
   return o.startDelayMs + o.duration + o.endDwellMs;
 }
+
+// --- loop / boomerang ---
+
+/**
+ * Pure: mirror a spec so it plays forward then backward within the same total length — a seamless
+ * loop (last frame ≈ first). Each segment's fraction is halved; the second half is the segments in
+ * reverse with swapped endpoints. Exactly time-symmetric for symmetric easings (linear/easeInOut*);
+ * for asymmetric easings the down/up acceleration differs slightly but the loop is still seamless.
+ */
+export function boomerangSpec(spec: TimelineSpec): TimelineSpec {
+  const forward = spec.segments.map((s) => ({ ...s, durationFraction: s.durationFraction / 2 }));
+  const backward = spec.segments
+    .slice()
+    .reverse()
+    .map((s) => ({
+      fromY: s.toY,
+      toY: s.fromY,
+      durationFraction: s.durationFraction / 2,
+      easing: s.easing,
+    }));
+  return { segments: [...forward, ...backward] };
+}
+
+// --- Ken Burns (slow zoom) ---
+
+/** Fold progress into a tent: 0→0, 0.5→1, 1→0. Keeps a zoom seamless under a boomerang loop. */
+export function foldProgress(p: number): number {
+  const c = clamp01(p);
+  return c < 0.5 ? c * 2 : (1 - c) * 2;
+}
+
+export interface KenBurnsResolved {
+  scaleFrom: number;
+  scaleTo: number;
+  easing: EasingName;
+}
+
+/** Pure: the zoom scale at normalized progress (0..1), eased from scaleFrom to scaleTo. */
+export function kenBurnsScaleAt(progress: number, cfg: KenBurnsResolved): number {
+  const eased = EASINGS[cfg.easing](clamp01(progress));
+  return cfg.scaleFrom + (cfg.scaleTo - cfg.scaleFrom) * eased;
+}

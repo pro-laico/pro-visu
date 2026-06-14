@@ -43,6 +43,12 @@ export interface PrepareScrollArgs {
 export interface SeekScrollArgs {
   /** Normalized scroll position to jump to (0 = top, 1 = bottom). */
   normalizedY: number;
+  /** Optional Ken Burns zoom scale for this frame (omit for no zoom). */
+  scale?: number;
+  /** Zoom origin X within the viewport (0 = left, 1 = right). Default 0.5. */
+  originX?: number;
+  /** Zoom origin Y within the viewport (0 = top, 1 = bottom). Default 0.5. */
+  originY?: number;
 }
 
 export interface MeasureOffsetsArgs {
@@ -65,7 +71,9 @@ export interface DetectSectionsArgs {
 declare const window: {
   scrollTo: (o: { top: number; left: number; behavior: string }) => void;
   innerHeight: number;
+  innerWidth: number;
   pageYOffset: number;
+  pageXOffset: number;
 };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const document: any;
@@ -375,6 +383,25 @@ export async function seekScrollTo(args: SeekScrollArgs): Promise<void> {
   const distance = maxScrollOf(target);
   const clamped = args.normalizedY < 0 ? 0 : args.normalizedY > 1 ? 1 : args.normalizedY;
   scrollTargetTo(target, clamped * distance);
+  // Ken Burns: scale the page toward a viewport-anchored origin (computed from the live scroll), so
+  // the zoom centers on what's on screen. Only touched when a scale is supplied.
+  if (typeof args.scale === "number") {
+    try {
+      const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+      const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+      const sx = window.pageXOffset || 0;
+      const sy = window.pageYOffset || document.documentElement.scrollTop || 0;
+      const ox = sx + (args.originX ?? 0.5) * vw;
+      const oy = sy + (args.originY ?? 0.5) * vh;
+      const body = document.body;
+      if (body && body.style) {
+        body.style.transformOrigin = `${ox}px ${oy}px`;
+        body.style.transform = `scale(${args.scale})`;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
   // Two rAF ticks: let scroll handlers run (frame 1) and the resulting paint commit (frame 2).
   await new Promise<void>((resolve) =>
     requestAnimationFrame(() => requestAnimationFrame(() => resolve())),

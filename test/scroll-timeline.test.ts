@@ -3,8 +3,11 @@ import { EASINGS } from "@/generators/scroll-reel/scroll";
 import {
   autoSectionSteps,
   autoSectionsBudgetMs,
+  boomerangSpec,
   choreographyTimelineSpec,
   defaultTimelineSpec,
+  foldProgress,
+  kenBurnsScaleAt,
   normalizedScrollAt,
   resolveTimeline,
   scrollTimelineTotalMs,
@@ -268,5 +271,59 @@ describe("autoSectionSteps", () => {
     const totalTravel = steps.reduce((s, st) => s + st.durationMs, 0);
     expect(totalHold).toBeCloseTo(700); // capped at 70% of the 1000ms budget
     expect(totalTravel).toBeCloseTo(300);
+  });
+});
+
+describe("boomerangSpec", () => {
+  it("doubles the segment count and keeps fractions summing to 1", () => {
+    const base = defaultTimelineSpec({ startDelayMs: 0, durationMs: 1000, endDwellMs: 0, easing: "linear" });
+    const b = boomerangSpec(base);
+    expect(b.segments).toHaveLength(base.segments.length * 2);
+    expect(b.segments.reduce((s, seg) => s + seg.durationFraction, 0)).toBeCloseTo(1);
+  });
+
+  it("is a seamless loop that reaches the bottom at the midpoint", () => {
+    const base = defaultTimelineSpec({ startDelayMs: 0, durationMs: 1000, endDwellMs: 0, easing: "easeInOutCubic" });
+    const tl = resolveTimeline(boomerangSpec(base), 2);
+    expect(tl.scrollAt(0)).toBeCloseTo(0);
+    expect(tl.scrollAt(2)).toBeCloseTo(0); // ends where it began → seamless
+    expect(tl.scrollAt(1)).toBeCloseTo(1); // bottom at the midpoint
+  });
+
+  it("is time-symmetric for symmetric easings", () => {
+    const base = defaultTimelineSpec({ startDelayMs: 0, durationMs: 1000, endDwellMs: 0, easing: "easeInOutSine" });
+    const tl = resolveTimeline(boomerangSpec(base), 1);
+    for (const p of [0.1, 0.25, 0.4]) {
+      expect(tl.scrollAt(p)).toBeCloseTo(tl.scrollAt(1 - p));
+    }
+  });
+});
+
+describe("foldProgress", () => {
+  it("makes a tent: 0→0, 0.5→1, 1→0", () => {
+    expect(foldProgress(0)).toBeCloseTo(0);
+    expect(foldProgress(0.25)).toBeCloseTo(0.5);
+    expect(foldProgress(0.5)).toBeCloseTo(1);
+    expect(foldProgress(0.75)).toBeCloseTo(0.5);
+    expect(foldProgress(1)).toBeCloseTo(0);
+  });
+});
+
+describe("kenBurnsScaleAt", () => {
+  it("eases from scaleFrom to scaleTo", () => {
+    const cfg = { scaleFrom: 1, scaleTo: 1.5, easing: "linear" as const };
+    expect(kenBurnsScaleAt(0, cfg)).toBeCloseTo(1);
+    expect(kenBurnsScaleAt(0.5, cfg)).toBeCloseTo(1.25);
+    expect(kenBurnsScaleAt(1, cfg)).toBeCloseTo(1.5);
+  });
+
+  it("is monotonic non-decreasing for a zoom-in", () => {
+    const cfg = { scaleFrom: 1, scaleTo: 1.2, easing: "easeInOutCubic" as const };
+    let prev = -Infinity;
+    for (let p = 0; p <= 1; p += 0.1) {
+      const v = kenBurnsScaleAt(p, cfg);
+      expect(v).toBeGreaterThanOrEqual(prev - 1e-9);
+      prev = v;
+    }
   });
 });
