@@ -58,6 +58,9 @@ async function run(
       // Draft always uses fast jpeg intermediates; final uses the configured format (png = lossless).
       frameFormat: draft ? "jpeg" : options.frameFormat,
       jpegQuality: draft ? 70 : 90,
+      // Per-frame settling defaults on, off in draft for speed (override with the explicit option).
+      settlePerFrame: options.settlePerFrame ?? !draft,
+      settleMaxMs: options.settleMaxMs,
       tmpDir: ctx.tmpDir,
       logger: ctx.logger,
     });

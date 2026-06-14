@@ -31,7 +31,10 @@ export interface SeekScrollArgs {
 // Browser globals — declared loosely (no DOM lib in this Node project). The exported functions are
 // serialized and run inside the page via page.evaluate, so each must be fully self-contained (no
 // references to module-level bindings); the small scroll helpers are therefore inlined in both.
-declare const window: { scrollTo: (o: { top: number; left: number; behavior: string }) => void };
+declare const window: {
+  scrollTo: (o: { top: number; left: number; behavior: string }) => void;
+  innerHeight: number;
+};
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const document: any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -128,6 +131,36 @@ export async function prepareScroll(args: PrepareScrollArgs): Promise<void> {
       /* ignore */
     }
   }
+}
+
+/**
+ * Runs INSIDE the page. Waits for the CURRENT scroll position's in-view content to be ready — fonts
+ * loaded and visible images decoded — then yields one animation frame. Bounded by the caller (a
+ * Node-side timeout) so a stuck decode can't hang a frame. Self-contained (serialized via page.evaluate).
+ */
+export async function settleInView(): Promise<void> {
+  try {
+    await (document.fonts?.ready ?? Promise.resolve());
+  } catch {
+    /* no font set */
+  }
+  try {
+    const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const imgs = Array.from(document.images ?? []) as any[];
+    const inView = imgs.filter((im) => {
+      try {
+        const r = im.getBoundingClientRect();
+        return r.bottom > 0 && r.top < vh && r.width > 0 && r.height > 0;
+      } catch {
+        return false;
+      }
+    });
+    await Promise.all(inView.map((im) => (im.decode ? im.decode().catch(() => {}) : null)));
+  } catch {
+    /* decode unsupported */
+  }
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 
 /**

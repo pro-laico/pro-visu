@@ -43,6 +43,27 @@ export const scrollReelOptionsSchema = z
     workers: z.number().int().positive().optional(),
     /** Intermediate frame format for "frames"; "png" is lossless (slower), "jpeg" (default) is faster. */
     frameFormat: z.enum(["jpeg", "png"]).default("jpeg"),
+
+    // --- clean capture (suppress real-site noise; applied on the "frames" path) ---
+    /** Hide elements matching these CSS selectors before capture (cookie banners, chat widgets, …). */
+    hideSelectors: z.array(z.string()).default([]),
+    /** Extra CSS injected before capture (e.g. a brand backdrop, or hiding a sticky header). */
+    injectCss: z.string().optional(),
+    /** Click these selectors once after load to dismiss overlays (consent dialogs); best-effort. */
+    clickSelectors: z.array(z.string()).default([]),
+    /** Hide scrollbars so they don't appear in the capture. */
+    hideScrollbars: z.boolean().default(true),
+    /** Pause CSS animations/transitions for fully static, deterministic frames. */
+    pauseAnimations: z.boolean().default(false),
+    /** Freeze Date.now / performance.now / Math.random (seeded) so time/random content is stable. */
+    freezeClock: z.boolean().default(false),
+
+    // --- per-frame settling ("frames" path) ---
+    /** Wait for fonts + in-view images before each frame's screenshot. Defaults on (off in draft). */
+    settlePerFrame: z.boolean().optional(),
+    /** Max time (ms) to wait per frame for settling before screenshotting anyway. */
+    settleMaxMs: z.number().int().nonnegative().default(250),
+
     /** Output filename; defaults to "<slug(asset name)>.mp4". */
     fileName: z.string().optional(),
   })
