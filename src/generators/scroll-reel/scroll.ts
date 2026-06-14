@@ -23,6 +23,11 @@ export interface PrepareScrollArgs {
   settleMs: number;
 }
 
+export interface SeekScrollArgs {
+  /** Normalized scroll position to jump to (0 = top, 1 = bottom). */
+  normalizedY: number;
+}
+
 // Browser globals — declared loosely (no DOM lib in this Node project). The exported functions are
 // serialized and run inside the page via page.evaluate, so each must be fully self-contained (no
 // references to module-level bindings); the small scroll helpers are therefore inlined in both.
@@ -66,6 +71,86 @@ export async function prepareScroll(args: PrepareScrollArgs): Promise<void> {
   await sleep(50);
 
   // --- inlined, self-contained scroll helpers (duplicated in pageScroll; see note above) ---
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function findScrollTarget(doc: any, gcs: (el: any) => { overflowY: string }): unknown {
+    const se = doc.scrollingElement || doc.documentElement;
+    if (se && se.scrollHeight - se.clientHeight > 1) return se;
+    let best: unknown = null;
+    let bestArea = 0;
+    const all = doc.querySelectorAll("*");
+    for (let i = 0; i < all.length; i++) {
+      const el = all[i];
+      let oy = "";
+      try {
+        oy = gcs(el).overflowY;
+      } catch {
+        oy = "";
+      }
+      const scrollable = oy === "auto" || oy === "scroll" || oy === "overlay";
+      if (scrollable && el.scrollHeight - el.clientHeight > 1) {
+        const area = el.clientWidth * el.clientHeight;
+        if (area > bestArea) {
+          bestArea = area;
+          best = el;
+        }
+      }
+    }
+    return best || se;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function isDocTarget(t: any): boolean {
+    return (
+      t === (document.scrollingElement || document.documentElement) ||
+      t === document.documentElement ||
+      t === document.body
+    );
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function scrollTargetTo(t: any, y: number): void {
+    if (isDocTarget(t)) window.scrollTo({ top: y, left: 0, behavior: "instant" });
+    else if (t.scrollTo) t.scrollTo({ top: y, left: 0, behavior: "instant" });
+    else t.scrollTop = y;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function maxScrollOf(t: any): number {
+    return Math.max(0, t.scrollHeight - t.clientHeight);
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function forceInstant(t: any): void {
+    try {
+      document.documentElement.style.scrollBehavior = "auto";
+    } catch {
+      /* ignore */
+    }
+    try {
+      if (t && t.style) t.style.scrollBehavior = "auto";
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+/**
+ * Runs INSIDE the page. Jumps the real scroll target to a normalized position (0 = top, 1 = bottom)
+ * instantly, then waits TWO animation frames so scroll-linked animations, IntersectionObserver reveals,
+ * and `position: sticky` elements recompute and PAINT before the caller screenshots. This is the
+ * frame-stepped counterpart to `pageScroll`: the capture layer calls it once per frame with the
+ * timeline's position for that frame, so the resulting video is frame-accurate and reproducible. Must be
+ * self-contained (serialized via page.evaluate); the scroll helpers are inlined as elsewhere in this file.
+ */
+export async function seekScrollTo(args: SeekScrollArgs): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const target = findScrollTarget(document, getComputedStyle) as any;
+  forceInstant(target);
+  const distance = maxScrollOf(target);
+  const clamped = args.normalizedY < 0 ? 0 : args.normalizedY > 1 ? 1 : args.normalizedY;
+  scrollTargetTo(target, clamped * distance);
+  // Two rAF ticks: let scroll handlers run (frame 1) and the resulting paint commit (frame 2).
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
+
+  // --- inlined, self-contained scroll helpers (duplicated in prepareScroll/pageScroll; see note above) ---
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function findScrollTarget(doc: any, gcs: (el: any) => { overflowY: string }): unknown {
     const se = doc.scrollingElement || doc.documentElement;

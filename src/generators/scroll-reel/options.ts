@@ -32,6 +32,17 @@ export const scrollReelOptionsSchema = z
     waitForSelector: z.string().optional(),
     /** x264 quality, 0–51 (lower = better/larger). */
     crf: z.number().int().min(0).max(51).default(18),
+    /**
+     * Capture strategy. "frames" (default) steps a virtual clock, sets the scroll position per frame and
+     * screenshots — frame-accurate, crisp (supersampled) and reproducible. "realtime" records the live
+     * browser session; use it only when the page's hero relies on time-based (not scroll-driven)
+     * animation or autoplay video that should play during the capture.
+     */
+    capture: z.enum(["frames", "realtime"]).default("frames"),
+    /** Parallel render workers for "frames" (each its own browser context). Omit to auto-pick by cores. */
+    workers: z.number().int().positive().optional(),
+    /** Intermediate frame format for "frames"; "png" is lossless (slower), "jpeg" (default) is faster. */
+    frameFormat: z.enum(["jpeg", "png"]).default("jpeg"),
     /** Output filename; defaults to "<slug(asset name)>.mp4". */
     fileName: z.string().optional(),
   })

@@ -1,4 +1,3 @@
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { copyFile, rename, stat } from "node:fs/promises";
@@ -10,6 +9,7 @@ import { SCENE_OPTION_SCHEMAS } from "@/generators/scene/scene-options";
 import { startSceneServer } from "@/scene/serve";
 import { recordSceneRealtime } from "@/scene/capture-realtime";
 import { captureSceneFrames } from "@/scene/capture-frames";
+import { autoWorkers } from "@/media/frame-capture";
 import { probeVideoDimensions, transcodeToMp4 } from "@/media/ffmpeg";
 import { ensureDir } from "@/utils/fs";
 import { sha256File } from "@/utils/hash";
@@ -169,12 +169,6 @@ export async function renderScene(
   } finally {
     await server.close();
   }
-}
-
-/** Default parallel workers: about half the cores, capped at 6 (each is a browser context). */
-function autoWorkers(): number {
-  const cores = os.cpus()?.length ?? 2;
-  return Math.max(1, Math.min(6, Math.floor(cores / 2)));
 }
 
 export const sceneGenerator: Generator<ResolvedSceneOptions> = {

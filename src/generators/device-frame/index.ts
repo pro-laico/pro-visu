@@ -7,8 +7,11 @@ import {
 import { renderChrome } from "@/generators/device-frame/chrome";
 import { buildDeviceFrameArgs } from "@/generators/device-frame/composite";
 import { captureScrollWebm } from "@/generators/scroll-reel/capture";
+import { captureScrollFrames } from "@/generators/scroll-reel/capture-frames";
+import { defaultTimelineSpec, resolveTimeline } from "@/generators/scroll-reel/timeline";
 import { requireUrl } from "@/generators/require-url";
 import { probeVideoDimensions, runFfmpeg, transcodeToMp4 } from "@/media/ffmpeg";
+import { autoWorkers } from "@/media/frame-capture";
 import { ensureDir } from "@/utils/fs";
 import { sha256File } from "@/utils/hash";
 import { slugify } from "@/utils/paths";
@@ -25,33 +28,63 @@ async function run(
   const outPath = ctx.resolveOutPath(fileName);
   const url = requireUrl(ctx);
 
-  // 1. Record the site (same capture path as scroll-reel), then transcode to mp4.
-  ctx.logger.info(`recording ${url}`);
-  const { webmPath, leadSeconds } = await captureScrollWebm({
-    browser: ctx.browser,
-    url,
-    options,
-    tmpDir: ctx.tmpDir,
-    logger: ctx.logger,
-  });
+  // 1. Record the site (same capture path as scroll-reel) into an mp4 to composite.
   const durationSeconds =
     (options.startDelayMs + options.duration + options.endDwellMs) / 1000;
-  const preset = ctx.quality === "draft" ? "ultrafast" : "medium";
+  const draft = ctx.quality === "draft";
+  const preset = draft ? "ultrafast" : "medium";
   const captureMp4 = path.join(ctx.tmpDir, `${slugify(ctx.target.name)}-capture.mp4`);
-  await transcodeToMp4({
-    inputPath: webmPath,
-    outputPath: captureMp4,
-    fps: options.fps,
-    width: options.width,
-    height: options.height,
-    crf: options.crf,
-    preset,
-    // Trim the navigation + warm-up lead and clamp to the intended length, so the framed clip opens
-    // on the scroll and the backdrop's `d=durationSeconds` (below) stays aligned with the content.
-    startOffsetSeconds: leadSeconds,
-    durationSeconds,
-    logger: ctx.logger,
-  });
+
+  if (options.capture === "frames") {
+    const workers = options.workers ?? autoWorkers();
+    const timeline = resolveTimeline(
+      defaultTimelineSpec({
+        startDelayMs: options.startDelayMs,
+        durationMs: options.duration,
+        endDwellMs: options.endDwellMs,
+        easing: options.easing,
+      }),
+      durationSeconds,
+    );
+    ctx.logger.info(`recording ${url} (frame-stepped, ${workers} worker(s))`);
+    await captureScrollFrames({
+      browser: ctx.browser,
+      url,
+      options,
+      timeline,
+      outPath: captureMp4,
+      preset,
+      workers,
+      // Draft always uses fast jpeg intermediates; final uses the configured format (png = lossless).
+      frameFormat: draft ? "jpeg" : options.frameFormat,
+      jpegQuality: draft ? 70 : 90,
+      tmpDir: ctx.tmpDir,
+      logger: ctx.logger,
+    });
+  } else {
+    ctx.logger.info(`recording ${url} (realtime)`);
+    const { webmPath, leadSeconds } = await captureScrollWebm({
+      browser: ctx.browser,
+      url,
+      options,
+      tmpDir: ctx.tmpDir,
+      logger: ctx.logger,
+    });
+    await transcodeToMp4({
+      inputPath: webmPath,
+      outputPath: captureMp4,
+      fps: options.fps,
+      width: options.width,
+      height: options.height,
+      crf: options.crf,
+      preset,
+      // Trim the navigation + warm-up lead and clamp to the intended length, so the framed clip opens
+      // on the scroll and the backdrop's `d=durationSeconds` (below) stays aligned with the content.
+      startOffsetSeconds: leadSeconds,
+      durationSeconds,
+      logger: ctx.logger,
+    });
+  }
 
   // 2. Paint the (static) browser-window chrome once via the Playwright browser, then
   //    composite the capture into it with a single ffmpeg pass — no per-frame rendering.
