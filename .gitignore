@@ -1,13 +1,27 @@
 node_modules/
 dist/
+.next/
+.turbo/
+out/
 coverage/
+next-env.d.ts
+*.tsbuildinfo
 *.log
 .DS_Store
 .idea/
 .vscode/
+
+# generated showcase output (testing app)
+apps/*/showcase/
+apps/*/public/showcase/
+
+# fumadocs generated source
+**/.source/
+
 # local scratch / e2e sandbox
 /.scratch/
 /test-site/
+
 # personal / machine-specific
 .claude/settings.local.json
 *.code-workspace

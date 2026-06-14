@@ -1,9 +1,10 @@
-# pnpm reads build-script allowlist and other settings from here.
-# These packages run install/build scripts to fetch their native binaries.
+packages:
+  - "packages/*"
+  - "apps/*"
+
+# pnpm reads the build-script allowlist from here. These packages run install/build
+# scripts to fetch their native binaries.
 allowBuilds:
   esbuild: true
   ffmpeg-static: true
-  # Skip puppeteer's Chromium download — the Revideo renderer reuses the Chromium we
-  # already manage via Playwright (PUPPETEER_EXECUTABLE_PATH). And telemetry: no thanks.
-  puppeteer: false
-  '@revideo/telemetry': false
+  sharp: true
