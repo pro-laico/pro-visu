@@ -1,19 +1,54 @@
 ---
 title: Introduction
-description: auto-showcase — generate marketing/showcase assets from your website.
+description: auto-showcase turns a website into marketing assets — scroll reels, screenshots, device frames, scenes, and specimens — from a single config.
 ---
 
-**auto-showcase** turns a website into marketing assets — scroll reels, responsive
-screenshots, device-framed videos, scenes, font/colour specimens, and more — from a
-single `showcase.config.ts`.
+**auto-showcase** is a portable CLI that turns the websites you build into marketing and
+showcase assets: scroll reels, responsive screenshots, device-framed videos, composited
+scenes, and font/colour specimens — all from a single `showcase.config.ts`.
 
-> This documentation site is a starting scaffold. Full content (generators, the
-> `scroll-reel` deep dive, CLI, config) will be ported from the library README.
+Install it into a website repo, point assets at a URL, and run `showcase generate`. Output
+is written into a gitignored `showcase/` folder alongside a `manifest.json`.
+
+## The mental model
+
+Three pieces:
+
+1. **Config** — a `showcase.config.ts` with two blocks: `settings` (repo-level CLI behaviour)
+   and `assets` (the list of things to generate).
+2. **Generators** — each asset names a `generator` that knows how to produce one kind of
+   output. Options are merged from `settings.defaults["<generator>"]` and the asset's own
+   `options`.
+3. **Manifest** — every run writes `<outDir>/manifest.json` recording what was produced
+   (id, generator, file, dimensions, bytes, duration). `showcase list` prints it.
+
+Assets can also depend on each other through `inputs`, forming a small DAG — for example, a
+[scene](/docs/generators/scene) that plays a reel recorded by another asset.
+
+## Generators at a glance
+
+| Generator | Output | What it's for |
+|---|---|---|
+| [`scroll-reel`](/docs/generators/scroll-reel) | mp4 (+ gif/webp/poster) | Deterministic frame-stepped recordings — scroll reels, choreographed tours, scripted interactions, social formats |
+| [`screenshots`](/docs/generators/screenshots) | png / jpeg | Responsive full-page and element captures per breakpoint |
+| [`device-frame`](/docs/generators/device-frame) | mp4 | A capture composited into a browser-window mockup in one ffmpeg pass |
+| [`scene`](/docs/generators/scene) | mp4 | Inputs composited inside a web scene (phone, laptop, browser, wall) |
+| [`specimen`](/docs/generators/specimen) | mp4 | A looping type specimen from a font file |
+| [`palette`](/docs/generators/palette) | png | A still colour-palette image |
+| [`palette-reel`](/docs/generators/palette-reel) | mp4 | A looping colour-palette reveal video |
+
+The pipeline is a plugin contract, so new asset types slot in without core changes.
 
 ## Quick start
 
 ```bash
-pnpm add -D auto-showcase
-npx showcase init
-npx showcase generate
+pnpm add -D auto-showcase   # not on npm yet — see Getting started
+npx showcase init           # scaffold config, gitignore the output dir, ensure a browser
+npx showcase generate       # capture the assets in your config
 ```
+
+Continue with [**Getting started**](/docs/getting-started) for installation (including using
+it before it's published to npm), or jump to [**Configuration**](/docs/configuration).
+
+> Captures run in a managed Chromium (downloaded once on first use) and encode with a bundled
+> ffmpeg — no global installs required.

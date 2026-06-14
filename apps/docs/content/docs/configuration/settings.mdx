@@ -1,0 +1,56 @@
+---
+title: Settings reference
+description: Every field in the settings block — output, concurrency, browser, defaults, quality, and cache.
+---
+
+The `settings` block controls repo-level CLI behaviour. Every field has a default, so
+`settings` can be omitted entirely.
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `outDir` | `string` | `"showcase"` | Output directory, relative to the repo root. Holds generated assets + `manifest.json`. |
+| `concurrency` | `number` | `2` | How many assets to generate in parallel (shared browser, separate contexts). |
+| `logLevel` | `"silent" \| "error" \| "warn" \| "info" \| "debug"` | `"info"` | Log verbosity. `--verbose` forces `debug`. |
+| `quality` | `"draft" \| "final"` | `"final"` | `draft` lowers fps/scale and speeds the encoder for fast iteration (same as `--draft`). |
+| `cache` | `boolean` | `false` | Skip assets whose inputs + options + tool fingerprint are unchanged. Opt-in; can be stale. |
+| `browser` | `object` | — | Playwright launch controls (see below). |
+| `defaults` | `object` | `{}` | Per-generator option defaults, keyed by generator id, merged beneath each asset's `options`. |
+| `server` | `object` | — | Optional [managed server](/docs/configuration/managed-server). |
+
+## `browser`
+
+Controls how Playwright launches the browser used for capture.
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `headless` | `boolean` | `true` | Run headless. Set `false` to watch captures in a visible window. |
+| `channel` | `string` | — | Use an installed browser channel, e.g. `"chrome"` or `"msedge"`, instead of the managed Chromium. |
+| `executablePath` | `string` | — | Absolute path to a browser executable (overrides `channel` and the managed Chromium). |
+| `args` | `string[]` | `[]` | Extra launch args, e.g. `["--no-sandbox"]` on CI. |
+| `timeout` | `number` | `30000` | Launch timeout in ms. |
+
+```ts
+settings: {
+  browser: {
+    headless: true,
+    channel: "chrome",          // use your installed Chrome
+    args: ["--no-sandbox"],     // common on CI
+  },
+}
+```
+
+When `channel` or `executablePath` is set, the managed Chromium is not required or installed.
+
+## `defaults`
+
+Repo-wide defaults per generator. Keys are [generator ids](/docs/generators); the value is an
+options object merged underneath each asset's own `options` (the asset wins).
+
+```ts
+settings: {
+  defaults: {
+    "scroll-reel": { width: 1440, height: 900, fps: 30 },
+    "screenshots": { format: "jpeg", quality: 90 },
+  },
+}
+```

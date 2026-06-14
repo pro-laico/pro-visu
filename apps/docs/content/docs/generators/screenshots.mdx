@@ -1,0 +1,43 @@
+---
+title: screenshots
+description: Responsive full-page and element captures, one set per breakpoint.
+---
+
+`screenshots` captures still images of a page at one or more breakpoints, optionally plus
+specific elements. Output is png or jpeg.
+
+```ts
+{
+  name: "home-shots",
+  url: "https://your-site.com",
+  generator: "screenshots",
+  options: {
+    breakpoints: [
+      { name: "desktop", width: 1440, height: 900 },
+      { name: "mobile", width: 390, height: 844 },
+    ],
+    elements: [{ selector: "header", name: "nav" }],
+  },
+}
+```
+
+## Options
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `breakpoints` | `{ name, width, height?, deviceScaleFactor? }[]` | desktop 1440×900 + mobile 390×844 | Viewports to capture at. |
+| `fullPage` | `boolean` | `true` | Capture the entire scrollable page vs. just the viewport. |
+| `format` | `"png" \| "jpeg"` | `"png"` | Output format. |
+| `quality` | `number` (1–100) | — | jpeg only. Rejected with `format: "png"`. |
+| `deviceScaleFactor` | `number` (≤4) | `2` | Render scale; a breakpoint can override it. |
+| `waitUntil` | `"load" \| "domcontentloaded" \| "networkidle" \| "commit"` | `"networkidle"` | Navigation wait condition. |
+| `waitForSelector` | `string` | — | Wait for this selector before capturing. |
+| `elements` | `{ selector, name }[]` | `[]` | Element captures taken at every breakpoint. |
+| `omitBackground` | `boolean` | `false` | png only — capture with a transparent background. |
+| `settleMs` | `number` | `0` | Extra settle time after load before capturing. |
+
+> `height` is ignored for `fullPage` shots (Playwright resizes to the page height); it only
+> affects viewport and element captures.
+
+Each breakpoint produces a page shot (unless you scope to elements), and each `elements` entry
+produces one capture per breakpoint, named `<asset>-<breakpoint>-<element>`.

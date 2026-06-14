@@ -1,0 +1,107 @@
+---
+title: scene
+description: Composite input assets inside a web scene — phone, laptop, browser, or a media wall.
+---
+
+A **scene** is a small React page (shipped with the tool) that composites input assets and is
+then captured. It takes no `url`; instead it pulls assets named in its `inputs` and arranges
+them. The classic use is dropping a phone-sized recording inside a phone mockup.
+
+```ts
+assets: [
+  {
+    name: "phone-scroll",
+    url: "https://your-site.com",
+    generator: "scroll-reel",
+    options: { width: 390, height: 844 },
+  },
+  {
+    name: "phone-frame",
+    generator: "scene",                  // no url — it composites inputs
+    inputs: { screen: "phone-scroll" },  // phone-scroll runs first; its mp4 is the screen
+    options: { scene: "phone", width: 1080, height: 1350, capture: "frames" },
+  },
+]
+```
+
+## Base options
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `scene` | `string` | `"phone"` | Built-in scene id (see below). |
+| `width` / `height` | `number` | `1080` / `1080` | Output frame size (CSS px). |
+| `background` | `string` | `"#0b0b0f"` | Backdrop behind the scene. |
+| `deviceScaleFactor` | `number` (≤4) | `2` | Render scale (2 = retina-crisp). |
+| `fps` | `number` | `30` | Output frames per second. |
+| `durationSeconds` | `number` | `6` | Capture length. |
+| `capture` | `"realtime" \| "frames"` | `"realtime"` | `realtime` records live; `frames` steps deterministically (use it when chaining videos). |
+| `workers` | `number` | auto | Parallel frame-render workers (frames capture only). |
+| `frameFormat` | `"jpeg" \| "png"` | `"jpeg"` | Intermediate frame format (frames only). |
+| `crf` | `number` (0–51) | `18` | x264 quality (lower = better/larger). |
+| `files` | `{ name: path }` | `{}` | Static files served into the scene, exposed as `files.<name>` (e.g. a font). |
+| `sceneOptions` | `object` | `{}` | Knobs for the selected scene (typed per scene — see below). |
+| `fileName` | `string` | `<name>.mp4` | Output filename. |
+
+## Scenes & their `sceneOptions`
+
+### `phone`
+
+| Knob | Default | Meaning |
+|---|---|---|
+| `bezel` | `"#0a0a0a"` | Bezel (body) colour. |
+| `shadow` | `"0 40px 120px rgba(0,0,0,0.5)"` | CSS box-shadow under the device (`"none"` to disable). |
+| `radiusScale` | `1` | Multiplies the computed corner radius. |
+| `screenBackground` | `"#000"` | Screen background behind/around the video. |
+
+### `laptop`
+
+| Knob | Default | Meaning |
+|---|---|---|
+| `bezel` | `"#16161a"` | Bezel (body) colour. |
+| `shadow` | `"0 30px 90px rgba(0,0,0,0.5)"` | CSS box-shadow under the screen. |
+| `hinge` | `true` | Show the hinge notch on the base. |
+| `screenBackground` | `"#000"` | Screen background behind/around the video. |
+
+### `browser`
+
+| Knob | Default | Meaning |
+|---|---|---|
+| `frame` | `"#1b1b22"` | Window frame colour. |
+| `url` | `""` | Address-bar label text (e.g. `"yoursite.com"`). |
+| `dots` | `true` | Show the traffic-light dots. |
+| `dotColors` | `["#ff5f57","#febc2e","#28c840"]` | Traffic-light dot colours (left to right). |
+| `barColor` | `"#23232c"` | Title-bar background. |
+| `addressBarColor` | `"#15151b"` | Address-pill background. |
+| `shadow` | `"0 40px 110px rgba(0,0,0,0.5)"` | CSS box-shadow under the window. |
+
+### `wall`
+
+A marquee of media tiles (your video/screenshot inputs, cycled across the grid). The wall pans
+on X while each column scrolls on Y at its own seeded speed, looping seamlessly.
+
+| Knob | Default | Meaning |
+|---|---|---|
+| `columns` | `4` | Number of columns (fewer = bigger tiles). |
+| `padding` | `16` | Padding between columns and tiles (px). |
+| `tileAspect` | `1.6` | Tile aspect ratio (w/h); `<1` = portrait. |
+| `cornerRadius` | `12` | Tile corner radius (px). |
+| `background` | scene bg | Backdrop in the gaps and behind tiles. |
+| `panLoops` | `1` | Whole-clip horizontal pan cycles (`0` = no pan). |
+| `panDirection` | `"left"` | Pan direction. |
+| `scrollLoopsMin` / `scrollLoopsMax` | `1` / `2` | Per-column vertical scroll-cycle range. |
+| `alternate` | `true` | Alternate column scroll direction. |
+| `pulses` | `4` | Number of brief eased motion bursts over the clip. |
+| `pulseDuration` | `1` | Each burst's length (s). |
+| `baseDrift` | `0.08` | Constant slow creep between pulses (`0` held … `1` constant). |
+| `pulseVariance` | `0.6` | How much pulse sizes vary. |
+| `seed` | `1` | Seed for per-column speed variation. |
+
+> The `specimen` and `palette-reel` scenes also exist, but you author them through the
+> [`specimen`](/docs/generators/specimen) and [`palette-reel`](/docs/generators/palette-reel)
+> generators rather than passing raw `sceneOptions`.
+
+## Capture modes
+
+- **`capture: "realtime"`** — records the page live (simple; webm → mp4).
+- **`capture: "frames"`** — steps deterministically (frame-accurate, exact duration,
+  parallelised by `workers`). Use `frames` when chaining videos so timing stays exact.

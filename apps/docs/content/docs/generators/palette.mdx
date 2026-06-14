@@ -1,0 +1,52 @@
+---
+title: palette
+description: A still colour-palette image with labelled, auto-contrasting swatches.
+---
+
+`palette` renders a still image of colour swatches, each labelled with the fields you place in
+its corners (name / hex / rgb / oklch / hsl / cmyk) with auto-contrasting text. Only `colors`
+is required. No `url`. Output is png.
+
+```ts
+{
+  name: "brand-colors",
+  generator: "palette",
+  options: {
+    colors: [
+      { name: "Ink", hex: "#1a1714" },
+      { name: "Camel", hex: "#b49a77" },
+      { name: "Paper", hex: "#f6f3ed" },
+    ],
+    layout: "columns",
+    uppercase: true,
+  },
+}
+```
+
+## Options
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `colors` | `{ name, hex }[]` | — | **Required.** The colours to show (≥1). `hex` accepts `#rgb` or `#rrggbb`. |
+| `layout` | `"rows" \| "columns" \| "grid"` | `"rows"` | Full-width bands, full-height columns, or an N-wide grid. |
+| `gridColumns` | `number` (1–12) | `3` | Columns when `layout: "grid"`. |
+| `width` / `height` | `number` | `1400` / `1750` | Output size (default is portrait 4:5). |
+| `deviceScaleFactor` | `number` (≤4) | `2` | Render scale. |
+| `background` | `string` | `"#ffffff"` | Page background, shown only in the gaps. |
+| `gap` | `number` | `0` | Gap between swatches (px). |
+| `cornerRadius` | `number` | `0` | Swatch corner radius (px). |
+| `topLeft` / `topRight` / `bottomLeft` / `bottomRight` | `FieldId[]` | TL `["name","hex"]`, TR `["rgb","oklch"]` | Fields shown (stacked) in each corner. |
+| `uppercase` | `boolean` | `false` | Uppercase the colour names. |
+| `rgbStyle` | `"labeled" \| "css" \| "plain"` | `"labeled"` | RGB string style. |
+| `oklchStyle` | `"css" \| "labeled"` | `"css"` | OKLCH string style. |
+| `fontFile` | `string` | system bold sans | Custom font embedded into the render. |
+| `fontSize` | `number` | derived | Label font size in px. |
+| `fontWeight` | `number` (1–1000) | `700` | Label font weight. |
+| `textLight` / `textDark` | `string` | `#ffffff` / `#141414` | Text colours picked by contrast against each swatch. |
+| `contrastThreshold` | `number` (0–1) | `0.5` | Luminance above which dark text is used. |
+| `padding` | `number` | derived | Inset of labels from swatch edges (px). |
+| `fileName` | `string` | `<name>.png` | Output filename. |
+
+The available corner field ids are `name`, `hex`, `rgb`, `oklch`, `hsl`, and `cmyk`.
+
+For a moving version, see [`palette-reel`](/docs/generators/palette-reel).

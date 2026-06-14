@@ -1,0 +1,137 @@
+---
+title: Recipes
+description: Practical configs for common showcase tasks.
+---
+
+Copy-paste starting points. Each is an entry in your `assets` array (or `settings`).
+
+## A vertical social reel
+
+A `9:16` clip with multiple output formats and title cards:
+
+```ts
+{
+  name: "social",
+  url: "https://your-site.com",
+  generator: "scroll-reel",
+  options: {
+    width: 430,
+    height: 932,
+    deviceScaleFactor: 2,
+    duration: 5000,
+    aspect: "9:16",
+    outputs: ["mp4", "gif", "poster"],
+    intro: { title: "Acme", subtitle: "Spring 2026" },
+    outro: { title: "acme.com" },
+  },
+}
+```
+
+## A choreographed product tour
+
+Pause on each section instead of one continuous scroll:
+
+```ts
+{
+  name: "tour",
+  url: "https://your-site.com",
+  generator: "scroll-reel",
+  options: {
+    choreography: [
+      { to: "#hero", holdMs: 1200 },
+      { to: "#features", holdMs: 1500 },
+      { to: "#pricing", holdMs: 1500 },
+      { to: "100%", durationMs: 1000 },
+    ],
+    kenBurns: { scaleTo: 1.05 },
+  },
+}
+```
+
+## A scripted interaction demo
+
+Drive the UI with a synthetic cursor (records realtime):
+
+```ts
+{
+  name: "search-demo",
+  url: "https://your-site.com",
+  generator: "scroll-reel",
+  options: {
+    cursor: { color: "#e91e63" },
+    actions: [
+      { do: "click", selector: "#search" },
+      { do: "type", selector: "#search input", text: "leather tote" },
+      { do: "hover", selector: ".results a:first-child" },
+    ],
+  },
+}
+```
+
+## A phone-framed reel
+
+Record a phone-sized scroll, then composite it into a phone mockup via `inputs`:
+
+```ts
+assets: [
+  {
+    name: "phone-scroll",
+    url: "https://your-site.com",
+    generator: "scroll-reel",
+    options: { width: 390, height: 844, duration: 5000 },
+  },
+  {
+    name: "phone",
+    generator: "scene",
+    inputs: { screen: "phone-scroll" }, // runs first; its mp4 becomes the screen
+    options: { scene: "phone", width: 1080, height: 1350, capture: "frames", durationSeconds: 6 },
+  },
+]
+```
+
+## Multi-page tour
+
+Capture several routes and concatenate them into one reel:
+
+```ts
+{
+  name: "site-tour",
+  url: "https://your-site.com",
+  generator: "scroll-reel",
+  options: {
+    routes: [
+      "https://your-site.com",
+      { url: "https://your-site.com/pricing", autoSections: true },
+      { url: "https://your-site.com/contact", durationMs: 2000 },
+    ],
+    aspect: "16:9",
+  },
+}
+```
+
+## Capture a deployed URL in CI
+
+Skip the managed server and point at a live URL; add `--no-sandbox` for most CI runners:
+
+```ts
+settings: {
+  browser: { headless: true, args: ["--no-sandbox"] },
+}
+```
+
+```bash
+showcase generate --skip-server
+```
+
+## Only rebuild what changed
+
+Turn on caching to skip assets whose inputs and options are unchanged:
+
+```bash
+showcase generate --cache
+# or persist it:
+```
+
+```ts
+settings: { cache: true }
+```

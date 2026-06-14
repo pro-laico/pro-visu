@@ -1,0 +1,149 @@
+---
+title: scroll-reel
+description: Deterministic frame-stepped recordings — scroll reels, choreographed tours, scripted interactions, and social formats.
+---
+
+`scroll-reel` is the workhorse generator. By default it captures **frame-stepped**: it drives
+a virtual clock, screenshots each frame, and pipes them to ffmpeg — so output is frame-accurate,
+crisp (supersampled by `deviceScaleFactor`), parallelised across `workers`, and **byte-identical
+run-to-run**.
+
+```ts
+{ name: "home", url: "https://your-site.com", generator: "scroll-reel" }
+```
+
+> `device-frame` inherits every capture-side option on this page (it composites the same
+> frame-stepped capture into its window chrome).
+
+## Core sizing
+
+| Option | Meaning |
+|---|---|
+| `width` / `height` | Viewport size in CSS px. |
+| `fps` | Output frames per second. |
+| `duration` | Clip length in ms (when not using `choreography`/`autoSections`/`routes`). |
+| `deviceScaleFactor` | Render scale — higher captures crisper, then downscales into the video. |
+| `easing` | Scroll easing: `linear`, `easeInOutCubic`/`Quad`, `easeOutCubic`/`Quint`, `easeInOutSine`/`Expo`. |
+
+## Capture mode
+
+| Option | Meaning |
+|---|---|
+| `capture` | `"frames"` (default) deterministic frame-stepping; `"realtime"` records live — a fallback for time-based hero animations or autoplay video. |
+| `workers` | Parallel render contexts for `"frames"` (default ≈ half the cores). |
+| `frameFormat` | Intermediate frame format for `"frames"`: `"jpeg"` (default) or `"png"` (lossless). |
+
+Choreography, auto-sections, variants, cards, annotations, aspect, and extra outputs are
+**frames-only**; `realtime` ignores them (with a warning). Scripted `actions` and `focus`
+record realtime by nature.
+
+## Motion & cinematography
+
+```ts
+options: {
+  choreography: [
+    { to: "#hero", holdMs: 1200 },
+    { to: "#features", holdMs: 1500 },
+    { to: "100%", durationMs: 1000 },
+  ],
+  kenBurns: { scaleTo: 1.06 },   // slow zoom over the clip
+  loop: "boomerang",             // play forward then back → seamless loop
+}
+```
+
+- **`choreography: [{ to, durationMs?, holdMs?, easing? }]`** — replaces the single sweep with
+  an authored sequence. `to` is a `0..1` number, an `"NN%"` string, or a CSS selector to bring
+  into view.
+- **`autoSections: true | { minHeightFraction?, selector?, holdMs?, durationMs?, maxSections?, constantVelocity? }`**
+  — auto-detect the page's sections and pan/hold through them within a fixed `durationMs` budget.
+- **`kenBurns: { scaleFrom?, scaleTo?, easing?, originX?, originY? }`** — slow zoom (folds
+  automatically under `loop: "boomerang"` so it stays seamless).
+- **`loop: "none" | "boomerang"`** — boomerang plays forward then back for a seamless loop.
+
+## Clean capture
+
+Suppress real-site noise so frames are clean and deterministic:
+
+- **Page:** `hideSelectors: []`, `injectCss`, `clickSelectors: []` (best-effort consent
+  dismissal), `hideScrollbars` (default `true`), `pauseAnimations`, `freezeClock` (pin
+  `Date.now` / `performance.now` / `Math.random`).
+- **Network:** `blockTrackers` (default `true` — aborts common analytics/ads/session-replay),
+  `blockHosts: []`, `blockResourceTypes: []` (e.g. `["media", "font"]`).
+- **Settling:** `settlePerFrame` (default on; off in `--draft`) waits for fonts + in-view
+  images each frame, bounded by `settleMaxMs`.
+
+## Variants — one config, many assets
+
+```ts
+options: {
+  colorScheme: "both",                              // → <name>-light and <name>-dark
+  viewports: [
+    { name: "desktop", width: 1440, height: 900 },
+    { name: "mobile", width: 390, height: 844, deviceScaleFactor: 3 },
+  ],                                                 // → <name>-desktop, <name>-mobile
+}
+```
+
+- `colorScheme: "light" | "dark" | "both"` (with `themeClass` to toggle a CSS-class theme).
+- `viewports: [{ name, width, height, deviceScaleFactor? }]`.
+
+The viewport × colour-scheme matrix is emitted as separate assets (`<name>-<suffix>`).
+
+## Output formats & framing
+
+- **`aspect: "16:9" | "9:16" | "1:1" | { width, height }`** with `fit: "cover" | "contain"`
+  and `padColor` — reframe for social (e.g. `9:16` reels).
+- **`outputs: ("mp4" | "gif" | "webp" | "poster")[]`** (default `["mp4"]`) — each becomes its
+  own asset; `gifFps` tunes the GIF/WebP frame rate.
+- **`intro` / `outro: { title?, subtitle?, background?, color?, durationMs?, fadeMs? }`** — a
+  fade-in title card / end card.
+- **`annotations: [{ text?, ring?, spotlight?, atMs?, untilMs?, position? }]`** — timed
+  captions, a highlight ring around a selector, or a spotlight that dims everything else.
+
+```ts
+options: {
+  aspect: "9:16",
+  outputs: ["mp4", "gif", "poster"],
+  intro: { title: "Acme", subtitle: "Botanik" },
+  annotations: [{ text: "Real-time data", ring: "#chart", atMs: 1000, untilMs: 3000 }],
+}
+```
+
+## Scripted interaction & element focus
+
+Records **realtime** (interactions and their animations are time-based).
+
+```ts
+options: {
+  cursor: { color: "#e91e63" },
+  actions: [
+    { do: "click", selector: "#menu-button" },
+    { do: "hover", selector: ".dropdown a:first-child" },
+    { do: "type", selector: "input[type=search]", text: "shoes" },
+  ],
+}
+```
+
+- **`actions: [{ do, selector?, x?, y?, text?, to?, durationMs?, holdMs? }]`** where `do` is
+  `"move" | "click" | "hover" | "type" | "scrollTo" | "wait"` — a scripted tour with a
+  synthetic `cursor: { show?, size?, color? }`.
+- **`focus: { selector, padding?, actions?, holdMs? }`** — capture a single component
+  (optionally trigger it first), cropped to its box.
+
+## Multi-page tour
+
+```ts
+options: {
+  routes: [
+    "https://site.com",
+    { url: "https://site.com/pricing", autoSections: true },
+    { url: "https://site.com/contact", durationMs: 2000 },
+  ],
+}
+```
+
+`routes` captures each page as a frame-stepped segment and concatenates them into one reel;
+`aspect` and extra `outputs` apply to the final tour.
+
+> Every option also has hover docs in `showcase.config.ts` — the authoring types are generated
+> from the validation schema, so the editor always matches what the tool accepts.

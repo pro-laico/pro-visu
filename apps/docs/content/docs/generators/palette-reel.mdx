@@ -1,0 +1,77 @@
+---
+title: palette-reel
+description: A looping colour-palette reveal video — the moving counterpart of palette.
+---
+
+`palette-reel` is the moving version of [`palette`](/docs/generators/palette). The colours
+start as thin slivers showing only their name; one at a time a sliver expands into a band that
+reveals its configured `details` (hex / oklch / rgb …), holds, then collapses before the next
+opens — sweeping every colour and looping seamlessly. Only `colors` is required. No `url`.
+Output is mp4.
+
+```ts
+{
+  name: "brand-colors-reel",
+  generator: "palette-reel",
+  options: {
+    colors: [
+      { name: "Ink", hex: "#1a1714" },
+      { name: "Camel", hex: "#b49a77" },
+      { name: "Loden", hex: "#5c5e4c" },
+    ],
+    details: ["hex", "oklch"],
+  },
+}
+```
+
+## Options
+
+### Colours & reveal
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `colors` | `{ name, hex }[]` | — | **Required.** The colours to reveal (≥1). |
+| `orientation` | `"rows" \| "columns"` | `"rows"` | Horizontal bands or full-height vertical strips. |
+| `details` | `FieldId[]` | `["hex","oklch","rgb"]` | Fields revealed when a colour expands (name is always shown). |
+
+### Timing (seconds)
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `holdSeconds` | `number` | `2` | How long each colour stays fully open. |
+| `transitionSeconds` | `number` | `0.7` | Crossfade length between colours. |
+| `bounce` | `boolean` | `true` | Ping-pong the sweep so every handoff is between neighbours (avoids a last→first pinch at the loop seam). |
+| `easing` | `"linear" \| "ease-in" \| "ease-out" \| "ease-in-out"` | `"ease-in-out"` | Easing for the crossfade ramp. |
+| `durationSeconds` | `number` | derived | Override the derived clean-loop length. |
+
+### Layout & styling
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `grownFlex` | `number` | `12` | How many slivers' share a fully-open band takes. |
+| `minCrossPx` | `number` | `0` | Minimum sliver cross-size (px) so names stay legible. |
+| `nameAlwaysVisible` | `boolean` | `true` | Keep the name visible even in a collapsed sliver. |
+| `uppercase` | `boolean` | `false` | Uppercase the colour names. |
+| `rgbStyle` | `"labeled" \| "css" \| "plain"` | `"labeled"` | RGB string style. |
+| `oklchStyle` | `"css" \| "labeled"` | `"css"` | OKLCH string style. |
+| `textLight` / `textDark` | `string` | `#ffffff` / `#141414` | Contrast-picked text colours. |
+| `contrastThreshold` | `number` (0–1) | `0.5` | Luminance above which dark text is used. |
+| `fontFile` | `string` | system bold sans | Custom font served into the render. |
+| `fontWeight` | `number` (1–1000) | `700` | Label font weight. |
+| `fontSize` | `number` | derived | Name font size in px. |
+| `detailFontScale` | `number` | `0.62` | Detail-line size as a fraction of the name size. |
+| `background` | `string` | `"#ffffff"` | Backdrop behind the bands (shown in `gap`). |
+| `gap` | `number` | `0` | Gap between bands (px). |
+| `cornerRadius` | `number` | `0` | Band corner radius (px). |
+
+### Output
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `width` / `height` | `number` | `1920` / `1080` | Output frame size. |
+| `deviceScaleFactor` | `number` (≤4) | `1` | Render scale. |
+| `fps` | `number` | `30` | Frames per second. |
+| `crf` | `number` (0–51) | `18` | x264 quality (lower = better/larger). |
+| `fileName` | `string` | `<name>.mp4` | Output filename. |
+
+The available `details` field ids are `name`, `hex`, `rgb`, `oklch`, `hsl`, and `cmyk`.

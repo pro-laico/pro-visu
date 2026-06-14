@@ -1,0 +1,112 @@
+---
+title: Getting started
+description: Install auto-showcase, scaffold a config, and generate your first assets.
+---
+
+## Install
+
+`auto-showcase` isn't on npm yet, but it works in a real website repo today. Pick one:
+
+**A — From GitHub (simplest):**
+
+```bash
+pnpm add -D github:chad-hill/auto-showcase
+```
+
+pnpm builds it on install (via the `prepare` script), so the `showcase` binary is ready.
+
+**B — From a local clone with `pnpm link` (best while iterating on the tool):**
+
+```bash
+# in the auto-showcase repo
+pnpm install && pnpm build && pnpm link --global
+# in your website repo
+pnpm link --global auto-showcase
+```
+
+Re-run `pnpm build` in the tool repo after changes; the link picks them up.
+
+**C — As a local `file:` dependency (pinned path):**
+
+```bash
+pnpm -C /path/to/auto-showcase install && pnpm -C /path/to/auto-showcase build
+# then in your website repo's package.json:
+#   "devDependencies": { "auto-showcase": "file:/path/to/auto-showcase" }
+pnpm install
+```
+
+## Initialise
+
+```bash
+npx showcase init
+```
+
+`init` is idempotent and sets up everything needed:
+
+- writes a starter `showcase.config.ts` (unless a config already exists),
+- creates the output directory (`showcase/`) and adds it to `.gitignore`,
+- adds a `"showcase": "showcase generate"` script to `package.json` (skip with `--no-script`),
+- downloads the managed Chromium and ensures ffmpeg (skip with `--skip-browser`).
+
+The first browser download is one-time, cached, and shared across projects.
+
+## Configure
+
+Open `showcase.config.ts` and point an asset at your site. The starter looks like this:
+
+```ts
+import { defineConfig } from "auto-showcase";
+
+const URL = "http://localhost:3101";
+
+export default defineConfig({
+  settings: {
+    outDir: "showcase",
+    concurrency: 2,
+    browser: { headless: true },
+    defaults: {
+      "scroll-reel": { width: 1440, height: 900, fps: 30 },
+    },
+  },
+  assets: [
+    { name: "home-reel", url: URL, generator: "scroll-reel" },
+  ],
+});
+```
+
+See [Configuration](/docs/configuration) for the full shape, and
+[Generators](/docs/generators) for every asset type and its options.
+
+## Generate
+
+Start your site (or use a deployed URL), then:
+
+```bash
+npx showcase generate
+```
+
+Each asset is rendered into `outDir` and recorded in `manifest.json`. Review what was
+produced with:
+
+```bash
+npx showcase list
+```
+
+> **Don't want to start the site yourself?** Configure a [managed server](/docs/configuration/managed-server)
+> and the CLI will build → start → capture → stop it for you, so `showcase generate` is the only command you run.
+
+## Iterate faster
+
+- `showcase generate --draft` — lower fps/scale and a faster encoder for quick previews.
+- `showcase generate --asset home-reel` — only (re)build named assets (repeatable).
+- `showcase generate --cache` — skip assets whose inputs + options are unchanged.
+- `showcase generate --skip-build` — keep the managed server but skip its build step.
+
+See the full [CLI reference](/docs/cli).
+
+## Requirements
+
+- **Node.js** (the CLI runs on Node).
+- **Chromium** — Playwright's managed build, fetched automatically; or point at your own via
+  `settings.browser.channel` / `executablePath`.
+- **ffmpeg** — a working binary is ensured automatically for the video generators.

@@ -1,0 +1,100 @@
+---
+title: Configuration
+description: The showcase.config file — settings, assets, options merging, and the input graph.
+---
+
+`showcase init` writes a `showcase.config.ts`. It has two blocks: `settings` (repo-level CLI
+behaviour) and `assets` (what to generate).
+
+```ts
+import { defineConfig } from "auto-showcase";
+
+export default defineConfig({
+  settings: {
+    outDir: "showcase",
+    concurrency: 2,
+    browser: { headless: true },
+    defaults: { "scroll-reel": { width: 1440, height: 900, fps: 30 } },
+  },
+  assets: [
+    { name: "home-reel", url: "https://your-site.com", generator: "scroll-reel" },
+  ],
+});
+```
+
+`defineConfig` is a typed identity helper — it gives you autocomplete and inline docs for
+every field, but the config is validated again at runtime.
+
+## File discovery
+
+Without `--config <path>`, the CLI discovers config in any of these forms:
+
+- `showcase.config.ts` · `.js` · `.mjs` · `.cjs` · `.json`
+- `.showcaserc` / `.showcaserc.json`
+- a `"showcase"` key in `package.json`
+
+A `.ts` config that imports `defineConfig` requires the `auto-showcase` package to be
+resolvable from that folder; a `.json` config does not.
+
+## Assets
+
+Each entry in `assets` describes one thing to generate.
+
+| Field | Type | Notes |
+|---|---|---|
+| `name` | `string` | **Required.** Unique across the config — used in filenames and the manifest id. |
+| `generator` | `string` | **Required.** One of the [generator ids](/docs/generators). |
+| `url` | `string` | Page to capture. Required by URL-based generators; omitted for local generators like `scene`, `palette`, and `specimen`. |
+| `options` | `object` | Generator-specific options. Validated by the target generator. |
+| `inputs` | `object` | Other assets this one consumes, as `{ slot: assetName }`. |
+
+```ts
+assets: [
+  {
+    name: "home-shots",
+    url: "https://your-site.com",
+    generator: "screenshots",
+    options: {
+      breakpoints: [
+        { name: "desktop", width: 1440, height: 900 },
+        { name: "mobile", width: 390, height: 844 },
+      ],
+      elements: [{ selector: "header", name: "nav" }],
+    },
+  },
+]
+```
+
+## How options merge
+
+For each asset, the generator's options come from two places, merged in order:
+
+1. `settings.defaults["<generator-id>"]` — your repo-wide defaults for that generator.
+2. The asset's own `options` — which win.
+
+So you can set `defaults: { "scroll-reel": { width: 1440, height: 900, fps: 30 } }` once and
+omit those fields on every reel.
+
+## The input graph
+
+Assets can depend on other assets via `inputs: { slot: assetName }`. The producing assets run
+first, and their output files are exposed to the consumer — for example a
+[scene](/docs/generators/scene) that plays a reel recorded by another asset:
+
+```ts
+assets: [
+  { name: "phone-scroll", url: "https://your-site.com", generator: "scroll-reel",
+    options: { width: 390, height: 844 } },
+  { name: "phone", generator: "scene",
+    inputs: { screen: "phone-scroll" },   // phone-scroll runs first
+    options: { scene: "phone", capture: "frames" } },
+]
+```
+
+This forms a DAG; cycles and references to unknown assets are rejected at load time.
+Selecting an asset with `--asset` automatically pulls in its dependencies.
+
+## Next
+
+- [**Settings reference**](/docs/configuration/settings) — every field in the `settings` block.
+- [**Managed server**](/docs/configuration/managed-server) — let the CLI build, start, and stop your site.

@@ -1,0 +1,85 @@
+---
+title: specimen
+description: A looping type-specimen video from a font file.
+---
+
+`specimen` renders a looping clip of a typeface set as a wrapping string whose glyphs and
+colours change over a composed sequence of **pulses**, then captures it. Point it at a font
+file and give it a name; everything else has a sensible default. No `url` required.
+
+```ts
+{
+  name: "brand-type",
+  generator: "specimen",
+  options: {
+    font: "public/fonts/YourFont.woff2",
+    name: "Your Font",
+    template: "sweep",
+  },
+}
+```
+
+## Templates
+
+`template` loads a named preset; your explicit options still override what it sets.
+
+- **`"sweep"`** — a seamless-looping showcase of even per-character colour sweeps
+  (muted → accent → foreground) on a dark palette chosen so the accent reads.
+- **`"demo"`** — a labelled walkthrough of every pulse behaviour (each easing curve, a colour
+  sweep, a mingle) with demo mode on; runs once, no mirror.
+
+## Pulses (the storyboard)
+
+A **pulse** is one beat of the animation: a named span of time during which some number of
+glyph and/or colour changes happen. An empty pulse is a hold. The clip length is the sum of the
+pulse durations (doubled when `mirror` is on). Compose a sequence to author the whole clip.
+
+| Pulse field | Type | Meaning |
+|---|---|---|
+| `name` | `string` | Human label for the beat (readability only). |
+| `duration` | `number` | Length of the beat, in seconds. |
+| `chars` | `number` | How many glyph changes happen during the beat. |
+| `colors` | `number` | How many colour changes happen during the beat. |
+| `color` | `"foreground" \| "muted" \| "accent"` | Target every colour change at this token (a deliberate sweep) instead of a weighted-random pick. |
+| `pacing` | `"even" \| "linear" \| "ease-in" \| "ease-out" \| "ease-in-out" \| "random"` | How changes are distributed in time across the beat. |
+
+```ts
+options: {
+  font: "public/fonts/YourFont.woff2",
+  name: "Your Font",
+  pulses: [
+    { name: "hold", duration: 0.8 },
+    { name: "to accent", duration: 2.2, colors: 26, color: "accent", pacing: "ease-in-out" },
+    { name: "glyph drift", duration: 1.4, chars: 13 },
+  ],
+}
+```
+
+## Key options
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `font` | `string` | — | **Required.** Font file (relative or absolute). |
+| `name` | `string` | `""` | Display name shown bottom-left. |
+| `template` | `"demo" \| "sweep"` | — | Load a preset (overridable). |
+| `width` / `height` | `number` | `1920` / `1080` | Output frame size. |
+| `fps` | `number` | `30` | Frames per second. |
+| `durationSeconds` | `number` | derived | Override the (mirrored) sum of pulse durations. |
+| `deviceScaleFactor` | `number` (≤4) | `1` | Render scale. |
+| `weight` | `number` (1–1000) | `820` | Glyph weight on the variable-font axis. |
+| `characters` | `number` (1–120) | `23` | Roughly how many glyphs to show. |
+| `fontSize` | `number` | auto-fit | Explicit glyph size in px. |
+| `leading` | `number` | `0.78` | Line-height of the glyph block. |
+| `blacklist` | `string` | `""` | Glyphs to exclude (case-insensitive). |
+| `characterPool` | `string` | A–Z 0–9 + symbols | Override the glyph pool (≥2 distinct). |
+| `colors` | `{ background, foreground, muted, accent?, label? }` | — | Colour tokens the glyphs cycle through (override any subset). |
+| `colorWeights` | `{ foreground, muted, accent }` | `2 / 2 / 1` | Relative likelihood of each token on a random recolour. |
+| `characterIntensity` / `colorIntensity` | `number` | `1` | Multiply every pulse's change counts. |
+| `mirror` | `boolean` | `true` | Play the pulses out and back for a seamless loop. |
+| `demo` | `boolean` | `false` | Overlay the active pulse's name (to see which beat is playing). |
+| `seed` | `number` | `1` | Schedule seed — same seed ⇒ identical animation. |
+| `crf` | `number` (0–51) | `18` | x264 quality (lower = better/larger). |
+| `fileName` | `string` | `<name>.mp4` | Output filename. |
+
+> `seed` makes the otherwise-scattered animation deterministic: the same seed always produces
+> the same take. Change it for a different (still reproducible) result.

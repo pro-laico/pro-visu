@@ -1,0 +1,56 @@
+---
+title: Managed server
+description: Let showcase build, start, wait for, and stop your site automatically.
+---
+
+When `settings.server` is set, `showcase generate` builds your site (if a `build` is given),
+starts it, waits for it to respond, runs the capture, then shuts it down — so a project's npm
+script can be just `showcase generate`.
+
+```ts
+import { defineConfig } from "auto-showcase";
+
+const URL = "http://127.0.0.1:3101";
+
+export default defineConfig({
+  settings: {
+    server: {
+      build: "next build",
+      command: "next start -p 3101",
+      port: 3101,
+      readyTimeoutMs: 180_000,
+    },
+  },
+  assets: [
+    { name: "home", url: URL, generator: "scroll-reel" },
+  ],
+});
+```
+
+## Fields
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `command` | `string` | — | **Required.** Command that starts the server, run via the shell, e.g. `"next start -p 3101"`. |
+| `build` | `string` | — | Optional one-shot build to run first, e.g. `"next build"`. |
+| `url` | `string` | — | Health-check URL polled until it responds. Defaults to `http://127.0.0.1:<port>`. |
+| `port` | `number` | `3101` | Port the readiness check probes (and derives `url` from). Your `command` must actually bind it. |
+| `cwd` | `string` | config dir | Working directory for `build` + `command`, relative to the config. |
+| `readyTimeoutMs` | `number` | `120000` | Max time to wait for the server to become reachable. |
+| `reuseExisting` | `boolean` | `true` | If a server is already reachable at the URL, use it as-is (don't start or stop one). |
+
+> The `port` is only where the CLI **probes** for readiness — it does not pass the port to your
+> command. Make sure your `command` binds the same port (e.g. `next start -p 3101`).
+
+## Lifecycle and flags
+
+A normal run is: **build → start → wait for ready → capture all assets → stop**. Two flags
+adjust it:
+
+- `--skip-server` — don't manage a server at all; capture an already-running site at the asset
+  URLs. Pair this with a deployed URL or a dev server you started yourself.
+- `--skip-build` — keep the managed server but drop its `build` step, for fast iteration when
+  the site itself is unchanged.
+
+If a run is killed hard before teardown, [`showcase reset`](/docs/cli#showcase-reset) stops any
+orphaned server process tree and cleans up temp directories.

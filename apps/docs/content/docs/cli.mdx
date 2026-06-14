@@ -1,0 +1,68 @@
+---
+title: CLI reference
+description: The showcase commands — init, generate, list, and reset — and their flags.
+---
+
+The CLI is `showcase` (available as `npx showcase` once installed). Every command accepts
+`--cwd <dir>` to run against a different working directory.
+
+## `showcase init`
+
+Scaffold config, gitignore the output dir, wire a package script, and ensure a browser.
+
+| Flag | Meaning |
+|---|---|
+| `--cwd <dir>` | Working directory. |
+| `--no-script` | Do not add a `"showcase"` script to `package.json`. |
+| `--skip-browser` | Do not install Chromium / ffmpeg now (they're fetched on first `generate`). |
+
+`init` is idempotent — it leaves an existing config untouched and only creates what's missing.
+
+## `showcase generate` <small>(alias `gen`)</small>
+
+Run the generators defined in your config; writes assets and `manifest.json` into `outDir`.
+
+| Flag | Meaning |
+|---|---|
+| `--config <path>` | Path to a config file (otherwise auto-discovered). |
+| `--cwd <dir>` | Working directory. |
+| `--asset <name>` | Only generate this asset. Repeatable. Dependencies of selected assets are pulled in automatically. |
+| `--concurrency <n>` | Override `settings.concurrency`. |
+| `--skip-browser` | Skip the Chromium check/install. |
+| `--skip-server` | Skip the [managed server](/docs/configuration/managed-server) — capture an already-running site. |
+| `--skip-build` | Keep the managed server but skip its build step (fast iteration when the site is unchanged). |
+| `--draft` | Draft quality: faster, lower-fidelity renders for iteration. |
+| `--cache` | Skip assets whose inputs + options + tool fingerprint are unchanged. |
+| `--verbose` | Verbose (debug) logging. |
+
+On an interactive terminal, a live tracker shows per-asset progress. Press **Esc** or
+**Ctrl+C** to cancel gracefully (in-flight work finishes, then the server/browser are torn
+down); press again to force-quit.
+
+## `showcase list` <small>(alias `ls`)</small>
+
+Print the assets recorded in the manifest (id, generator, file, dimensions, size).
+
+| Flag | Meaning |
+|---|---|
+| `--config <path>` | Path to a config file. |
+| `--cwd <dir>` | Working directory. |
+
+## `showcase reset`
+
+Tear down anything a previous `generate` left running if it was killed hard (crash or a
+forced quit): the managed-server and browser process trees, plus the run's temp directories,
+recorded in a run-state file under `outDir`. A clean exit removes that file, so there's
+normally nothing to do.
+
+| Flag | Meaning |
+|---|---|
+| `--config <path>` | Path to a config file. |
+| `--cwd <dir>` | Working directory. |
+| `--force` | Clean up even if a run still looks active. |
+
+## Config discovery
+
+Without `--config`, the CLI looks for `showcase.config.{ts,js,mjs,cjs,json}`, `.showcaserc`,
+`.showcaserc.json`, or a `showcase` key in `package.json`. See
+[Configuration](/docs/configuration) for details.

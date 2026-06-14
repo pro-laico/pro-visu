@@ -1,0 +1,30 @@
+---
+title: device-frame
+description: A capture composited into a browser-window mockup in a single ffmpeg pass.
+---
+
+`device-frame` records the site exactly like [`scroll-reel`](/docs/generators/scroll-reel),
+then composites the captured video into a static browser-window mockup using a **single ffmpeg
+pass** — the window chrome is painted once with the managed Chromium. Fast and dependency-light.
+
+```ts
+{
+  name: "home-frame",
+  url: "https://your-site.com",
+  generator: "device-frame",
+  options: { frameWidth: 1280, background: "#0b0b0f" },
+}
+```
+
+## Options
+
+`device-frame` accepts **all** [`scroll-reel` capture options](/docs/generators/scroll-reel)
+(motion, clean capture, sizing, and so on), plus two framing controls:
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `frameWidth` | `number` | `1280` | Width of the framed viewport inside the render canvas (px). |
+| `background` | `string` | `"#0b0b0f"` | Backdrop colour behind the browser mockup. |
+
+For richer or animated mockups — phone, laptop, an animated browser, a media wall — use the
+[`scene`](/docs/generators/scene) generator instead.
