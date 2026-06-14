@@ -50,6 +50,9 @@ async function run(
   if (options.actions?.length) {
     ctx.logger.warn("device-frame ignores actions — use the scroll-reel generator for interaction reels");
   }
+  if (options.routes?.length) {
+    ctx.logger.warn("device-frame ignores routes — use the scroll-reel generator for multi-page tours");
+  }
 
   if (options.capture === "frames") {
     const workers = options.workers ?? autoWorkers();

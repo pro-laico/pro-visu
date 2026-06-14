@@ -174,6 +174,28 @@ export const scrollReelOptionsSchema = z
       )
       .optional(),
 
+    // --- multi-page tour ("frames" path) ---
+    /**
+     * Capture several routes and concatenate them into one reel. Each entry is a URL, or an object with
+     * per-route `choreography` / `autoSections` / `durationMs`. Frame-stepped per route; emits a single
+     * asset (variants are skipped; aspect/outputs apply to the final tour).
+     */
+    routes: z
+      .array(
+        z.union([
+          z.string(),
+          z
+            .object({
+              url: z.string(),
+              choreography: z.array(choreographyStepSchema).optional(),
+              autoSections: z.union([z.boolean(), autoSectionsSchema]).optional(),
+              durationMs: z.number().int().positive().optional(),
+            })
+            .strict(),
+        ]),
+      )
+      .optional(),
+
     // --- clean capture (suppress real-site noise; applied on the "frames" path) ---
     /** Hide elements matching these CSS selectors before capture (cookie banners, chat widgets, …). */
     hideSelectors: z.array(z.string()).default([]),

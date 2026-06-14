@@ -11,7 +11,7 @@ import { buildVariants } from "@/generators/scroll-reel/variants";
 import { produceOutputs } from "@/generators/scroll-reel/outputs";
 import { captureInteractionWebm } from "@/generators/scroll-reel/interaction";
 import { requireUrl } from "@/generators/require-url";
-import { transcodeToMp4 } from "@/media/ffmpeg";
+import { concatMp4, transcodeToMp4 } from "@/media/ffmpeg";
 import { autoWorkers } from "@/media/frame-capture";
 import { sha256File } from "@/utils/hash";
 import { slugify } from "@/utils/paths";
@@ -77,6 +77,70 @@ async function run(
     await ctx.writeAsset(record);
     ctx.logger.success(`${ctx.target.name} → ${record.file}`);
     return { assets: [record] };
+  }
+
+  // Multi-page tour: capture each route as a frame-stepped segment, then concatenate into one reel.
+  if (options.routes && options.routes.length > 0) {
+    if (options.viewports?.length || options.colorScheme === "both") {
+      ctx.logger.warn('viewports / colorScheme:"both" are not expanded for route tours');
+    }
+    const scheme =
+      options.colorScheme === "dark" ? "dark" : options.colorScheme === "light" ? "light" : undefined;
+    const workers = options.workers ?? autoWorkers();
+    const segments: string[] = [];
+    let totalMs = 0;
+    for (let i = 0; i < options.routes.length; i++) {
+      const r = options.routes[i]!;
+      const routeUrl = typeof r === "string" ? r : r.url;
+      const routeOpts =
+        typeof r === "string"
+          ? { ...options, choreography: undefined, autoSections: undefined }
+          : {
+              ...options,
+              choreography: r.choreography,
+              autoSections: r.autoSections,
+              duration: r.durationMs ?? options.duration,
+            };
+      const segPath = path.join(ctx.tmpDir, `${slugify(ctx.target.name)}-route-${i}.mp4`);
+      ctx.logger.info(
+        `recording route ${i + 1}/${options.routes.length}: ${routeUrl} (frame-stepped)`,
+      );
+      await captureScrollFrames({
+        browser: ctx.browser,
+        url: routeUrl,
+        options: routeOpts,
+        outPath: segPath,
+        preset,
+        workers,
+        frameFormat: draft ? "jpeg" : options.frameFormat,
+        jpegQuality: draft ? 70 : 90,
+        settlePerFrame: options.settlePerFrame ?? !draft,
+        settleMaxMs: options.settleMaxMs,
+        colorScheme: scheme,
+        tmpDir: ctx.tmpDir,
+        logger: ctx.logger,
+      });
+      segments.push(segPath);
+      totalMs += scrollTimelineTotalMs(routeOpts);
+    }
+    const tourMp4 = path.join(ctx.tmpDir, `${slugify(ctx.target.name)}-tour.mp4`);
+    await concatMp4(segments, tourMp4, ctx.logger);
+    const baseName = (options.fileName ?? `${slugify(ctx.target.name)}.mp4`).replace(/\.mp4$/i, "");
+    const recs = await produceOutputs({
+      ctx,
+      generatorId: SCROLL_REEL_ID,
+      sourceMp4: tourMp4,
+      fileBase: baseName,
+      assetId: ctx.target.name,
+      sourceUrl: url,
+      width: options.width,
+      height: options.height,
+      durationMs: totalMs,
+      options,
+      preset,
+    });
+    for (const r of recs) await ctx.writeAsset(r);
+    return { assets: recs };
   }
 
   // Realtime: a single capture. Choreography / auto-sections / variants are frames-only.
