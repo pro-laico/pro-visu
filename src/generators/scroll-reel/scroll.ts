@@ -28,12 +28,18 @@ export interface SeekScrollArgs {
   normalizedY: number;
 }
 
+export interface MeasureOffsetsArgs {
+  /** CSS selectors to resolve to normalized scroll positions (0..1). */
+  selectors: string[];
+}
+
 // Browser globals — declared loosely (no DOM lib in this Node project). The exported functions are
 // serialized and run inside the page via page.evaluate, so each must be fully self-contained (no
 // references to module-level bindings); the small scroll helpers are therefore inlined in both.
 declare const window: {
   scrollTo: (o: { top: number; left: number; behavior: string }) => void;
   innerHeight: number;
+  pageYOffset: number;
 };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const document: any;
@@ -130,6 +136,78 @@ export async function prepareScroll(args: PrepareScrollArgs): Promise<void> {
     } catch {
       /* ignore */
     }
+  }
+}
+
+/**
+ * Runs INSIDE the page. Resolves CSS selectors to normalized scroll positions (0..1) on the real scroll
+ * target — used by choreography to "scroll to a section". Returns null for a selector that matches no
+ * element. Measured once after warm-up (positions are stable), so all workers agree. Self-contained.
+ */
+export async function measureNormalizedOffsets(
+  args: MeasureOffsetsArgs,
+): Promise<Array<number | null>> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const target = findScrollTarget(document, getComputedStyle) as any;
+  const distance = maxScrollOf(target);
+  const docTarget = isDocTarget(target);
+  const containerTop = docTarget ? 0 : target.getBoundingClientRect().top;
+  const curScroll = docTarget
+    ? window.pageYOffset || document.documentElement.scrollTop || 0
+    : target.scrollTop;
+  return args.selectors.map((sel) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let el: any = null;
+    try {
+      el = document.querySelector(sel);
+    } catch {
+      el = null;
+    }
+    if (!el) return null;
+    const rect = el.getBoundingClientRect();
+    const offsetTop = docTarget ? rect.top + curScroll : rect.top - containerTop + curScroll;
+    const y = Math.max(0, Math.min(distance, offsetTop));
+    return distance > 0 ? y / distance : 0;
+  });
+
+  // --- inlined, self-contained scroll helpers (duplicated elsewhere in this file; see note above) ---
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function findScrollTarget(doc: any, gcs: (el: any) => { overflowY: string }): unknown {
+    const se = doc.scrollingElement || doc.documentElement;
+    if (se && se.scrollHeight - se.clientHeight > 1) return se;
+    let best: unknown = null;
+    let bestArea = 0;
+    const all = doc.querySelectorAll("*");
+    for (let i = 0; i < all.length; i++) {
+      const el = all[i];
+      let oy = "";
+      try {
+        oy = gcs(el).overflowY;
+      } catch {
+        oy = "";
+      }
+      const scrollable = oy === "auto" || oy === "scroll" || oy === "overlay";
+      if (scrollable && el.scrollHeight - el.clientHeight > 1) {
+        const area = el.clientWidth * el.clientHeight;
+        if (area > bestArea) {
+          bestArea = area;
+          best = el;
+        }
+      }
+    }
+    return best || se;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function isDocTarget(t: any): boolean {
+    return (
+      t === (document.scrollingElement || document.documentElement) ||
+      t === document.documentElement ||
+      t === document.body
+    );
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function maxScrollOf(t: any): number {
+    return Math.max(0, t.scrollHeight - t.clientHeight);
   }
 }
 

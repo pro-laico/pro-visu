@@ -8,6 +8,19 @@ export const easingSchema = z.enum([
 ]);
 export type Easing = z.infer<typeof easingSchema>;
 
+/** One choreographed scroll step (see `choreography` below). */
+export const choreographyStepSchema = z
+  .object({
+    /** Target: a 0..1 number, an "NN%" string, or a CSS selector to bring into view. */
+    to: z.union([z.number(), z.string()]),
+    /** Travel time to this target (ms). Default 1200. */
+    durationMs: z.number().int().nonnegative().optional(),
+    /** Hold time at this target after arriving (ms). Default 800. */
+    holdMs: z.number().int().nonnegative().optional(),
+    easing: easingSchema.optional(),
+  })
+  .strict();
+
 export const scrollReelOptionsSchema = z
   .object({
     /** Viewport + output width in CSS pixels. */
@@ -43,6 +56,14 @@ export const scrollReelOptionsSchema = z
     workers: z.number().int().positive().optional(),
     /** Intermediate frame format for "frames"; "png" is lossless (slower), "jpeg" (default) is faster. */
     frameFormat: z.enum(["jpeg", "png"]).default("jpeg"),
+
+    /**
+     * Choreographed scroll: an ordered list of steps instead of one top→bottom sweep. Each step scrolls
+     * to a target (a 0..1 number, an "NN%" string, or a CSS selector to bring into view), then holds —
+     * the "pause on each section" look. "frames" capture only (ignored by "realtime"). Omit for the
+     * default single eased sweep. Clip length becomes startDelay + Σ(step travel + hold) + endDwell.
+     */
+    choreography: z.array(choreographyStepSchema).optional(),
 
     // --- clean capture (suppress real-site noise; applied on the "frames" path) ---
     /** Hide elements matching these CSS selectors before capture (cookie banners, chat widgets, …). */

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { EASINGS } from "@/generators/scroll-reel/scroll";
 import {
+  choreographyTimelineSpec,
   defaultTimelineSpec,
   normalizedScrollAt,
   resolveTimeline,
+  scrollTimelineTotalMs,
   type TimelineSpec,
 } from "@/generators/scroll-reel/timeline";
 
@@ -131,5 +133,53 @@ describe("resolveTimeline", () => {
     for (const t of [0, 0.137, 0.5, 0.913, 1.2]) {
       expect(tl.scrollAt(t)).toBe(tl.scrollAt(t));
     }
+  });
+});
+
+describe("choreographyTimelineSpec", () => {
+  it("builds hold(start) → [travel, hold]* → dwell(end) with fractions summing to 1", () => {
+    const spec = choreographyTimelineSpec({
+      startDelayMs: 500,
+      endDwellMs: 500,
+      steps: [
+        { toY: 0.5, durationMs: 1000, holdMs: 1000, easing: "linear" },
+        { toY: 1, durationMs: 1000, holdMs: 0, easing: "linear" },
+      ],
+    });
+    const sum = spec.segments.reduce((s, seg) => s + seg.durationFraction, 0);
+    expect(sum).toBeCloseTo(1);
+    // start-hold, travel→0.5, hold@0.5, travel→1, end-dwell = 5 segments
+    expect(spec.segments).toHaveLength(5);
+  });
+
+  it("pins each hold and linearly travels between targets", () => {
+    const spec = choreographyTimelineSpec({
+      startDelayMs: 0,
+      endDwellMs: 0,
+      steps: [
+        { toY: 0.4, durationMs: 1000, holdMs: 1000, easing: "linear" }, // total 3000ms
+        { toY: 1, durationMs: 1000, holdMs: 0, easing: "linear" },
+      ],
+    });
+    expect(normalizedScrollAt(spec, 1 / 6)).toBeCloseTo(0.2); // halfway up the first travel
+    expect(normalizedScrollAt(spec, 0.5)).toBeCloseTo(0.4); // mid-hold at 0.4
+    expect(normalizedScrollAt(spec, 1)).toBeCloseTo(1); // arrived at bottom
+  });
+});
+
+describe("scrollTimelineTotalMs", () => {
+  it("returns startDelay + duration + endDwell without choreography", () => {
+    expect(scrollTimelineTotalMs({ startDelayMs: 500, duration: 6000, endDwellMs: 800 })).toBe(7300);
+  });
+
+  it("sums choreography steps applying per-step defaults", () => {
+    const total = scrollTimelineTotalMs({
+      startDelayMs: 0,
+      duration: 6000, // ignored when choreography is present
+      endDwellMs: 0,
+      choreography: [{}, { durationMs: 500, holdMs: 100 }],
+    });
+    // step1 defaults 1200 + 800 = 2000; step2 500 + 100 = 600 → 2600
+    expect(total).toBe(2600);
   });
 });

@@ -8,7 +8,7 @@ import { renderChrome } from "@/generators/device-frame/chrome";
 import { buildDeviceFrameArgs } from "@/generators/device-frame/composite";
 import { captureScrollWebm } from "@/generators/scroll-reel/capture";
 import { captureScrollFrames } from "@/generators/scroll-reel/capture-frames";
-import { defaultTimelineSpec, resolveTimeline } from "@/generators/scroll-reel/timeline";
+import { scrollTimelineTotalMs } from "@/generators/scroll-reel/timeline";
 import { requireUrl } from "@/generators/require-url";
 import { probeVideoDimensions, runFfmpeg, transcodeToMp4 } from "@/media/ffmpeg";
 import { autoWorkers } from "@/media/frame-capture";
@@ -29,29 +29,23 @@ async function run(
   const url = requireUrl(ctx);
 
   // 1. Record the site (same capture path as scroll-reel) into an mp4 to composite.
-  const durationSeconds =
-    (options.startDelayMs + options.duration + options.endDwellMs) / 1000;
   const draft = ctx.quality === "draft";
   const preset = draft ? "ultrafast" : "medium";
+  // Clip length: choreography-aware for frames; the classic sweep length for realtime.
+  const durationMs =
+    options.capture === "frames"
+      ? scrollTimelineTotalMs(options)
+      : options.startDelayMs + options.duration + options.endDwellMs;
+  const captureSeconds = durationMs / 1000;
   const captureMp4 = path.join(ctx.tmpDir, `${slugify(ctx.target.name)}-capture.mp4`);
 
   if (options.capture === "frames") {
     const workers = options.workers ?? autoWorkers();
-    const timeline = resolveTimeline(
-      defaultTimelineSpec({
-        startDelayMs: options.startDelayMs,
-        durationMs: options.duration,
-        endDwellMs: options.endDwellMs,
-        easing: options.easing,
-      }),
-      durationSeconds,
-    );
     ctx.logger.info(`recording ${url} (frame-stepped, ${workers} worker(s))`);
     await captureScrollFrames({
       browser: ctx.browser,
       url,
       options,
-      timeline,
       outPath: captureMp4,
       preset,
       workers,
@@ -65,6 +59,9 @@ async function run(
       logger: ctx.logger,
     });
   } else {
+    if (options.choreography?.length) {
+      ctx.logger.warn('choreography is ignored for capture:"realtime"');
+    }
     ctx.logger.info(`recording ${url} (realtime)`);
     const { webmPath, leadSeconds } = await captureScrollWebm({
       browser: ctx.browser,
@@ -82,9 +79,9 @@ async function run(
       crf: options.crf,
       preset,
       // Trim the navigation + warm-up lead and clamp to the intended length, so the framed clip opens
-      // on the scroll and the backdrop's `d=durationSeconds` (below) stays aligned with the content.
+      // on the scroll and the backdrop's `d` (below) stays aligned with the content.
       startOffsetSeconds: leadSeconds,
-      durationSeconds,
+      durationSeconds: captureSeconds,
       logger: ctx.logger,
     });
   }
@@ -118,7 +115,7 @@ async function run(
       background: options.background,
       fps: options.fps,
       crf: options.crf,
-      durationSeconds,
+      durationSeconds: captureSeconds,
       preset,
     }),
     ctx.logger,
@@ -144,7 +141,7 @@ async function run(
     format: "mp4",
     width: dims?.width ?? chrome.frameWidthPx,
     height: dims?.height ?? chrome.frameHeightPx,
-    durationMs: options.startDelayMs + options.duration + options.endDwellMs,
+    durationMs,
     bytes: stats.size,
     contentHash,
     createdAt: new Date().toISOString(),

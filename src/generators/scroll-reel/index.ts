@@ -5,7 +5,7 @@ import {
 } from "@/generators/scroll-reel/options";
 import { captureScrollWebm } from "@/generators/scroll-reel/capture";
 import { captureScrollFrames } from "@/generators/scroll-reel/capture-frames";
-import { defaultTimelineSpec, resolveTimeline } from "@/generators/scroll-reel/timeline";
+import { scrollTimelineTotalMs } from "@/generators/scroll-reel/timeline";
 import { requireUrl } from "@/generators/require-url";
 import { transcodeToMp4 } from "@/media/ffmpeg";
 import { autoWorkers } from "@/media/frame-capture";
@@ -24,27 +24,16 @@ async function run(
   const outPath = ctx.resolveOutPath(fileName);
   const url = requireUrl(ctx);
 
-  const durationSeconds = (options.startDelayMs + options.duration + options.endDwellMs) / 1000;
   const draft = ctx.quality === "draft";
   const preset = draft ? "ultrafast" : "medium";
 
   if (options.capture === "frames") {
     const workers = options.workers ?? autoWorkers();
-    const timeline = resolveTimeline(
-      defaultTimelineSpec({
-        startDelayMs: options.startDelayMs,
-        durationMs: options.duration,
-        endDwellMs: options.endDwellMs,
-        easing: options.easing,
-      }),
-      durationSeconds,
-    );
     ctx.logger.info(`recording ${url} (frame-stepped, ${workers} worker(s))`);
     await captureScrollFrames({
       browser: ctx.browser,
       url,
       options,
-      timeline,
       outPath,
       preset,
       workers,
@@ -58,6 +47,10 @@ async function run(
       logger: ctx.logger,
     });
   } else {
+    if (options.choreography?.length) {
+      ctx.logger.warn('choreography is ignored for capture:"realtime"');
+    }
+    const durationSeconds = (options.startDelayMs + options.duration + options.endDwellMs) / 1000;
     ctx.logger.info(`recording ${url} (realtime)`);
     const { webmPath, leadSeconds } = await captureScrollWebm({
       browser: ctx.browser,
@@ -83,6 +76,10 @@ async function run(
     });
   }
 
+  const durationMs =
+    options.capture === "frames"
+      ? scrollTimelineTotalMs(options)
+      : options.startDelayMs + options.duration + options.endDwellMs;
   const [stats, contentHash] = await Promise.all([stat(outPath), sha256File(outPath)]);
   const record: AssetRecord = {
     id: ctx.target.name,
@@ -92,7 +89,7 @@ async function run(
     format: "mp4",
     width: options.width,
     height: options.height,
-    durationMs: options.startDelayMs + options.duration + options.endDwellMs,
+    durationMs,
     bytes: stats.size,
     contentHash,
     createdAt: new Date().toISOString(),
