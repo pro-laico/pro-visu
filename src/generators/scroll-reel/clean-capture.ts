@@ -66,10 +66,99 @@ export function freezeClockScript(): void {
   }
 }
 
+/** Common analytics / ads / tag-manager / session-replay hosts, blocked by default for clean captures. */
+export const DEFAULT_TRACKER_HOSTS = [
+  "google-analytics.com",
+  "googletagmanager.com",
+  "googlesyndication.com",
+  "doubleclick.net",
+  "adservice.google.com",
+  "connect.facebook.net",
+  "facebook.com/tr",
+  "hotjar.com",
+  "hotjar.io",
+  "segment.com",
+  "segment.io",
+  "mixpanel.com",
+  "amplitude.com",
+  "fullstory.com",
+  "clarity.ms",
+  "sentry.io",
+  "intercom.io",
+  "intercomcdn.com",
+  "analytics.tiktok.com",
+  "snap.licdn.com",
+  "bat.bing.com",
+];
+
+/** Pure: should a request be aborted, given the host denylist and blocked resource types? */
+export function shouldBlockRequest(
+  url: string,
+  opts: { hosts: string[]; resourceTypes: string[]; resourceType: string },
+): boolean {
+  if (opts.resourceTypes.includes(opts.resourceType)) return true;
+  return opts.hosts.some((h) => url.includes(h));
+}
+
+/** Abort tracker/denylisted/blocked-type requests during capture (must run BEFORE `page.goto`). */
+export async function installNetworkHygiene(
+  page: Page,
+  opts: ResolvedScrollReelOptions,
+): Promise<void> {
+  const hosts = [...(opts.blockTrackers ? DEFAULT_TRACKER_HOSTS : []), ...opts.blockHosts];
+  const resourceTypes = opts.blockResourceTypes;
+  if (hosts.length === 0 && resourceTypes.length === 0) return;
+  await page.route("**/*", (route) => {
+    const req = route.request();
+    if (shouldBlockRequest(req.url(), { hosts, resourceTypes, resourceType: req.resourceType() })) {
+      return route.abort();
+    }
+    return route.continue();
+  });
+}
+
+/**
+ * Runs in the page: pause and rewind all media so autoplay video/audio can't make frames depend on
+ * wall-clock time (frame-stepping screenshots a static page). Self-contained (serialized into the page).
+ */
+export function pauseAllMedia(): void {
+  const doc = (globalThis as { document?: { querySelectorAll(s: string): ArrayLike<unknown> } }).document;
+  if (!doc) return;
+  try {
+    const media = doc.querySelectorAll("video, audio");
+    for (let i = 0; i < media.length; i++) {
+      const m = media[i] as { autoplay?: boolean; pause?: () => void; currentTime?: number };
+      try {
+        m.autoplay = false;
+        m.pause?.();
+        if (typeof m.currentTime === "number") m.currentTime = 0;
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Runs in the page: add a theme class to <html> (e.g. to force a dark variant). Self-contained. */
+export function applyThemeClass(cls: string): void {
+  try {
+    (
+      globalThis as { document?: { documentElement?: { classList?: { add(c: string): void } } } }
+    ).document?.documentElement?.classList?.add(cls);
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Install pre-navigation hooks (must run BEFORE `page.goto`). */
 export async function installPreNav(page: Page, opts: ResolvedScrollReelOptions): Promise<void> {
   if (opts.freezeClock) {
     await page.addInitScript(freezeClockScript);
+  }
+  if (opts.themeClass) {
+    await page.addInitScript(applyThemeClass, opts.themeClass);
   }
 }
 
@@ -88,6 +177,10 @@ export async function applyPostNav(
   if (css) {
     await page.addStyleTag({ content: css });
   }
+  // Re-apply the theme class after the (possibly client-rendered) app has mounted.
+  if (opts.themeClass) {
+    await page.evaluate(applyThemeClass, opts.themeClass);
+  }
   for (const selector of opts.clickSelectors) {
     try {
       await page.click(selector, { timeout: 1000 });
@@ -96,4 +189,6 @@ export async function applyPostNav(
       // Not present / not clickable — fine, these are best-effort consent dismissals.
     }
   }
+  // Pause media so autoplay video can't make frames depend on wall-clock time.
+  await page.evaluate(pauseAllMedia);
 }

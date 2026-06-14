@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildCleanCss } from "@/generators/scroll-reel/clean-capture";
+import {
+  buildCleanCss,
+  shouldBlockRequest,
+  DEFAULT_TRACKER_HOSTS,
+} from "@/generators/scroll-reel/clean-capture";
 
 const NONE = {
   hideSelectors: [] as string[],
@@ -49,5 +53,37 @@ describe("buildCleanCss", () => {
     expect(css).toContain("::-webkit-scrollbar");
     expect(css).toContain("animation-play-state");
     expect(css).toContain("h1 { color: red }");
+  });
+});
+
+describe("shouldBlockRequest", () => {
+  it("blocks by resource type", () => {
+    expect(
+      shouldBlockRequest("https://example.com/clip.mp4", {
+        hosts: [],
+        resourceTypes: ["media"],
+        resourceType: "media",
+      }),
+    ).toBe(true);
+  });
+
+  it("blocks a known tracker host", () => {
+    expect(
+      shouldBlockRequest("https://www.google-analytics.com/collect", {
+        hosts: DEFAULT_TRACKER_HOSTS,
+        resourceTypes: [],
+        resourceType: "script",
+      }),
+    ).toBe(true);
+  });
+
+  it("allows first-party requests through", () => {
+    expect(
+      shouldBlockRequest("https://prolaico.com/app.js", {
+        hosts: DEFAULT_TRACKER_HOSTS,
+        resourceTypes: [],
+        resourceType: "script",
+      }),
+    ).toBe(false);
   });
 });

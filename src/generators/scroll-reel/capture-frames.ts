@@ -7,7 +7,11 @@ import {
   seekScrollTo,
   settleInView,
 } from "@/generators/scroll-reel/scroll";
-import { applyPostNav, installPreNav } from "@/generators/scroll-reel/clean-capture";
+import {
+  applyPostNav,
+  installNetworkHygiene,
+  installPreNav,
+} from "@/generators/scroll-reel/clean-capture";
 import {
   autoSectionSteps,
   autoSectionsBudgetMs,
@@ -48,6 +52,8 @@ export interface ScrollFramesArgs {
   settlePerFrame: boolean;
   /** Max ms to wait per frame for settling before screenshotting anyway. */
   settleMaxMs: number;
+  /** Force a color scheme for this capture (emulated via prefers-color-scheme). */
+  colorScheme?: "light" | "dark";
   tmpDir: string;
   logger: Logger;
 }
@@ -180,7 +186,11 @@ export async function captureScrollFrames(a: ScrollFramesArgs): Promise<void> {
     tmpDir: a.tmpDir,
     logger: a.logger,
     prepare: async (page, { logger }) => {
-      // Pre-navigation hooks (e.g. freeze the clock) must be installed before page scripts run.
+      // Force the color scheme + block tracker requests before navigation so load-time media queries
+      // and the network match the intended capture.
+      if (a.colorScheme) await page.emulateMedia({ colorScheme: a.colorScheme });
+      await installNetworkHygiene(page, options);
+      // Pre-navigation hooks (e.g. freeze the clock, theme class) must be installed before page scripts.
       await installPreNav(page, options);
       logger.debug(`navigating to ${a.url} (waitUntil=${options.waitUntil})`);
       await page.goto(a.url, { waitUntil: options.waitUntil });

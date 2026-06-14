@@ -38,6 +38,12 @@ async function run(
       : options.startDelayMs + options.duration + options.endDwellMs;
   const captureSeconds = durationMs / 1000;
   const captureMp4 = path.join(ctx.tmpDir, `${slugify(ctx.target.name)}-capture.mp4`);
+  // device-frame captures a single variant; honor a single color scheme but don't expand a matrix.
+  const dfScheme =
+    options.colorScheme === "dark" ? "dark" : options.colorScheme === "light" ? "light" : undefined;
+  if (options.viewports?.length || options.colorScheme === "both") {
+    ctx.logger.warn("device-frame does not expand viewports / colorScheme:\"both\" — capturing one variant");
+  }
 
   if (options.capture === "frames") {
     const workers = options.workers ?? autoWorkers();
@@ -55,6 +61,7 @@ async function run(
       // Per-frame settling defaults on, off in draft for speed (override with the explicit option).
       settlePerFrame: options.settlePerFrame ?? !draft,
       settleMaxMs: options.settleMaxMs,
+      colorScheme: dfScheme,
       tmpDir: ctx.tmpDir,
       logger: ctx.logger,
     });

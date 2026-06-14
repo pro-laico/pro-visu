@@ -117,6 +117,25 @@ export const scrollReelOptionsSchema = z
       .strict()
       .optional(),
 
+    // --- variants (each emitted as its own asset; "frames" path) ---
+    /** Force a color scheme. "both" emits a light AND a dark asset (<name>-light / <name>-dark). */
+    colorScheme: z.enum(["light", "dark", "both"]).optional(),
+    /** Add this class to <html> before capture (e.g. to trigger a CSS-class dark theme). */
+    themeClass: z.string().optional(),
+    /** Capture the same reel at multiple viewports; each emits an asset (<name>-<viewport name>). */
+    viewports: z
+      .array(
+        z
+          .object({
+            name: z.string(),
+            width: z.number().int().positive(),
+            height: z.number().int().positive(),
+            deviceScaleFactor: z.number().positive().max(4).optional(),
+          })
+          .strict(),
+      )
+      .optional(),
+
     // --- clean capture (suppress real-site noise; applied on the "frames" path) ---
     /** Hide elements matching these CSS selectors before capture (cookie banners, chat widgets, …). */
     hideSelectors: z.array(z.string()).default([]),
@@ -130,6 +149,12 @@ export const scrollReelOptionsSchema = z
     pauseAnimations: z.boolean().default(false),
     /** Freeze Date.now / performance.now / Math.random (seeded) so time/random content is stable. */
     freezeClock: z.boolean().default(false),
+    /** Abort common analytics/ads/session-replay requests during capture (cleaner, faster). */
+    blockTrackers: z.boolean().default(true),
+    /** Extra hostname substrings to block during capture. */
+    blockHosts: z.array(z.string()).default([]),
+    /** Playwright resource types to block (e.g. "media", "font", "image"). */
+    blockResourceTypes: z.array(z.string()).default([]),
 
     // --- per-frame settling ("frames" path) ---
     /** Wait for fonts + in-view images before each frame's screenshot. Defaults on (off in draft). */
