@@ -9,7 +9,7 @@ import { captureScrollFrames } from "@/generators/scroll-reel/capture-frames";
 import { scrollTimelineTotalMs } from "@/generators/scroll-reel/timeline";
 import { buildVariants } from "@/generators/scroll-reel/variants";
 import { produceOutputs } from "@/generators/scroll-reel/outputs";
-import { captureInteractionWebm } from "@/generators/scroll-reel/interaction";
+import { captureFocusWebm, captureInteractionWebm } from "@/generators/scroll-reel/interaction";
 import { requireUrl } from "@/generators/require-url";
 import { concatMp4, transcodeToMp4 } from "@/media/ffmpeg";
 import { autoWorkers } from "@/media/frame-capture";
@@ -27,6 +27,55 @@ async function run(
   const url = requireUrl(ctx);
   const draft = ctx.quality === "draft";
   const preset = draft ? "ultrafast" : "medium";
+
+  // Element-focused clip: realtime capture of one component, cropped to its box — single asset.
+  if (options.focus) {
+    const scheme =
+      options.colorScheme === "dark" ? "dark" : options.colorScheme === "light" ? "light" : undefined;
+    const fileName = options.fileName ?? `${slugify(ctx.target.name)}.mp4`;
+    const outPath = ctx.resolveOutPath(fileName);
+    ctx.logger.info(`recording ${url} (focus: ${options.focus.selector})`);
+    const { webmPath, leadSeconds, durationSeconds, cropBox } = await captureFocusWebm({
+      browser: ctx.browser,
+      url,
+      options,
+      colorScheme: scheme,
+      tmpDir: ctx.tmpDir,
+      logger: ctx.logger,
+    });
+    ctx.logger.debug("transcoding to mp4 (cropped)");
+    await transcodeToMp4({
+      inputPath: webmPath,
+      outputPath: outPath,
+      fps: options.fps,
+      width: cropBox.width,
+      height: cropBox.height,
+      crf: options.crf,
+      preset,
+      startOffsetSeconds: leadSeconds,
+      durationSeconds,
+      crop: cropBox,
+      logger: ctx.logger,
+    });
+    const [stats, contentHash] = await Promise.all([stat(outPath), sha256File(outPath)]);
+    const record: AssetRecord = {
+      id: ctx.target.name,
+      generator: SCROLL_REEL_ID,
+      sourceUrl: url,
+      file: ctx.toManifestPath(outPath),
+      format: "mp4",
+      width: cropBox.width,
+      height: cropBox.height,
+      durationMs: Math.round(durationSeconds * 1000),
+      bytes: stats.size,
+      contentHash,
+      createdAt: new Date().toISOString(),
+      toolVersion: ctx.toolVersion,
+    };
+    await ctx.writeAsset(record);
+    ctx.logger.success(`${ctx.target.name} → ${record.file}`);
+    return { assets: [record] };
+  }
 
   // Interaction: a scripted realtime "tour" with a synthetic cursor — single asset, always realtime.
   if (options.actions && options.actions.length > 0) {

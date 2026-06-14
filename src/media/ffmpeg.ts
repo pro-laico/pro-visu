@@ -18,6 +18,8 @@ export interface TranscodeArgs {
   startOffsetSeconds?: number;
   /** Clamp the output to exactly this many seconds (after any head trim) so length is deterministic. */
   durationSeconds?: number;
+  /** Crop the source to this box (CSS px) before scaling — used for element-focused clips. */
+  crop?: { x: number; y: number; width: number; height: number };
 }
 
 /**
@@ -67,13 +69,16 @@ export function buildTranscodeArgs(args: TranscodeArgs): string[] {
     args.durationSeconds && args.durationSeconds > 0
       ? ["-t", args.durationSeconds.toFixed(3)]
       : [];
+  const crop = args.crop
+    ? `crop=${args.crop.width}:${args.crop.height}:${args.crop.x}:${args.crop.y},`
+    : "";
   return [
     "-y",
     ...seek,
     "-i",
     args.inputPath,
     "-vf",
-    `scale=${args.width}:${args.height}:flags=lanczos:${SCALE_COLOR},format=yuv420p,fps=${args.fps}`,
+    `${crop}scale=${args.width}:${args.height}:flags=lanczos:${SCALE_COLOR},format=yuv420p,fps=${args.fps}`,
     "-c:v",
     "libx264",
     "-preset",

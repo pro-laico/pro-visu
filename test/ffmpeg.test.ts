@@ -44,6 +44,21 @@ describe("buildTranscodeArgs", () => {
     expect(args).not.toContain("-ss");
   });
 
+  it("crops before scaling when crop is set", () => {
+    const cropped = buildTranscodeArgs({
+      inputPath: "in.webm",
+      outputPath: "out.mp4",
+      fps: 30,
+      width: 200,
+      height: 100,
+      crf: 18,
+      crop: { x: 10, y: 20, width: 200, height: 100 },
+    });
+    const vf = cropped[cropped.indexOf("-vf") + 1]!;
+    expect(vf).toContain("crop=200:100:10:20");
+    expect(vf.indexOf("crop=")).toBeLessThan(vf.indexOf("scale="));
+  });
+
   it("trims the head with an input-side seek before -i when startOffsetSeconds is set", () => {
     const trimmed = buildTranscodeArgs({
       inputPath: "in.webm",

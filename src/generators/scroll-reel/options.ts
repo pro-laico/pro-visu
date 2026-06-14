@@ -185,6 +185,24 @@ export const scrollReelOptionsSchema = z
       .strict()
       .optional(),
 
+    /**
+     * Element-focused clip: scroll one component into view, optionally trigger it (`actions`), hold,
+     * and crop the output to its box (+padding). Realtime; emits a single asset (variants / aspect /
+     * outputs / cards are skipped).
+     */
+    focus: z
+      .object({
+        selector: z.string(),
+        /** Padding (px) around the element when cropping. Default 24. */
+        padding: z.number().int().nonnegative().optional(),
+        /** Optional steps to trigger the component (e.g. open a dropdown) before holding. */
+        actions: z.array(interactionActionSchema).optional(),
+        /** Time to dwell on the element after positioning/triggering (ms). Default 2000. */
+        holdMs: z.number().int().nonnegative().optional(),
+      })
+      .strict()
+      .optional(),
+
     // --- variants (each emitted as its own asset; "frames" path) ---
     /** Force a color scheme. "both" emits a light AND a dark asset (<name>-light / <name>-dark). */
     colorScheme: z.enum(["light", "dark", "both"]).optional(),

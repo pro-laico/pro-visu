@@ -14,6 +14,41 @@ import type { Logger } from "@/utils/logger";
 export const DEFAULT_ACTION_DURATION_MS = 700;
 /** Default pause after a step that omits `holdMs`. */
 export const DEFAULT_ACTION_HOLD_MS = 600;
+/** Default dwell on the focused element. */
+export const DEFAULT_FOCUS_HOLD_MS = 2000;
+/** Default padding around a focused element when cropping. */
+export const DEFAULT_FOCUS_PADDING = 24;
+
+/**
+ * Pure: turn an element box (CSS px) + padding into an even-dimensioned crop rectangle clamped to the
+ * viewport (h264 needs even width/height). Unit-tested.
+ */
+export function clampCrop(
+  box: { x: number; y: number; w: number; h: number },
+  padding: number,
+  viewportWidth: number,
+  viewportHeight: number,
+): { x: number; y: number; width: number; height: number } {
+  let x = Math.floor(box.x - padding);
+  let y = Math.floor(box.y - padding);
+  let w = Math.ceil(box.w + padding * 2);
+  let h = Math.ceil(box.h + padding * 2);
+  if (x < 0) {
+    w += x;
+    x = 0;
+  }
+  if (y < 0) {
+    h += y;
+    y = 0;
+  }
+  if (x + w > viewportWidth) w = viewportWidth - x;
+  if (y + h > viewportHeight) h = viewportHeight - y;
+  w = Math.max(2, w - (w % 2));
+  h = Math.max(2, h - (h % 2));
+  x = Math.max(0, Math.min(x, viewportWidth - w));
+  y = Math.max(0, Math.min(y, viewportHeight - h));
+  return { x, y, width: w, height: h };
+}
 
 type InteractionAction = NonNullable<ResolvedScrollReelOptions["actions"]>[number];
 
@@ -308,4 +343,109 @@ export async function captureInteractionWebm(args: InteractionArgs): Promise<Int
     leadSeconds,
     durationSeconds: interactionTotalMs(actions, options.startDelayMs, options.endDwellMs) / 1000,
   };
+}
+
+export interface FocusResult extends InteractionResult {
+  /** The crop box (CSS px) to apply when transcoding. */
+  cropBox: { x: number; y: number; width: number; height: number };
+}
+
+/**
+ * Record an element-focused clip in realtime: scroll the component into view, optionally trigger it,
+ * hold, and report the crop box (the element's final box + padding, clamped to the viewport). The caller
+ * transcodes the recording cropped to that box.
+ */
+export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResult> {
+  const { browser, url, options, tmpDir, logger } = args;
+  const focus = options.focus;
+  if (!focus) throw new Error("captureFocusWebm called without options.focus");
+  await ensureDir(tmpDir);
+  const recordDir = await mkdtemp(path.join(tmpDir, "rec-"));
+  const context = await browser.newContext({
+    viewport: { width: options.width, height: options.height },
+    deviceScaleFactor: options.deviceScaleFactor,
+    recordVideo: { dir: recordDir, size: { width: options.width, height: options.height } },
+  });
+  const page = await context.newPage();
+  const video = page.video();
+  const actions = focus.actions ?? [];
+  const holdMs = focus.holdMs ?? DEFAULT_FOCUS_HOLD_MS;
+  const padding = focus.padding ?? DEFAULT_FOCUS_PADDING;
+  const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+  const twoFrames = (): Promise<void> =>
+    page.evaluate(
+      () =>
+        new Promise<void>((res) => {
+          const g = globalThis as unknown as { requestAnimationFrame(cb: () => void): void };
+          g.requestAnimationFrame(() => g.requestAnimationFrame(() => res()));
+        }),
+    );
+
+  const recStart = Date.now();
+  let leadSeconds = 0;
+  let cropBox = { x: 0, y: 0, width: options.width, height: options.height };
+  try {
+    if (args.colorScheme) await page.emulateMedia({ colorScheme: args.colorScheme });
+    await installNetworkHygiene(page, options);
+    await installPreNav(page, options);
+    await page.goto(url, { waitUntil: options.waitUntil });
+    if (options.waitForSelector) {
+      await page.waitForSelector(options.waitForSelector, { state: "visible" });
+    }
+    await applyPostNav(page, options, logger);
+    await page.evaluate(installCursorRuntime, {
+      show: options.cursor?.show ?? true,
+      size: options.cursor?.size ?? 22,
+      color: options.cursor?.color ?? "#0b0b0f",
+    });
+    // Bring the element to the center before the kept clip starts.
+    await page.evaluate((sel: string) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const el = (globalThis as any).document?.querySelector(sel);
+      if (el) {
+        try {
+          el.scrollIntoView({ behavior: "instant", block: "center" });
+        } catch {
+          /* ignore */
+        }
+      }
+    }, focus.selector);
+    await twoFrames();
+
+    leadSeconds = (Date.now() - recStart) / 1000;
+    await sleep(options.startDelayMs);
+    for (const a of actions) {
+      const durationMs = a.durationMs ?? DEFAULT_ACTION_DURATION_MS;
+      try {
+        await runAction(page, a, durationMs);
+      } catch (e) {
+        logger.warn(`focus step "${a.do}" failed: ${(e as Error).message}`);
+      }
+      await sleep(a.holdMs ?? DEFAULT_ACTION_HOLD_MS);
+    }
+    // Measure the element's final box (covers any expansion from the trigger) for the crop.
+    const box = await page.evaluate((sel: string) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const el = (globalThis as any).document?.querySelector(sel);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { x: r.left, y: r.top, w: r.width, h: r.height };
+    }, focus.selector);
+    if (box && box.w > 0 && box.h > 0) {
+      cropBox = clampCrop(box, padding, options.width, options.height);
+    } else {
+      logger.warn(`focus: selector "${focus.selector}" not found — capturing the full viewport`);
+    }
+    await sleep(holdMs);
+    await sleep(options.endDwellMs);
+  } finally {
+    await context.close();
+  }
+
+  if (!video) {
+    throw new Error("Playwright did not record a video (recordVideo inactive).");
+  }
+  const durationSeconds =
+    (options.startDelayMs + interactionTotalMs(actions, 0, 0) + holdMs + options.endDwellMs) / 1000;
+  return { webmPath: await video.path(), leadSeconds, durationSeconds, cropBox };
 }

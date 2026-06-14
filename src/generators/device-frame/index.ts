@@ -49,18 +49,18 @@ async function run(
     options.outputs.length !== 1 ||
     options.outputs[0] !== "mp4" ||
     options.intro ||
-    options.outro ||
-    options.annotations?.length
+    options.outro
   ) {
-    ctx.logger.warn(
-      "device-frame ignores aspect / outputs / intro / outro / annotations — emitting a single mp4",
-    );
+    ctx.logger.warn("device-frame ignores aspect / outputs / intro / outro — emitting a single mp4");
   }
   if (options.actions?.length) {
     ctx.logger.warn("device-frame ignores actions — use the scroll-reel generator for interaction reels");
   }
   if (options.routes?.length) {
     ctx.logger.warn("device-frame ignores routes — use the scroll-reel generator for multi-page tours");
+  }
+  if (options.focus) {
+    ctx.logger.warn("device-frame ignores focus — use the scroll-reel generator for element-focused clips");
   }
 
   if (options.capture === "frames") {
