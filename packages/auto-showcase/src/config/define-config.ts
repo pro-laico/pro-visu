@@ -28,15 +28,19 @@ export interface BrowserSettingsInput {
 }
 
 export interface ServerSettingsInput {
-  /** Command that starts the server, run via the shell, e.g. "next start -p 3101". */
+  /**
+   * Command that starts the server, run via the shell. The tool sets PORT/HOST in its environment
+   * to the readiness port/host, so frameworks that honor PORT (Next, Vite, …) bind it
+   * automatically — `command: "next start"` is enough. An explicit flag still wins.
+   */
   command: string;
   /** Optional one-shot build to run first, e.g. "next build". */
   build?: string;
   /** Health-check URL polled until it responds. Defaults to http://127.0.0.1:<port>. */
   url?: string;
   /**
-   * Port the readiness check polls — also derives `url` when `url` is omitted. Defaults to 3101.
-   * Note: this is only where the tool probes; your `command` must actually bind this port.
+   * Port the readiness check polls — also derives `url` when `url` is omitted, and is passed to
+   * the command as PORT so it binds the same port automatically. Defaults to 3101.
    */
   port?: number;
   /** Working dir for build + command, relative to the config dir. Defaults to it. */
@@ -83,12 +87,13 @@ export interface AssetBaseInput {
 
 /**
  * Discriminated by `generator` so each asset gets the right `options` autocomplete. URL-based
- * generators require `url`; a local `scene` composites its `inputs` and needs none.
+ * generators take a `url` — absolute, or a `/path` resolved against the managed server; omit it
+ * to capture the managed server's root. A local `scene` composites its `inputs` and needs none.
  */
 export type AssetSpecInput =
-  | (AssetBaseInput & { url: string; generator: "scroll-reel"; options?: ScrollReelOptions })
-  | (AssetBaseInput & { url: string; generator: "screenshots"; options?: ScreenshotsOptions })
-  | (AssetBaseInput & { url: string; generator: "device-frame"; options?: DeviceFrameOptions })
+  | (AssetBaseInput & { url?: string; generator: "scroll-reel"; options?: ScrollReelOptions })
+  | (AssetBaseInput & { url?: string; generator: "screenshots"; options?: ScreenshotsOptions })
+  | (AssetBaseInput & { url?: string; generator: "device-frame"; options?: DeviceFrameOptions })
   | (AssetBaseInput & { url?: string; generator: "scene"; options?: SceneOptions })
   | (AssetBaseInput & { generator: "specimen"; options: SpecimenOptions })
   | (AssetBaseInput & { generator: "palette"; options: PaletteOptions })

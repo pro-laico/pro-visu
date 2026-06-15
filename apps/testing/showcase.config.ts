@@ -1,9 +1,8 @@
 import { defineConfig } from "auto-showcase";
 
-// The managed server (below) builds + starts this Next app on PORT, captures it, then stops it.
-const PORT = 4310;
-const URL = `http://127.0.0.1:${PORT}`;
-
+// No port/url plumbing: with a managed server the tool injects PORT into the command and treats
+// the server's URL as the default base — assets omit `url` (capture the root) and routes use
+// relative paths.
 export default defineConfig({
   settings: {
     outDir: "public/showcase", // so the Next app serves assets at /showcase/* (and /gallery shows them)
@@ -11,7 +10,7 @@ export default defineConfig({
     browser: { headless: true },
     server: {
       build: "pnpm build",
-      command: `pnpm exec next start -p ${PORT}`,
+      command: "pnpm exec next start", // tool sets PORT (defaults to 3101); Next binds it
       readyTimeoutMs: 180_000,
     },
     defaults: {
@@ -22,7 +21,6 @@ export default defineConfig({
     // motion: auto-detected sections + branded intro/outro cards + a timed caption
     {
       name: "home",
-      url: URL,
       generator: "scroll-reel",
       options: {
         autoSections: { durationMs: 12000 },
@@ -35,7 +33,6 @@ export default defineConfig({
     // social vertical + multiple output formats
     {
       name: "home-vertical",
-      url: URL,
       generator: "scroll-reel",
       options: {
         width: 430,
@@ -49,7 +46,6 @@ export default defineConfig({
     // responsive screenshots of the storefront
     {
       name: "shots",
-      url: URL,
       generator: "screenshots",
       options: {
         breakpoints: [
@@ -59,9 +55,9 @@ export default defineConfig({
       },
     },
     // browser-window device frame
-    { name: "frame", url: URL, generator: "device-frame", options: { frameWidth: 1280, background: "#1a1714" } },
+    { name: "frame", generator: "device-frame", options: { frameWidth: 1280, background: "#1a1714" } },
     // scene: a phone-width capture composited into a phone mockup
-    { name: "phone-cap", url: URL, generator: "scroll-reel", options: { width: 390, height: 844, duration: 5000 } },
+    { name: "phone-cap", generator: "scroll-reel", options: { width: 390, height: 844, duration: 5000 } },
     {
       name: "phone",
       generator: "scene",
@@ -85,7 +81,6 @@ export default defineConfig({
     // scripted interaction: open the navigation mega-menu and hover a category
     {
       name: "menu",
-      url: URL,
       generator: "scroll-reel",
       options: {
         cursor: { color: "#8c7355" },
@@ -98,7 +93,6 @@ export default defineConfig({
     // scripted interaction: add the featured piece to the bag, then open the cart drawer
     {
       name: "cart",
-      url: URL,
       generator: "scroll-reel",
       options: {
         cursor: { color: "#8c7355" },
@@ -111,13 +105,12 @@ export default defineConfig({
     // element-focused clip: trigger the featured product card, crop to it
     {
       name: "card",
-      url: URL,
       generator: "scroll-reel",
       options: {
         focus: { selector: "#feature-card", actions: [{ do: "click", selector: "#feature-card button" }] },
       },
     },
-    // multi-page tour: home → collection → product detail
-    { name: "tour", url: URL, generator: "scroll-reel", options: { routes: [URL, `${URL}/shop`, `${URL}/products/the-camel-coat`] } },
+    // multi-page tour: home → collection → product detail (relative paths, resolved against the server)
+    { name: "tour", generator: "scroll-reel", options: { routes: ["/", "/shop", "/products/the-camel-coat"] } },
   ],
 });

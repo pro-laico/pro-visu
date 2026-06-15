@@ -195,10 +195,19 @@ export async function startManagedServer(
   } else {
     logger.info(`Starting server: ${server.command}`);
   }
+  // Pass the readiness port/host to the command as PORT/HOST so frameworks that honor them
+  // (Next, Vite, …) bind exactly the port we probe — no need to repeat it in the command. An
+  // explicit flag in the command (e.g. `next start -p 4000`) still wins.
+  const probed = new URL(url);
   const child = spawn(server.command, {
     cwd,
     shell: true,
     stdio: "ignore",
+    env: {
+      ...process.env,
+      PORT: probed.port || (probed.protocol === "https:" ? "443" : "80"),
+      HOST: probed.hostname,
+    },
     // POSIX: own process group so we can signal the whole tree. Windows uses taskkill /T.
     detached: process.platform !== "win32",
   });

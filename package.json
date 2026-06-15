@@ -13,7 +13,8 @@
     "typecheck": "turbo run typecheck",
     "build:lib": "turbo run build --filter=auto-showcase",
     "docs": "turbo run dev --filter=docs",
-    "testing": "turbo run dev --filter=testing"
+    "testing": "turbo run dev --filter=testing",
+    "generate": "pnpm --filter=testing generate"
   },
   "devDependencies": {
     "turbo": "^2.5.5",

@@ -180,6 +180,7 @@ async function run(
 
 export const deviceFrameGenerator: Generator<ResolvedDeviceFrameOptions> = {
   id: DEVICE_FRAME_ID,
+  requiresUrl: true,
   optionsSchema: deviceFrameOptionsSchema,
   run,
 };

@@ -15,7 +15,10 @@ export default defineConfig({
   target: "node18",
   platform: "node",
   dts: true,
-  clean: true,
+  // Don't wipe dist here: tsup's `clean` removes the WHOLE outDir, which would delete the scene-app
+  // bundle (dist/scene-app, built by the separate `build:scene` Vite step) on a partial `build:cli`.
+  // The full `build` script cleans dist once up front instead; tsup just overwrites its own outputs.
+  clean: false,
   splitting: false,
   sourcemap: true,
   // Inline the package version so the CLI doesn't read package.json at runtime.

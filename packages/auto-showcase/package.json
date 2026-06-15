@@ -34,7 +34,8 @@
   },
   "packageManager": "pnpm@11.5.2",
   "scripts": {
-    "build": "tsup && pnpm build:scene",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "pnpm clean && tsup && pnpm build:scene",
     "build:scene": "vite build -c scene-app/vite.config.ts",
     "build:cli": "tsup",
     "dev": "tsup --watch",

@@ -27,16 +27,21 @@ export type ResolvedBrowserSettings = z.infer<typeof browserSettingsSchema>;
  */
 export const serverSettingsSchema = z
   .object({
-    /** Command that starts the server, run via the shell, e.g. "next start -p 3101". */
+    /**
+     * Command that starts the server, run via the shell. The tool sets PORT/HOST in the
+     * command's environment to the readiness port/host, so frameworks that honor PORT (Next,
+     * Vite, …) bind it automatically — `command: "next start"` is enough. An explicit flag
+     * (e.g. `next start -p 4000`) still wins.
+     */
     command: z.string().min(1),
     /** Optional one-shot build to run first, e.g. "next build". */
     build: z.string().min(1).optional(),
     /** Health-check URL polled until it responds. Defaults to http://127.0.0.1:<port>. */
     url: z.string().url().optional(),
     /**
-     * Port the readiness check polls — also derives `url` when `url` is omitted. Defaults to 3101
-     * (off the common 3000 dev port). This is only where we *probe*; your `command` must actually
-     * bind this port (e.g. `next start -p 3101`).
+     * Port the readiness check polls — also derives `url` when `url` is omitted, and is passed to
+     * the command as the PORT env var so it binds the same port automatically. Defaults to 3101
+     * (off the common 3000 dev port).
      */
     port: z.number().int().positive().default(3101),
     /** Working dir for build + command, relative to the config dir. Defaults to it. */
@@ -75,8 +80,19 @@ export type ResolvedSettings = z.infer<typeof settingsSchema>;
 export const assetSpecSchema = z
   .object({
     name: z.string().min(1),
-    /** Page to capture. Required by url-based generators; omitted for local `scene` assets. */
-    url: z.string().url().optional(),
+    /**
+     * Page to capture: an absolute `https://…` URL, or a path like `/shop` resolved against the
+     * managed server's URL. Optional — with a managed server, a url-based asset that omits it
+     * captures the server root; local generators (`scene`, `palette`) need no url.
+     */
+    url: z
+      .string()
+      .min(1)
+      .refine((s) => /^https?:\/\//i.test(s) || s.startsWith("/"), {
+        message:
+          'url must be an absolute http(s) URL or a path starting with "/" (resolved against the managed server)',
+      })
+      .optional(),
     generator: z.string().min(1),
     options: z.record(z.string(), z.unknown()).default({}),
     /**

@@ -317,6 +317,7 @@ async function run(
 
 export const scrollReelGenerator: Generator<ResolvedScrollReelOptions> = {
   id: SCROLL_REEL_ID,
+  requiresUrl: true,
   optionsSchema: scrollReelOptionsSchema,
   run,
 };

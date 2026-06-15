@@ -78,6 +78,7 @@ async function run(
 
 export const screenshotsGenerator: Generator<ResolvedScreenshotsOptions> = {
   id: SCREENSHOTS_ID,
+  requiresUrl: true,
   optionsSchema: screenshotsOptionsSchema,
   run,
 };

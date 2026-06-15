@@ -46,6 +46,12 @@ export interface GeneratorResult {
 export interface Generator<TOptions = unknown> {
   /** Stable id used in config (`generator`) and the manifest. */
   id: string;
+  /**
+   * Whether this generator captures a `url`. When true and a managed server is configured, an
+   * asset that omits `url` defaults to the server's URL; when false (e.g. `scene`, `palette`),
+   * the asset needs no url. Defaults to false.
+   */
+  requiresUrl?: boolean;
   /** zod schema validating + defaulting this generator's options. Input is loose. */
   optionsSchema: ZodType<TOptions, ZodTypeDef, unknown>;
   /**

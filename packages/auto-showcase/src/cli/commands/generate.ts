@@ -2,12 +2,16 @@ import { resolveCwd, resolveOutDir } from "@/utils/paths";
 import { ensureDir } from "@/utils/fs";
 import { createLogger, createReportingLogger, type Logger } from "@/utils/logger";
 import { loadShowcaseConfig } from "@/config/load";
+import type { ResolvedConfig } from "@/config/schema";
+import { resolveTargets } from "@/config/resolve-targets";
+import { getGenerator } from "@/generators/registry";
 import { watchForInterrupt } from "@/cli/interrupt";
 import { startRunState, updateRunState, clearRunState } from "@/cli/run-state";
 import { ensureChromium } from "@/browser-install/ensure-chromium";
 import { ensureFfmpeg } from "@/media/ensure-ffmpeg";
 import {
   startManagedServer,
+  resolveServerUrl,
   type ServerHandle,
   type ServerTasks,
   type TaskHandle,
@@ -122,6 +126,17 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   // --skip-build keeps the managed server but drops its one-shot build (the site is unchanged).
   const serverCfg =
     baseServerCfg && options.skipBuild ? { ...baseServerCfg, build: undefined } : baseServerCfg;
+
+  // The managed server's URL is the default base: a url-based asset that omits `url` captures its
+  // root, and relative `url`/`routes` entries resolve against it. (No server → assets as authored.)
+  const serverBase = serverCfg ? resolveServerUrl(serverCfg) : undefined;
+  const resolvedConfig: ResolvedConfig = {
+    ...config,
+    assets: resolveTargets(config.assets, serverBase, (id) =>
+      Boolean(getGenerator(id)?.requiresUrl),
+    ),
+  };
+
   const gates: string[] = [];
   const tasks: ServerTasks = {};
   if (reporter.isLive && serverCfg) {
@@ -161,7 +176,7 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     if (!reporter.isLive) logger.start(`Generating ${count} asset(s)…`);
 
     outcomes = await runPipeline({
-      config,
+      config: resolvedConfig,
       outDir,
       logger,
       toolVersion: TOOL_VERSION,
