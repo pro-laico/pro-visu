@@ -126,18 +126,22 @@ describe("resolveTimeline", () => {
     expect(tl.scrollAt(2)).toBeCloseTo(1);
   });
 
-  it("is deterministic for a given t (same input → identical output)", () => {
-    const tl = resolveTimeline(
-      defaultTimelineSpec({
-        startDelayMs: 100,
-        durationMs: 900,
-        endDwellMs: 200,
-        easing: "easeOutCubic",
-      }),
-      1.2,
-    );
+  it("is deterministic: rebuilding from the same spec yields identical samples", () => {
+    const build = () =>
+      resolveTimeline(
+        defaultTimelineSpec({
+          startDelayMs: 100,
+          durationMs: 900,
+          endDwellMs: 200,
+          easing: "easeOutCubic",
+        }),
+        1.2,
+      );
+    // Compare two INDEPENDENT builds — catches nondeterminism, unlike comparing a value to itself.
+    const a = build();
+    const b = build();
     for (const t of [0, 0.137, 0.5, 0.913, 1.2]) {
-      expect(tl.scrollAt(t)).toBe(tl.scrollAt(t));
+      expect(a.scrollAt(t)).toBe(b.scrollAt(t));
     }
   });
 });

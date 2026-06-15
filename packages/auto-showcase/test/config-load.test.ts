@@ -8,6 +8,7 @@ import {
   loadShowcaseConfig,
 } from "@/config/load";
 import { scrollReelOptionsSchema } from "@/generators/scroll-reel/options";
+import { mergeGeneratorOptions } from "@/pipeline/runner";
 
 const dirs: string[] = [];
 async function tmp(): Promise<string> {
@@ -112,11 +113,15 @@ describe("config validation", () => {
 
 describe("option precedence", () => {
   it("per-asset options win over settings.defaults, then schema defaults fill", () => {
-    const defaults = { width: 100, fps: 24 };
-    const assetOptions = { width: 200 };
-    const merged = scrollReelOptionsSchema.parse({ ...defaults, ...assetOptions });
-    expect(merged.width).toBe(200); // asset wins
-    expect(merged.fps).toBe(24); // from settings.defaults
-    expect(merged.height).toBe(800); // schema default
+    // Exercise the real runner merge: settings.defaults (keyed by generator id) sit under
+    // per-asset options, and the schema fills whatever neither of them sets.
+    const merged = mergeGeneratorOptions(
+      { "scroll-reel": { width: 100, fps: 24 } },
+      { name: "a", url: "https://a.com", generator: "scroll-reel", options: { width: 200 }, inputs: {} },
+    );
+    const opts = scrollReelOptionsSchema.parse(merged);
+    expect(opts.width).toBe(200); // asset option wins over settings.defaults
+    expect(opts.fps).toBe(24); // falls through from settings.defaults
+    expect(opts.height).toBe(800); // neither set it → schema default
   });
 });

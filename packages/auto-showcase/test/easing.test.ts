@@ -15,7 +15,7 @@ describe("easing functions", () => {
     expect(EASINGS.easeInOutQuad(0.25)).toBeCloseTo(0.125);
     expect(EASINGS.easeOutCubic(0.5)).toBeCloseTo(0.875);
     expect(EASINGS.easeInOutSine(0.5)).toBeCloseTo(0.5);
-    expect(EASINGS.easeOutQuint(0.5)).toBeCloseTo(1 - Math.pow(0.5, 5));
+    expect(EASINGS.easeOutQuint(0.5)).toBeCloseTo(0.96875); // 1 - (1-0.5)^5, pinned to a constant
     expect(EASINGS.easeInOutExpo(0.5)).toBeCloseTo(0.5);
   });
 

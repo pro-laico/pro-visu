@@ -8,6 +8,7 @@ import {
 } from "@/generators/scene/scene-options";
 import { generatorIds, getGenerator } from "@/generators/registry";
 import { SCENE_ID } from "@/generators/scene";
+import { assetSpecSchema } from "@/config/schema";
 
 describe("scene generator", () => {
   it("is registered", () => {
@@ -29,9 +30,13 @@ describe("scene generator", () => {
     expect(sceneOptionsSchema.safeParse({ scenes: "phone" }).success).toBe(false);
   });
 
-  it("keeps a url-free asset valid in config (scene needs no url)", () => {
-    // assetSpecSchema allows omitting url; scene resolves inputs instead.
-    expect(sceneOptionsSchema.parse({ scene: "phone" }).scene).toBe("phone");
+  it("a scene asset is valid without a url (url-based generators require one; scene resolves inputs)", () => {
+    // assetSpecSchema makes url optional precisely so local scenes can omit it; this fails if
+    // url ever becomes required.
+    expect(assetSpecSchema.safeParse({ name: "hero", generator: "scene" }).success).toBe(true);
+    expect(assetSpecSchema.safeParse({ name: "hero", generator: "scene", url: "not-a-url" }).success).toBe(
+      false,
+    );
   });
 });
 

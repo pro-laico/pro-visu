@@ -56,7 +56,8 @@ describe("buildPaletteHtml", () => {
     expect(buildPaletteHtml(grid)).toContain("grid-template-columns:repeat(2,1fr)");
   });
 
-  it("embeds an @font-face when a font data URL is supplied", () => {
+  it("embeds an @font-face only when a font data URL is supplied", () => {
+    expect(buildPaletteHtml(o)).not.toContain("@font-face"); // no font → no @font-face
     expect(buildPaletteHtml(o, "data:font/woff2;base64,AAAA")).toContain("@font-face");
   });
 });
