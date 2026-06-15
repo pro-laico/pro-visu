@@ -5,12 +5,13 @@ screenshots, scenes — with more asset types to come) of the websites you build
 into any website repo, point it at a URL, and it writes assets into a gitignored `showcase/`
 folder.
 
-> Status: **v1.** Generators: `scroll-reel` (deterministic frame-stepped recording → mp4 — scroll
+> Status: **0.2** (pre-1.0; the option surface may still shift). Generators: `scroll-reel` (deterministic frame-stepped recording → mp4 — scroll
 > reels, choreographed tours, scripted interaction, social formats and more), `screenshots`
 > (responsive full-page + element captures), and `scene` (inputs composited inside a web
 > scene). The pipeline is a plugin contract, so new asset types slot in without core changes.
 
-> Not on npm yet — see [Using it before it's published](#using-it-before-its-published).
+> Requires Node ≥ 18.18. The first run downloads a managed Chromium (cached and shared
+> across projects); ffmpeg is bundled — no global installs required.
 
 ## Quick start (in a website repo)
 
@@ -248,9 +249,10 @@ inputs+options are unchanged), `--skip-server` (use an already-running site), `-
 `--verbose`. A managed server (`settings.server`) can build → start → capture → stop the site
 automatically so the npm script is just `showcase generate`.
 
-## Using it before it's published
+## Using it from source
 
-`auto-showcase` isn't on npm yet, but you can use it in a real website repo today. Pick one:
+Prefer the published package (`pnpm add -D auto-showcase`). To use an unreleased build —
+while contributing, or to pin `main` — pick one:
 
 **A — From this GitHub repo (simplest):**
 ```bash

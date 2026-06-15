@@ -14,7 +14,9 @@
     "build:lib": "turbo run build --filter=auto-showcase",
     "docs": "turbo run dev --filter=docs",
     "testing": "turbo run dev --filter=testing",
-    "generate": "pnpm --filter=testing generate"
+    "generate": "pnpm --filter=testing generate",
+    "release": "node tools/releaser/release.mjs",
+    "publish-packages": "node tools/releaser/publish.mjs"
   },
   "devDependencies": {
     "turbo": "^2.5.5",

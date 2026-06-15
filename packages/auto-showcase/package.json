@@ -4,6 +4,19 @@
   "description": "A portable CLI for generating showcase assets (scroll reels, and more) of the websites you build.",
   "type": "module",
   "license": "MIT",
+  "author": "Pro Laico",
+  "homepage": "https://github.com/chad-hill/auto-showcase#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chad-hill/auto-showcase.git",
+    "directory": "packages/auto-showcase"
+  },
+  "bugs": {
+    "url": "https://github.com/chad-hill/auto-showcase/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "keywords": [
     "showcase",
     "playwright",
