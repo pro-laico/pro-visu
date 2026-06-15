@@ -10,7 +10,6 @@ the asset's own `options` (the asset wins). Each generator validates its own opt
 |---|---|---|---|
 | [`scroll-reel`](/docs/generators/scroll-reel) | mp4 (+ gif/webp/poster) | Yes | `width`/`height`/`fps`/`duration`, `capture`, `choreography`, `autoSections`, `kenBurns`, `loop`, clean-capture, `colorScheme`/`viewports`, `aspect`, `outputs`, `intro`/`outro`, `annotations`, `actions`, `focus`, `routes` |
 | [`screenshots`](/docs/generators/screenshots) | png / jpeg | Yes | `breakpoints[]`, `fullPage`, `format`, `elements[]`, `deviceScaleFactor` |
-| [`device-frame`](/docs/generators/device-frame) | mp4 | Yes | `frameWidth`, `background`, + all `scroll-reel` capture options |
 | [`scene`](/docs/generators/scene) | mp4 | No | `scene`, `width`/`height`, `capture`, `durationSeconds`, `sceneOptions`, plus `inputs` |
 | [`specimen`](/docs/generators/specimen) | mp4 | No | `font`, `template`, `pulses`, `colors`, `seed` |
 | [`palette`](/docs/generators/palette) | png | No | `colors[]`, `layout`, corner fields |
@@ -18,8 +17,9 @@ the asset's own `options` (the asset wins). Each generator validates its own opt
 
 ## URL-based vs local generators
 
-- **URL-based** (`scroll-reel`, `screenshots`, `device-frame`) capture a live page, so the
-  asset needs a `url` (and a running site or a [managed server](/docs/configuration/managed-server)).
+- **URL-based** (`scroll-reel`, `screenshots`) capture a live page, so the asset needs a `url`
+  (and a running site or a [managed server](/docs/configuration/managed-server)). With a managed
+  server, an omitted `url` defaults to the server root.
 - **Local** (`scene`, `specimen`, `palette`, `palette-reel`) render from a font file, a colour
   list, or other assets — no `url` required. `scene` composites assets named in its `inputs`.
 

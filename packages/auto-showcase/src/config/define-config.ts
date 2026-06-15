@@ -1,6 +1,5 @@
 import type { ScrollReelOptions } from "@/generators/scroll-reel/options";
 import type { ScreenshotsOptions } from "@/generators/screenshots/options";
-import type { DeviceFrameOptions } from "@/generators/device-frame/options";
 import type { SceneOptions } from "@/generators/scene/options";
 import type { SpecimenOptions } from "@/generators/specimen/options";
 import type { PaletteOptions } from "@/generators/palette/options";
@@ -70,7 +69,6 @@ export interface ShowcaseSettingsInput {
   defaults?: {
     "scroll-reel"?: ScrollReelOptions;
     screenshots?: ScreenshotsOptions;
-    "device-frame"?: DeviceFrameOptions;
     specimen?: SpecimenOptions;
     palette?: PaletteOptions;
     "palette-reel"?: PaletteReelOptions;
@@ -93,7 +91,6 @@ export interface AssetBaseInput {
 export type AssetSpecInput =
   | (AssetBaseInput & { url?: string; generator: "scroll-reel"; options?: ScrollReelOptions })
   | (AssetBaseInput & { url?: string; generator: "screenshots"; options?: ScreenshotsOptions })
-  | (AssetBaseInput & { url?: string; generator: "device-frame"; options?: DeviceFrameOptions })
   | (AssetBaseInput & { url?: string; generator: "scene"; options?: SceneOptions })
   | (AssetBaseInput & { generator: "specimen"; options: SpecimenOptions })
   | (AssetBaseInput & { generator: "palette"; options: PaletteOptions })

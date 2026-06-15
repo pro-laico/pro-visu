@@ -1,14 +1,13 @@
 # auto-showcase
 
 A portable CLI for generating marketing/showcase assets (scroll reels, responsive
-screenshots, device-framed videos — with more asset types to come) of the websites you
-build. Install it into any website repo, point it at a URL, and it writes assets into a
-gitignored `showcase/` folder.
+screenshots, scenes — with more asset types to come) of the websites you build. Install it
+into any website repo, point it at a URL, and it writes assets into a gitignored `showcase/`
+folder.
 
 > Status: **v1.** Generators: `scroll-reel` (deterministic frame-stepped recording → mp4 — scroll
 > reels, choreographed tours, scripted interaction, social formats and more), `screenshots`
-> (responsive full-page + element captures), `device-frame` (the capture composited into a
-> browser-window mockup via a single ffmpeg pass), and `scene` (inputs composited inside a web
+> (responsive full-page + element captures), and `scene` (inputs composited inside a web
 > scene). The pipeline is a plugin contract, so new asset types slot in without core changes.
 
 > Not on npm yet — see [Using it before it's published](#using-it-before-its-published).
@@ -59,7 +58,6 @@ and are merged beneath each asset's own `options`.
 |---|---|---|
 | `scroll-reel` | mp4 of the site (frame-stepped by default) — scroll reels, choreographed tours, interaction demos | `width`/`height`/`fps`/`duration`/`easing` plus `capture`, `choreography`, `autoSections`, `kenBurns`, `loop`, clean-capture, `colorScheme`/`viewports`, `aspect`, `outputs`, `intro`/`outro`, `annotations`, `actions`, `focus`, `routes` — see [Recording reels in depth](#recording-reels-in-depth-scroll-reel) |
 | `screenshots` | png/jpeg page + element captures per breakpoint | `breakpoints[]`, `fullPage`, `format`, `elements[]`, `deviceScaleFactor` |
-| `device-frame` | mp4 of the site composited into a browser-window mockup (one ffmpeg pass) | `frameWidth`, `background`, plus all `scroll-reel` capture options |
 | `scene` | mp4 of inputs composited inside a web scene (phone/laptop/browser) | `scene`, `inputs`, `width`, `height`, `capture`, `durationSeconds`, `workers`, `sceneOptions` |
 
 ```ts
@@ -77,26 +75,15 @@ assets: [
       elements: [{ selector: "header", name: "nav" }],
     },
   },
-  {
-    name: "home-frame",
-    url: "https://your-site.com",
-    generator: "device-frame",
-    options: { frameWidth: 1280, background: "#0b0b0f" },
-  },
 ],
 ```
-
-`device-frame` composites a captured scroll into a static browser-window mockup using a
-single ffmpeg pass (the window chrome is painted once with the managed Chromium) — fast and
-dependency-light. For richer/animated mockups, use `scene`.
 
 ## Recording reels in depth (`scroll-reel`)
 
 `scroll-reel` is the workhorse. By default it captures **frame-stepped**: it drives a virtual
 clock, screenshots each frame, and pipes them to ffmpeg — so output is frame-accurate, crisp
 (supersampled by `deviceScaleFactor`), parallelized across `workers`, and **byte-identical
-run-to-run**. Every option below is a `scroll-reel` option; `device-frame` inherits the
-capture-side ones (it composites the same frame-stepped capture into its window chrome).
+run-to-run**. Every option below is a `scroll-reel` option.
 
 > Every option has hover docs in `showcase.config.ts` — the authoring types are generated from
 > the validation schema, so the editor always matches what the tool accepts.
@@ -295,7 +282,7 @@ npx showcase generate    # point a target at a deployed URL or a localhost you'v
 ```
 
 The first run downloads a Chromium for Playwright (one-time, cached and shared across
-projects); `device-frame` reuses that same browser.
+projects).
 
 ## Developing auto-showcase
 

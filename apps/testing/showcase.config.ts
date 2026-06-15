@@ -54,8 +54,6 @@ export default defineConfig({
         ],
       },
     },
-    // browser-window device frame
-    { name: "frame", generator: "device-frame", options: { frameWidth: 1280, background: "#1a1714" } },
     // scene: a phone-width capture composited into a phone mockup
     { name: "phone-cap", generator: "scroll-reel", options: { width: 390, height: 844, duration: 5000 } },
     {

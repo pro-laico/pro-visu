@@ -83,8 +83,8 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     }
   }
 
-  // Self-heal ffmpeg: scroll-reel and device-frame both shell out to it, and the bundled
-  // binary may be missing/corrupt when the consumer's package manager skipped build scripts.
+  // Self-heal ffmpeg: the video generators shell out to it, and the bundled binary may be
+  // missing/corrupt when the consumer's package manager skipped build scripts.
   if (!(await ensureFfmpeg({ logger }))) {
     logger.error("A working ffmpeg is required for video generators.");
     process.exitCode = 1;

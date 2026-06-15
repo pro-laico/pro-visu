@@ -1,11 +1,11 @@
 ---
 title: Introduction
-description: auto-showcase turns a website into marketing assets — scroll reels, screenshots, device frames, scenes, and specimens — from a single config.
+description: auto-showcase turns a website into marketing assets — scroll reels, screenshots, scenes, and specimens — from a single config.
 ---
 
 **auto-showcase** is a portable CLI that turns the websites you build into marketing and
-showcase assets: scroll reels, responsive screenshots, device-framed videos, composited
-scenes, and font/colour specimens — all from a single `showcase.config.ts`.
+showcase assets: scroll reels, responsive screenshots, composited scenes, and font/colour
+specimens — all from a single `showcase.config.ts`.
 
 Install it into a website repo, point assets at a URL, and run `showcase generate`. Output
 is written into a gitignored `showcase/` folder alongside a `manifest.json`.
@@ -31,7 +31,6 @@ Assets can also depend on each other through `inputs`, forming a small DAG — f
 |---|---|---|
 | [`scroll-reel`](/docs/generators/scroll-reel) | mp4 (+ gif/webp/poster) | Deterministic frame-stepped recordings — scroll reels, choreographed tours, scripted interactions, social formats |
 | [`screenshots`](/docs/generators/screenshots) | png / jpeg | Responsive full-page and element captures per breakpoint |
-| [`device-frame`](/docs/generators/device-frame) | mp4 | A capture composited into a browser-window mockup in one ffmpeg pass |
 | [`scene`](/docs/generators/scene) | mp4 | Inputs composited inside a web scene (phone, laptop, browser, wall) |
 | [`specimen`](/docs/generators/specimen) | mp4 | A looping type specimen from a font file |
 | [`palette`](/docs/generators/palette) | png | A still colour-palette image |

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { generatorIds, getGenerator, listGenerators } from "@/generators/registry";
 import { SCROLL_REEL_ID } from "@/generators/scroll-reel";
 import { SCREENSHOTS_ID } from "@/generators/screenshots";
-import { DEVICE_FRAME_ID } from "@/generators/device-frame";
 import { SCENE_ID } from "@/generators/scene";
 import { SPECIMEN_ID } from "@/generators/specimen";
 import { PALETTE_ID } from "@/generators/palette";
@@ -13,7 +12,6 @@ import { PALETTE_REEL_ID } from "@/generators/palette-reel";
 const BUILT_INS = [
   SCROLL_REEL_ID,
   SCREENSHOTS_ID,
-  DEVICE_FRAME_ID,
   SCENE_ID,
   SPECIMEN_ID,
   PALETTE_ID,

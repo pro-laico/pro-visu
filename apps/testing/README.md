@@ -42,6 +42,6 @@ The storefront uses tonal placeholders until you provide photography — see
 ## Harness
 
 - `showcase.config.ts` — a managed-server config exercising the generators/features (scroll reels,
-  screenshots, device frame, scene, palette, scripted menu + cart interactions, element focus,
+  screenshots, scene, palette, scripted menu + cart interactions, element focus,
   multi-page tour); output goes to `public/showcase/` (gitignored) so Next serves it.
 - `scripts/check.mjs` — manifest/output validation.

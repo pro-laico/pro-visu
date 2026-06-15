@@ -5,8 +5,7 @@ import type { ResolvedAssetSpec } from "@/config/schema";
 function asset(over: Partial<ResolvedAssetSpec> = {}): ResolvedAssetSpec {
   return { name: "a", generator: "scroll-reel", options: {}, inputs: {}, ...over };
 }
-const needsUrl = (id: string) =>
-  id === "scroll-reel" || id === "screenshots" || id === "device-frame";
+const needsUrl = (id: string) => id === "scroll-reel" || id === "screenshots";
 const BASE = "http://127.0.0.1:3101";
 
 describe("resolveTargets", () => {

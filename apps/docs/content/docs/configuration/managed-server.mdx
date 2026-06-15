@@ -10,37 +10,40 @@ script can be just `showcase generate`.
 ```ts
 import { defineConfig } from "auto-showcase";
 
-const URL = "http://127.0.0.1:3101";
-
 export default defineConfig({
   settings: {
     server: {
       build: "next build",
-      command: "next start -p 3101",
-      port: 3101,
-      readyTimeoutMs: 180_000,
+      command: "next start", // PORT is injected (defaults to 3101) — no -p needed
     },
   },
   assets: [
-    { name: "home", url: URL, generator: "scroll-reel" },
+    // url omitted → captures the server root; relative paths resolve against it
+    { name: "home", generator: "scroll-reel" },
+    { name: "pricing", url: "/pricing", generator: "scroll-reel" },
   ],
 });
 ```
+
+The managed server's URL is the **default base** for capture targets: a url-based asset that
+omits `url` captures the server root, and any relative `url` or `routes` entry (e.g. `/pricing`)
+resolves against it. Absolute URLs pass through unchanged.
 
 ## Fields
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
-| `command` | `string` | — | **Required.** Command that starts the server, run via the shell, e.g. `"next start -p 3101"`. |
+| `command` | `string` | — | **Required.** Command that starts the server, run via the shell. The tool sets `PORT`/`HOST` in its environment to the readiness port/host, so frameworks that honour `PORT` (Next, Vite, …) bind it automatically — `"next start"` is enough. An explicit flag (e.g. `next start -p 4000`) still wins. |
 | `build` | `string` | — | Optional one-shot build to run first, e.g. `"next build"`. |
 | `url` | `string` | — | Health-check URL polled until it responds. Defaults to `http://127.0.0.1:<port>`. |
-| `port` | `number` | `3101` | Port the readiness check probes (and derives `url` from). Your `command` must actually bind it. |
+| `port` | `number` | `3101` | Port the readiness check probes (and derives `url` from), also passed to the command as `PORT` so it binds the same port. |
 | `cwd` | `string` | config dir | Working directory for `build` + `command`, relative to the config. |
 | `readyTimeoutMs` | `number` | `120000` | Max time to wait for the server to become reachable. |
 | `reuseExisting` | `boolean` | `true` | If a server is already reachable at the URL, use it as-is (don't start or stop one). |
 
-> The `port` is only where the CLI **probes** for readiness — it does not pass the port to your
-> command. Make sure your `command` binds the same port (e.g. `next start -p 3101`).
+> Set a custom `port` (or `url`) only if your server can't read `PORT` from the environment, or
+> you need a non-default port. Otherwise leave both off — the tool keeps the command, the
+> readiness check, and your asset URLs in sync for you.
 
 ## Lifecycle and flags
 
@@ -48,7 +51,8 @@ A normal run is: **build → start → wait for ready → capture all assets →
 adjust it:
 
 - `--skip-server` — don't manage a server at all; capture an already-running site at the asset
-  URLs. Pair this with a deployed URL or a dev server you started yourself.
+  URLs. Pair this with a deployed URL or a dev server you started yourself. (Without a managed
+  server there's no base URL, so assets need absolute `url`s.)
 - `--skip-build` — keep the managed server but drop its `build` step, for fast iteration when
   the site itself is unchanged.
 
