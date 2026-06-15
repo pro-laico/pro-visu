@@ -76,6 +76,59 @@ export default defineConfig({
         ],
       },
     },
+    // type specimens: three width-stable glyph walls across sans / serif / mono (no URL needed)
+    // 1) sans — the "sweep" preset: a seamless dark loop of even per-glyph colour sweeps
+    {
+      name: "type-sans",
+      generator: "specimen",
+      options: {
+        font: "public/fonts/InterVariable.woff2",
+        name: "Inter",
+        template: "sweep",
+        lines: 4,
+      },
+    },
+    // 2) serif — a custom editorial storyboard on the VESPER paper palette, with the pulse labels on
+    {
+      name: "type-serif",
+      generator: "specimen",
+      options: {
+        font: "public/fonts/Fraunces.woff2",
+        name: "Fraunces",
+        demo: true,
+        lines: 3,
+        weight: 480,
+        colors: { background: "#f6f3ed", foreground: "#1a1714", muted: "#b49a77", accent: "#8a5a3c" },
+        pulses: [
+          { name: "rest", duration: 1.2 },
+          { name: "set", duration: 1.6, chars: 0.5, pacing: "ease-in-out" },
+          { name: "to camel", duration: 1.4, colors: 1, color: "muted", pacing: "ease-out" },
+          { name: "cognac pops", duration: 1.0, colors: 0.35, color: "accent", pacing: "random" },
+          { name: "to ink", duration: 1.4, colors: 1, color: "foreground", pacing: "ease-in" },
+          { name: "settle", duration: 0.8 },
+        ],
+      },
+    },
+    // 3) mono — a custom terminal-green storyboard; uniform glyph widths render as a perfect grid
+    {
+      name: "type-mono",
+      generator: "specimen",
+      options: {
+        font: "public/fonts/JetBrainsMono.woff2",
+        name: "JetBrains Mono",
+        lines: 6,
+        weight: 500,
+        colors: { background: "#0b0f10", foreground: "#cdd6d3", muted: "#586460", accent: "#6ee7a8" },
+        pulses: [
+          { name: "idle", duration: 1.0 },
+          { name: "type", duration: 1.6, chars: 0.5, pacing: "ease-out" },
+          { name: "accent", duration: 1.0, colors: 0.3, color: "accent", pacing: "random" },
+          { name: "type", duration: 1.4, chars: 0.4, pacing: "ease-in" },
+          { name: "dim", duration: 1.2, colors: 0.5, color: "muted", pacing: "ease-in-out" },
+          { name: "rest", duration: 0.8 },
+        ],
+      },
+    },
     // scripted interaction: open the navigation mega-menu and hover a category
     {
       name: "menu",
