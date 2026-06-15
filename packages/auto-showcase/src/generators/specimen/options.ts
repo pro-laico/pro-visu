@@ -2,9 +2,9 @@ import { z } from "zod";
 
 /**
  * A "pulse" is one beat of the specimen's animation: a named span of time during which some
- * number of glyph and/or color changes happen. An empty pulse (no changes) is a hold. Compose a
- * sequence of pulses to author the whole clip — varying each one's length, change counts, and
- * pacing gives every beat its own feel. The clip length is the sum of the pulse durations.
+ * fraction of the glyph cells change letter and/or color. An empty pulse (no changes) is a hold.
+ * Compose a sequence of pulses to author the whole clip — varying each one's length, change
+ * fractions, and pacing gives every beat its own feel. The clip length is the sum of the durations.
  */
 export const pulseSchema = z
   .object({
@@ -12,15 +12,15 @@ export const pulseSchema = z
     name: z.string().default(""),
     /** Length of this beat, in seconds. */
     duration: z.number().positive(),
-    /** How many glyph changes happen during this beat (0 = none). */
-    chars: z.number().int().nonnegative().default(0),
-    /** How many color changes happen during this beat (0 = none). */
-    colors: z.number().int().nonnegative().default(0),
+    /** Fraction of cells whose glyph changes during this beat (0..1; 1 = every cell once). */
+    chars: z.number().nonnegative().default(0),
+    /** Fraction of cells whose color changes during this beat (0..1; 1 = every cell once). */
+    colors: z.number().nonnegative().default(0),
     /**
      * Target color for this beat's color changes. When set, every color change in the beat goes to
-     * this exact token (a deliberate sweep) instead of a weighted-random pick. Set `colors` ≥ the
-     * glyph count and `pacing: "even"` to wash the whole specimen to one color evenly. Omit for the
-     * default scattered, weighted-random recoloring.
+     * this exact token (a deliberate sweep) instead of a weighted-random pick. Set `colors: 1` with
+     * `pacing: "even"` to wash the whole specimen to one color evenly. Omit for the default
+     * scattered, weighted-random recoloring.
      */
     color: z.enum(["foreground", "muted", "accent"]).optional(),
     /**
@@ -42,14 +42,14 @@ export interface PulseInput {
   name?: string;
   /** Length of this beat, in seconds. */
   duration: number;
-  /** How many glyph changes happen during this beat (0 = none — a hold). */
+  /** Fraction of cells whose glyph changes during this beat (0..1; 1 = every cell once; 0 = a hold). */
   chars?: number;
-  /** How many color changes happen during this beat (0 = none). */
+  /** Fraction of cells whose color changes during this beat (0..1; 1 = every cell once). */
   colors?: number;
   /**
    * Target color for this beat's color changes. When set, every color change goes to this exact
-   * token (a deliberate sweep) rather than a weighted-random pick. Set `colors` ≥ the glyph count
-   * with `pacing: "even"` to evenly wash the whole specimen to one color. Omit for the default
+   * token (a deliberate sweep) rather than a weighted-random pick. Set `colors: 1` with
+   * `pacing: "even"` to evenly wash the whole specimen to one color. Omit for the default
    * scattered, weighted-random recoloring.
    */
   color?: "foreground" | "muted" | "accent";
@@ -120,10 +120,8 @@ export interface SpecimenOptionsInput {
   deviceScaleFactor?: number;
   /** Glyph weight on the variable-font axis, 1–1000. */
   weight?: number;
-  /** Roughly how many glyphs to show — auto-grouped into the wrapping line. */
-  characters?: number;
-  /** Explicit glyph size in px. Omit to auto-fit the type area. */
-  fontSize?: number;
+  /** Number of glyph rows. The glyph size is derived so the rows fill the top 80% of the frame. */
+  lines?: number;
   /** Line-height of the glyph block (default 0.78 — tight, cap-height-hugging). */
   leading?: number;
   /** Glyphs to exclude from the showcase, e.g. "QXZ" (case-insensitive). */
@@ -138,10 +136,15 @@ export interface SpecimenOptionsInput {
   colorWeights?: SpecimenColorWeightsInput;
   /** The animation storyboard: an ordered sequence of pulses (beats). */
   pulses?: PulseInput[];
-  /** Multiply every pulse's glyph-change count (1 = baseline, 2 = twice as busy, 0 = none). */
+  /** Multiply every pulse's glyph-change fraction (1 = baseline, 2 = twice as busy, 0 = none). */
   characterIntensity?: number;
-  /** Multiply every pulse's color-change count (1 = baseline, 2 = twice as busy, 0 = none). */
+  /** Multiply every pulse's color-change fraction (1 = baseline, 2 = twice as busy, 0 = none). */
   colorIntensity?: number;
+  /**
+   * Max fraction a line's total width may drift as its glyphs change (default 0.05). Glyph swaps are
+   * width-compensated to stay within this, so the left-aligned right edge barely moves.
+   */
+  maxLineDrift?: number;
   /**
    * Mirror the pulses (play them out and back) so the clip ends on its opening frame and loops
    * seamlessly. Doubles the clip length. Set false for a one-shot that ends on the last state.
@@ -162,20 +165,21 @@ const P = (name: string, duration: number, chars = 0, colors = 0): Pulse => ({
 });
 
 /**
- * A lively default storyboard describing the *outward* half of the loop (sums to 10s). With
- * mirroring on (the default), the clip plays this out and back for a seamless ~20s loop. Override
- * `pulses` in config to compose your own.
+ * A lively default storyboard describing the *outward* half of the loop (sums to ~10s). With
+ * mirroring on (the default), the clip plays this out and back for a seamless ~20s loop. The
+ * `chars`/`colors` numbers are fractions of the wall (1 = every glyph). Override `pulses` to compose
+ * your own.
  */
 const DEFAULT_PULSES: Pulse[] = [
   P("intro hold", 0.8),
-  P("first letters", 0.8, 3, 0),
+  P("first letters", 0.8, 0.15, 0),
   P("settle", 1.5),
-  P("ripple", 1, 2, 1),
-  P("color sweep", 1.2, 0, 3),
+  P("ripple", 1, 0.08, 0.04),
+  P("color sweep", 1.2, 0, 0.13),
   P("rest", 1.2),
-  P("quick burst", 0.6, 4, 0),
-  P("drift", 1.2, 0, 2),
-  P("finale", 1.2, 4, 3),
+  P("quick burst", 0.6, 0.18, 0),
+  P("drift", 1.2, 0, 0.08),
+  P("finale", 1.2, 0.18, 0.13),
   P("outro hold", 0.5),
 ];
 
@@ -185,33 +189,32 @@ const DEFAULT_PULSES: Pulse[] = [
  * between, and clearly named, so (with demo mode) you can see exactly what each does. Runs once
  * forward (no mirror) for a focused ~47s walkthrough.
  */
-const DEMO_CHARACTERS = 27;
 const DEMO_PULSES: PulseInput[] = [
-  { name: "linear", duration: 5, chars: 15, pacing: "linear" },
+  { name: "linear", duration: 5, chars: 0.5, pacing: "linear" },
   { name: "hold", duration: 2 },
-  { name: "ease-in", duration: 5, chars: 15, pacing: "ease-in" },
+  { name: "ease-in", duration: 5, chars: 0.5, pacing: "ease-in" },
   { name: "hold", duration: 2 },
-  { name: "ease-out", duration: 5, chars: 15, pacing: "ease-out" },
+  { name: "ease-out", duration: 5, chars: 0.5, pacing: "ease-out" },
   { name: "hold", duration: 2 },
-  { name: "ease-in-out", duration: 5, chars: 15, pacing: "ease-in-out" },
+  { name: "ease-in-out", duration: 5, chars: 0.5, pacing: "ease-in-out" },
   { name: "hold", duration: 2 },
-  { name: "random", duration: 5, chars: 15, pacing: "random" },
+  { name: "random", duration: 5, chars: 0.5, pacing: "random" },
   { name: "hold", duration: 2 },
   // Even, per-character color sweeps: each washes every glyph to one token, evenly across the beat.
-  { name: "sweep → muted", duration: 4, colors: DEMO_CHARACTERS, color: "muted", pacing: "even" },
-  { name: "sweep → accent", duration: 4, colors: DEMO_CHARACTERS, color: "accent", pacing: "even" },
-  { name: "sweep → foreground", duration: 4, colors: DEMO_CHARACTERS, color: "foreground", pacing: "even" },
+  { name: "sweep → muted", duration: 4, colors: 1, color: "muted", pacing: "even" },
+  { name: "sweep → accent", duration: 4, colors: 1, color: "accent", pacing: "even" },
+  { name: "sweep → foreground", duration: 4, colors: 1, color: "foreground", pacing: "even" },
   { name: "hold", duration: 2 },
-  { name: "weighted recolor", duration: 5, colors: 16 },
+  { name: "weighted recolor", duration: 5, colors: 0.6 },
   { name: "hold", duration: 2 },
-  { name: "mingle", duration: 5, chars: 8, colors: 8 },
+  { name: "mingle", duration: 5, chars: 0.3, colors: 0.3 },
 ];
 
 /**
  * The "sweep" template: a clean, seamless-looping showcase built around the even per-character color
  * sweeps. Every glyph washes evenly from one token to the next (muted → accent → foreground), with a
  * touch of glyph drift for life, on a dark palette chosen so the accent reads clearly. Mirrored, so
- * it loops without a seam. Override `colors`, `characters`, or `pulses` to retheme it.
+ * it loops without a seam. Override `colors`, `lines`, or `pulses` to retheme it.
  */
 const SWEEP_COLORS: SpecimenColorsInput = {
   background: "#0b0b0f",
@@ -220,26 +223,25 @@ const SWEEP_COLORS: SpecimenColorsInput = {
   accent: "#7c9cff",
 };
 
-// `colors` per sweep is kept equal to `characters` so an even sweep lands on every glyph exactly once
-// (one full, clump-free wash). Outward half sums to ~10.6s → ~21s mirrored loop.
-const SWEEP_CHARACTERS = 26;
+// `colors: 1` per sweep lands on every glyph exactly once (one full, clump-free wash). Outward half
+// sums to ~10.6s → ~21s mirrored loop.
 const SWEEP_PULSES: PulseInput[] = [
   { name: "hold", duration: 0.8 },
-  { name: "to muted", duration: 2.2, colors: SWEEP_CHARACTERS, color: "muted", pacing: "ease-in-out" },
+  { name: "to muted", duration: 2.2, colors: 1, color: "muted", pacing: "ease-in-out" },
   { name: "settle", duration: 0.6 },
-  { name: "to accent", duration: 2.2, colors: SWEEP_CHARACTERS, color: "accent", pacing: "ease-in-out" },
+  { name: "to accent", duration: 2.2, colors: 1, color: "accent", pacing: "ease-in-out" },
   { name: "settle", duration: 0.6 },
-  { name: "to foreground", duration: 2.2, colors: SWEEP_CHARACTERS, color: "foreground", pacing: "ease-in-out" },
-  { name: "glyph drift", duration: 1.4, chars: 13, pacing: "even" },
+  { name: "to foreground", duration: 2.2, colors: 1, color: "foreground", pacing: "ease-in-out" },
+  { name: "glyph drift", duration: 1.4, chars: 0.5, pacing: "even" },
   { name: "hold", duration: 0.6 },
 ];
 
 /** Named option presets. Selected via the `template` option; explicit options override them. */
 const SPECIMEN_TEMPLATES: Record<SpecimenTemplate, Partial<SpecimenOptionsInput>> = {
-  demo: { demo: true, mirror: false, characters: DEMO_CHARACTERS, pulses: DEMO_PULSES },
+  demo: { demo: true, mirror: false, lines: 4, pulses: DEMO_PULSES },
   sweep: {
     mirror: true,
-    characters: SWEEP_CHARACTERS,
+    lines: 4,
     colors: SWEEP_COLORS,
     pulses: SWEEP_PULSES,
   },
@@ -258,9 +260,10 @@ function applyTemplate(raw: unknown): unknown {
 
 /**
  * A type-specimen video: point it at a font file and give it a name — the tool renders a clip
- * (1920×1080 by default) of the typeface set as a wrapping string whose glyphs and colors change
- * over a composed sequence of "pulses" (mirrored into a seamless loop by default), and captures it.
- * Everything else has sensible defaults.
+ * (1920×1080 by default) of the typeface set as a fixed number of left-aligned `lines` (sized to
+ * fill the top 80% of the frame) whose glyphs and colors change over a composed sequence of
+ * "pulses" (mirrored into a seamless loop by default), and captures it. Everything else has
+ * sensible defaults.
  */
 const specimenObjectSchema = z
   .object({
@@ -274,8 +277,7 @@ const specimenObjectSchema = z
     height: z.number().int().positive().default(1080),
     deviceScaleFactor: z.number().positive().max(4).default(1),
     weight: z.number().int().min(1).max(1000).default(820),
-    characters: z.number().int().min(1).max(120).default(23),
-    fontSize: z.number().positive().optional(),
+    lines: z.number().int().min(1).max(40).default(3),
     leading: z.number().positive().default(0.78),
     blacklist: z.string().default(""),
     characterPool: z
@@ -302,6 +304,7 @@ const specimenObjectSchema = z
     pulses: z.array(pulseSchema).min(1).default(DEFAULT_PULSES),
     characterIntensity: z.number().nonnegative().default(1),
     colorIntensity: z.number().nonnegative().default(1),
+    maxLineDrift: z.number().positive().max(0.5).default(0.05),
     mirror: z.boolean().default(true),
     crf: z.number().int().min(0).max(51).default(18),
     fileName: z.string().optional(),

@@ -3,10 +3,10 @@ import { flushSync } from "react-dom";
 import type { SceneProps } from "../types";
 import {
   buildEvents,
-  buildInitialCells,
   buildSpec,
-  classify,
+  packAndSeedLines,
   createCursor,
+  maxLineDrift,
   mulberry32,
   pulseNameAt,
   DEFAULT_WEIGHTS,
@@ -16,45 +16,34 @@ import {
 } from "./specimen-timeline";
 
 /**
- * The specimen is one big wrapping string of `characters` glyphs, each its own independently
- * animated cell (one glyph per cell — no grouping). Each cell is assigned a width class (thin /
- * regular / wide, measured from the actual font) and only ever changes to other glyphs of that
- * class — so the line lengths stay stable as glyphs change. Because every glyph is its own cell,
- * pulses act per-character: a color sweep can wash every glyph evenly, one at a time.
+ * The specimen is a fixed number of LEFT-ALIGNED lines, each filled with width-classed glyph cells
+ * to a target width derived from the font's real advances. The glyph size is derived from `lines`
+ * (the rows fill the top 80% of the frame); the bottom 20% shows the background + the font name.
+ * Glyphs and colors change over a config-composed sequence of "pulses" (mirrored into a seamless
+ * loop by default). Glyph changes are width-compensated so each line's total width — and thus its
+ * right edge — barely shifts (≤ `maxLineDrift`) as the wall animates.
  *
  * The animation is a pure function of time: a seeded, deterministic event schedule (see
  * specimen-timeline.ts) drives cell state through `window.__sceneSeek(t)`. The capture runtime
  * frame-steps it deterministically (`capture: "frames"`) or plays it on a rAF wall clock.
  */
 const DEFAULT_LEADING = 0.78; // line-height: minimal leading so the cap-height lines sit close together
+const DEFAULT_LINES = 3;
+const DEFAULT_DRIFT = 0.05;
+const MIN_PER_LINE = 3; // never let a huge font collapse a line to 1–2 glyphs
+const TYPE_FRACTION = 0.8; // glyph wall fills the top 80%; bottom 20% = background + label
 
-// Fallback used only if the host doesn't pass `pulses` (the generator always does). These describe
-// the *outward* half; with mirroring on (default) the clip plays this out and back (~2x as long).
+// Fallback used only if the host doesn't pass `pulses` (the generator always does). `chars`/`colors`
+// are fractions of the wall. These describe the *outward* half; with mirroring on it plays out + back.
 const DEFAULT_PULSES: Pulse[] = [
   { name: "hold", duration: 0.8 },
-  { name: "letters", duration: 0.8, chars: 3 },
+  { name: "letters", duration: 0.8, chars: 0.13 },
   { name: "settle", duration: 1.5 },
-  { name: "colors", duration: 1.2, colors: 3 },
+  { name: "colors", duration: 1.2, colors: 0.13 },
   { name: "rest", duration: 1.2 },
-  { name: "finale", duration: 1.2, chars: 4, colors: 3 },
+  { name: "finale", duration: 1.2, chars: 0.17, colors: 0.13 },
   { name: "outro", duration: 3.3 },
 ];
-
-/** Greedy break-all wrap, matching the browser, using measured per-glyph advances (in em). */
-function wrapLineCount(text: string, adv: Record<string, number>, maxEm: number): number {
-  let lines = 1;
-  let w = 0;
-  for (const ch of text) {
-    const a = adv[ch] ?? 0.6;
-    if (w + a > maxEm && w > 0) {
-      lines++;
-      w = a;
-    } else {
-      w += a;
-    }
-  }
-  return lines;
-}
 
 /** Demo overlay: the name of the pulse playing at clip-time `t` (pure — driven by the seek clock). */
 function PulseLabel({
@@ -85,12 +74,14 @@ function PulseLabel({
   );
 }
 
+const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
+
 /**
- * A type specimen: one big wrapping string of `characters` width-classed glyph cells whose glyphs
- * and colors change over a config-composed sequence of "pulses" (mirrored into a seamless loop by
- * default). Cells set their color statefully via UnoCSS attributify tokens
- * (`text="foreground|muted|accent"`) → `--sp-*` CSS variables the wrapper sets from config. Served
- * via `files.<name>`; captured with the deterministic frame-stepper.
+ * A type specimen: `lines` left-aligned rows of glyph cells whose glyphs and colors change over a
+ * config-composed sequence of "pulses" (mirrored into a seamless loop by default). Cells set their
+ * color statefully via UnoCSS attributify tokens (`text="foreground|muted|accent"`) → `--sp-*` CSS
+ * variables the wrapper sets from config. Served via `files.<name>`; captured with the deterministic
+ * frame-stepper.
  */
 export function Specimen({
   width,
@@ -104,10 +95,10 @@ export function Specimen({
   const weight = typeof options.weight === "number" ? options.weight : 800;
   const label = typeof options.label === "string" ? options.label : "";
   const demo = options.demo === true;
-  const characters = typeof options.characters === "number" ? Math.max(1, options.characters) : 23;
+  const lines = typeof options.lines === "number" ? Math.max(1, Math.round(options.lines)) : DEFAULT_LINES;
   const blacklist = typeof options.blacklist === "string" ? options.blacklist : "";
-  const fontSizeOpt = typeof options.fontSize === "number" ? options.fontSize : undefined;
   const leading = typeof options.leading === "number" ? options.leading : DEFAULT_LEADING;
+  const tol = typeof options.maxLineDrift === "number" ? options.maxLineDrift : DEFAULT_DRIFT;
   const characterPool =
     typeof options.characterPool === "string" ? options.characterPool : undefined;
   // The schedule seed: same seed ⇒ identical animation in every browser context. The parallel
@@ -127,30 +118,26 @@ export function Specimen({
     muted: typeof cw.muted === "number" ? cw.muted : DEFAULT_WEIGHTS.muted,
     accent: typeof cw.accent === "number" ? cw.accent : DEFAULT_WEIGHTS.accent,
   };
-  const pulsesKey = `${JSON.stringify(pulses)}|${mirror}|${charIntensity}|${colorIntensity}|${JSON.stringify(weights)}|${seed}`;
+  const pulsesKey = `${JSON.stringify(pulses)}|${mirror}|${charIntensity}|${colorIntensity}|${JSON.stringify(weights)}|${seed}|${tol}`;
   const colors = (options.colors ?? {}) as Record<string, string>;
   const foreground = colors.foreground ?? "#16181d";
   const muted = colors.muted ?? "#a7adb6";
   const accent = colors.accent ?? background; // accent falls back to the backdrop (blends in)
   const labelColor = colors.label ?? foreground; // font-name label falls back to foreground
 
-  // The per-character width classes. Char lists per class are measured after the font loads.
-  const specKey = `${characters}|${blacklist}|${characterPool ?? ""}`;
-  const spec = useMemo(() => buildSpec(characters, blacklist, characterPool), [specKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The glyph pool (master minus blacklist), measured into widths after the font loads.
+  const specKey = `${blacklist}|${characterPool ?? ""}`;
+  const spec = useMemo(() => buildSpec(blacklist, characterPool), [specKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Frame: a tight 5px top/left/right margin (near full-bleed text), and a roomy bottom (bar +
-  // gap) so the font name never feels crowded.
-  const sideInset = 5;
-  const topInset = 5;
-  const barH = Math.round(height * 0.09);
-  const bottomGap = Math.round(height * 0.04);
-  const typeArea = height - topInset - barH - bottomGap; // vertical space for the text block
-  const lineWidth = width - sideInset * 2;
+  // Geometry: the glyph wall fills the top 80% full-bleed; the bottom 20% is background + label.
+  const typeArea = Math.round(height * TYPE_FRACTION);
+  const barH = height - typeArea;
+  const fontSize = clamp(Math.floor(typeArea / (lines * leading)), 8, typeArea);
+  const lineH = fontSize * leading;
+  const targetEm = width / fontSize; // per-line advance budget, in em
 
-  const [cells, setCells] = useState<Cell[]>(() =>
-    spec.cls.map(() => ({ text: "", token: "foreground" as Token })),
-  );
-  const [fit, setFit] = useState<number | null>(null);
+  const [cells, setCells] = useState<Cell[]>([]);
+  const [lineLengths, setLineLengths] = useState<number[]>([]);
   const [clock, setClock] = useState(0); // current timeline position (drives the demo overlay)
 
   // Hold capture until the glyphs are actually on screen. The cells start empty and are only seeded
@@ -169,10 +156,10 @@ export function Specimen({
     requestAnimationFrame(() => requestAnimationFrame(() => sceneReady.current?.resolve()));
   };
 
-  // Once the font is loaded: measure it, classify the pool by width, seed the opening cells and the
-  // deterministic event schedule, size the type (unless `fontSize` is set), and publish the
-  // timeline seek hook. Gating __sceneReady on all of this means capture only starts when seeking
-  // is possible and the opening state has painted.
+  // Once the font is loaded: measure it, pack the lines to width using real advances, seed the
+  // opening cells and the deterministic (width-compensated) event schedule, and publish the timeline
+  // seek hook. Gating __sceneReady on all of this means capture only starts when seeking is possible
+  // and the opening state has painted.
   useEffect(() => {
     let cancelled = false;
     const setup = (): void => {
@@ -185,51 +172,49 @@ export function Specimen({
       ctx.font = `${weight} 100px 'Specimen'`;
       const adv: Record<string, number> = {};
       for (const ch of spec.pool) adv[ch] = ctx.measureText(ch).width / 100;
-      const classes = classify(spec.pool, adv);
 
-      // One seeded stream feeds the initial cells AND the schedule, in a fixed order — every
-      // context that runs this computes the byte-identical animation.
+      // One seeded stream feeds the packing AND the schedule, in a fixed order — every context that
+      // runs this computes the byte-identical wall + animation.
       const rng = mulberry32(seed);
-      const initial = buildInitialCells(spec.cls, classes, spec.pool, rng);
-      setCells(initial.map((c) => ({ ...c })));
-
-      if (fontSizeOpt == null) {
-        const listFor = (c: (typeof spec.cls)[number]): string[] =>
-          classes[c].length ? classes[c] : [...spec.pool];
-        const worst = spec.cls
-          .map((c) => {
-            const list = listFor(c);
-            return list.reduce((w, ch) => ((adv[ch] ?? 0) > (adv[w] ?? -1) ? ch : w), list[0] ?? "");
-          })
-          .join("");
-        const fits = (size: number): boolean =>
-          wrapLineCount(worst, adv, (lineWidth / size) * 0.99) * leading * size <= typeArea;
-        let lo = 16;
-        let hi = Math.floor(typeArea / leading);
-        while (hi - lo > 1) {
-          const m = (lo + hi) >> 1;
-          if (fits(m)) lo = m;
-          else hi = m;
-        }
-        setFit(lo);
-      }
+      const packed = packAndSeedLines({
+        lines,
+        targetEm,
+        adv,
+        pool: spec.pool,
+        rng,
+        minPerLine: MIN_PER_LINE,
+      });
+      setCells(packed.cells.map((c) => ({ ...c })));
+      setLineLengths(packed.lineLengths);
 
       const events = buildEvents(
         pulses,
         mirror,
-        spec.cls,
-        classes,
-        initial,
+        packed.cells,
+        adv,
+        spec.pool,
+        packed.lineLengths,
+        packed.lineInitialEm,
         charIntensity,
         colorIntensity,
         weights,
+        tol,
         rng,
       );
-      const cursor = createCursor(initial, events);
+      const cursor = createCursor(packed.cells, events);
 
-      // The timeline hook: the runtime frame-steps this (seek) or drives it from a rAF clock
-      // (play). flushSync commits the DOM before the runtime's trailing rAF + screenshot, so every
-      // captured frame shows exactly the state for its time.
+      // The ≤tol guarantee holds by construction unless the pool is too small to compensate — warn
+      // (don't fail) in that degenerate case so a constrained config is visible.
+      const drift = maxLineDrift(packed.cells, events, adv, packed.lineLengths);
+      if (drift > tol + 1e-6) {
+        console.warn(
+          `[specimen] line width drifts up to ${(drift * 100).toFixed(1)}% (budget ${(tol * 100).toFixed(0)}%) — the character pool may be too small to stay stable.`,
+        );
+      }
+
+      // The timeline hook: the runtime frame-steps this (seek) or drives it from a rAF clock (play).
+      // flushSync commits the DOM before the runtime's trailing rAF + screenshot, so every captured
+      // frame shows exactly the state for its time.
       window.__sceneSeek = (t: number) => {
         flushSync(() => {
           setCells(cursor.stateAt(t));
@@ -245,9 +230,18 @@ export function Specimen({
       cancelled = true;
       delete window.__sceneSeek;
     };
-  }, [specKey, pulsesKey, weight, lineWidth, typeArea, fontSizeOpt, leading, seed]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [specKey, pulsesKey, weight, lines, leading, width, height, seed, tol]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fontSize = fontSizeOpt ?? fit ?? Math.round(typeArea / (3 * leading));
+  // Cumulative start index of each line, for slicing the flat `cells` into rows.
+  const offsets = useMemo(() => {
+    const out: number[] = [];
+    let a = 0;
+    for (const len of lineLengths) {
+      out.push(a);
+      a += len;
+    }
+    return out;
+  }, [lineLengths]);
 
   const rootStyle = {
     position: "absolute",
@@ -267,36 +261,45 @@ export function Specimen({
         <div
           style={{
             position: "absolute",
-            top: topInset,
-            left: sideInset,
-            right: sideInset,
+            top: 0,
+            left: 0,
+            right: 0,
             height: typeArea,
-            display: "flex",
-            alignItems: "flex-start",
+            overflow: "hidden",
           }}
         >
-          <div
-            style={{
-              width: "100%",
-              fontSize,
-              fontWeight: weight,
-              lineHeight: leading,
-              color: "var(--sp-foreground)",
-              wordBreak: "break-all",
-            }}
-          >
-            {cells.map((c, i) => (
-              <span key={i} text={c.token}>
-                {c.text}
-              </span>
-            ))}
-          </div>
+          {lineLengths.map((len, L) => (
+            <div
+              key={L}
+              style={{
+                display: "flex",
+                justifyContent: "flex-start",
+                whiteSpace: "nowrap",
+                height: lineH,
+                lineHeight: `${lineH}px`,
+                fontSize,
+                fontWeight: weight,
+                color: "var(--sp-foreground)",
+                fontKerning: "none",
+                fontVariantLigatures: "none",
+                letterSpacing: 0,
+                overflow: "hidden",
+              }}
+            >
+              {cells.slice(offsets[L] ?? 0, (offsets[L] ?? 0) + len).map((c, i) => (
+                <span key={i} text={c.token}>
+                  {c.text}
+                </span>
+              ))}
+            </div>
+          ))}
         </div>
         <div
           style={{
             position: "absolute",
             left: 0,
             right: 0,
+            top: typeArea,
             bottom: 0,
             height: barH,
             display: "flex",
@@ -308,7 +311,7 @@ export function Specimen({
         >
           <span
             style={{
-              fontSize: Math.round(barH * 0.42),
+              fontSize: Math.round(barH * 0.22),
               fontWeight: 500,
               letterSpacing: "-0.01em",
               color: "var(--sp-label)",
@@ -317,7 +320,13 @@ export function Specimen({
             {label}
           </span>
           {demo && (
-            <PulseLabel size={barH} pulses={pulses} clip={durationSeconds} mirror={mirror} t={clock} />
+            <PulseLabel
+              size={Math.round(barH * 0.52)}
+              pulses={pulses}
+              clip={durationSeconds}
+              mirror={mirror}
+              t={clock}
+            />
           )}
         </div>
         {/* Keep UnoCSS aware of the attributify color tokens (these are never rendered). */}

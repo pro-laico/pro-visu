@@ -6,10 +6,13 @@
  *  - state is a function of time (`createCursor().stateAt(t)`), letting the capture runtime seek
  *    the scene to any frame instead of replaying wall-clock timers.
  *  - the logic is unit-testable from Node (see test/specimen-timeline.test.ts).
+ *
+ * Layout model: glyphs are packed into a fixed number of LEFT-ALIGNED lines, each filled to a
+ * target width using the font's real advance widths (`packAndSeedLines`). Glyph changes are then
+ * scheduled as width-compensated pairs that keep every line's total width within a small budget
+ * (`maxLineDrift`), so the right edge barely moves as the wall animates (`buildEvents`).
  */
 
-export type Cls = "thin" | "regular" | "wide";
-export type Classes = Record<Cls, string[]>;
 export type Token = "foreground" | "muted" | "accent";
 
 export interface Cell {
@@ -21,7 +24,9 @@ export interface Cell {
 export interface Pulse {
   name?: string;
   duration: number;
+  /** Fraction of cells whose glyph changes during this beat (0..1; 1 = every cell once). */
   chars?: number;
+  /** Fraction of cells whose color changes during this beat (0..1; 1 = every cell once). */
   colors?: number;
   /** When set, every color change in the beat targets this exact token (a sweep) — else weighted. */
   color?: Token;
@@ -41,13 +46,13 @@ export type Rng = () => number;
 /** Glyphs a specimen draws from (uppercase + digits + a few symbols), minus any blacklist. */
 export const MASTER_POOL = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$%&@#*+=";
 
-// Rotated across cells so the opening string is a balanced mix of widths.
-const CLASS_ROTATION: Cls[] = ["regular", "wide", "thin", "regular", "thin", "wide"];
-
 const TOKENS: Token[] = ["foreground", "muted", "accent"];
 // Default relative likelihood of each token on a random color change (accent rarer — a pop, not the
 // norm). Overridden per-render by the `colorWeights` config.
 export const DEFAULT_WEIGHTS: Record<Token, number> = { foreground: 2, muted: 2, accent: 1 };
+
+/** Fallback advance (em) for an unmeasured glyph — only hit if a pool char wasn't measured. */
+const FALLBACK_ADV = 0.6;
 
 /**
  * mulberry32 — a tiny, fast, seedable PRNG with good distribution for animation purposes.
@@ -64,33 +69,12 @@ export function mulberry32(seed: number): Rng {
   };
 }
 
-/** Effective glyph spec from config: the pool (minus blacklist) and the per-character width class
- *  (one class per glyph cell). Char lists per class are measured later (they depend on the font). */
-export function buildSpec(
-  characters: number,
-  blacklist: string,
-  masterPool: string = MASTER_POOL,
-): { cls: Cls[]; pool: string } {
+/** Effective glyph pool from config: the master pool minus the blacklist (never empty). */
+export function buildSpec(blacklist: string, masterPool: string = MASTER_POOL): { pool: string } {
   const black = new Set(blacklist.toUpperCase().split(""));
   let pool = [...masterPool].filter((c) => !black.has(c)).join("");
   if (!pool) pool = masterPool; // never let a blacklist empty the pool
-  const cls = Array.from(
-    { length: Math.max(1, characters) },
-    (_, i) => CLASS_ROTATION[i % CLASS_ROTATION.length] ?? "regular",
-  );
-  return { cls, pool };
-}
-
-/** Partition the pool into thin / regular / wide thirds by measured advance. */
-export function classify(pool: string, adv: Record<string, number>): Classes {
-  const chars = [...pool].sort((a, b) => (adv[a] ?? 0) - (adv[b] ?? 0));
-  const n = chars.length;
-  const t = Math.max(1, Math.floor(n / 3));
-  return {
-    thin: chars.slice(0, t),
-    regular: chars.slice(t, Math.max(t, n - t)),
-    wide: chars.slice(n - t),
-  };
+  return { pool };
 }
 
 /**
@@ -130,18 +114,6 @@ function evenCellPicker(rng: Rng, count: number): () => number {
   };
 }
 
-const randFromClass = (rng: Rng, list: string[]): string =>
-  list[Math.floor(rng() * list.length)] ?? "";
-
-/** A random glyph from a class, different from `not` when the class allows it. */
-function differentFromClass(rng: Rng, list: string[], not: string): string {
-  for (let i = 0; i < 8; i++) {
-    const s = randFromClass(rng, list);
-    if (s !== not) return s;
-  }
-  return randFromClass(rng, list);
-}
-
 /** Easing curve mapping an even fraction (0..1) to a time fraction within a beat, like CSS easing. */
 function ease(u: number, pacing: Pulse["pacing"]): number {
   switch (pacing) {
@@ -161,58 +133,254 @@ export function totalDuration(pulses: Pulse[]): number {
   return pulses.reduce((s, p) => s + Math.max(0, p.duration), 0);
 }
 
-/** The opening cells: one glyph per width class, with every 4th-ish cell muted for texture. */
-export function buildInitialCells(cls: Cls[], classes: Classes, pool: string, rng: Rng): Cell[] {
-  const listFor = (c: Cls): string[] => (classes[c].length ? classes[c] : [...pool]);
-  return cls.map((c, i) => ({
-    text: randFromClass(rng, listFor(c)),
-    token: (i % 4 === 2 ? "muted" : "foreground") as Token,
-  }));
+export interface PackedLayout {
+  /** Flat array of glyph cells (lines concatenated left-to-right, top-to-bottom). */
+  cells: Cell[];
+  /** Number of cells in each line (sums to cells.length). */
+  lineLengths: number[];
+  /** Each line's initial total advance width, in em (advance per 1px of font size). */
+  lineInitialEm: number[];
 }
 
 /**
- * Build the full change schedule, one pulse at a time. Within a pulse the N glyph and N color
- * changes are spread across its duration by the easing curve and distributed across cells with
- * *even coverage* (a fresh shuffled picker per pulse), so every glyph is touched once before any
- * repeats. Glyph changes stay within a cell's width class; color changes go to the pulse's `color`
- * target when set, else a weighted-random token. Each change records the cell's prior value, so
- * with `mirror` on it replays in reverse about the midpoint — a palindrome that ends exactly on the
- * opening state for a seamless loop. Deterministic given the same rng seed and inputs.
+ * Pack `lines` left-aligned lines, each greedily filled with seeded-random glyphs to just under
+ * `targetEm` (the per-line width budget, in em) using the font's real advances — so every line is
+ * about the same length and the right edge sits near the frame edge. `minPerLine` guards against a
+ * huge font producing 1–2-glyph lines (it may then slightly overshoot `targetEm`). Pure given the
+ * rng, so every parallel capture worker computes the identical wall.
+ */
+export function packAndSeedLines(opts: {
+  lines: number;
+  targetEm: number;
+  adv: Record<string, number>;
+  pool: string;
+  rng: Rng;
+  minPerLine: number;
+}): PackedLayout {
+  const { targetEm, adv, pool, rng } = opts;
+  const lines = Math.max(1, Math.floor(opts.lines));
+  const minPerLine = Math.max(1, Math.floor(opts.minPerLine));
+  const poolArr = [...pool];
+  const advOf = (g: string): number => adv[g] ?? FALLBACK_ADV;
+
+  const cells: Cell[] = [];
+  const lineLengths: number[] = [];
+  const lineInitialEm: number[] = [];
+  let idx = 0; // global cell index (drives the muted-texture pattern)
+
+  for (let L = 0; L < lines; L++) {
+    let em = 0;
+    let count = 0;
+    for (;;) {
+      const g = poolArr[Math.floor(rng() * poolArr.length)] ?? poolArr[0] ?? "A";
+      const a = advOf(g);
+      // Stop before exceeding the budget (line ≤ targetEm), but never below minPerLine.
+      if (count >= minPerLine && em + a > targetEm) break;
+      cells.push({ text: g, token: idx % 4 === 2 ? "muted" : "foreground" });
+      em += a;
+      count++;
+      idx++;
+      if (count >= 512) break; // hard safety cap (degenerate tiny targetEm)
+    }
+    lineLengths.push(count);
+    lineInitialEm.push(em);
+  }
+  return { cells, lineLengths, lineInitialEm };
+}
+
+/** cell index → line index, derived from per-line counts. */
+function lineOfCells(lineLengths: number[], n: number): number[] {
+  const lineOf = new Array<number>(n).fill(0);
+  let c = 0;
+  for (let L = 0; L < lineLengths.length; L++) {
+    for (let k = 0; k < (lineLengths[L] ?? 0) && c < n; k++) lineOf[c++] = L;
+  }
+  return lineOf;
+}
+
+/**
+ * Replay a built schedule and return the maximum relative line-width drift across all lines and all
+ * (time-grouped) frames — the "≤ maxLineDrift" guarantee, computable from Node tests and used at
+ * runtime to warn on a degenerate (too-small) pool. Events at the same time are applied together
+ * (compensating pairs flip simultaneously), so only the rendered net is measured.
+ */
+export function maxLineDrift(
+  initial: Cell[],
+  events: SetEvent[],
+  adv: Record<string, number>,
+  lineLengths: number[],
+): number {
+  const advOf = (g: string): number => adv[g] ?? FALLBACK_ADV;
+  const lineOf = lineOfCells(lineLengths, initial.length);
+  const lineInitialEm = lineLengths.map(() => 0);
+  initial.forEach((c, i) => {
+    const L = lineOf[i] as number;
+    lineInitialEm[L] = (lineInitialEm[L] as number) + advOf(c.text);
+  });
+  const lineEm = lineInitialEm.slice();
+  const text = initial.map((c) => c.text);
+  const sorted = [...events].sort((a, b) => a.t - b.t);
+  let maxRel = 0;
+  let i = 0;
+  while (i < sorted.length) {
+    const t = (sorted[i] as SetEvent).t;
+    while (i < sorted.length && (sorted[i] as SetEvent).t === t) {
+      const ev = sorted[i] as SetEvent;
+      if (ev.kind === "char") {
+        const L = lineOf[ev.slot] as number;
+        lineEm[L] = (lineEm[L] as number) + advOf(ev.value) - advOf(text[ev.slot] as string);
+        text[ev.slot] = ev.value;
+      }
+      i++;
+    }
+    for (let L = 0; L < lineLengths.length; L++) {
+      const init = lineInitialEm[L] as number;
+      const rel = init > 0 ? Math.abs((lineEm[L] as number) - init) / init : 0;
+      if (rel > maxRel) maxRel = rel;
+    }
+  }
+  return maxRel;
+}
+
+/**
+ * Build the full change schedule, one pulse at a time. `chars`/`colors` are FRACTIONS of the cell
+ * count `N`; the even-coverage picker spreads them so a sweep (e.g. `colors: 1`) lands on every cell
+ * once. GLYPH changes are scheduled as width-compensated PAIRS: two adjacent same-line cells flip at
+ * the same instant, chosen so the pair's total advance is ~unchanged, keeping each line's width
+ * within `tol` of its initial (so the left-aligned right edge barely shifts). COLOR changes don't
+ * affect width and are unchanged. Each change records its prior value so `mirror` replays in reverse
+ * about the midpoint — a palindrome that ends exactly on the opening state for a seamless loop.
+ * Deterministic given the same rng seed and inputs.
  */
 export function buildEvents(
   pulses: Pulse[],
   mirror: boolean,
-  cls: Cls[],
-  classes: Classes,
   initial: Cell[],
+  adv: Record<string, number>,
+  pool: string,
+  lineLengths: number[],
+  lineInitialEm: number[],
   charMul: number,
   colorMul: number,
   weights: Record<Token, number>,
+  tol: number,
   rng: Rng,
 ): SetEvent[] {
+  const N = initial.length;
+  const poolArr = [...pool];
+  const advOf = (g: string): number => adv[g] ?? FALLBACK_ADV;
+  const lineOf = lineOfCells(lineLengths, N);
+  const lineEm = lineInitialEm.slice();
+  const lineLo = lineInitialEm.map((e) => e * (1 - tol));
+  const lineHi = lineInitialEm.map((e) => e * (1 + tol));
+  const inBudget = (L: number, deltaEm: number): boolean => {
+    const e = (lineEm[L] as number) + deltaEm;
+    return e >= (lineLo[L] as number) && e <= (lineHi[L] as number);
+  };
+
+  const differentFrom = (not: string): string => {
+    for (let i = 0; i < 8; i++) {
+      const s = poolArr[Math.floor(rng() * poolArr.length)] ?? "";
+      if (s && s !== not) return s;
+    }
+    return poolArr[Math.floor(rng() * poolArr.length)] ?? not;
+  };
+  const closestAdvance = (target: number, exclude: string): string => {
+    let best = "";
+    let err = Infinity;
+    for (const g of poolArr) {
+      if (g === exclude) continue;
+      const e = Math.abs(advOf(g) - target);
+      if (e < err) {
+        err = e;
+        best = g;
+      }
+    }
+    return best || exclude;
+  };
+  /** A single in-budget glyph change for `g0` in line `L` (closest-width fallback if none fits). */
+  const pickInBudget = (L: number, g0: string): string => {
+    const a0 = advOf(g0);
+    const valid: string[] = [];
+    for (const g of poolArr) {
+      if (g === g0) continue;
+      if (inBudget(L, advOf(g) - a0)) valid.push(g);
+    }
+    if (valid.length) return valid[Math.floor(rng() * valid.length)] as string;
+    return closestAdvance(a0, g0); // degraded: may breach tol on a tiny pool
+  };
+
   const sim = initial.map((c) => ({ ...c }));
   const total = totalDuration(pulses);
   const forward: { t: number; slot: number; kind: "char" | "color"; from: string; to: string }[] = [];
   let start = 0;
+
   for (const p of pulses) {
     const d = Math.max(0, p.duration);
     const place = (i: number, n: number): number =>
       start + (p.pacing === "random" ? rng() * d : d * ease((i + 1) / (n + 1), p.pacing));
-    const nChars = Math.max(0, Math.round((p.chars ?? 0) * charMul));
-    const nColors = Math.max(0, Math.round((p.colors ?? 0) * colorMul));
-    const nextCharCell = evenCellPicker(rng, sim.length);
-    const nextColorCell = evenCellPicker(rng, sim.length);
-    for (let i = 0; i < nChars; i++) {
-      const slot = nextCharCell();
+
+    // --- glyph changes: width-compensated pairs (rounded to whole pairs) ---
+    let nChars = Math.max(0, Math.round((p.chars ?? 0) * charMul * N));
+    nChars -= nChars % 2; // whole pairs
+    const nPairs = nChars / 2;
+    const nextCharCell = evenCellPicker(rng, N);
+    const applySingle = (t: number, slot: number): void => {
       const cell = sim[slot];
-      if (!cell) continue;
-      const list = classes[cls[slot] ?? "regular"].length
-        ? classes[cls[slot] ?? "regular"]
-        : Object.values(classes).flat();
-      const to = differentFromClass(rng, list, cell.text);
-      forward.push({ t: place(i, nChars), slot, kind: "char", from: cell.text, to });
-      sim[slot] = { ...cell, text: to };
+      if (!cell) return;
+      const L = lineOf[slot] as number;
+      const g1 = pickInBudget(L, cell.text);
+      if (g1 === cell.text) return;
+      forward.push({ t, slot, kind: "char", from: cell.text, to: g1 });
+      lineEm[L] = (lineEm[L] as number) + advOf(g1) - advOf(cell.text);
+      sim[slot] = { ...cell, text: g1 };
+    };
+    for (let i = 0; i < nPairs; i++) {
+      const t = place(i, nPairs);
+      const cA = nextCharCell();
+      const cellA = sim[cA];
+      if (!cellA) continue;
+      const L = lineOf[cA] as number;
+      // same-line neighbour (prefer the next cell, else the previous)
+      let cB = -1;
+      if (cA + 1 < N && lineOf[cA + 1] === L) cB = cA + 1;
+      else if (cA - 1 >= 0 && lineOf[cA - 1] === L) cB = cA - 1;
+
+      if (cB < 0) {
+        applySingle(t, cA); // lone cell in a 1-glyph line
+        continue;
+      }
+      const cellB = sim[cB];
+      if (!cellB) {
+        applySingle(t, cA);
+        continue;
+      }
+      const g0 = cellA.text;
+      const h0 = cellB.text;
+      const pairSum0 = advOf(g0) + advOf(h0);
+      // Pick g1 with variety, then h1 to best-conserve the pair's total width; accept if the net
+      // keeps the line in budget. Retry a few times for a better fit before falling back.
+      let chosen: { g1: string; h1: string; net: number } | null = null;
+      for (let tries = 0; tries < 6 && !chosen; tries++) {
+        const g1 = differentFrom(g0);
+        const h1 = closestAdvance(pairSum0 - advOf(g1), h0);
+        const net = advOf(g1) + advOf(h1) - pairSum0;
+        if (inBudget(L, net)) chosen = { g1, h1, net };
+      }
+      if (!chosen) {
+        applySingle(t, cA); // couldn't conserve within budget — minimal in-budget single change
+        continue;
+      }
+      forward.push({ t, slot: cA, kind: "char", from: g0, to: chosen.g1 });
+      forward.push({ t, slot: cB, kind: "char", from: h0, to: chosen.h1 });
+      lineEm[L] = (lineEm[L] as number) + chosen.net;
+      sim[cA] = { ...cellA, text: chosen.g1 };
+      sim[cB] = { ...cellB, text: chosen.h1 };
     }
+
+    // --- color changes: unchanged (color doesn't affect advance) ---
+    const nColors = Math.max(0, Math.round((p.colors ?? 0) * colorMul * N));
+    const nextColorCell = evenCellPicker(rng, N);
     for (let i = 0; i < nColors; i++) {
       const slot = nextColorCell();
       const cell = sim[slot];
@@ -223,6 +391,7 @@ export function buildEvents(
     }
     start += d;
   }
+
   const events: SetEvent[] = forward.map((e) => ({ t: e.t, slot: e.slot, kind: e.kind, value: e.to }));
   if (mirror) {
     for (const e of forward) {

@@ -67,8 +67,7 @@ export const specimenSceneOptionsSchema = z
     label: z.string().default(""),
     demo: z.boolean().default(false),
     weight: z.number().min(1).max(1000).default(820),
-    characters: z.number().int().min(1).max(120).default(23),
-    fontSize: z.number().positive().optional(),
+    lines: z.number().int().min(1).max(40).default(3),
     blacklist: z.string().default(""),
     colors: z
       .object({
@@ -92,6 +91,8 @@ export const specimenSceneOptionsSchema = z
     mirror: z.boolean().default(true),
     characterIntensity: z.number().nonnegative().default(1),
     colorIntensity: z.number().nonnegative().default(1),
+    /** Max fraction a line's width may drift as glyphs change (right-edge stability). */
+    maxLineDrift: z.number().positive().max(0.5).default(0.05),
     /** Schedule seed — same seed ⇒ identical animation (parallel workers must agree). */
     seed: z.number().int().default(1),
     /** Line-height of the glyph block. */

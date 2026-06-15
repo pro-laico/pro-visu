@@ -44,9 +44,9 @@ describe("specimen generator", () => {
     expect(o.colors.label).toBeUndefined(); // defaults to foreground at render
     expect(o.pulses.length).toBeGreaterThan(0);
     expect(o.mirror).toBe(true); // seamless loop by default
-    expect(o.characters).toBe(23);
+    expect(o.lines).toBe(3);
+    expect(o.maxLineDrift).toBe(0.05);
     expect(o.blacklist).toBe("");
-    expect(o.fontSize).toBeUndefined(); // auto-fit by default
     expect(o.characterIntensity).toBe(1);
     expect(o.colorIntensity).toBe(1);
     expect(o.demo).toBe(false);
@@ -57,10 +57,10 @@ describe("specimen generator", () => {
     const o = specimenOptionsSchema.parse({ font: "x.woff2", template: "demo" });
     expect(o.demo).toBe(true); // the demo template turns on demo mode
     expect(o.mirror).toBe(false); // a focused one-way walkthrough
-    expect(o.characters).toBe(27); // a fuller specimen than the bare 23 default
+    expect(o.lines).toBe(4); // the template sets a fuller wall
     expect(o.pulses.some((p) => p.name === "ease-in")).toBe(true); // and loads the showcase pulses
-    // Its even sweeps cover every glyph: colors count tracks the demo's character count.
-    expect(o.pulses.find((p) => p.color === "muted")?.colors).toBe(o.characters);
+    // Its even sweeps cover every glyph once: colors is the fraction 1.
+    expect(o.pulses.find((p) => p.color === "muted")?.colors).toBe(1);
   });
 
   it("loads the sweep template: a mirrored loop of even, targeted color sweeps", () => {
@@ -68,9 +68,9 @@ describe("specimen generator", () => {
     expect(o.mirror).toBe(true); // seamless loop
     expect(o.demo).toBe(false); // a clean showcase, not a labeled walkthrough
     expect(o.colors.accent).toBe("#7c9cff"); // its palette makes the accent sweep visible
-    // Every glyph is washed to one token per beat: a sweep covers all `characters` evenly.
+    // Every glyph is washed to one token per beat: a full sweep is the fraction 1.
     const muted = o.pulses.find((p) => p.color === "muted");
-    expect(muted?.colors).toBe(o.characters);
+    expect(muted?.colors).toBe(1);
     expect(o.pulses.map((p) => p.color).filter(Boolean)).toEqual(["muted", "accent", "foreground"]);
   });
 
@@ -79,10 +79,10 @@ describe("specimen generator", () => {
       font: "x.woff2",
       template: "demo",
       demo: false,
-      characters: 30,
+      lines: 6,
     });
     expect(o.demo).toBe(false); // override wins over the template's demo: true
-    expect(o.characters).toBe(30);
+    expect(o.lines).toBe(6);
   });
 
   it("fills missing color tokens when only some are overridden", () => {
@@ -110,7 +110,7 @@ describe("specimen generator", () => {
   it("accepts a per-pulse target color for an even sweep, and rejects an unknown token", () => {
     const o = specimenOptionsSchema.parse({
       font: "x.woff2",
-      pulses: [{ duration: 4, colors: 23, color: "accent", pacing: "even" }],
+      pulses: [{ duration: 4, colors: 1, color: "accent", pacing: "even" }],
     });
     expect(o.pulses[0]?.color).toBe("accent");
     expect(
@@ -127,5 +127,21 @@ describe("specimen generator", () => {
 
   it("rejects unknown option keys (typo guard)", () => {
     expect(specimenOptionsSchema.safeParse({ font: "x.woff2", fnt: 1 }).success).toBe(false);
+  });
+
+  it("derives glyph size from `lines` only — rejects fontSize / characters", () => {
+    expect(specimenOptionsSchema.parse({ font: "x.woff2" }).lines).toBe(3);
+    expect(specimenOptionsSchema.parse({ font: "x.woff2", lines: 8 }).lines).toBe(8);
+    expect(specimenOptionsSchema.safeParse({ font: "x.woff2", lines: 0 }).success).toBe(false);
+    expect(specimenOptionsSchema.safeParse({ font: "x.woff2", fontSize: 80 }).success).toBe(false);
+    expect(specimenOptionsSchema.safeParse({ font: "x.woff2", characters: 20 }).success).toBe(false);
+  });
+
+  it("accepts fractional pulse change-counts", () => {
+    const o = specimenOptionsSchema.parse({
+      font: "x.woff2",
+      pulses: [{ duration: 2, chars: 0.5, colors: 0.25 }],
+    });
+    expect(o.pulses[0]).toMatchObject({ chars: 0.5, colors: 0.25 });
   });
 });

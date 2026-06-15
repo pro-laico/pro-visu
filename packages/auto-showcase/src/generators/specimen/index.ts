@@ -39,8 +39,7 @@ async function run(
       label: o.name,
       demo: o.demo,
       weight: o.weight,
-      characters: o.characters,
-      fontSize: o.fontSize,
+      lines: o.lines,
       leading: o.leading,
       blacklist: o.blacklist,
       characterPool: o.characterPool,
@@ -50,6 +49,7 @@ async function run(
       mirror: o.mirror,
       characterIntensity: o.characterIntensity,
       colorIntensity: o.colorIntensity,
+      maxLineDrift: o.maxLineDrift,
       seed: o.seed,
     },
   };

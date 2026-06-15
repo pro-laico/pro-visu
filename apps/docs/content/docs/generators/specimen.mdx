@@ -3,9 +3,11 @@ title: specimen
 description: A looping type-specimen video from a font file.
 ---
 
-`specimen` renders a looping clip of a typeface set as a wrapping string whose glyphs and
-colours change over a composed sequence of **pulses**, then captures it. Point it at a font
-file and give it a name; everything else has a sensible default. No `url` required.
+`specimen` renders a looping clip of a typeface set as a fixed number of **left-aligned lines**
+of glyphs whose letters and colours change over a composed sequence of **pulses**, then captures
+it. The glyph size is derived from `lines` (the rows fill the top 80% of the frame); the bottom
+20% shows the background and the font name. Point it at a font file and give it a name;
+everything else has a sensible default. No `url` required.
 
 ```ts
 {
@@ -30,21 +32,21 @@ file and give it a name; everything else has a sensible default. No `url` requir
 
 ## Pulses (the storyboard)
 
-A **pulse** is one beat of the animation: a named span of time during which some number of
-glyph and/or colour changes happen. An empty pulse is a hold. The clip length is the sum of the
-pulse durations (doubled when `mirror` is on). Compose a sequence to author the whole clip.
+A **pulse** is one beat of the animation: a named span of time during which some fraction of the
+glyph cells change letter and/or colour. An empty pulse is a hold. The clip length is the sum of
+the pulse durations (doubled when `mirror` is on). Compose a sequence to author the whole clip.
 
 | Pulse field | Type | Meaning |
 |---|---|---|
 | `name` | `string` | Human label for the beat (readability only). Default `""`. |
 | `duration` | `number` | Length of the beat, in seconds. **Required**, must be positive. |
-| `chars` | `number` | How many glyph changes happen during the beat. Default `0`. |
-| `colors` | `number` | How many colour changes happen during the beat. Default `0`. |
+| `chars` | `number` (0–1) | Fraction of cells whose glyph changes during the beat (`1` = every cell once). Default `0`. |
+| `colors` | `number` (0–1) | Fraction of cells whose colour changes during the beat (`1` = every cell once). Default `0`. |
 | `color` | `"foreground" \| "muted" \| "accent"` | Target every colour change at this token (a deliberate sweep) instead of a weighted-random pick. Omit for the default scattered recolour. |
 | `pacing` | `"even" \| "linear" \| "ease-in" \| "ease-out" \| "ease-in-out" \| "random"` | How changes are distributed in time across the beat. Default `"even"`. `"linear"`/`"even"` are uniform; `"ease-in"` front-loads; `"ease-out"` back-loads; `"ease-in-out"` bunches at both ends; `"random"` scatters. |
 
 `pulses` must contain at least one beat. Omit it entirely and a built-in default storyboard
-(`DEFAULT_PULSES` — a lively 10-second outward half: intro hold → first letters → settle →
+(`DEFAULT_PULSES` — a lively ~10-second outward half: intro hold → first letters → settle →
 ripple → colour sweep → rest → quick burst → drift → finale → outro hold) is used, which
 mirrors into a ~20-second seamless loop.
 
@@ -54,8 +56,8 @@ options: {
   name: "Your Font",
   pulses: [
     { name: "hold", duration: 0.8 },
-    { name: "to accent", duration: 2.2, colors: 26, color: "accent", pacing: "ease-in-out" },
-    { name: "glyph drift", duration: 1.4, chars: 13 },
+    { name: "to accent", duration: 2.2, colors: 1, color: "accent", pacing: "ease-in-out" },
+    { name: "glyph drift", duration: 1.4, chars: 0.5 },
   ],
 }
 ```
@@ -72,14 +74,14 @@ options: {
 | `durationSeconds` | `number` | derived | Override the (mirrored) sum of pulse durations. |
 | `deviceScaleFactor` | `number` (≤4) | `1` | Render scale. |
 | `weight` | `number` (1–1000) | `820` | Glyph weight on the variable-font axis. |
-| `characters` | `number` (1–120) | `23` | Roughly how many glyphs to show. |
-| `fontSize` | `number` | auto-fit | Explicit glyph size in px. |
-| `leading` | `number` | `0.78` | Line-height of the glyph block. |
+| `lines` | `number` (1–40) | `3` | Number of glyph rows. The glyph size is derived so the rows fill the top 80% of the frame. |
+| `leading` | `number` | `0.78` | Line-height of the rows. |
 | `blacklist` | `string` | `""` | Glyphs to exclude (case-insensitive). |
 | `characterPool` | `string` | A–Z 0–9 + symbols | Override the glyph pool (≥2 distinct). |
 | `colors` | `{ background, foreground, muted, accent?, label? }` | see below | Colour tokens the glyphs cycle through (override any subset). |
 | `colorWeights` | `{ foreground, muted, accent }` | `2 / 2 / 1` | Relative likelihood of each token on a random recolour. |
-| `characterIntensity` / `colorIntensity` | `number` | `1` | Multiply every pulse's change counts. |
+| `characterIntensity` / `colorIntensity` | `number` | `1` | Multiply every pulse's change fractions. |
+| `maxLineDrift` | `number` (0–0.5) | `0.05` | Max fraction a line's width may drift as glyphs change — keeps the right edge stable. |
 | `mirror` | `boolean` | `true` | Play the pulses out and back for a seamless loop. |
 | `demo` | `boolean` | `false` | Overlay the active pulse's name (to see which beat is playing). |
 | `seed` | `number` | `1` | Schedule seed — same seed ⇒ identical animation. |
@@ -96,7 +98,7 @@ each key falls back independently.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `background` | `#eceef1` | Backdrop behind the glyphs. |
+| `background` | `#eceef1` | Backdrop behind the glyphs (and the bottom 20% band). |
 | `foreground` | `#16181d` | Primary glyph colour — the resting majority. |
 | `muted` | `#a7adb6` | Muted/secondary glyph colour. |
 | `accent` | falls back to `background` | Accent colour for occasional pops. Left unset, accent glyphs blend into the backdrop — so set it (or a `template`) to make accent reads visible. |
@@ -109,13 +111,18 @@ it).
 
 ## Behaviours
 
-- **Width-classing.** Each glyph cell is assigned a width class (thin / regular / wide, measured
-  from the actual font) and only ever swaps to other glyphs of that class — so the wrapped line
-  lengths stay stable as glyphs change, with no reflow.
+- **Width-stable layout.** Glyphs are packed into `lines` left-aligned rows, each filled to a
+  target width using the font's real advance widths (measured in-browser), so every row is about
+  the same length. As glyphs change, swaps are **width-compensated** — adjacent glyphs change as
+  cancelling pairs, and a per-line width budget caps any residual — so each line's total width, and
+  thus its right edge, stays within `maxLineDrift` (default 5%) of its initial. The wall shifts
+  pleasantly without the right edge or the line count ever jumping. (A very small `characterPool`
+  leaves little room to compensate; the layout stays locked but the right edge may breathe a touch
+  more.)
 - **Even-coverage picker.** Within a pulse, changes are distributed across cells so every glyph is
   touched once before any repeats. To wash the whole specimen to one colour evenly, set a pulse's
-  `colors` ≥ the glyph count with `pacing: "even"` (and a `color` target) — that lands exactly one
-  change on each glyph.
+  `colors: 1` with `pacing: "even"` (and a `color` target) — that lands exactly one change on each
+  glyph. A fraction below `1` touches that fraction of the cells.
 - **Default glyph pool.** The specimen draws from
   `ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$%&@#*+=` (uppercase A–Z, digits 0–9, and the symbols
   `$ % & @ # * + =`). Override it with `characterPool` (needs ≥2 distinct characters).
