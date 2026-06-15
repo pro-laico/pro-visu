@@ -39,7 +39,7 @@ is required. No `url`. Output is png.
 | `uppercase` | `boolean` | `false` | Uppercase the colour names. |
 | `rgbStyle` | `"labeled" \| "css" \| "plain"` | `"labeled"` | RGB string style. |
 | `oklchStyle` | `"css" \| "labeled"` | `"css"` | OKLCH string style. |
-| `fontFile` | `string` | system bold sans | Custom font embedded into the render. |
+| `fontFile` | `string` | system sans fallback | Custom font (`.woff2` / `.woff` / `.ttf` / `.otf`) embedded into the render. Optional — omit to fall back to a system bold sans. |
 | `fontSize` | `number` | derived | Label font size in px. |
 | `fontWeight` | `number` (1–1000) | `700` | Label font weight. |
 | `textLight` / `textDark` | `string` | `#ffffff` / `#141414` | Text colours picked by contrast against each swatch. |
@@ -48,5 +48,20 @@ is required. No `url`. Output is png.
 | `fileName` | `string` | `<name>.png` | Output filename. |
 
 The available corner field ids are `name`, `hex`, `rgb`, `oklch`, `hsl`, and `cmyk`.
+
+## Field formats
+
+How each field renders:
+
+| Field | Style | Example |
+|---|---|---|
+| `hex` | — | `#FF8000` (always uppercased) |
+| `rgb` | `"labeled"` | `R:255,G:128,B:0` |
+| `rgb` | `"css"` | `rgb(255, 128, 0)` |
+| `rgb` | `"plain"` | `255 128 0` |
+| `oklch` | `"css"` | `oklch(88% 0.012 250)` |
+| `oklch` | `"labeled"` | `L:88% C:0.012 H:250` |
+| `hsl` | — | `H:210,S:14,L:88` (s/l are percentages) |
+| `cmyk` | — | `C:0,M:50,Y:100,K:0` (percentages) |
 
 For a moving version, see [`palette-reel`](/docs/generators/palette-reel).

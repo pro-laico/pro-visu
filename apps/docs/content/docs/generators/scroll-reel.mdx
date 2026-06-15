@@ -19,11 +19,22 @@ run-to-run**.
 
 | Option | Meaning |
 |---|---|
-| `width` / `height` | Viewport size in CSS px. |
-| `fps` | Output frames per second. |
-| `duration` | Clip length in ms (when not using `choreography`/`autoSections`/`routes`). |
-| `deviceScaleFactor` | Render scale — higher captures crisper, then downscales into the video. |
-| `easing` | Scroll easing: `linear`, `easeInOutCubic`/`Quad`, `easeOutCubic`/`Quint`, `easeInOutSine`/`Expo`. |
+| `width` / `height` | Viewport size in CSS px. Default `1280` × `800`. |
+| `fps` | Output frames per second. Default `30` (max `120`). |
+| `duration` | Clip length in ms (when not using `choreography`/`autoSections`/`routes`). Default `6000`. |
+| `deviceScaleFactor` | Render scale — higher captures crisper, then downscales into the video. Default `2` (max `4`). |
+| `easing` | Scroll easing: `linear`, `easeInOutCubic` (default), `easeInOutQuad`, `easeOutCubic`, `easeInOutSine`, `easeInOutExpo`, `easeOutQuint`. |
+| `crf` | x264 quality, `0`–`51` (lower = better/larger). Default `18`. |
+| `fileName` | Output filename. Defaults to `<slug(asset name)>.mp4`. |
+
+## Timing & navigation
+
+| Option | Meaning |
+|---|---|
+| `startDelayMs` | Dwell at the top before scrolling (ms). Default `500`. |
+| `endDwellMs` | Dwell at the bottom after scrolling (ms). Default `800`. |
+| `waitUntil` | Navigation wait: `"load"`, `"domcontentloaded"`, `"networkidle"` (default), or `"commit"`. |
+| `waitForSelector` | Optional CSS selector to wait for (visible) before recording — e.g. a hero section. |
 
 ## Capture mode
 
@@ -53,24 +64,29 @@ options: {
 
 - **`choreography: [{ to, durationMs?, holdMs?, easing? }]`** — replaces the single sweep with
   an authored sequence. `to` is a `0..1` number, an `"NN%"` string, or a CSS selector to bring
-  into view.
+  into view. Per step: `durationMs` default `1200`, `holdMs` default `800`. Clip length becomes
+  `startDelayMs` + Σ(step travel + hold) + `endDwellMs`.
 - **`autoSections: true | { minHeightFraction?, selector?, holdMs?, durationMs?, maxSections?, constantVelocity? }`**
   — auto-detect the page's sections and pan/hold through them within a fixed `durationMs` budget.
+  Defaults: `minHeightFraction` `0.5` (max `2`), `holdMs` `700`, `durationMs` `12000`,
+  `maxSections` `8`, `constantVelocity` `true`. Ignored if `choreography` is set.
 - **`kenBurns: { scaleFrom?, scaleTo?, easing?, originX?, originY? }`** — slow zoom (folds
-  automatically under `loop: "boomerang"` so it stays seamless).
+  automatically under `loop: "boomerang"` so it stays seamless). Defaults: `scaleFrom` `1`,
+  `scaleTo` `1.08`, `originX`/`originY` `0.5`.
 - **`loop: "none" | "boomerang"`** — boomerang plays forward then back for a seamless loop.
+  Default `"none"`.
 
 ## Clean capture
 
 Suppress real-site noise so frames are clean and deterministic:
 
 - **Page:** `hideSelectors: []`, `injectCss`, `clickSelectors: []` (best-effort consent
-  dismissal), `hideScrollbars` (default `true`), `pauseAnimations`, `freezeClock` (pin
-  `Date.now` / `performance.now` / `Math.random`).
+  dismissal), `hideScrollbars` (default `true`), `pauseAnimations` (default `false`),
+  `freezeClock` (default `false` — pin `Date.now` / `performance.now` / `Math.random`).
 - **Network:** `blockTrackers` (default `true` — aborts common analytics/ads/session-replay),
   `blockHosts: []`, `blockResourceTypes: []` (e.g. `["media", "font"]`).
 - **Settling:** `settlePerFrame` (default on; off in `--draft`) waits for fonts + in-view
-  images each frame, bounded by `settleMaxMs`.
+  images each frame, bounded by `settleMaxMs` (default `250`).
 
 ## Variants — one config, many assets
 
@@ -92,13 +108,17 @@ The viewport × colour-scheme matrix is emitted as separate assets (`<name>-<suf
 ## Output formats & framing
 
 - **`aspect: "16:9" | "9:16" | "1:1" | { width, height }`** with `fit: "cover" | "contain"`
-  and `padColor` — reframe for social (e.g. `9:16` reels).
+  (default `"cover"`) and `padColor` (default `#0b0b0f`, used by `"contain"`) — reframe for
+  social (e.g. `9:16` reels).
 - **`outputs: ("mp4" | "gif" | "webp" | "poster")[]`** (default `["mp4"]`) — each becomes its
-  own asset; `gifFps` tunes the GIF/WebP frame rate.
+  own asset; `gifFps` tunes the GIF/WebP frame rate (default `min(fps, 15)`, max `50`).
 - **`intro` / `outro: { title?, subtitle?, background?, color?, durationMs?, fadeMs? }`** — a
-  fade-in title card / end card.
+  fade-in title card / end card. Defaults: `background` `#0b0b0f`, `color` `#ffffff`,
+  `durationMs` `1500`, `fadeMs` `400`.
 - **`annotations: [{ text?, ring?, spotlight?, atMs?, untilMs?, position? }]`** — timed
   captions, a highlight ring around a selector, or a spotlight that dims everything else.
+  Defaults: `atMs` `0`, `untilMs` end of clip, `position` `"top" | "bottom" | "center"`
+  (default `"bottom"`).
 
 ```ts
 options: {
@@ -126,9 +146,14 @@ options: {
 
 - **`actions: [{ do, selector?, x?, y?, text?, to?, durationMs?, holdMs? }]`** where `do` is
   `"move" | "click" | "hover" | "type" | "scrollTo" | "wait"` — a scripted tour with a
-  synthetic `cursor: { show?, size?, color? }`.
+  synthetic `cursor: { show?, size?, color? }`. Per action: `durationMs` default `700`,
+  `holdMs` default `600`. Cursor defaults: `show` `true`, `size` `22`, `color` `#0b0b0f`.
 - **`focus: { selector, padding?, actions?, holdMs? }`** — capture a single component
-  (optionally trigger it first), cropped to its box.
+  (optionally trigger it first), cropped to its box. Defaults: `padding` `24`, `holdMs` `2000`.
+
+Setting `actions` or `focus` emits a **single asset** and records realtime: variants
+(`viewports` / `colorScheme: "both"`), cards (`intro` / `outro`), `annotations`, `aspect`, and
+extra `outputs` are skipped — `actions` logs a warning if you set any of these.
 
 ## Multi-page tour
 
@@ -143,7 +168,9 @@ options: {
 ```
 
 `routes` captures each page as a frame-stepped segment and concatenates them into one reel;
-`aspect` and extra `outputs` apply to the final tour.
+`aspect` and extra `outputs` apply to the final tour. Variants are **not** expanded —
+`viewports` and `colorScheme: "both"` are skipped (a warning is logged), so a route tour emits
+a single asset. Per-route objects accept `choreography` / `autoSections` / `durationMs`.
 
 > Every option also has hover docs in `showcase.config.ts` — the authoring types are generated
 > from the validation schema, so the editor always matches what the tool accepts.

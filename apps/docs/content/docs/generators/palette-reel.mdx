@@ -40,7 +40,7 @@ Output is mp4.
 |---|---|---|---|
 | `holdSeconds` | `number` | `2` | How long each colour stays fully open. |
 | `transitionSeconds` | `number` | `0.7` | Crossfade length between colours. |
-| `bounce` | `boolean` | `true` | Ping-pong the sweep so every handoff is between neighbours (avoids a last→first pinch at the loop seam). |
+| `bounce` | `boolean` | `true` | Ping-pong the sweep so every handoff is between neighbours (avoids a last→first pinch at the loop seam). When `false`, the reel wraps directly from the last item to the first — shorter, but crossfades non-adjacent bands at the seam. |
 | `easing` | `"linear" \| "ease-in" \| "ease-out" \| "ease-in-out"` | `"ease-in-out"` | Easing for the crossfade ramp. |
 | `durationSeconds` | `number` | derived | Override the derived clean-loop length. |
 
@@ -48,7 +48,7 @@ Output is mp4.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `grownFlex` | `number` | `12` | How many slivers' share a fully-open band takes. |
+| `grownFlex` | `number` (≥1) | `12` | How many slivers' share a fully-open band takes. |
 | `minCrossPx` | `number` | `0` | Minimum sliver cross-size (px) so names stay legible. |
 | `nameAlwaysVisible` | `boolean` | `true` | Keep the name visible even in a collapsed sliver. |
 | `uppercase` | `boolean` | `false` | Uppercase the colour names. |
@@ -56,7 +56,7 @@ Output is mp4.
 | `oklchStyle` | `"css" \| "labeled"` | `"css"` | OKLCH string style. |
 | `textLight` / `textDark` | `string` | `#ffffff` / `#141414` | Contrast-picked text colours. |
 | `contrastThreshold` | `number` (0–1) | `0.5` | Luminance above which dark text is used. |
-| `fontFile` | `string` | system bold sans | Custom font served into the render. |
+| `fontFile` | `string` | system bold sans | Custom font (`woff2` / `woff` / `ttf` / `otf`) served into the render. Unset falls back to a system bold sans. |
 | `fontWeight` | `number` (1–1000) | `700` | Label font weight. |
 | `fontSize` | `number` | derived | Name font size in px. |
 | `detailFontScale` | `number` | `0.62` | Detail-line size as a fraction of the name size. |
@@ -70,7 +70,7 @@ Output is mp4.
 |---|---|---|---|
 | `width` / `height` | `number` | `1920` / `1080` | Output frame size. |
 | `deviceScaleFactor` | `number` (≤4) | `1` | Render scale. |
-| `fps` | `number` | `30` | Frames per second. |
+| `fps` | `number` (≤120) | `30` | Frames per second. |
 | `crf` | `number` (0–51) | `18` | x264 quality (lower = better/larger). |
 | `fileName` | `string` | `<name>.mp4` | Output filename. |
 

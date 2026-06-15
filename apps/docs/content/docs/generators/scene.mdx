@@ -28,11 +28,11 @@ assets: [
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `scene` | `string` | `"phone"` | Built-in scene id (see below). |
+| `scene` | `string` | `"phone"` | Built-in scene id (see below). An unknown id fails fast with an error listing the available scenes. |
 | `width` / `height` | `number` | `1080` / `1080` | Output frame size (CSS px). |
 | `background` | `string` | `"#0b0b0f"` | Backdrop behind the scene. |
 | `deviceScaleFactor` | `number` (≤4) | `2` | Render scale (2 = retina-crisp). |
-| `fps` | `number` | `30` | Output frames per second. |
+| `fps` | `number` (≤120) | `30` | Output frames per second. |
 | `durationSeconds` | `number` | `6` | Capture length. |
 | `capture` | `"realtime" \| "frames"` | `"realtime"` | `realtime` records live; `frames` steps deterministically (use it when chaining videos). |
 | `workers` | `number` | auto | Parallel frame-render workers (frames capture only). |
@@ -41,6 +41,14 @@ assets: [
 | `files` | `{ name: path }` | `{}` | Static files served into the scene, exposed as `files.<name>` (e.g. a font). |
 | `sceneOptions` | `object` | `{}` | Knobs for the selected scene (typed per scene — see below). |
 | `fileName` | `string` | `<name>.mp4` | Output filename. |
+
+The base schema is **strict** — an unknown top-level key (a typo, or a misplaced scene knob)
+is rejected with an error rather than silently ignored.
+
+> **Draft quality overrides some of these.** Running at `quality: "draft"` swaps the x264 preset
+> to `ultrafast` (instead of `medium`) and, on the `frames` path, forces `frameFormat` to `jpeg`
+> at a lower quality (~70 vs ~90) for speed — so `frameFormat` is partially overridden in draft.
+> `crf` is honoured in both modes.
 
 ## Scenes & their `sceneOptions`
 
@@ -81,7 +89,7 @@ on X while each column scrolls on Y at its own seeded speed, looping seamlessly.
 
 | Knob | Default | Meaning |
 |---|---|---|
-| `columns` | `4` | Number of columns (fewer = bigger tiles). |
+| `columns` | `4` | Number of columns, `1`–`12` (fewer = bigger tiles). |
 | `padding` | `16` | Padding between columns and tiles (px). |
 | `tileAspect` | `1.6` | Tile aspect ratio (w/h); `<1` = portrait. |
 | `cornerRadius` | `12` | Tile corner radius (px). |
@@ -90,7 +98,7 @@ on X while each column scrolls on Y at its own seeded speed, looping seamlessly.
 | `panDirection` | `"left"` | Pan direction. |
 | `scrollLoopsMin` / `scrollLoopsMax` | `1` / `2` | Per-column vertical scroll-cycle range. |
 | `alternate` | `true` | Alternate column scroll direction. |
-| `pulses` | `4` | Number of brief eased motion bursts over the clip. |
+| `pulses` | `4` | Number of brief eased motion bursts over the clip, `1`–`20`. |
 | `pulseDuration` | `1` | Each burst's length (s). |
 | `baseDrift` | `0.08` | Constant slow creep between pulses (`0` held … `1` constant). |
 | `pulseVariance` | `0.6` | How much pulse sizes vary. |
@@ -102,6 +110,8 @@ on X while each column scrolls on Y at its own seeded speed, looping seamlessly.
 
 ## Capture modes
 
-- **`capture: "realtime"`** — records the page live (simple; webm → mp4).
+- **`capture: "realtime"`** — records the page live (simple; webm → mp4). The blank
+  navigation/readiness lead is trimmed so the clip opens on the first painted frame, then the
+  output is clamped to `durationSeconds`.
 - **`capture: "frames"`** — steps deterministically (frame-accurate, exact duration,
   parallelised by `workers`). Use `frames` when chaining videos so timing stays exact.

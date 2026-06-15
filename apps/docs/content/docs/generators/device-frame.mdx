@@ -16,15 +16,50 @@ pass** — the window chrome is painted once with the managed Chromium. Fast and
 }
 ```
 
+Output is **always a single mp4** with the audio track stripped — there is no variant
+expansion, no extra formats, and no intro/outro cards. The options schema is **strict**:
+unknown keys are rejected.
+
 ## Options
 
-`device-frame` accepts **all** [`scroll-reel` capture options](/docs/generators/scroll-reel)
-(motion, clean capture, sizing, and so on), plus two framing controls:
+`device-frame` adds two framing controls of its own:
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `frameWidth` | `number` | `1280` | Width of the framed viewport inside the render canvas (px). |
+| `frameWidth` | `number` | `1280` | Width of the framed viewport inside the render canvas (px). Positive integer. |
 | `background` | `string` | `"#0b0b0f"` | Backdrop colour behind the browser mockup. |
+
+It also **reuses** the [`scroll-reel` capture options](/docs/generators/scroll-reel) to record
+the site, but only the options that describe a *single, plain capture* are honored. Anything
+that would fan out into multiple assets, reframe, or add overlays/cards is **ignored** (with a
+console warning), because device-frame composites exactly one clip into one mockup.
+
+### Honored scroll-reel options
+
+These pass straight through to the capture:
+
+- `capture` — `"frames"` (default) or `"realtime"`.
+- `colorScheme` — a **single** variant only: `"dark"` or `"light"` (see below for `"both"`).
+- `fileName`, `frameFormat`, `workers`.
+- `settlePerFrame`, `settleMaxMs`.
+- Sizing / encoding: `width`, `height`, `deviceScaleFactor`, `fps`, `crf`.
+- Realtime clip length: `startDelayMs`, `duration`, `endDwellMs`.
+- The top-level `quality: "draft"` flag (faster, lossy intermediates).
+
+### Ignored on device-frame (use scroll-reel instead)
+
+Setting any of these logs a warning and has no effect:
+
+- `viewports` — device-frame captures one variant, it does not expand a viewport matrix.
+- `colorScheme: "both"` — collapses to a single variant.
+- `aspect` — no reframing; output is the framed canvas.
+- `outputs` — anything other than `["mp4"]` is ignored; only an mp4 is emitted.
+- `intro` / `outro` — no cards.
+- `actions` — use the [`scroll-reel`](/docs/generators/scroll-reel) generator for interaction reels.
+- `routes` — use `scroll-reel` for multi-page tours.
+- `focus` — use `scroll-reel` for element-focused clips.
+- `choreography` / `autoSections` — honored only for `capture: "frames"`; **ignored** under
+  `capture: "realtime"`.
 
 For richer or animated mockups — phone, laptop, an animated browser, a media wall — use the
 [`scene`](/docs/generators/scene) generator instead.

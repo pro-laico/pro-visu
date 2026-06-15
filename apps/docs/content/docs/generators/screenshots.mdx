@@ -25,19 +25,46 @@ specific elements. Output is png or jpeg.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `breakpoints` | `{ name, width, height?, deviceScaleFactor? }[]` | desktop 1440×900 + mobile 390×844 | Viewports to capture at. |
+| `breakpoints` | `{ name, width, height?, deviceScaleFactor? }[]` | desktop 1440×900 + mobile 390×844 | Viewports to capture at. `height` defaults to `900`; `deviceScaleFactor` is positive, max `4`. |
 | `fullPage` | `boolean` | `true` | Capture the entire scrollable page vs. just the viewport. |
 | `format` | `"png" \| "jpeg"` | `"png"` | Output format. |
 | `quality` | `number` (1–100) | — | jpeg only. Rejected with `format: "png"`. |
-| `deviceScaleFactor` | `number` (≤4) | `2` | Render scale; a breakpoint can override it. |
+| `deviceScaleFactor` | `number` (>0, ≤4) | `2` | Render scale; a breakpoint can override it. |
 | `waitUntil` | `"load" \| "domcontentloaded" \| "networkidle" \| "commit"` | `"networkidle"` | Navigation wait condition. |
-| `waitForSelector` | `string` | — | Wait for this selector before capturing. |
+| `waitForSelector` | `string` | — | Wait for this selector (state `visible`) before capturing. |
 | `elements` | `{ selector, name }[]` | `[]` | Element captures taken at every breakpoint. |
 | `omitBackground` | `boolean` | `false` | png only — capture with a transparent background. |
-| `settleMs` | `number` | `0` | Extra settle time after load before capturing. |
+| `settleMs` | `number` | `0` | Extra settle time before capturing. Floored at 600ms — see [Page warm-up](#page-warm-up). |
 
 > `height` is ignored for `fullPage` shots (Playwright resizes to the page height); it only
 > affects viewport and element captures.
 
 Each breakpoint produces a page shot (unless you scope to elements), and each `elements` entry
 produces one capture per breakpoint, named `<asset>-<breakpoint>-<element>`.
+
+## Page warm-up
+
+Before each shot the page is driven through a scroll/warm pass: it scrolls down through the full
+document to trigger lazy-loaded and intersection-mounted content, lets web fonts finish loading,
+and waits for images to decode, then returns to the top. Without this, `fullPage` shots tend to
+capture blank or placeholder regions and fallback fonts further down the page.
+
+The warm pass ends with a settle wait of `max(settleMs, 600)` milliseconds — the runtime floors
+it at `MIN_PREPARE_SETTLE_MS` (600ms). So `settleMs: 0` (the default) still waits ~600ms; only
+values above 600 extend it. Raise `settleMs` for pages with slow animations or deferred network
+content that the warm pass alone doesn't catch.
+
+## Element-capture resilience
+
+Element captures never abort the run. If an `elements` selector matches zero nodes, or matches a
+node that can't be shot (e.g. a present-but-hidden `display:none` element), that capture is
+logged with a warning and skipped — the page shot and remaining elements/breakpoints still run.
+
+## Rendering notes
+
+- Breakpoints render in parallel (cap of 3 at a time), each in its own isolated browser context;
+  element shots stay sequential within a breakpoint. Filenames and manifest ids stay in input
+  order regardless.
+- A very large `fullPage` shot (>16000px on either axis) emits a warning, since Chromium caps
+  screenshots near ~32767px and a high `deviceScaleFactor` can push a tall page past that — the
+  result may be clipped or slow. Lower the scale if you hit this.
