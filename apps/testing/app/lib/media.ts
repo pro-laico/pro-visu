@@ -6,11 +6,11 @@
 
 export const MEDIA = {
   /** Home hero — landscape, ~16:9, e.g. "/img/hero.jpg" */
-  hero: undefined as string | undefined,
+  hero: "/img/hero.jpg" as string | undefined,
   /** Home editorial / campaign — portrait, ~4:5, e.g. "/img/editorial.jpg" */
-  editorial: undefined as string | undefined,
+  editorial: "/img/editorial.jpg" as string | undefined,
   /** About hero — landscape, ~16:9, e.g. "/img/about-hero.jpg" */
-  aboutHero: undefined as string | undefined,
+  aboutHero: "/img/about-hero.jpg" as string | undefined,
   /** About atelier — portrait, ~4:5, e.g. "/img/about-atelier.jpg" */
-  aboutAtelier: undefined as string | undefined,
+  aboutAtelier: "/img/about-atelier.jpg" as string | undefined,
 };

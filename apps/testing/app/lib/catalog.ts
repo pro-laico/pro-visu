@@ -42,6 +42,7 @@ export const PRODUCTS: Product[] = [
     description:
       "A double-faced wool-and-cashmere coat cut to a clean, unstructured line. Tailored to fall from the shoulder with an easy, considered drape.",
     details: ["72% virgin wool, 28% cashmere", "Horn buttons", "Unlined, double-faced construction", "Made in Portugal"],
+    image: "/img/products/the-camel-coat.jpg",
   },
   {
     slug: "cashmere-crewneck",
@@ -52,6 +53,7 @@ export const PRODUCTS: Product[] = [
     colorway: "Oat",
     description: "Spun from grade-A Mongolian cashmere and knitted to a substantial twelve-gauge for quiet, lasting warmth.",
     details: ["100% grade-A cashmere", "Twelve-gauge knit", "Ribbed collar, cuffs and hem", "Made in Italy"],
+    image: "/img/products/cashmere-crewneck.jpg",
   },
   {
     slug: "pleated-wool-trouser",
@@ -62,6 +64,7 @@ export const PRODUCTS: Product[] = [
     colorway: "Charcoal",
     description: "A single-pleat trouser in a dry, mid-weight wool flannel, finished with a clean tapered leg and a turned hem.",
     details: ["100% virgin wool flannel", "Single forward pleat", "Tapered leg, turned hem", "Made in Portugal"],
+    image: "/img/products/pleated-wool-trouser.jpg",
   },
   {
     slug: "silk-slip-dress",
@@ -72,6 +75,7 @@ export const PRODUCTS: Product[] = [
     colorway: "Bone",
     description: "A bias-cut slip in heavy sand-washed silk that moves with a fluid, weighted ease. Adjustable straps, French seams throughout.",
     details: ["100% sand-washed silk", "Bias cut", "Adjustable straps", "French-seamed finish"],
+    image: "/img/products/silk-slip-dress.jpg",
   },
   {
     slug: "double-breasted-blazer",
@@ -82,6 +86,7 @@ export const PRODUCTS: Product[] = [
     colorway: "Ink",
     description: "A softly tailored double-breasted blazer with a natural shoulder and a lightly roped sleevehead. Half-canvassed for a lived-in line.",
     details: ["Wool-mohair blend", "Half-canvas construction", "Natural shoulder", "Made in Italy"],
+    image: "/img/products/double-breasted-blazer.jpg",
   },
   {
     slug: "leather-tote",
@@ -92,6 +97,7 @@ export const PRODUCTS: Product[] = [
     colorway: "Cognac",
     description: "A roomy, unlined tote in vegetable-tanned leather that softens and deepens with wear. Hand-finished edges, a single interior pocket.",
     details: ["Vegetable-tanned full-grain leather", "Unlined", "Hand-painted edges", "Made in Spain"],
+    image: "/img/products/leather-tote.jpg",
   },
   {
     slug: "ribbed-turtleneck",
@@ -102,6 +108,7 @@ export const PRODUCTS: Product[] = [
     colorway: "Ecru",
     description: "A fine-gauge merino turtleneck with a close, second-skin fit and a fold-over collar. Quietly essential under tailoring.",
     details: ["100% extra-fine merino", "Fine-gauge rib", "Fold-over collar", "Made in Italy"],
+    image: "/img/products/ribbed-turtleneck.jpg",
   },
   {
     slug: "tailored-overshirt",
@@ -112,6 +119,7 @@ export const PRODUCTS: Product[] = [
     colorway: "Loden",
     description: "A shirt-jacket in brushed cotton moleskin that sits between layers — light structure, patch pockets, a soft collar.",
     details: ["Brushed cotton moleskin", "Corozo buttons", "Twin patch pockets", "Made in Portugal"],
+    image: "/img/products/tailored-overshirt.jpg",
   },
 ];
 
