@@ -2,20 +2,22 @@ import { describe, expect, it } from "vitest";
 import { generatorIds, getGenerator, listGenerators } from "@/generators/registry";
 import { SCROLL_REEL_ID } from "@/generators/scroll-reel";
 import { SCREENSHOTS_ID } from "@/generators/screenshots";
-import { SCENE_ID } from "@/generators/scene";
+import { WALL_ID } from "@/generators/wall";
 import { SPECIMEN_ID } from "@/generators/specimen";
 import { PALETTE_ID } from "@/generators/palette";
 import { PALETTE_REEL_ID } from "@/generators/palette-reel";
+import { IMAGE_ID } from "@/generators/image";
 
 // The registry is the public catalog of asset types — every built-in must be wired in. Listed
 // via each generator's own exported id, so a renamed or dropped id is caught here.
 const BUILT_INS = [
   SCROLL_REEL_ID,
   SCREENSHOTS_ID,
-  SCENE_ID,
+  WALL_ID,
   SPECIMEN_ID,
   PALETTE_ID,
   PALETTE_REEL_ID,
+  IMAGE_ID,
 ];
 
 describe("generator registry", () => {

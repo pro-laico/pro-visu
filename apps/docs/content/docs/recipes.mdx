@@ -68,23 +68,34 @@ Drive the UI with a synthetic cursor (records realtime):
 }
 ```
 
-## A phone-framed reel
+## A media wall
 
-Record a phone-sized scroll, then composite it into a phone mockup via `inputs`:
+Composite several captures into a seamless-looping [wall](/docs/generators/wall). Each column names
+the assets it stacks (they run first — no `inputs` map needed) and carries its own motion. Tiles fit
+the column width and keep their own height (16:9 → short, 9:16 → tall), so the columns read as a
+natural masonry:
 
 ```ts
 assets: [
+  { name: "shot-home", url: "/", generator: "screenshots", options: { fullPage: false } },
+  { name: "shot-shop", url: "/shop", generator: "screenshots", options: { fullPage: false } },
+  { name: "img-hero", generator: "image", options: { src: "public/img/hero.jpg" } },
+  // …enough to fill the columns…
   {
-    name: "phone-scroll",
-    url: "https://your-site.com",
-    generator: "scroll-reel",
-    options: { width: 390, height: 844, duration: 5000 },
-  },
-  {
-    name: "phone",
-    generator: "scene",
-    inputs: { screen: "phone-scroll" }, // runs first; its mp4 becomes the screen
-    options: { scene: "phone", width: 1080, height: 1350, capture: "frames", durationSeconds: 6 },
+    name: "wall",
+    generator: "wall",
+    options: {
+      durationSeconds: 16,
+      pan: { direction: "left", loops: 1 },
+      columns: [
+        { tiles: ["img-hero", "shot-home"], direction: "down",
+          pulses: [{ at: 0.1, duration: 0.15, distance: 0.5 }] },
+        { tiles: ["shot-shop", "img-hero"], direction: "up", loops: 1, stagger: 0.4 },
+        { tiles: ["shot-home", "shot-shop"], stagger: 0.15 },
+      ],
+      // While dialing it in: `test: true` (faux labeled boxes, no producers, no server) +
+      // `capture: "realtime"` renders in seconds. Remove both for the real render.
+    },
   },
 ]
 ```

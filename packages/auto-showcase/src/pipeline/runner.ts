@@ -68,6 +68,7 @@ export function applyQuality(
  * shared browser + one manifest store for the whole run.
  */
 export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
+  applyDerivedInputs(opts.config); // generators that declare deps via options (e.g. wall columns)
   buildGraph(opts.config.assets); // validate refs + reject cycles up front
   const specs = expandSelection(opts.config.assets, opts.assetNames);
   if (specs.length === 0) return [];
@@ -260,6 +261,27 @@ async function scheduleDag(
       const stuck = [...remaining.values()].every((s) => depState(s) === "blocked");
       if (stuck) break;
     }
+  }
+}
+
+/**
+ * Merge each generator's option-derived dependencies (`deriveInputs`) into its asset's `inputs`,
+ * in place, before the graph is built — so producers are ordered ahead of consumers that declared
+ * their dependencies through options (e.g. a wall whose columns reference assets by name). Author-
+ * declared `inputs` win on conflict. Options that fail to parse here are skipped; `runSpec`'s own
+ * parse surfaces the real validation error for that asset.
+ */
+export function applyDerivedInputs(config: ResolvedConfig): void {
+  for (const spec of config.assets) {
+    const generator = getGenerator(spec.generator);
+    if (!generator?.deriveInputs) continue;
+    let options: unknown;
+    try {
+      options = generator.optionsSchema.parse(mergeGeneratorOptions(config.settings.defaults, spec));
+    } catch {
+      continue;
+    }
+    spec.inputs = { ...generator.deriveInputs(options), ...spec.inputs };
   }
 }
 

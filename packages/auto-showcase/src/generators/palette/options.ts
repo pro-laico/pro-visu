@@ -32,43 +32,47 @@ export interface PaletteColorInput {
 export interface PaletteOptionsInput {
   /** The colors to show (at least one). */
   colors: PaletteColorInput[];
-  /** Swatch arrangement: full-width bands, full-height columns, or an N-wide grid. */
+  /** Swatch arrangement: full-width bands, full-height columns, or an N-wide grid. Default "rows". */
   layout?: "rows" | "columns" | "grid";
-  /** Columns when `layout: "grid"`. */
+  /** Columns when `layout: "grid"`. Default 3. */
   gridColumns?: number;
-  /** Output width in px. */
+  /** Output width in px. Default 1400. */
   width?: number;
-  /** Output height in px (default 1750 — portrait 4:5 with the default width). */
+  /** Output height in px. Default 1750 (portrait 4:5 with the default width). */
   height?: number;
-  /** Render scale (2 = retina-crisp). */
+  /** Render scale (2 = retina-crisp). Default 2. */
   deviceScaleFactor?: number;
-  /** Page background, shown only in the gaps between swatches. */
+  /** Page background, shown only in the gaps between swatches. Default "#ffffff". */
   background?: string;
-  /** Gap between swatches (px). */
+  /** Gap between swatches (px). Default 0 (swatches abut). */
   gap?: number;
-  /** Swatch corner radius (px). */
+  /** Swatch corner radius (px). Default 0 (square). */
   cornerRadius?: number;
-  /** Fields shown in each corner (stacked). Defaults: name+hex top-left, rgb+oklch top-right. */
+  /** Fields stacked in the top-left corner. Default name + hex. */
   topLeft?: FieldId[];
+  /** Fields stacked in the top-right corner. Default rgb + oklch. */
   topRight?: FieldId[];
+  /** Fields stacked in the bottom-left corner. Default none. */
   bottomLeft?: FieldId[];
+  /** Fields stacked in the bottom-right corner. Default none. */
   bottomRight?: FieldId[];
-  /** Uppercase the color names. */
+  /** Uppercase the color names. Default false. */
   uppercase?: boolean;
-  /** RGB string style. */
+  /** RGB string style. Default "labeled". */
   rgbStyle?: "labeled" | "css" | "plain";
-  /** OKLCH string style. */
+  /** OKLCH string style. Default "css". */
   oklchStyle?: "css" | "labeled";
   /** Custom font file (woff2/woff/ttf/otf), embedded into the render. Omit for a system bold sans. */
   fontFile?: string;
   /** Label font size in px. Omit to derive from the width. */
   fontSize?: number;
-  /** Label font weight. */
+  /** Label font weight. Default 700. */
   fontWeight?: number;
-  /** Text colors picked by contrast against each swatch. */
+  /** Light text color, used on dark swatches (picked by contrast). Default "#ffffff". */
   textLight?: string;
+  /** Dark text color, used on light swatches (picked by contrast). Default "#141414". */
   textDark?: string;
-  /** Luminance above which the dark text is used (0..1). */
+  /** Luminance above which the dark text is used (0..1). Default 0.5. */
   contrastThreshold?: number;
   /** Inset of the labels from the swatch edges (px). Omit to derive from the width. */
   padding?: number;

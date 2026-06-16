@@ -7,56 +7,9 @@ import { pulseSchema } from "@/generators/specimen/options";
  * unknown scene id fails fast with a named error instead of silently rendering defaults. Every
  * default equals the value the scene previously hardcoded, so existing configs render identically.
  *
- * The author-facing *Input interfaces below mirror each schema's input shape (compile-time-guarded)
- * and flow into `SceneOptions`' discriminated union for editor autocomplete.
+ * The author-facing *Input interfaces below mirror each schema's input shape (compile-time-guarded);
+ * the friendly `wall` / `specimen` / `palette-reel` generators own the config authoring surface.
  */
-
-export const phoneSceneOptionsSchema = z
-  .object({
-    /** Bezel (body) color. */
-    bezel: z.string().default("#0a0a0a"),
-    /** CSS box-shadow under the device ("none" to disable). */
-    shadow: z.string().default("0 40px 120px rgba(0,0,0,0.5)"),
-    /** Multiplies the computed corner radius (1 = stock). */
-    radiusScale: z.number().positive().default(1),
-    /** Screen background behind/around the video. */
-    screenBackground: z.string().default("#000"),
-  })
-  .strict();
-
-export const laptopSceneOptionsSchema = z
-  .object({
-    /** Bezel (body) color. */
-    bezel: z.string().default("#16161a"),
-    /** CSS box-shadow under the screen ("none" to disable). */
-    shadow: z.string().default("0 30px 90px rgba(0,0,0,0.5)"),
-    /** Show the hinge notch on the base. */
-    hinge: z.boolean().default(true),
-    /** Screen background behind/around the video. */
-    screenBackground: z.string().default("#000"),
-  })
-  .strict();
-
-export const browserSceneOptionsSchema = z
-  .object({
-    /** Window frame color. */
-    frame: z.string().default("#1b1b22"),
-    /** Address-bar label text (e.g. "yoursite.com"). */
-    url: z.string().default(""),
-    /** Show the traffic-light dots. */
-    dots: z.boolean().default(true),
-    /** Traffic-light dot colors (left to right). */
-    dotColors: z
-      .tuple([z.string(), z.string(), z.string()])
-      .default(["#ff5f57", "#febc2e", "#28c840"]),
-    /** Title-bar background. */
-    barColor: z.string().default("#23232c"),
-    /** Address-pill background. */
-    addressBarColor: z.string().default("#15151b"),
-    /** CSS box-shadow under the window ("none" to disable). */
-    shadow: z.string().default("0 40px 110px rgba(0,0,0,0.5)"),
-  })
-  .strict();
 
 /**
  * The specimen scene's wire format — produced by the specimen *generator* (its friendly options
@@ -102,50 +55,116 @@ export const specimenSceneOptionsSchema = z
   })
   .strict();
 
+/** The wall's easing curves (kebab-cased, matching the rest of the tool). */
+export const wallEasingEnum = z.enum([
+  "linear",
+  "ease-in",
+  "ease-out",
+  "ease-in-out",
+  "ease-in-out-strong",
+]);
+
 /**
- * The "wall" scene: a marquee of media tiles (the asset's video/screenshot inputs, cycled across
- * the grid). The whole wall pans on X while each column scrolls on Y at its own seeded, varying
- * speed (columns alternating up/down), looping seamlessly.
+ * One "pulse" — the uniform motion primitive shared by columns, the wall-level default, and the pan.
+ * It adds `distance` periods of eased travel, starting at `at` and lasting `duration` — both 0..1
+ * fractions of the clip. If `at + duration > 1`, the start shifts back so the move ends exactly at the
+ * loop point (a 0.2 pulse at 0.9 starts at 0.8), so a pulse can never overrun the clip.
+ */
+export const wallPulseSchema = z
+  .object({
+    /** When the pulse starts, as a fraction of the clip (0..1). */
+    at: z.number().min(0).max(1),
+    /** How long the move takes, as a fraction of the clip (0..1). */
+    duration: z.number().positive().max(1),
+    /** How far it travels, in periods (1 = one full tile-set / one wrap). Usually 0..1. */
+    distance: z.number().nonnegative(),
+    /** Easing of the move's ramp. */
+    easing: wallEasingEnum.default("ease-in-out"),
+  })
+  .strict();
+
+/** System 1 — the whole-wall X pan: a continuous base scroll (`loops`) + optional `pulses`. */
+export const wallPanSchema = z
+  .object({
+    /** Pan direction. */
+    direction: z.enum(["left", "right"]).default("left"),
+    /** Continuous whole-clip horizontal loops (0 = no pan unless `pulses` move it). */
+    loops: z.number().nonnegative().default(0),
+    /** Pulses added on top of the base loops. */
+    pulses: z.array(wallPulseSchema).default([]),
+  })
+  .strict();
+
+/**
+ * One column of the wall: its tiles (the assets stacked in it, by name — cycled to fill the column
+ * height) plus its own optional Y motion. Omitted `loops`/`pulses` inherit the wall-level defaults;
+ * an omitted `direction` defaults to "down".
+ */
+export const wallColumnSchema = z
+  .object({
+    /** Assets stacked in this column, by name (cycled to fill the height). At least one. */
+    tiles: z.array(z.string().min(1)).min(1),
+    /** Constant start-position shift, 0..1 of a tile-set — de-aligns columns with similar content. */
+    stagger: z.number().min(0).max(1).default(0),
+    /** Scroll direction. Defaults to "down". */
+    direction: z.enum(["up", "down"]).optional(),
+    /** Continuous whole-clip loops for this column. Omit to inherit the wall-level `loops`. */
+    loops: z.number().nonnegative().optional(),
+    /** This column's pulses. Omit to inherit the wall-level `pulses`. */
+    pulses: z.array(wallPulseSchema).optional(),
+  })
+  .strict();
+
+/**
+ * A faux tile for the wall's `test` preview mode — a flat colored box labeled with its name, rendered
+ * instead of a real asset so layout + motion can be dialed in instantly (no producers run).
+ */
+export const fauxTileSchema = z
+  .object({
+    /** Box fill (any CSS color). Omit to auto-derive a distinct color from the tile name. */
+    color: z.string().optional(),
+    /** Optional caption shown under the name (e.g. "16:9") — purely cosmetic. */
+    size: z.string().optional(),
+    /** This faux tile's aspect ratio (width / height): 1.78 = 16:9 (short), 0.56 = 9:16 (tall), 1 =
+     *  square. Omit to use the wall's `tileAspect` default. Real tiles use their media's own aspect. */
+    aspect: z.number().positive().optional(),
+  })
+  .strict();
+
+/**
+ * The "wall" scene: a marquee of media tiles, each column a self-contained unit (its `tiles` + its
+ * own motion). Two systems built from the SAME pulse primitive: `pan` (System 1, whole-wall X) and
+ * the per-column Y motion (System 2). A track's travel = `loops` continuous periods + the sum of its
+ * `pulses`; the total is rounded UP to a whole number of periods (the remainder folds into the
+ * continuous scroll), so every track lands back on its start at the clip end → a seamless loop.
  */
 export const wallSceneOptionsSchema = z
   .object({
-    /** Number of columns (fewer = bigger tiles). */
-    columns: z.number().int().min(1).max(12).default(4),
-    /** Padding between columns and between their tile contents (px). */
-    padding: z.number().nonnegative().default(16),
-    /** Tile aspect ratio (width / height); 1.6 = 16:10 landscape, <1 = portrait. */
+    /** The columns (≥3) — each its own tiles + motion. Count = array length (fewer = bigger tiles). */
+    columns: z.array(wallColumnSchema).min(3),
+    /** Gap between columns and between their tile contents (px). */
+    gap: z.number().nonnegative().default(16),
+    /** Default/fallback tile aspect (width / height). Tiles fit the column width and take their OWN
+     *  height from their media's aspect (16:9 → short, 9:16 → tall); this is only used for faux
+     *  (`test`) tiles that don't set their own `aspect`. 1.6 = 16:10 landscape, <1 = portrait. */
     tileAspect: z.number().positive().default(1.6),
     /** Tile corner radius (px). */
     cornerRadius: z.number().nonnegative().default(12),
-    /** Backdrop shown in the padding gaps and behind tiles. Defaults to the scene's `background`. */
+    /** Backdrop shown in the gap gutters and behind tiles. Defaults to the scene's `background`. */
     background: z.string().optional(),
-    /** Whole-clip horizontal pan cycles (0 = no pan; 1 = one sweep, delivered via pulses). */
-    panLoops: z.number().int().nonnegative().default(1),
-    /** Pan direction. */
-    panDirection: z.enum(["left", "right"]).default("left"),
-    /** Min/max per-column vertical scroll cycles over the clip — the travel range (varies per column). */
-    scrollLoopsMin: z.number().int().min(1).default(1),
-    scrollLoopsMax: z.number().int().min(1).default(2),
-    /** Alternate column scroll direction (up/down) for a livelier wall. */
-    alternate: z.boolean().default(true),
-    /**
-     * The wall is passive (mostly held), moving in brief eased "pulses". `pulses` = how many bursts
-     * over the clip; `pulseDuration` = each burst's length in seconds (~1 = a quick one-second move);
-     * `baseDrift` = how much constant slow creep between pulses (0 = fully held, 1 = constant linear).
-     */
-    pulses: z.number().int().min(1).max(20).default(4),
-    pulseDuration: z.number().positive().default(1),
-    baseDrift: z.number().min(0).max(1).default(0.08),
-    /** How much pulse sizes vary (0 = uniform pulses; ~0.6 = organic, some bigger than others). */
-    pulseVariance: z.number().min(0).max(1).default(0.6),
-    /**
-     * Explicit per-pulse sizes (length must equal `pulses`); overrides the seeded `pulseVariance`
-     * for deterministic cadence control — e.g. `[1.5, 0.5, 1.5, 0.5]` = two strong moves with small
-     * nudges between. The sum is normalized, so total travel (and the seamless loop) is unchanged.
-     */
-    pulseWeights: z.array(z.number().nonnegative()).optional(),
-    /** Seed for the per-column speed variation — same seed ⇒ identical wall (workers must agree). */
-    seed: z.number().int().default(1),
+    /** System 1 — the X pan. */
+    pan: wallPanSchema.default({}),
+    /** Default continuous whole-clip loops for columns that omit their own `loops` (0 = static unless
+     *  a pulse moves it; one pulse then rounds the total up to a single loop). */
+    loops: z.number().nonnegative().default(0),
+    /** Default pulses for columns that omit their own `pulses` (the uniform wall-level motion). */
+    pulses: z.array(wallPulseSchema).default([]),
+    /** Preview mode: render every tile as a flat labeled color box (see `testTiles`) instead of the
+     *  real assets, so you can dial in layout + motion instantly — no producers run. */
+    test: z.boolean().default(false),
+    /** Per-tile faux appearance for `test` mode, keyed by tile name. Tiles not listed get an
+     *  auto-derived color and their name as the label. */
+    testTiles: z.record(z.string(), fauxTileSchema).default({}),
   })
   .strict();
 
@@ -191,9 +210,6 @@ export const paletteReelSceneOptionsSchema = z
 
 /** Scene id → its sceneOptions validator. The single source of truth for known scenes. */
 export const SCENE_OPTION_SCHEMAS = {
-  phone: phoneSceneOptionsSchema,
-  laptop: laptopSceneOptionsSchema,
-  browser: browserSceneOptionsSchema,
   specimen: specimenSceneOptionsSchema,
   wall: wallSceneOptionsSchema,
   "palette-reel": paletteReelSceneOptionsSchema,
@@ -206,78 +222,80 @@ export type SceneId = keyof typeof SCENE_OPTION_SCHEMAS;
 // schemas by the Exact<> guards at the bottom — a drift is a compile error.
 // ---------------------------------------------------------------------------
 
-export interface PhoneSceneOptionsInput {
-  /** Bezel (body) color. */
-  bezel?: string;
-  /** CSS box-shadow under the device ("none" to disable). */
-  shadow?: string;
-  /** Multiplies the computed corner radius (1 = stock). */
-  radiusScale?: number;
-  /** Screen background behind/around the video. */
-  screenBackground?: string;
+/** The wall's easing curves. */
+export type WallEasing = z.infer<typeof wallEasingEnum>;
+
+/** One eased move — the uniform motion primitive (columns, wall default, and pan all use it). */
+export interface WallPulseInput {
+  /** When the pulse starts, as a fraction of the clip (0..1). */
+  at: number;
+  /** How long the move takes, as a fraction of the clip (0..1). If `at + duration > 1`, the start
+   *  shifts back so the move ends at the loop point. */
+  duration: number;
+  /** How far it travels, in periods (1 = one full tile-set / one wrap). Usually 0..1. */
+  distance: number;
+  /** Easing of the move's ramp. Default "ease-in-out". */
+  easing?: WallEasing;
 }
 
-export interface LaptopSceneOptionsInput {
-  /** Bezel (body) color. */
-  bezel?: string;
-  /** CSS box-shadow under the screen ("none" to disable). */
-  shadow?: string;
-  /** Show the hinge notch on the base. */
-  hinge?: boolean;
-  /** Screen background behind/around the video. */
-  screenBackground?: string;
+export interface WallPanInput {
+  /** Pan direction. Default "left". */
+  direction?: "left" | "right";
+  /** Continuous whole-clip horizontal loops (0 = no pan unless `pulses` move it). Default 0. */
+  loops?: number;
+  /** Pulses added on top of the base loops. Default none. */
+  pulses?: WallPulseInput[];
 }
 
-export interface BrowserSceneOptionsInput {
-  /** Window frame color. */
-  frame?: string;
-  /** Address-bar label text (e.g. "yoursite.com"). */
-  url?: string;
-  /** Show the traffic-light dots. */
-  dots?: boolean;
-  /** Traffic-light dot colors (left to right). */
-  dotColors?: [string, string, string];
-  /** Title-bar background. */
-  barColor?: string;
-  /** Address-pill background. */
-  addressBarColor?: string;
-  /** CSS box-shadow under the window ("none" to disable). */
-  shadow?: string;
+/** One column of the wall: its tiles (assets by name) + its own optional Y motion. */
+export interface WallColumnInput {
+  /** Assets stacked in this column, by name (cycled to fill the height). At least one. */
+  tiles: string[];
+  /** Constant start-position shift, 0..1 of a tile-set — de-aligns columns with similar content. Default 0. */
+  stagger?: number;
+  /** Scroll direction. Defaults to "down". */
+  direction?: "up" | "down";
+  /** Continuous whole-clip loops for this column. Omit to inherit the wall-level `loops`. */
+  loops?: number;
+  /** This column's pulses. Omit to inherit the wall-level `pulses`. */
+  pulses?: WallPulseInput[];
+}
+
+/** A faux tile for `test` preview mode — a flat color box labeled with its name. */
+export interface FauxTileInput {
+  /** Box fill (any CSS color). Omit to auto-derive a distinct color from the tile name. */
+  color?: string;
+  /** Optional caption shown under the name (e.g. "16:9") — purely cosmetic. */
+  size?: string;
+  /** This faux tile's aspect ratio (width / height): 1.78 = 16:9 (short), 0.56 = 9:16 (tall), 1 =
+   *  square. Omit to use the wall's `tileAspect` default. Real tiles use their media's own aspect. */
+  aspect?: number;
 }
 
 export interface WallSceneOptionsInput {
-  /** Number of columns. */
-  columns?: number;
-  /** Padding between columns and between their tile contents (px). */
-  padding?: number;
-  /** Tile aspect ratio (width / height); 1.6 = 16:10 landscape. */
+  /** The columns (≥3), each its own tiles + motion. Count = array length (fewer = bigger tiles). */
+  columns: WallColumnInput[];
+  /** Gap between columns and between their tile contents (px). Default 16. */
+  gap?: number;
+  /** Default/fallback tile aspect (width / height). Tiles fit the column width and take their OWN
+   *  height from their media's aspect (16:9 → short, 9:16 → tall); this is only used for faux
+   *  (`test`) tiles that don't set their own `aspect`. 1.6 = 16:10 landscape, <1 = portrait. Default 1.6. */
   tileAspect?: number;
-  /** Tile corner radius (px). */
+  /** Tile corner radius (px). Default 12. */
   cornerRadius?: number;
-  /** Backdrop shown in the padding gaps and behind tiles. Defaults to the scene's background. */
+  /** Backdrop shown in the gap gutters and behind tiles. Defaults to the scene's `background`. */
   background?: string;
-  /** Whole-clip horizontal pan cycles (0 = no pan; 1 = one slow sweep). */
-  panLoops?: number;
-  /** Pan direction. */
-  panDirection?: "left" | "right";
-  /** Min per-column vertical scroll cycles over the clip. */
-  scrollLoopsMin?: number;
-  /** Max per-column vertical scroll cycles over the clip. */
-  scrollLoopsMax?: number;
-  /** Alternate column scroll direction (up/down). */
-  alternate?: boolean;
-  /** Number of brief eased motion pulses over the clip (the wall holds between them). */
-  pulses?: number;
-  /** Each pulse's eased ramp length, in seconds (~1 = a quick one-second move). */
-  pulseDuration?: number;
-  /** Constant slow creep between pulses: 0 = fully held, 1 = constant linear motion. */
-  baseDrift?: number;
-  /** How much pulse sizes vary (0 = uniform; ~0.6 = organic, some bigger than others). */
-  pulseVariance?: number;
-  /** Explicit per-pulse sizes (length must equal `pulses`); overrides seeded `pulseVariance`. */
-  pulseWeights?: number[];
-  /** Seed for the per-column speed variation. */
-  seed?: number;
+  /** System 1 — the whole-wall X pan. Default: no pan. */
+  pan?: WallPanInput;
+  /** Default continuous whole-clip loops for columns that omit their own `loops`. Default 0 (static
+   *  unless a pulse moves it — a single pulse then rounds up to one loop). */
+  loops?: number;
+  /** Default pulses for columns that omit their own `pulses` (the uniform wall-level motion). Default none. */
+  pulses?: WallPulseInput[];
+  /** Preview mode: render faux labeled color boxes instead of real assets (no producers run). Default false. */
+  test?: boolean;
+  /** Per-tile faux appearance for `test` mode, keyed by tile name. Default {} (auto colors + names). */
+  testTiles?: Record<string, FauxTileInput>;
 }
 
 /** One precomputed color in a palette-reel (the generator builds these from the friendly options). */
@@ -293,49 +311,42 @@ export interface ReelItem {
 }
 
 export interface PaletteReelSceneOptionsInput {
-  /** Precomputed colors to reveal. */
+  /** Precomputed colors to reveal (at least one). */
   items: ReelItem[];
-  /** Sliver arrangement. */
+  /** Sliver arrangement. Default "rows". */
   orientation?: "rows" | "columns";
-  /** How long each color stays fully open before handing off (s). */
+  /** How long each color stays fully open before handing off (s). Default 2. */
   holdSeconds?: number;
-  /** Crossfade length from one open color to the next (s). */
+  /** Crossfade length from one open color to the next (s). Default 0.7. */
   transitionSeconds?: number;
-  /** Ping-pong the sweep so every handoff is between neighbours (no last→first pinch at the seam). */
+  /** Ping-pong the sweep so every handoff is between neighbours (no last→first pinch at the seam). Default true. */
   bounce?: boolean;
-  /** Easing applied to the crossfade. */
+  /** Easing applied to the crossfade. Default "ease-in-out". */
   easing?: "linear" | "ease-in" | "ease-out" | "ease-in-out";
-  /** How many times a sliver's share a fully-open band takes. */
+  /** How many times a sliver's share a fully-open band takes. Default 12. */
   grownFlex?: number;
-  /** Minimum cross-size of a sliver in px (0 = derive). */
+  /** Minimum cross-size of a sliver in px. Default 0 (derive from the frame size). */
   minCrossPx?: number;
-  /** Keep the name visible even in a collapsed sliver. */
+  /** Keep the name visible even in a collapsed sliver. Default true. */
   nameAlwaysVisible?: boolean;
-  /** Label font weight. */
+  /** Label font weight. Default 700. */
   fontWeight?: number;
   /** Name font size in px (omit to derive from the frame size). */
   fontSize?: number;
-  /** Detail-line font size as a fraction of the name size. */
+  /** Detail-line font size as a fraction of the name size. Default 0.62. */
   detailFontScale?: number;
-  /** Gap between bands (px). */
+  /** Gap between bands (px). Default 0 (bands abut). */
   gap?: number;
-  /** Band corner radius (px). */
+  /** Band corner radius (px). Default 0 (square). */
   cornerRadius?: number;
 }
 
 // Compile-time guards: the documented authoring types must stay in sync with the schemas.
 type Exact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
-const _phoneInSync: Exact<PhoneSceneOptionsInput, z.input<typeof phoneSceneOptionsSchema>> = true;
-const _laptopInSync: Exact<LaptopSceneOptionsInput, z.input<typeof laptopSceneOptionsSchema>> = true;
-const _browserInSync: Exact<BrowserSceneOptionsInput, z.input<typeof browserSceneOptionsSchema>> =
-  true;
 const _wallInSync: Exact<WallSceneOptionsInput, z.input<typeof wallSceneOptionsSchema>> = true;
 const _paletteReelInSync: Exact<
   PaletteReelSceneOptionsInput,
   z.input<typeof paletteReelSceneOptionsSchema>
 > = true;
-void _phoneInSync;
-void _laptopInSync;
-void _browserInSync;
 void _wallInSync;
 void _paletteReelInSync;

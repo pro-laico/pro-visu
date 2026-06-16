@@ -44,7 +44,7 @@ Each entry in `assets` describes one thing to generate.
 |---|---|---|
 | `name` | `string` | **Required.** Unique across the config — used in filenames and the manifest id. |
 | `generator` | `string` | **Required.** One of the [generator ids](/docs/generators). |
-| `url` | `string` | Page to capture. Required by URL-based generators; omitted for local generators like `scene`, `palette`, and `specimen`. |
+| `url` | `string` | Page to capture. Required by URL-based generators; omitted for local generators like `wall`, `palette`, and `specimen`. |
 | `options` | `object` | Generator-specific options. Validated by the target generator. |
 | `inputs` | `object` | Other assets this one consumes, as `{ slot: assetName }`. |
 
@@ -78,16 +78,17 @@ omit those fields on every reel.
 ## The input graph
 
 Assets can depend on other assets via `inputs: { slot: assetName }`. The producing assets run
-first, and their output files are exposed to the consumer — for example a
-[scene](/docs/generators/scene) that plays a reel recorded by another asset:
+first, and their output files are exposed to the consumer. A generator can also **derive** its
+`inputs` from its options instead of you hand-writing the map — the [`wall`](/docs/generators/wall)
+does this, treating each tile name in its columns as a dependency:
 
 ```ts
 assets: [
-  { name: "phone-scroll", url: "https://your-site.com", generator: "scroll-reel",
-    options: { width: 390, height: 844 } },
-  { name: "phone", generator: "scene",
-    inputs: { screen: "phone-scroll" },   // phone-scroll runs first
-    options: { scene: "phone", capture: "frames" } },
+  { name: "hero-shot", url: "/", generator: "screenshots", options: { fullPage: false } },
+  { name: "img-coat", generator: "image", options: { src: "public/img/coat.jpg" } },
+  { name: "wall", generator: "wall",
+    // no `inputs` — derived from the tile names below; hero-shot + img-coat run first
+    options: { columns: [{ tiles: ["hero-shot", "img-coat"] }, /* …≥3… */] } },
 ]
 ```
 

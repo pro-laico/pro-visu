@@ -4,7 +4,7 @@ import { applyQuality } from "@/pipeline/runner";
 
 describe("computeCacheKey", () => {
   const base = {
-    generator: "scene",
+    generator: "wall",
     url: undefined,
     options: { a: 1, b: 2 },
     inputs: { screen: "hash1" },
@@ -45,15 +45,10 @@ describe("computeCacheKey", () => {
 });
 
 describe("generator file dependencies", () => {
-  it("specimen declares its font; scene declares its served files", async () => {
+  it("specimen declares its font as a file dependency", async () => {
     const { specimenGenerator } = await import("@/generators/specimen");
-    const { sceneGenerator } = await import("@/generators/scene");
     const specimenOpts = specimenGenerator.optionsSchema.parse({ font: "fonts/X.woff2" });
     expect(specimenGenerator.fileDependencies?.(specimenOpts)).toEqual(["fonts/X.woff2"]);
-    const sceneOpts = sceneGenerator.optionsSchema.parse({
-      files: { font: "a.woff2", logo: "b.png" },
-    });
-    expect(sceneGenerator.fileDependencies?.(sceneOpts)).toEqual(["a.woff2", "b.png"]);
   });
 });
 

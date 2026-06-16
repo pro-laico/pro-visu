@@ -61,5 +61,12 @@ export interface Generator<TOptions = unknown> {
    * early with a clear error instead of rendering blank.
    */
   fileDependencies?(options: TOptions): string[];
+  /**
+   * Asset dependencies derived from this generator's options, as `{ slotName: assetName }`, merged
+   * into the asset's authored `inputs` before the dependency graph is built. Lets a generator own
+   * its dependency declaration in its options (e.g. the `wall`'s columns reference assets by name,
+   * so there's no separate `inputs` map to hand-maintain). Author-declared `inputs` win on conflict.
+   */
+  deriveInputs?(options: TOptions): Record<string, string>;
   run(ctx: PipelineContext, options: TOptions): Promise<GeneratorResult>;
 }

@@ -1,10 +1,10 @@
 ---
 title: Introduction
-description: auto-showcase turns a website into marketing assets — scroll reels, screenshots, scenes, and specimens — from a single config.
+description: auto-showcase turns a website into marketing assets — scroll reels, screenshots, media walls, and specimens — from a single config.
 ---
 
 **auto-showcase** is a portable CLI that turns the websites you build into marketing and
-showcase assets: scroll reels, responsive screenshots, composited scenes, and font/colour
+showcase assets: scroll reels, responsive screenshots, looping media walls, and font/colour
 specimens — all from a single `showcase.config.ts`.
 
 Install it into a website repo, point assets at a URL, and run `showcase generate`. Output
@@ -23,7 +23,8 @@ Three pieces:
    (id, generator, file, dimensions, bytes, duration). `showcase list` prints it.
 
 Assets can also depend on each other through `inputs`, forming a small DAG — for example, a
-[scene](/docs/generators/scene) that plays a reel recorded by another asset.
+[wall](/docs/generators/wall) whose tiles are images, screenshots, and clips produced by other
+assets (the wall derives those dependencies from the asset names in its columns).
 
 ## Generators at a glance
 
@@ -31,7 +32,8 @@ Assets can also depend on each other through `inputs`, forming a small DAG — f
 |---|---|---|
 | [`scroll-reel`](/docs/generators/scroll-reel) | mp4 (+ gif/webp/poster) | Deterministic frame-stepped recordings — scroll reels, choreographed tours, scripted interactions, social formats |
 | [`screenshots`](/docs/generators/screenshots) | png / jpeg | Responsive full-page and element captures per breakpoint |
-| [`scene`](/docs/generators/scene) | mp4 | Inputs composited inside a web scene (phone, laptop, browser, wall) |
+| [`wall`](/docs/generators/wall) | mp4 | A seamless-looping media wall of your assets, each column scrolling on its own |
+| [`image`](/docs/generators/image) | (passthrough) | Register an existing image file as an asset (e.g. a wall tile) |
 | [`specimen`](/docs/generators/specimen) | mp4 | A looping type specimen from a font file |
 | [`palette`](/docs/generators/palette) | png | A still colour-palette image |
 | [`palette-reel`](/docs/generators/palette-reel) | mp4 | A looping colour-palette reveal video |

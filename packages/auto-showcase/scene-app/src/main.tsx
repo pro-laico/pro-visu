@@ -17,7 +17,7 @@ const FALLBACK: SceneProps = {
 
 function readConfig(): { scene: string; props: SceneProps } {
   const q = new URLSearchParams(window.location.search);
-  const scene = q.get("scene") ?? "phone";
+  const scene = q.get("scene") ?? "wall";
   const raw = q.get("props");
   let parsed: Partial<SceneProps> = {};
   if (raw) {

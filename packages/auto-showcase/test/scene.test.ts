@@ -1,91 +1,106 @@
 import { describe, expect, it } from "vitest";
-import { sceneOptionsSchema } from "@/generators/scene/options";
-import {
-  SCENE_OPTION_SCHEMAS,
-  browserSceneOptionsSchema,
-  phoneSceneOptionsSchema,
-  wallSceneOptionsSchema,
-} from "@/generators/scene/scene-options";
+import { SCENE_OPTION_SCHEMAS, wallSceneOptionsSchema } from "@/generators/scene/scene-options";
+import { wallOptionsSchema } from "@/generators/wall/options";
 import { generatorIds, getGenerator } from "@/generators/registry";
-import { SCENE_ID } from "@/generators/scene";
+import { WALL_ID } from "@/generators/wall";
 import { assetSpecSchema } from "@/config/schema";
 
-describe("scene generator", () => {
-  it("is registered", () => {
-    expect(generatorIds()).toContain(SCENE_ID);
-    expect(getGenerator(SCENE_ID)?.id).toBe(SCENE_ID);
+describe("wall generator", () => {
+  it("is registered; the generic 'scene' generator is gone", () => {
+    expect(generatorIds()).toContain(WALL_ID);
+    expect(getGenerator(WALL_ID)?.id).toBe(WALL_ID);
+    expect(generatorIds()).not.toContain("scene");
   });
 
-  it("applies sensible defaults", () => {
-    const opts = sceneOptionsSchema.parse({});
-    expect(opts.scene).toBe("phone");
-    expect(opts.width).toBe(1080);
-    expect(opts.height).toBe(1080);
-    expect(opts.capture).toBe("realtime");
-    expect(opts.fps).toBe(30);
-    expect(opts.sceneOptions).toEqual({});
+  const threeColumns = [{ tiles: ["a"] }, { tiles: ["b"] }, { tiles: ["c"] }];
+
+  it("applies friendly wall defaults", () => {
+    const o = wallOptionsSchema.parse({ columns: threeColumns });
+    expect(o.width).toBe(1920);
+    expect(o.height).toBe(1080);
+    expect(o.columns).toHaveLength(3); // count = array length
+    expect(o.gap).toBe(8);
+    expect(o.loops).toBe(0); // static by default — a pulse (or explicit loops) makes a column move
+    expect(o.pulses).toEqual([]); // no wall-level default pulses
+    expect(o.pan.loops).toBe(0); // System 1: no pan unless configured
+    expect(o.tileAspect).toBeCloseTo(0.75);
+    expect(o.capture).toBe("frames");
+    expect(o.durationSeconds).toBe(16);
+    expect(o.test).toBe(false); // preview mode off by default
+    expect(o.testTiles).toEqual({});
+  });
+
+  it("in test mode derives no inputs (faux tiles → no producers run)", () => {
+    const o = wallOptionsSchema.parse({
+      test: true,
+      columns: [{ tiles: ["a", "b"] }, { tiles: ["c"] }, { tiles: ["d"] }],
+    });
+    expect(getGenerator(WALL_ID)?.deriveInputs?.(o)).toEqual({});
+  });
+
+  it("defaults a pulse's easing and requires at/duration/distance", () => {
+    const o = wallOptionsSchema.parse({
+      columns: [{ tiles: ["a"], pulses: [{ at: 0.2, duration: 0.2, distance: 0.5 }] }, { tiles: ["b"] }, { tiles: ["c"] }],
+    });
+    expect(o.columns[0]?.pulses?.[0]?.easing).toBe("ease-in-out");
+    expect(wallOptionsSchema.safeParse({ columns: [{ tiles: ["a"], pulses: [{ at: 0.2 }] }, { tiles: ["b"] }, { tiles: ["c"] }] }).success).toBe(false);
+  });
+
+  it("treats pulse `duration` as a 0..1 clip fraction (a late pulse auto-shifts; >1 is rejected)", () => {
+    // at 0.9 + duration 0.2 overruns the clip — but it's accepted and the start auto-shifts (no error).
+    expect(
+      wallOptionsSchema.safeParse({
+        columns: [{ tiles: ["a"], pulses: [{ at: 0.9, duration: 0.2, distance: 0.5 }] }, { tiles: ["b"] }, { tiles: ["c"] }],
+      }).success,
+    ).toBe(true);
+    // a duration longer than the whole clip is meaningless → rejected by the schema (max 1).
+    expect(
+      wallOptionsSchema.safeParse({
+        columns: [{ tiles: ["a"], pulses: [{ at: 0.1, duration: 1.5, distance: 0.5 }] }, { tiles: ["b"] }, { tiles: ["c"] }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("requires at least 3 columns, each with at least one tile", () => {
+    expect(wallOptionsSchema.safeParse({ columns: [{ tiles: ["a"] }, { tiles: ["b"] }] }).success).toBe(false);
+    expect(wallOptionsSchema.safeParse({ columns: [...threeColumns, { tiles: [] }] }).success).toBe(false);
   });
 
   it("rejects unknown option keys (typo guard)", () => {
-    expect(sceneOptionsSchema.safeParse({ scenes: "phone" }).success).toBe(false);
+    expect(wallOptionsSchema.safeParse({ columns: threeColumns, colums: 6 }).success).toBe(false);
   });
 
-  it("a scene asset is valid without a url (url-based generators require one; scene resolves inputs)", () => {
-    // assetSpecSchema makes url optional precisely so local scenes can omit it; this fails if
-    // url ever becomes required.
-    expect(assetSpecSchema.safeParse({ name: "hero", generator: "scene" }).success).toBe(true);
-    expect(assetSpecSchema.safeParse({ name: "hero", generator: "scene", url: "not-a-url" }).success).toBe(
-      false,
-    );
+  it("derives inputs (slot=assetName) from every column tile", () => {
+    const o = wallOptionsSchema.parse({
+      columns: [{ tiles: ["img-a", "clip-b"] }, { tiles: ["img-a", "ui-c"] }, { tiles: ["ui-d"] }],
+    });
+    expect(getGenerator(WALL_ID)?.deriveInputs?.(o)).toEqual({
+      "img-a": "img-a",
+      "clip-b": "clip-b",
+      "ui-c": "ui-c",
+      "ui-d": "ui-d",
+    });
+  });
+
+  it("a wall asset is valid without a url (local generator; resolves inputs)", () => {
+    expect(assetSpecSchema.safeParse({ name: "w", generator: "wall" }).success).toBe(true);
   });
 });
 
-describe("per-scene option schemas", () => {
-  it("exposes a schema per built-in scene", () => {
-    expect(Object.keys(SCENE_OPTION_SCHEMAS).sort()).toEqual([
-      "browser",
-      "laptop",
-      "palette-reel",
-      "phone",
-      "specimen",
-      "wall",
-    ]);
+describe("scene option schemas (the shared engine)", () => {
+  it("exposes a schema per remaining built-in scene", () => {
+    expect(Object.keys(SCENE_OPTION_SCHEMAS).sort()).toEqual(["palette-reel", "specimen", "wall"]);
   });
 
-  it("fills wall defaults (passive pulse motion) and rejects a typo", () => {
-    const o = wallSceneOptionsSchema.parse({});
-    expect(o.columns).toBe(4);
-    expect(o.padding).toBe(16);
+  it("fills wall scene defaults (uniform pulse model) and rejects a typo", () => {
+    const o = wallSceneOptionsSchema.parse({ columns: [{ tiles: ["a"] }, { tiles: ["b"] }, { tiles: ["c"] }] });
+    expect(o.columns).toHaveLength(3); // System 2: each column is its own unit (tiles + motion)
+    expect(o.gap).toBe(16);
     expect(o.background).toBeUndefined(); // inherits the scene background unless set
-    expect(o.panLoops).toBe(1);
-    expect(o.scrollLoopsMin).toBe(1);
-    expect(o.scrollLoopsMax).toBe(2);
-    expect(o.pulses).toBe(4);
-    expect(o.pulseDuration).toBe(1);
-    expect(o.baseDrift).toBeCloseTo(0.08);
-    expect(o.pulseVariance).toBeCloseTo(0.6);
-    expect(o.alternate).toBe(true);
+    expect(o.pan.loops).toBe(0); // System 1: no pan unless configured
+    expect(o.pan.direction).toBe("left");
+    expect(o.loops).toBe(0); // static by default — a pulse (or explicit loops) makes a column move
+    expect(o.pulses).toEqual([]); // no wall-level default pulses
     expect(wallSceneOptionsSchema.safeParse({ colums: 6 }).success).toBe(false);
-  });
-
-  it("fills phone styling defaults to the previous hardcoded values", () => {
-    const o = phoneSceneOptionsSchema.parse({});
-    expect(o.bezel).toBe("#0a0a0a");
-    expect(o.shadow).toBe("0 40px 120px rgba(0,0,0,0.5)");
-    expect(o.radiusScale).toBe(1);
-    expect(o.screenBackground).toBe("#000");
-  });
-
-  it("defaults the browser dots + colors and accepts overrides", () => {
-    const o = browserSceneOptionsSchema.parse({});
-    expect(o.dots).toBe(true);
-    expect(o.dotColors).toEqual(["#ff5f57", "#febc2e", "#28c840"]);
-    const custom = browserSceneOptionsSchema.parse({ dots: false, dotColors: ["#111", "#222", "#333"] });
-    expect(custom.dots).toBe(false);
-    expect(custom.dotColors).toEqual(["#111", "#222", "#333"]);
-  });
-
-  it("rejects a typo'd scene option key (the whole point of typed sceneOptions)", () => {
-    expect(phoneSceneOptionsSchema.safeParse({ bezl: "#000" }).success).toBe(false);
   });
 });

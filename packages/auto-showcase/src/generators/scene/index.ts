@@ -1,10 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { copyFile, rename, stat } from "node:fs/promises";
-import {
-  sceneOptionsSchema,
-  type ResolvedSceneOptions,
-} from "@/generators/scene/options";
+import type { ResolvedSceneOptions } from "@/generators/scene/options";
 import { SCENE_OPTION_SCHEMAS } from "@/generators/scene/scene-options";
 import { startSceneServer } from "@/scene/serve";
 import { recordSceneRealtime } from "@/scene/capture-realtime";
@@ -14,7 +11,7 @@ import { probeVideoDimensions, transcodeToMp4 } from "@/media/ffmpeg";
 import { ensureDir } from "@/utils/fs";
 import { sha256File } from "@/utils/hash";
 import { slugify } from "@/utils/paths";
-import type { Generator, PipelineContext } from "@/generators/types";
+import type { PipelineContext } from "@/generators/types";
 import type { AssetRecord } from "@/manifest/schema";
 
 export const SCENE_ID = "scene";
@@ -171,10 +168,5 @@ export async function renderScene(
   }
 }
 
-export const sceneGenerator: Generator<ResolvedSceneOptions> = {
-  id: SCENE_ID,
-  optionsSchema: sceneOptionsSchema,
-  // Served files (e.g. fonts) shape the output — hash their content into the cache key.
-  fileDependencies: (options) => Object.values(options.files),
-  run: (ctx, options) => renderScene(ctx, options),
-};
+// Note: there is no public `scene` generator — the friendly `wall`, `specimen`, and `palette-reel`
+// generators render through `renderScene` (the shared engine) above.

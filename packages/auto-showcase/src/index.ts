@@ -10,5 +10,5 @@ export type {
 } from "@/config/define-config";
 export type { ScrollReelOptions } from "@/generators/scroll-reel/options";
 export type { ScreenshotsOptions } from "@/generators/screenshots/options";
-export type { SceneOptions } from "@/generators/scene/options";
+export type { WallOptions } from "@/generators/wall/options";
 export type { SpecimenOptions } from "@/generators/specimen/options";

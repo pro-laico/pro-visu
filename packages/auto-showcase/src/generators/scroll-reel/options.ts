@@ -298,7 +298,285 @@ export const scrollReelOptionsSchema = z
   })
   .strict();
 
-/** Author-facing input (all optional — defaults applied at run time). */
-export type ScrollReelOptions = z.input<typeof scrollReelOptionsSchema>;
+// ---------------------------------------------------------------------------
+// Author-facing input types (editor autocomplete + hover docs). JSDoc on the
+// zod schema above does NOT surface on hover through `z.input`, so the docs
+// live on these hand-written interfaces, kept in sync with the schema by the
+// Exact<> guard at the bottom — a drift is a compile error.
+// ---------------------------------------------------------------------------
+
+/** One choreographed scroll step. */
+export interface ChoreographyStepInput {
+  /** Target: a 0..1 number, an "NN%" string, or a CSS selector to bring into view. */
+  to: number | string;
+  /** Travel time to this target (ms). Default 1200. */
+  durationMs?: number;
+  /** Hold time at this target after arriving (ms). Default 800. */
+  holdMs?: number;
+  /** Easing for the travel to this target. Default "easeInOutCubic". */
+  easing?: Easing;
+}
+
+/** One step of a scripted interaction (`actions` / `focus.actions`). */
+export interface InteractionActionInput {
+  /** What this step does. */
+  do: "move" | "click" | "hover" | "type" | "scrollTo" | "wait";
+  /** Target element for move/click/hover/type. */
+  selector?: string;
+  /** Viewport-relative X target for a selector-less `move` (0..1). */
+  x?: number;
+  /** Viewport-relative Y target for a selector-less `move` (0..1). */
+  y?: number;
+  /** Text to type (for `type`). */
+  text?: string;
+  /** Scroll target for `scrollTo`: a 0..1 number, an "NN%" string, or a CSS selector. */
+  to?: number | string;
+  /** Cursor travel / scroll animation time (ms). Default 700. */
+  durationMs?: number;
+  /** Pause after the step (ms). Default 600. */
+  holdMs?: number;
+}
+
+/** Tuning for auto-section choreography (`autoSections`). */
+export interface AutoSectionsInput {
+  /** Min element height (as a fraction of the viewport) to count as a section. Default 0.5. */
+  minHeightFraction?: number;
+  /** Explicit section selector; overrides the heuristic. Omit to auto-detect. */
+  selector?: string;
+  /** Hold at each detected section (ms). Default 700. */
+  holdMs?: number;
+  /** Total clip length (ms) split across detected sections. Default 12000. */
+  durationMs?: number;
+  /** Cap on the number of sections. Default 8. */
+  maxSections?: number;
+  /** Distribute travel time by distance for uniform scroll speed. Default true. */
+  constantVelocity?: boolean;
+}
+
+/** An intro / outro card (`intro` / `outro`). */
+export interface CardInput {
+  /** Card title (large). Omit for none. */
+  title?: string;
+  /** Card subtitle (small, under the title). Omit for none. */
+  subtitle?: string;
+  /** Card background color. Default black. */
+  background?: string;
+  /** Card text color. Default white. */
+  color?: string;
+  /** How long the card holds (ms). Default 1500. */
+  durationMs?: number;
+  /** Fade in/out length (ms). Default 400. */
+  fadeMs?: number;
+}
+
+/** A timed on-screen annotation (`annotations`). */
+export interface AnnotationInput {
+  /** Caption text shown while active. Omit for a ring/spotlight with no caption. */
+  text?: string;
+  /** Selector to outline with a highlight ring. */
+  ring?: string;
+  /** Selector to spotlight (everything else dimmed). */
+  spotlight?: string;
+  /** When it appears (clip time, ms). Default 0. */
+  atMs?: number;
+  /** When it disappears (clip time, ms). Default = end of clip. */
+  untilMs?: number;
+  /** Caption placement. Default "bottom". */
+  position?: "top" | "bottom" | "center";
+}
+
+/** Ken Burns slow-zoom config ("frames" capture only). */
+export interface KenBurnsInput {
+  /** Start scale (1 = no zoom). Default 1. */
+  scaleFrom?: number;
+  /** End scale. Default 1.08. */
+  scaleTo?: number;
+  /** Easing for the zoom ramp. Default "easeInOutCubic". */
+  easing?: Easing;
+  /** Zoom origin X within the viewport (0 = left, 1 = right). Default 0.5. */
+  originX?: number;
+  /** Zoom origin Y within the viewport (0 = top, 1 = bottom). Default 0.5. */
+  originY?: number;
+}
+
+/** The synthetic cursor shown during an interaction. */
+export interface CursorInput {
+  /** Show the cursor. Default true (when `actions` is set). */
+  show?: boolean;
+  /** Cursor size (px). Default 20. */
+  size?: number;
+  /** Cursor color. Default white-with-shadow. */
+  color?: string;
+}
+
+/** Element-focused clip config (`focus`). */
+export interface FocusInput {
+  /** Selector of the element to scroll into view and crop to. */
+  selector: string;
+  /** Padding (px) around the element when cropping. Default 24. */
+  padding?: number;
+  /** Optional steps to trigger the component (e.g. open a dropdown) before holding. */
+  actions?: InteractionActionInput[];
+  /** Time to dwell on the element after positioning / triggering (ms). Default 2000. */
+  holdMs?: number;
+}
+
+/** One extra viewport to also capture the reel at (`viewports`). */
+export interface ViewportInput {
+  /** Name appended to the asset (<name>-<viewport name>). */
+  name: string;
+  /** Viewport width in CSS px. */
+  width: number;
+  /** Viewport height in CSS px. */
+  height: number;
+  /** Override the generator-level `deviceScaleFactor` for this viewport. Omit to inherit it. */
+  deviceScaleFactor?: number;
+}
+
+/** One route in a multi-page tour: a URL string, or an object with per-route choreography. */
+export type RouteInput =
+  | string
+  | {
+      /** Route URL (absolute, or a "/path" against the managed server). */
+      url: string;
+      /** Per-route choreographed scroll (overrides the tour default). */
+      choreography?: ChoreographyStepInput[];
+      /** Per-route auto-section choreography. */
+      autoSections?: boolean | AutoSectionsInput;
+      /** This route's slice of the tour (ms). */
+      durationMs?: number;
+    };
+
+/** Target output aspect: a preset, or an explicit pixel box. */
+export type AspectInput = "16:9" | "9:16" | "1:1" | { width: number; height: number };
+
+/**
+ * Author-facing options for the `scroll-reel` generator — a video of a page. By default it eases a
+ * single top→bottom scroll; the options below switch it into choreographed / auto-section / focus /
+ * interaction / multi-route modes, add cards & annotations, clean up the page, and reframe / re-encode
+ * the output. Everything is optional, with the defaults noted below.
+ */
+export interface ScrollReelOptionsInput {
+  /** Viewport + output width in CSS px. Default 1280. */
+  width?: number;
+  /** Viewport + output height in CSS px. Default 800. */
+  height?: number;
+  /** Render scale (2 = retina-crisp capture, downscaled into the video). Default 2. */
+  deviceScaleFactor?: number;
+  /** Output frames per second (re-encoded from the recording). Default 30. */
+  fps?: number;
+  /** Time to scroll from top to bottom (ms). Default 6000. */
+  duration?: number;
+  /** Easing for the default top→bottom scroll. Default "easeInOutCubic". */
+  easing?: Easing;
+  /** Dwell at the top before scrolling (ms). Default 500. */
+  startDelayMs?: number;
+  /** Dwell at the bottom after scrolling (ms). Default 800. */
+  endDwellMs?: number;
+  /** Page-load milestone to wait for before recording. Default "networkidle". */
+  waitUntil?: "load" | "domcontentloaded" | "networkidle" | "commit";
+  /** Optional element to wait for before recording (e.g. a hero section). Omit to skip. */
+  waitForSelector?: string;
+  /** x264 quality, 0–51 (lower = better quality / larger file). Default 18. */
+  crf?: number;
+  /**
+   * Capture strategy. "frames" (default) steps a virtual clock per frame — frame-accurate, crisp,
+   * reproducible. "realtime" records the live session; use it only for time-based hero animation or
+   * autoplay video. Default "frames".
+   */
+  capture?: "frames" | "realtime";
+  /** Parallel render workers for "frames" (each its own browser context). Omit to auto-pick by cores. */
+  workers?: number;
+  /** Intermediate frame format for "frames". "jpeg" (default) is faster; "png" is lossless. Default "jpeg". */
+  frameFormat?: "jpeg" | "png";
+  /**
+   * Choreographed scroll: an ordered list of steps instead of one top→bottom sweep ("frames" only).
+   * Omit for the default single eased sweep.
+   */
+  choreography?: ChoreographyStepInput[];
+  /**
+   * Auto-choreograph: detect the page's sections and pan/hold through them ("frames" only). `true`
+   * for defaults, or an object to tune. Ignored if `choreography` is set. Omit to disable.
+   */
+  autoSections?: boolean | AutoSectionsInput;
+  /** Loop style. "boomerang" plays the scroll forward then back for a seamless loop. Default "none". */
+  loop?: "none" | "boomerang";
+  /** Ken Burns slow zoom over the clip ("frames" only). Omit for no zoom. */
+  kenBurns?: KenBurnsInput;
+  /**
+   * Drive a scripted interaction instead of an auto-scroll (move/click/hover/type/scrollTo/wait).
+   * Setting this records in REALTIME and emits a single asset (variants/aspect/extra outputs skipped).
+   */
+  actions?: InteractionActionInput[];
+  /** The synthetic cursor shown during an interaction. Omit for the default cursor. */
+  cursor?: CursorInput;
+  /**
+   * Element-focused clip: scroll one component into view, optionally trigger it, hold, and crop the
+   * output to its box. Realtime; emits a single asset (variants/aspect/outputs/cards skipped).
+   */
+  focus?: FocusInput;
+  /** Force a color scheme. "both" emits a light AND a dark asset (<name>-light / <name>-dark). Omit to leave as-is. */
+  colorScheme?: "light" | "dark" | "both";
+  /** Add this class to <html> before capture (e.g. to trigger a CSS-class dark theme). Omit for none. */
+  themeClass?: string;
+  /** Also capture the reel at these viewports; each emits an asset (<name>-<viewport name>). */
+  viewports?: ViewportInput[];
+  /**
+   * Capture several routes and concatenate them into one reel ("frames" path). Emits a single asset
+   * (variants skipped; aspect/outputs apply to the final tour).
+   */
+  routes?: RouteInput[];
+  /** Hide elements matching these CSS selectors before capture (cookie banners, chat widgets, …). Default none. */
+  hideSelectors?: string[];
+  /** Extra CSS injected before capture (e.g. a brand backdrop, or hiding a sticky header). Omit for none. */
+  injectCss?: string;
+  /** Click these selectors once after load to dismiss overlays (consent dialogs); best-effort. Default none. */
+  clickSelectors?: string[];
+  /** Hide scrollbars so they don't appear in the capture. Default true. */
+  hideScrollbars?: boolean;
+  /** Pause CSS animations/transitions for fully static, deterministic frames. Default false. */
+  pauseAnimations?: boolean;
+  /** Freeze Date.now / performance.now / Math.random (seeded) so time/random content is stable. Default false. */
+  freezeClock?: boolean;
+  /** Abort common analytics/ads/session-replay requests during capture (cleaner, faster). Default true. */
+  blockTrackers?: boolean;
+  /** Extra hostname substrings to block during capture. Default none. */
+  blockHosts?: string[];
+  /** Playwright resource types to block (e.g. "media", "font", "image"). Default none. */
+  blockResourceTypes?: string[];
+  /** Wait for fonts + in-view images before each frame's screenshot ("frames"). Defaults on (off in draft). */
+  settlePerFrame?: boolean;
+  /** Max time (ms) to wait per frame for settling before screenshotting anyway. Default 250. */
+  settleMaxMs?: number;
+  /** Reframe the output to a target aspect: a preset ("16:9"|"9:16"|"1:1") or explicit {width,height}. Omit to keep the capture aspect. */
+  aspect?: AspectInput;
+  /** How to fit the capture into `aspect`: "cover" (scale + center-crop) or "contain" (scale + pad). Default "cover". */
+  fit?: "cover" | "contain";
+  /** Pad color used by "contain". Default "#0b0b0f". */
+  padColor?: string;
+  /** Files to emit per variant; each becomes its own asset. Default ["mp4"]. */
+  outputs?: ("mp4" | "gif" | "webp" | "poster")[];
+  /** GIF / animated-WebP frame rate. Defaults to min(fps, 15). */
+  gifFps?: number;
+  /** Intro card shown before the reel (fades from black). Applies to frames / route tours. Omit for none. */
+  intro?: CardInput;
+  /** Outro / end card shown after the reel. Omit for none. */
+  outro?: CardInput;
+  /** Timed on-screen annotations (caption text, a highlight ring, or a spotlight on a selector). */
+  annotations?: AnnotationInput[];
+  /** Output filename; defaults to "<slug(asset name)>.mp4". */
+  fileName?: string;
+}
+
+/** Author-facing input (documented for editor hover; the schema validates it at run time). */
+export type ScrollReelOptions = ScrollReelOptionsInput;
 /** Fully-resolved options after parsing. */
 export type ResolvedScrollReelOptions = z.infer<typeof scrollReelOptionsSchema>;
+
+// Compile-time guard: the documented authoring type must stay in sync with the schema's input shape.
+type Exact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
+const _scrollReelInputInSync: Exact<
+  ScrollReelOptionsInput,
+  z.input<typeof scrollReelOptionsSchema>
+> = true;
+void _scrollReelInputInSync;

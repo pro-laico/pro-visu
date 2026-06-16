@@ -1,14 +1,15 @@
 # auto-showcase
 
 A portable CLI for generating marketing/showcase assets (scroll reels, responsive
-screenshots, scenes — with more asset types to come) of the websites you build. Install it
+screenshots, media walls — with more asset types to come) of the websites you build. Install it
 into any website repo, point it at a URL, and it writes assets into a gitignored `showcase/`
 folder.
 
 > Status: **0.2** (pre-1.0; the option surface may still shift). Generators: `scroll-reel` (deterministic frame-stepped recording → mp4 — scroll
 > reels, choreographed tours, scripted interaction, social formats and more), `screenshots`
-> (responsive full-page + element captures), and `scene` (inputs composited inside a web
-> scene). The pipeline is a plugin contract, so new asset types slot in without core changes.
+> (responsive full-page + element captures), `wall` (a seamless-looping media wall of your
+> assets), `image` (register a file for reuse), plus `specimen`/`palette`/`palette-reel`. The
+> pipeline is a plugin contract, so new asset types slot in without core changes.
 
 > Requires Node ≥ 18.18. The first run downloads a managed Chromium (cached and shared
 > across projects); ffmpeg is bundled — no global installs required.
@@ -59,7 +60,9 @@ and are merged beneath each asset's own `options`.
 |---|---|---|
 | `scroll-reel` | mp4 of the site (frame-stepped by default) — scroll reels, choreographed tours, interaction demos | `width`/`height`/`fps`/`duration`/`easing` plus `capture`, `choreography`, `autoSections`, `kenBurns`, `loop`, clean-capture, `colorScheme`/`viewports`, `aspect`, `outputs`, `intro`/`outro`, `annotations`, `actions`, `focus`, `routes` — see [Recording reels in depth](#recording-reels-in-depth-scroll-reel) |
 | `screenshots` | png/jpeg page + element captures per breakpoint | `breakpoints[]`, `fullPage`, `format`, `elements[]`, `deviceScaleFactor` |
-| `scene` | mp4 of inputs composited inside a web scene (phone/laptop/browser) | `scene`, `inputs`, `width`, `height`, `capture`, `durationSeconds`, `workers`, `sceneOptions` |
+| `wall` | mp4 media wall — columns of your assets, each scrolling on its own, looping seamlessly | `columns[]` (tiles + per-column motion), `pulses`, `loops`, `pan`, `gap`/`tileAspect`/`cornerRadius`, `stagger`, `test` |
+| `image` | passthrough — registers an existing image file as an asset (e.g. a wall tile) | `src`, `fileName` |
+| `specimen` / `palette` / `palette-reel` | type specimen / colour palette (still + reel) | see the [docs](https://github.com/chad-hill/auto-showcase#readme) |
 
 ```ts
 assets: [
@@ -207,34 +210,50 @@ options: {
 `routes` captures each page as a frame-stepped segment and concatenates them into one reel; aspect
 and extra `outputs` apply to the final tour.
 
-## Scenes & composition
+## Media wall & composition
 
 Assets can depend on other assets via `inputs: { slot: assetName }` — producers run first and
-their output is fed to the consumer. A **scene** is a small React page (shipped with the tool)
-that composites those inputs; e.g. record a phone-sized scroll, then drop it inside a phone
-mockup:
+their output is fed to the consumer. The **`wall`** generator composites assets into a seamless
+media wall: each column lists the assets it stacks (by name), and the wall **derives** its
+dependencies from those names — so the producers run first and there's no `inputs` map to write.
+Every tile fills its column's **width** and takes its **own height** from its media's aspect ratio
+(16:9 → short, 9:16 → tall) — a natural masonry, not a fixed grid; you don't set a tile size.
 
 ```ts
 assets: [
+  { name: "img-coat", generator: "image", options: { src: "public/img/coat.jpg" } },
+  { name: "ui-home", url: "/", generator: "screenshots", options: { fullPage: false } },
+  // …enough to fill the columns…
   {
-    name: "phone-scroll",
-    url: "https://your-site.com",
-    generator: "scroll-reel",
-    options: { width: 390, height: 844 },
-  },
-  {
-    name: "phone-frame",
-    generator: "scene",                  // no url — it composites inputs
-    inputs: { screen: "phone-scroll" },  // phone-scroll runs first; its mp4 is the screen
-    options: { scene: "phone", width: 1080, height: 1350, capture: "frames" },
+    name: "wall",
+    generator: "wall",                       // no url, no inputs — derived from the tiles below
+    options: {
+      durationSeconds: 16,
+      pan: { direction: "left", loops: 1 },
+      columns: [
+        { tiles: ["img-coat", "ui-home"], direction: "down",
+          pulses: [{ at: 0.1, duration: 0.15, distance: 0.5 }] },
+        { tiles: ["ui-home", "img-coat"], direction: "up", loops: 1, stagger: 0.4 },
+        { tiles: ["img-coat", "ui-home"], stagger: 0.15 },
+      ],
+    },
   },
 ],
 ```
 
-- **Built-in scenes:** `phone`, `laptop`, `browser` (pass scene knobs via `sceneOptions`).
-- **Capture modes:** `capture: "realtime"` records the page live (simple, webm→mp4);
-  `capture: "frames"` steps deterministically (frame-accurate, exact duration, parallelized by
-  `workers`). Use `frames` when chaining videos.
+- **Motion** is a uniform *pulse* model: a column's travel = `loops` continuous periods + its
+  `pulses` (each `{ at, duration, distance, easing }`, all clip-relative), rounded up to a whole
+  number so it loops seamlessly. `loops` defaults to `0` (static unless a pulse moves it); `stagger`
+  (0–1) phase-shifts a column so similar tiles don't line up.
+- **Tile sizing:** tiles fit the column width and take their height from the media's aspect, so
+  columns scroll as a masonry. `tileAspect` is only a **fallback** for faux (`test`) tiles that don't
+  set their own `aspect` — real tiles ignore it.
+- **Test mode:** `test: true` renders faux labeled colour boxes instead of real assets — no
+  producers run and the managed server is auto-skipped, so it previews in seconds. Give a faux tile
+  an `aspect` (w/h) to mirror the real tile's height. Pair with `capture: "realtime"` while
+  iterating; drop both for the final render.
+- **Capture modes:** `capture: "frames"` (default) steps deterministically (frame-accurate, exact
+  duration, parallelized by `workers`); `capture: "realtime"` records the scene live (faster).
 
 ## Commands
 
@@ -305,8 +324,8 @@ printf '{ "assets": [ { "name": "demo", "url": "https://example.com", "generator
 node /path/to/auto-showcase/dist/cli/index.js generate --cwd . --config showcase.config.json
 ```
 To exercise the real consumer path (a TS `showcase.config.ts` that imports `defineConfig`,
-or `scene` loading its bundled web app), the package must be resolvable from that folder — use
-option B/C above, or a `node_modules/auto-showcase` junction to this repo.
+or the `wall` loading its bundled scene web app), the package must be resolvable from that folder —
+use option B/C above, or a `node_modules/auto-showcase` junction to this repo.
 
 **Adding a generator:** implement the `Generator` contract in `src/generators/<id>/`,
 `register()` it in `src/generators/registry.ts`, and extend the `AssetSpecInput` union +

@@ -17,15 +17,16 @@ See the approved approach in [`SHOWCASE-PLAN.md`](./SHOWCASE-PLAN.md) and the en
 | Frame | 1920×1080 (16:9) |
 | fps | 30 |
 | Duration | **16s** (deliberate exception to the 10s clip rule — the wall is an ambient hero loop; 16 gives CSS-loop tiles clean divisors) |
-| Columns | **6** (dial: 5 = calmer/bigger · 7 = denser, reserve for 4K) |
-| Padding | 8px (hairline gutter) · tileAspect 0.75 (3:4) · cornerRadius 6 |
+| Columns | **6** entries in the `columns` array (dial: 5 = calmer/bigger · 7 = denser, reserve for 4K) |
+| gap | 8px (hairline gutter) · tileAspect 0.75 (fallback only — tiles take their media's own height) · cornerRadius 6 |
 | Background | Ink `#1a1714` (gutters) — warm photos + paper-on-ink type glow |
 | Motion preset | **subtle-but-alive** (b) — see presets below |
 | Seed | _TBD — sweep 1–12_ |
 | Distinct sources | 18 (≈10 still / 8 video) + bench alternates below |
 
-Layout at these globals: tiles **312×416px**, **~18 visible** (6 cols × ~3 rows). Loops seamlessly
-by construction; each video tile must self-loop and divide 16s (use ~4s clips, or the 2s count-up).
+Layout at these globals: tiles are **312px wide**, height per the media's aspect (16:9 ≈ 312×176,
+9:16 ≈ 312×555, 3:4 ≈ 312×416) — a natural masonry, rows offset between columns. Loops seamlessly by
+construction; each video tile must self-loop and divide 16s (use ~4s clips, or the 2s count-up).
 
 ---
 
@@ -77,19 +78,26 @@ Motion is seeded/continuous (no per-tile scripting). Record the *feel*; realize 
   otherwise calm field — exactly the reference's trick.
 - One slow whole-wall pan (panLoops 1) over the 16s.
 
-### Motion presets (set in `sceneOptions`)
-- **(a) hushed:** `pulses:3, pulseDuration:1.8, baseDrift:0.03, pulseVariance:0.4, scrollLoopsMin:1, scrollLoopsMax:1`
-- **(b) subtle-but-alive (default):** `pulses:5, pulseDuration:1.4, baseDrift:0.06, pulseVariance:0.55, scrollLoopsMin:1, scrollLoopsMax:2`
-- **(c) livelier:** `pulses:7, pulseDuration:1.0, baseDrift:0.12, pulseVariance:0.7, scrollLoopsMin:1, scrollLoopsMax:3`
-- Always `panLoops:1, panDirection:"left", alternate:true`.
+### Motion presets (wall-level defaults; per-column entries override)
+The wall-level `loops` + `pulses` apply to every column that omits its own. A track's travel =
+`loops` continuous whole-clip periods + Σ(pulse `distance`), rounded UP to a whole number (the
+remainder folds into the continuous scroll) so it always loops seamlessly. **`loops` defaults to 0**,
+so a column is *static* unless it has a pulse or an explicit `loops` — and adding a single pulse
+rounds the total up to exactly one loop (the common case).
+- **(a) hushed:** mostly static (`loops:0`, no pulses); a few columns get one gentle pulse.
+- **(b) subtle-but-alive (default):** `loops:0` + a per-column pulse (`distance` ~0.3–0.6) → 1 loop each.
+- **(c) livelier:** `loops:1`+ and/or larger / more frequent pulses.
+- Always `pan: { direction:"left", loops:1 }`. Columns scroll "down" by default; set `direction:"up"` per column where wanted.
 
-## Motion log (Chad's direction: ~2 strong "whole-wall" moves over 16s, gentler, with small column
-nudges between — not the constant churn)
-- New `pulseWeights` sceneOption (exposed in the engine) gives deterministic cadence control.
-- Current: `panLoops:0` (no constant pan) · `pulses:4` · `pulseWeights:[1.7,0.3,1.7,0.3]` (strong @t≈2,10;
-  nudge @t≈6,14) · `pulseDuration:2.2` · `baseDrift:0.04`. Measured peaks: strong ~50, nudge ~27, held ~3.
-- Dials: strong gentler → raise `pulseDuration` or lower `scrollLoopsMax`; nudges tinier → widen weights
-  (e.g. `[1.8,0.2,...]`); reposition moments → reorder weights; livelier → raise `baseDrift`.
+## Pulse cadence (Chad's direction: ~2 gentle "whole-wall" moves over 16s, with small column nudges
+between — not constant churn)
+- Pulses are explicit and deterministic: `{ at (0..1 of clip), duration (0..1 of clip), distance
+  (periods), easing }`. Cadence is authored directly — no weights/jitter/seed.
+- A "strong move" = a pulse with a larger `distance` (e.g. 0.5–0.7) and `ease-in-out-strong`; a "nudge"
+  = a small `distance` (~0.25). Place moments via `at`; control feel via `duration` + `easing`.
+- Hold = the gaps between pulses (the track is still except during a pulse + the slow `loops` creep).
+- `at` + `duration` are both clip fractions, so a pulse can't overrun the clip: if `at + duration > 1`
+  the start auto-shifts back to end at the loop point (e.g. a 0.2 pulse at 0.9 starts at 0.8).
 
 ## Seed log
 | seed | verdict (placement · accent position · adjacency · any repeats on-screen) |
@@ -97,7 +105,38 @@ nudges between — not the constant churn)
 | 7 | Pipeline proof (8 product stills only, draft 15fps). Layout + differential scroll + warm tonal read beautifully. |
 | 7 | Full 20-source variety (draft). Reads exactly like the reference, warm/editorial. To re-sweep: the VESPER wordmark + V monogram sometimes land near each other (brand-heavy cluster) — pick a seed that separates them; keep the cognac tote + swatch apart. |
 
-## Redesign → real-content tiles (current)
+## Motion → two independent systems (current)
+The wall's motion is two systems built from ONE uniform pulse primitive, so columns no longer move in
+lockstep. A **pulse** is `{ at (0..1), duration (0..1 of clip), distance (periods), easing }`.
+- **System 1 — X pan** (`pan: { direction, loops, pulses }`): the whole wall pans horizontally —
+  `loops` continuous wraps + any pulses.
+- **System 2 — per-column Y**: each entry in the `columns` array carries its own tiles AND its own
+  motion (`{ tiles, direction, loops, pulses, stagger }`); omitted `loops`/`pulses` inherit the
+  wall-level defaults, and an omitted `direction` defaults to "down". A track's travel = `loops`
+  continuous periods + Σ(pulse distances), rounded UP to a whole number (remainder folds into the
+  continuous scroll) → every track lands on its start at the clip end → seamless for ANY
+  `durationSeconds`. `stagger` (0..1) adds a constant start-position shift (a fraction of a tile-set)
+  so columns with similar content (e.g. the all-image top row) don't line up — it's a fixed phase
+  offset, so it preserves the seam. Spread the values so neighbours don't share a phase.
+
+### Preview / test mode
+`test: true` renders every tile as a flat labeled color box instead of the real assets — and (key) it
+makes the wall declare **no dependencies**, so no producers run and the wall renders in seconds. Use it
+to dial in columns / motion / stagger fast, then turn it off for the real render. Tiles auto-color from
+their name; `testTiles: { "<name>": { color, size, aspect } }` overrides a box's color, adds a size
+caption, and sets its aspect (w/h) so the faux preview matches the real tile's height (16:9 → short,
+9:16 → tall). Tiles without an `aspect` fall back to `tileAspect`.
+
+Verified: per-column motion peaks at different times (col0 ~4/6/12s, col2 ~2.5/6.5/12s, col4
+~1.25/4/9/13.5s) — independent, not "same-same".
+
+## Refactor → friendly `wall` generator
+The wall is now its own generator: `generator: "wall"` with grid + motion knobs at the top level (no
+`scene: "wall"` / nested `sceneOptions`). The generic `scene` generator and the phone/laptop/browser
+device-frame scenes were removed; the shared scene **engine** (`renderScene`) stays — `wall`,
+`specimen`, and `palette-reel` all render through it. Also added a general `image` passthrough generator.
+
+## Redesign → real-content tiles
 Replaced the synthetic lookbook-panel tiles + low-res focus-crops with **real, high-fidelity content**:
 - **12 image tiles** — the actual high-res asset photos used directly via a NEW **`image` generator**
   (passthrough: copies the source file, e.g. `public/img/products/*.jpg`, so tiles are full source

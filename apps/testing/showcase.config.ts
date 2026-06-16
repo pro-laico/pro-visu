@@ -25,6 +25,9 @@ import { defineConfig } from "auto-showcase";
 //                 (no re-capture, so full source resolution).
 //   UI_PAGES    — crisp 3:4 captures of the real storefront pages.
 //   CLIPS       — short looping clips of the real UI in motion / interactions.
+// PARKED while testing the wall in `test` mode (the wall uses faux tiles, so these producers aren't
+// needed). Uncomment this block — and the spreads in `assets` — to render the real wall.
+/*
 const IMAGE_TILES = [
   { name: "img-coat", src: "public/img/products/the-camel-coat.jpg" },
   { name: "img-crew", src: "public/img/products/cashmere-crewneck.jpg" },
@@ -165,6 +168,7 @@ const CLIPS = [
     },
   },
 ];
+*/
 
 export default defineConfig({
   settings: {
@@ -184,85 +188,99 @@ export default defineConfig({
   // so nothing renders until we've agreed the starter set.
   assets: [
     // ─────────────────────────────────────────────────────────────────────────────────────
-    // ACTIVE — the media wall + its tile producers: real high-res images + real UI captures +
-    // looping interaction clips (see WALL-TIMELINE.md).
+    // TESTING THE WALL — the wall runs in `test: true` preview mode (faux labeled color boxes), so
+    // its tile producers are PARKED below. No producers + no managed server → renders in seconds.
+    // To go live: uncomment the spreads below, the producer consts up top, and drop `test` on the wall.
     // ─────────────────────────────────────────────────────────────────────────────────────
-    ...IMAGE_TILES,
-    ...UI_PAGES,
-    ...CLIPS,
+    // ...IMAGE_TILES,
+    // ...UI_PAGES,
+    // ...CLIPS,
     {
       name: "lookbook-wall",
-      generator: "scene",
-      // 24 distinct sources = exactly 6 cols × 4 rows, interleaved (image · UI · clip). Tile→cell uses
-      // index (5·col + row) mod 24, so cells s10/s15/s20 aren't shown and s2–s4 repeat at both edge
-      // columns — so those carry static images (fine to repeat), and the cognac-tote accent (s7) +
-      // the motion clips are placed elsewhere.
-      inputs: {
-        s1: "img-coat",
-        s2: "img-crew",
-        s3: "img-editorial",
-        s4: "img-trouser",
-        s5: "clip-cart",
-        s6: "ui-home",
-        s7: "img-tote",
-        s8: "ui-shop",
-        s9: "clip-quickadd",
-        s10: "img-turtle",
-        s11: "img-slip",
-        s12: "clip-menu",
-        s13: "ui-pdp-coat",
-        s14: "img-atelier",
-        s15: "img-overshirt",
-        s16: "clip-wishlist",
-        s17: "img-hero",
-        s18: "ui-about",
-        s19: "clip-size",
-        s20: "img-blazer",
-        s21: "ui-lookbook",
-        s22: "clip-scroll",
-        s23: "img-abouthero",
-        s24: "ui-pdp-slip",
-      },
-
+      generator: "wall",
+      // No `inputs` map — each column lists the assets it stacks (by name), so the wall derives its
+      // dependencies from the columns below. 6 columns × 4 tiles = the 24 sources, interleaved
+      // (image · UI · clip) so every column reads as a mix; each column carries its OWN Y motion.
+      // Friendly `wall` generator: grid + motion knobs at the top level (no nested sceneOptions).
       options: {
-        scene: "wall",
         width: 1920,
         height: 1080,
         fps: 30,
-        capture: "frames",
+        // While TESTING, use "realtime" — it records the live scene once (much faster). Switch back to
+        // "frames" for the real render: it's frame-exact, crisp (supersampled) and parallelizable.
+        capture: "realtime",
         // Single worker: tile <video>s stay warm across sequential seeks. Parallel workers each cold-
         // start their range and capture the seeked frame before it decodes → black tiles at every
         // worker boundary. (Slower, but correct; revisit a parallel-safe warm-up later.)
         workers: 1,
         deviceScaleFactor: 2,
         crf: 18,
-        durationSeconds: 16,
+        durationSeconds: 30,
         background: "#1a1714",
-        sceneOptions: {
-          columns: 6,
-          padding: 8,
-          tileAspect: 0.75,
-          cornerRadius: 6,
-          background: "#1a1714",
-          // Motion direction (Chad): the whole wall moving together should happen ~twice over 16s and
-          // gently, with smaller column nudges in between — not the constant 5-pulse churn. So: no
-          // constant horizontal pan; few pulses; high variance so ~2 read as the strong moments and
-          // the rest as subtle in-between nudges; mostly held between (low drift). NOTE the engine
-          // times all columns together (shared progress) — variation comes from per-column speed.
-          panLoops: 0,
-          panDirection: "left",
-          scrollLoopsMin: 1,
-          scrollLoopsMax: 2,
-          alternate: true,
-          pulses: 4,
-          pulseDuration: 2.2, // gentler ramps → softer moves ("not as strongly")
-          baseDrift: 0.04, // mostly held between pulses
-          // Two strong moves (t≈2s, 10s) with small nudges between (t≈6s, 14s). Wide contrast so the
-          // nudges read as subtle, not near-equal moves. Explicit weights override the seeded sizes.
-          pulseWeights: [1.7, 0.3, 1.7, 0.3],
-          pulseVariance: 0.7, // (ignored while pulseWeights is set)
-          seed: 7,
+        gap: 2,
+        tileAspect: 0.75,
+        cornerRadius: 0,
+        // PREVIEW MODE — faux labeled color boxes instead of real tiles, so no producers run and the
+        // wall renders in seconds while you dial in motion/layout. Tiles auto-color from their name;
+        // a few are themed via `testTiles` below. Each faux tile can set its own `aspect` (w/h) so the
+        // preview shows the same mixed-height masonry the real media will — 16:9 reads short, 9:16
+        // tall, all at the same column width. Tiles without an `aspect` use `tileAspect` (0.75 here).
+        // Remove `test`/`testTiles` for the real render.
+        test: true,
+        testTiles: {
+          "img-coat": { color: "#b49a77", size: "3:4", aspect: 0.75 },
+          "img-editorial": { color: "#6b6f58", size: "3:2", aspect: 1.5 },
+          "img-hero": { color: "#7a5234", size: "16:9", aspect: 1.78 }, // short landscape
+          "img-tote": { color: "#8a5a3c", size: "4:5", aspect: 0.8 }, // cognac accent
+          "ui-home": { color: "#5c5e4c", size: "3:4 UI", aspect: 0.75 },
+          "ui-lookbook": { color: "#4a4c3e", size: "16:9 UI", aspect: 1.78 },
+          "clip-cart": { color: "#1f2a24", size: "9:16", aspect: 0.5625 }, // tall portrait
+          "clip-scroll": { color: "#243029", size: "1:1", aspect: 1 },
         },
+        // Motion — the uniform pulse model (see WALL-TIMELINE.md). A track's travel = `loops`
+        // continuous whole-clip periods + the sum of its `pulses` (each an eased move of `distance`
+        // periods, starting at `at` (0..1 of the clip) over `duration` seconds). The total rounds up
+        // to a whole number of periods, so every column lands back on its start → seamless.
+        //  • System 1 — X pan: one gentle continuous leftward sweep over the 16s (no pulse).
+        //  • System 2 — per-column Y: a quiet baseline scroll with the occasional pulse. Just FIVE
+        //    pulses across the whole wall, each ≥1s apart (so moves never bunch up): one wall-level
+        //    pulse (inherited by the columns that don't override) at ~1.3s, then four columns with
+        //    their own single pulse at ~4.0s · 7.2s · 9.9s · 12.8s.
+        loops: 0, // wall-level default base scroll for columns that don't override it
+        // The single wall-level pulse — fires for every column that omits its own `pulses` (cols 1 & 5).
+        pulses: [{ at: 0.8, duration: 0.05, distance: 0.2, easing: "ease-in-out-strong" }], // ~2.4s move
+        pan: { direction: "left", loops: 1 }, // steady whole-wall creep, exactly one wrap over the clip
+        // Each column = its tiles (stacked top→bottom, cycled to fill) + its own motion. Distances are
+        // fractions of one tile-set; the engine rounds each column's total up to a seamless whole.
+        // `stagger` (0..1) shifts each column's start position so the (all-image) top row doesn't line
+        // up across columns — spread the values so neighbours don't share a phase.
+        columns: [
+          {
+            // inherits the wall-level pulse (≈1.3s)
+            tiles: ["img-coat", "clip-cart", "ui-home", "img-tote"],
+          },
+          {
+            tiles: ["img-crew", "ui-shop", "img-turtle", "clip-quickadd"],
+            pulses: [{ at: 0.1, duration: 0.14, distance: 0.20, easing: "ease-in-out" }], // start ≈4.0s
+          },
+          {
+            tiles: ["img-editorial", "clip-menu", "ui-pdp-coat", "img-atelier"],
+            pulses: [{ at: 0.45, duration: 0.15, distance: 0.5, easing: "ease-out" }], // start ≈7.2s
+          },
+          {
+            tiles: ["img-trouser", "ui-about", "clip-wishlist", "img-hero"],
+            pulses: [{ at: 0.62, duration: 0.11, distance: 0.35, easing: "ease-in" }], // start ≈9.9s
+          },
+          {
+            // inherits the wall-level pulse (≈1.3s); a touch faster baseline + its own stagger keep it
+            // off lockstep with col 1 (which shares the same pulse).
+            tiles: ["img-slip", "clip-size", "ui-lookbook", "img-overshirt"],
+          },
+          {
+            tiles: ["img-blazer", "ui-pdp-slip", "clip-scroll", "img-abouthero"],
+            pulses: [{ at: 0.8, duration: 0.13, distance: 0.5, easing: "ease-in-out-strong" }], // start ≈12.8s
+          },
+        ],
       },
     },
 

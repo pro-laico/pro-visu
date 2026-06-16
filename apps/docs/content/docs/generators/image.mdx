@@ -1,0 +1,25 @@
+---
+title: image
+description: Register an existing image file as an asset — a passthrough for feeding scenes and the manifest.
+---
+
+The **image** generator is a passthrough: it records an existing image file as an asset (copying it
+into the output dir, at full source resolution) so it can be consumed by another asset or tracked in
+the manifest. It takes no `url`. The classic use is feeding high-resolution photos into a
+[`wall`](/docs/generators/wall) as tiles — no re-capture, so the tile is the full source image.
+
+```ts
+assets: [
+  { name: "img-coat", generator: "image", options: { src: "public/img/products/coat.jpg" } },
+  // …then reference "img-coat" as a tile in a wall column.
+]
+```
+
+## Options
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `src` | `string` | — | **Required.** Path to the source image (relative to the cwd, or absolute). |
+| `fileName` | `string` | `<slug(name)><ext of src>` | Output filename. |
+
+The schema is **strict** — unknown keys are rejected.

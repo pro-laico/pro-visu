@@ -47,8 +47,15 @@ resolves against it. Absolute URLs pass through unchanged.
 
 ## Lifecycle and flags
 
-A normal run is: **build → start → wait for ready → capture all assets → stop**. Two flags
-adjust it:
+A normal run is: **build → start → wait for ready → capture all assets → stop**.
+
+The server is **skipped automatically when nothing in the selection needs a URL** — i.e. every
+selected asset is a local generator (`wall`, `image`, `palette`, `specimen`, `palette-reel`). So a
+[`wall` in `test` mode](/docs/generators/wall#test-mode-fast-preview), or `showcase generate <a
+local asset>`, renders without paying for a site build/boot it never uses. (A real `wall` still
+pulls in its URL-based tile producers, so the server starts for it.)
+
+Two flags adjust the lifecycle explicitly:
 
 - `--skip-server` — don't manage a server at all; capture an already-running site at the asset
   URLs. Pair this with a deployed URL or a dev server you started yourself. (Without a managed

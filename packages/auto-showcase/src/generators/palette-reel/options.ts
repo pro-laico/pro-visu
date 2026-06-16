@@ -27,72 +27,73 @@ const hexString = z.string().refine(
 export interface PaletteReelOptionsInput {
   /** The colors to reveal (at least one). */
   colors: PaletteColorInput[];
-  /** Sliver arrangement: horizontal bands (names upright) or full-height vertical strips. */
+  /** Sliver arrangement: horizontal bands (names upright) or full-height vertical strips. Default "rows". */
   orientation?: "rows" | "columns";
-  /** Fields revealed when a color expands (the name is always shown, so it's ignored here). */
+  /** Fields revealed when a color expands (the name is always shown, so it's ignored here). Default hex + oklch + rgb. */
   details?: FieldId[];
 
   // --- timing (seconds) ---
-  /** How long each color stays fully open before handing off to the next. */
+  /** How long each color stays fully open before handing off to the next. Default 2. */
   holdSeconds?: number;
-  /** Crossfade length from one open color to the next. */
+  /** Crossfade length from one open color to the next. Default 0.7. */
   transitionSeconds?: number;
   /**
    * Ping-pong the sweep (down the list then back up) so every handoff is between neighbouring bands —
    * the open band only ever slides by one, avoiding the "pinch" of a last→first jump at the loop seam.
-   * Off wraps directly (last→first): shorter, but crossfades non-adjacent bands at the seam.
+   * Off wraps directly (last→first): shorter, but crossfades non-adjacent bands at the seam. Default true.
    */
   bounce?: boolean;
-  /** Easing applied to the crossfade ramp. */
+  /** Easing applied to the crossfade ramp. Default "ease-in-out". */
   easing?: "linear" | "ease-in" | "ease-out" | "ease-in-out";
   /** Clip length override (s). Omit to derive (count × (hold + transition)) for a clean loop. */
   durationSeconds?: number;
 
   // --- layout / sizing ---
-  /** How many times a sliver's share a fully-open band takes (a collapsed sliver is the baseline). */
+  /** How many times a sliver's share a fully-open band takes (a collapsed sliver is the baseline). Default 12. */
   grownFlex?: number;
-  /** Minimum cross-size of a sliver in px so its name stays legible. Omit/0 to derive from height. */
+  /** Minimum cross-size of a sliver in px so its name stays legible. Default 0 (derive from height). */
   minCrossPx?: number;
-  /** Keep the name fully visible even in a collapsed sliver (else it fades with the band). */
+  /** Keep the name fully visible even in a collapsed sliver (else it fades with the band). Default true. */
   nameAlwaysVisible?: boolean;
 
   // --- styling (carried from the still palette) ---
-  /** Uppercase the color names. */
+  /** Uppercase the color names. Default false. */
   uppercase?: boolean;
-  /** RGB string style. */
+  /** RGB string style. Default "labeled". */
   rgbStyle?: "labeled" | "css" | "plain";
-  /** OKLCH string style. */
+  /** OKLCH string style. Default "css". */
   oklchStyle?: "css" | "labeled";
-  /** Text colors picked by contrast against each band. */
+  /** Light text color, used on dark bands (picked by contrast). Default "#ffffff". */
   textLight?: string;
+  /** Dark text color, used on light bands (picked by contrast). Default "#141414". */
   textDark?: string;
-  /** Luminance above which the dark text is used (0..1). */
+  /** Luminance above which the dark text is used (0..1). Default 0.5. */
   contrastThreshold?: number;
   /** Custom font file (woff2/woff/ttf/otf), served into the render. Omit for a system bold sans. */
   fontFile?: string;
-  /** Label font weight. */
+  /** Label font weight. Default 700. */
   fontWeight?: number;
   /** Name font size in px. Omit to derive from the frame size. */
   fontSize?: number;
-  /** Detail-line font size as a fraction of the name size. */
+  /** Detail-line font size as a fraction of the name size. Default 0.62. */
   detailFontScale?: number;
-  /** Backdrop behind the bands (shown in `gap` between them). */
+  /** Backdrop behind the bands (shown in `gap` between them). Default "#ffffff". */
   background?: string;
-  /** Gap between bands (px). */
+  /** Gap between bands (px). Default 0 (bands abut). */
   gap?: number;
-  /** Band corner radius (px). */
+  /** Band corner radius (px). Default 0 (square). */
   cornerRadius?: number;
 
   // --- output ---
-  /** Output frame width in px. */
+  /** Output frame width in px. Default 1920. */
   width?: number;
-  /** Output frame height in px. */
+  /** Output frame height in px. Default 1080. */
   height?: number;
-  /** Render scale (higher = crisper capture, downscaled into the video). */
+  /** Render scale (higher = crisper capture, downscaled into the video). Default 1. */
   deviceScaleFactor?: number;
-  /** Output frames per second. */
+  /** Output frames per second. Default 30. */
   fps?: number;
-  /** x264 quality, 0–51 (lower = better quality / larger file). */
+  /** x264 quality, 0–51 (lower = better quality / larger file). Default 18. */
   crf?: number;
   /** Output filename; defaults to "<slug(asset name)>.mp4". */
   fileName?: string;

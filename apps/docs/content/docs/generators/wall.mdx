@@ -1,0 +1,143 @@
+---
+title: wall
+description: A seamless-looping media wall — columns of your image/video/screenshot assets, each scrolling on its own.
+---
+
+A **wall** composites your assets into a marquee of tiles: columns that pan horizontally while each
+column scrolls vertically on its own, looping seamlessly. It takes no `url` — each column lists the
+assets it stacks **by name**, and the wall derives its dependencies from them (the producers run
+first; there's no separate `inputs` map to maintain).
+
+Every tile fills its **column's width** and takes its **own height** from its media's aspect ratio —
+a 16:9 asset is short, a 9:16 asset is tall, all the same width — so the columns read as a natural
+masonry rather than a rigid grid. You don't set a tile size; the content decides it.
+
+```ts
+assets: [
+  // tile producers — real photos, page captures, UI clips (any asset works)
+  { name: "img-coat", generator: "image", options: { src: "public/img/coat.jpg" } },
+  { name: "ui-home", url: "/", generator: "screenshots", options: { fullPage: false } },
+  { name: "clip-cart", url: "/products/coat", generator: "scroll-reel", options: { /* … */ } },
+  // …enough to fill the columns…
+
+  {
+    name: "lookbook-wall",
+    generator: "wall",                 // no `inputs` — derived from the column tiles below
+    options: {
+      durationSeconds: 16,
+      columns: [
+        { tiles: ["img-coat", "clip-cart", "ui-home"], direction: "down",
+          pulses: [{ at: 0.1, duration: 0.15, distance: 0.5, easing: "ease-in-out-strong" }] },
+        { tiles: ["img-crew", "ui-shop"], direction: "up", loops: 1, stagger: 0.4 },
+        { tiles: ["img-editorial", "clip-menu", "ui-about"], stagger: 0.15 },
+        // …≥3 columns…
+      ],
+      pan: { direction: "left", loops: 1 },  // steady whole-wall creep, one wrap over the clip
+    },
+  },
+]
+```
+
+## Columns are self-contained units
+
+`columns` is an **array** (minimum 3) — its length is the column count. Each entry owns both its
+**content** (`tiles`, asset names stacked top→bottom at their natural heights) and its **motion**
+(`direction`, `loops`, `pulses`, `stagger`). Omitted motion fields inherit the wall-level defaults.
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `tiles` | `string[]` | — | **Required** (≥1). Assets stacked in this column, by name. Each keeps the column width and its own height; the set repeats to fill (and scroll through) the column. |
+| `direction` | `"up" \| "down"` | `"down"` | Vertical scroll direction. Set `"up"` per column where you want it. |
+| `loops` | `number` | wall `loops` | Continuous whole-clip scroll periods for this column. Omit to inherit the wall-level `loops`. |
+| `pulses` | `Pulse[]` | wall `pulses` | This column's pulses (see below). Omit to inherit the wall-level `pulses`. |
+| `stagger` | `number` (0–1) | `0` | Constant start-position shift, as a fraction of one tile-set — de-aligns columns with similar content (e.g. an all-image top row). A fixed phase offset, so it preserves the loop. |
+
+## Motion: the uniform pulse model
+
+A track's travel = **`loops`** continuous whole-clip periods **plus** the sum of its **`pulses`**.
+The total is rounded **up** to a whole number of periods (the remainder folds into the continuous
+scroll), so every track lands back on its start at the clip's end — the wall **always loops
+seamlessly**, for any `durationSeconds`.
+
+A **pulse** is one eased move, shared verbatim by columns, the wall-level default, and the `pan`:
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `at` | `number` (0–1) | — | When the move starts, as a fraction of the clip. |
+| `duration` | `number` (0–1) | — | How long the move takes, as a fraction of the clip. If `at + duration > 1`, the start shifts back so it ends exactly at the loop point (a 0.2 pulse at 0.9 starts at 0.8) — a pulse can never overrun the clip. |
+| `distance` | `number` | — | How far it travels, in periods (`1` = one full tile-set). Usually 0–1. |
+| `easing` | `"linear" \| "ease-in" \| "ease-out" \| "ease-in-out" \| "ease-in-out-strong"` | `"ease-in-out"` | Ramp of the move. |
+
+`loops` **defaults to `0`**, so a column is *static* unless it has a pulse or an explicit `loops`
+(static tiles can look good). Because of the round-up, adding a single pulse makes the column travel
+exactly **one loop** — the common case. `loops: 1` plus a 0.5 pulse travels 2 loops, and so on.
+
+> **Hold** is just the gap between pulses — the track sits still except during a pulse and the slow
+> `loops` creep. For a lively-but-quiet wall, give a few columns one small pulse each and space their
+> `at` times apart.
+
+## Wall options
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `columns` | `Column[]` | — | **Required** (≥3). The columns — each its own tiles + motion (above). |
+| `gap` | `number` | `8` | Gap between columns and between stacked tiles (px). |
+| `tileAspect` | `number` | `0.75` | **Fallback** aspect (w/h) only — real tiles use their media's own aspect. Used for faux (`test`) tiles that don't set their own `aspect`. `0.75` = 3:4 portrait. |
+| `cornerRadius` | `number` | `6` | Tile corner radius (px). |
+| `pan` | `{ direction, loops, pulses }` | no pan | **System 1** — the whole wall pans on X. `direction` `"left"` (default)/`"right"`, `loops` (default `0`), and `pulses` (same shape as above). |
+| `loops` | `number` | `0` | Default continuous loops for columns that omit their own. |
+| `pulses` | `Pulse[]` | `[]` | Default pulses for columns that omit their own. |
+| `width` / `height` | `number` | `1920` / `1080` | Output frame size (CSS px). |
+| `deviceScaleFactor` | `number` (≤4) | `2` | Render scale (2 = retina-crisp). |
+| `fps` | `number` (≤120) | `30` | Output frames per second. |
+| `durationSeconds` | `number` | `16` | Clip length — the whole loop. Tile videos should loop within a length that divides this. |
+| `capture` | `"frames" \| "realtime"` | `"frames"` | `frames` is deterministic + parallelisable; `realtime` records the live scene once (faster — handy while iterating). |
+| `workers` | `number` | auto | Parallel frame-render workers. Video-heavy walls can cold-start to black tiles under many workers — set `1` for those. |
+| `frameFormat` | `"jpeg" \| "png"` | `"jpeg"` | Intermediate frame format (frames only). |
+| `crf` | `number` (0–51) | `18` | x264 quality (lower = better/larger). |
+| `background` | `string` | `"#0b0b0f"` | Backdrop shown in the gutters and behind tiles. |
+| `fileName` | `string` | `<name>.mp4` | Output filename. |
+| `test` | `boolean` | `false` | Preview mode — see below. |
+| `testTiles` | `{ [name]: { color?, size?, aspect? } }` | `{}` | Per-tile faux appearance in `test` mode. `aspect` (w/h) lets a faux tile mimic a real tile's height so the preview matches the final masonry. |
+
+The schema is **strict** — an unknown key (a typo, or a stale option name) is rejected with an error
+rather than silently ignored.
+
+## Test mode (fast preview)
+
+Dialing in columns, motion, and stagger against real assets is slow — every tile has to be generated
+first. Flip **`test: true`** and the wall renders every tile as a flat **labeled colour box** instead:
+
+```ts
+options: {
+  test: true,
+  testTiles: {
+    "img-coat": { color: "#b49a77", size: "3:4", aspect: 0.75 }, // optional per-tile theming + height
+    "img-hero": { color: "#7a5234", size: "16:9", aspect: 1.78 }, // short landscape
+    "img-tote": { color: "#8a5a3c" },                              // auto-colour + fallback aspect
+  },
+  columns: [ /* …your real columns… */ ],
+}
+```
+
+- **No producers run.** In test mode the wall declares no dependencies, so none of its tile assets are
+  generated. It renders in seconds.
+- **Zero setup.** Tiles you don't list in `testTiles` auto-colour from their name and show that name —
+  so you can flip `test: true` on an existing wall and immediately preview the layout/motion.
+- **Match the real heights.** Real tiles take their height from the media; a faux box can't know that,
+  so give the ones whose shape matters an `aspect` (w/h) to mirror the final masonry. Unset → `tileAspect`.
+- **No server.** Since a test wall needs no site, `showcase generate` [auto-skips the managed
+  server](/docs/configuration/managed-server) (no asset in the selection needs a URL).
+- While iterating, also set `capture: "realtime"` — it records the scene once instead of frame-stepping.
+
+Turn `test`/`testTiles` off (and switch `capture` back to `"frames"`) for the real render.
+
+## Capture modes
+
+- **`capture: "frames"`** (default) — steps a virtual clock per frame: frame-accurate, supersampled by
+  `deviceScaleFactor`, parallelised by `workers`, byte-identical run-to-run.
+- **`capture: "realtime"`** — records the live scene once (faster). Best for previews; for the final
+  render, `frames` is crisper and exact.
+
+> **Draft quality** (`quality: "draft"`) swaps the x264 preset to `ultrafast` and, on the frames path,
+> forces low-quality jpeg intermediates for speed; `crf` is honoured in both modes.

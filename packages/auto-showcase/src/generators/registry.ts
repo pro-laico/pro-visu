@@ -1,7 +1,7 @@
 import type { Generator } from "@/generators/types";
 import { scrollReelGenerator } from "@/generators/scroll-reel";
 import { screenshotsGenerator } from "@/generators/screenshots";
-import { sceneGenerator } from "@/generators/scene";
+import { wallGenerator } from "@/generators/wall";
 import { specimenGenerator } from "@/generators/specimen";
 import { paletteGenerator } from "@/generators/palette";
 import { paletteReelGenerator } from "@/generators/palette-reel";
@@ -28,7 +28,7 @@ export function generatorIds(): string[] {
 // Register built-in generators. New asset types add a line here.
 register(scrollReelGenerator);
 register(screenshotsGenerator);
-register(sceneGenerator);
+register(wallGenerator);
 register(specimenGenerator);
 register(paletteGenerator);
 register(paletteReelGenerator);

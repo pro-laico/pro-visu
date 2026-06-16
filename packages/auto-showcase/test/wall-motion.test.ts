@@ -1,98 +1,113 @@
 import { describe, expect, it } from "vitest";
-import {
-  assignTiles,
-  axisOffset,
-  easeProgress,
-  loopTime,
-  makePulseWeights,
-  planColumns,
-  type Dir,
-  type MotionParams,
-} from "../scene-app/src/scenes/wall-motion";
+import { loopTime, trackOffset, trackTravel, type Track } from "../scene-app/src/scenes/wall-motion";
 
-describe("planColumns", () => {
-  const opts = { scrollLoopsMin: 2, scrollLoopsMax: 5, alternate: true };
+const D = 16; // clip seconds
+const period = 800; // px per tile-set
 
-  it("is deterministic per seed and varies the speed across columns", () => {
-    const a = planColumns(3, 6, opts);
-    const b = planColumns(3, 6, opts);
-    expect(a).toEqual(b); // same seed ⇒ identical (parallel workers must agree)
-    expect(new Set(a.map((c) => c.loopsY)).size).toBeGreaterThan(1); // speeds vary
-    for (const c of a) {
-      expect(c.loopsY).toBeGreaterThanOrEqual(2);
-      expect(c.loopsY).toBeLessThanOrEqual(5);
-    }
+describe("trackTravel (pulse-sum motion, in periods)", () => {
+  it("starts at 0 and ends on a whole number of periods (seamless)", () => {
+    const pulses = [{ at: 0.2, duration: 0.15, distance: 0.5 }];
+    expect(trackTravel(pulses, 1, 0, D)).toBeCloseTo(0, 6);
+    // loops 1 + pulse 0.5 = 1.5 → rounds UP to 2 whole periods at the clip end
+    expect(trackTravel(pulses, 1, D, D)).toBeCloseTo(2, 6);
   });
 
-  it("alternates direction by column index when enabled, and not when disabled", () => {
-    const alt = planColumns(1, 4, opts);
-    expect(alt.map((c) => c.dir)).toEqual([1, -1, 1, -1]);
-    const uni = planColumns(1, 4, { ...opts, alternate: false });
-    expect(uni.every((c) => c.dir === 1)).toBe(true);
+  it("folds the fractional remainder into the continuous scroll", () => {
+    expect(trackTravel([], 1, D, D)).toBeCloseTo(1, 6); // loops 1, no pulses → 1
+    expect(trackTravel([], 0, D, D)).toBeCloseTo(0, 6); // loops 0, no pulses → frozen
+    // loops 0 + one full-clip pulse of one period → 1 (pure pulse, no forced creep)
+    expect(trackTravel([{ at: 0, duration: 1, distance: 1 }], 0, D, D)).toBeCloseTo(1, 6);
+    // loops 2 + pulses summing 0.5 → ceil(2.5) = 3
+    expect(trackTravel([{ at: 0.3, duration: 0.15, distance: 0.5 }], 2, D, D)).toBeCloseTo(3, 6);
   });
 
-  it("differs across seeds", () => {
-    expect(planColumns(1, 6, opts)).not.toEqual(planColumns(2, 6, opts));
+  it("a pulse advances travel monotonically across its window", () => {
+    const pulses = [{ at: 0.25, duration: 0.25, distance: 1 }]; // window u ∈ [0.25, 0.5]
+    const start = trackTravel(pulses, 0, D * 0.25, D);
+    const mid = trackTravel(pulses, 0, D * 0.375, D);
+    const done = trackTravel(pulses, 0, D * 0.5, D);
+    expect(start).toBeCloseTo(0, 6);
+    expect(mid).toBeGreaterThan(start);
+    expect(done).toBeGreaterThan(mid);
+    expect(done).toBeCloseTo(1, 6); // distance 1, loops 0 → exactly one period once the pulse completes
+  });
+
+  it("shifts a late pulse back so it ends at the loop point (never overruns)", () => {
+    // at 0.9 + duration 0.2 = 1.1 > 1 → start shifts back to 0.8 (1 − duration)
+    const pulses = [{ at: 0.9, duration: 0.2, distance: 1 }];
+    expect(trackTravel(pulses, 0, D * 0.79, D)).toBeCloseTo(0, 6); // hasn't started before u=0.8
+    expect(trackTravel(pulses, 0, D * 0.9, D)).toBeGreaterThan(0); // mid-pulse
+    expect(trackTravel(pulses, 0, D, D)).toBeCloseTo(1, 6); // completes exactly at the clip end
   });
 });
 
-describe("axisOffset loop-seam + pulse character", () => {
-  const period = 740;
-  const mp: MotionParams = { durationSeconds: 12, pulses: 4, pulseDuration: 1, baseDrift: 0.15 };
+describe("trackOffset (seam: offset(D) ≡ offset(0))", () => {
+  const tracks: Track[] = [
+    { pulses: [], loops: 1, dir: 1 },
+    { pulses: [{ at: 0.1, duration: 0.15, distance: 0.5 }], loops: 1, dir: -1 },
+    {
+      pulses: [
+        { at: 0.3, duration: 0.2, distance: 0.25 },
+        { at: 0.7, duration: 0.2, distance: 0.75 },
+      ],
+      loops: 2,
+      dir: 1,
+    },
+    { pulses: [{ at: 0, duration: 1, distance: 1, easing: "linear" }], loops: 0, dir: -1 },
+  ];
 
-  it("returns to its t=0 value at t=D for every cycle count / direction (no seam)", () => {
-    const dirs: Dir[] = [1, -1];
-    for (const dir of dirs) {
-      for (const cycles of [1, 2, 3, 7]) {
-        expect(axisOffset(cycles, dir, 0, period, mp)).toBeCloseTo(0, 6);
-        expect(axisOffset(cycles, dir, mp.durationSeconds, period, mp)).toBeCloseTo(0, 6);
-      }
+  it("returns to its t=0 offset at t=D for varied loops / pulses / direction", () => {
+    for (const tr of tracks) {
+      expect(trackOffset(tr, 0, period, D)).toBeCloseTo(0, 6);
+      expect(trackOffset(tr, D, period, D)).toBeCloseTo(0, 6);
     }
   });
 
-  it("is 0 when cycles=0 (no motion on that axis)", () => {
-    expect(axisOffset(0, 1, mp.durationSeconds / 2, period, mp)).toBe(0);
+  it("is seamless for any clip length (10s or 20s, same config)", () => {
+    const tr = tracks[1] as Track;
+    for (const len of [10, 20, 37]) {
+      expect(trackOffset(tr, len, period, len)).toBeCloseTo(0, 6);
+    }
   });
 
-  it("holds between pulses and moves fast during them (passive, then a burst)", () => {
-    // Pure pulses (no base drift): inside the hold of segment 0 the progress barely moves; the ramp
-    // (centered in each 3s segment, 1s long → ~[1,2]s) advances much more.
-    const held: MotionParams = { ...mp, baseDrift: 0 };
-    const holdDelta = easeProgress(0.4, held) - easeProgress(0.1, held); // both inside the hold
-    const pulseDelta = easeProgress(1.7, held) - easeProgress(1.3, held); // across the pulse ramp
-    expect(holdDelta).toBeLessThan(0.01); // essentially still
-    expect(pulseDelta).toBeGreaterThan(holdDelta * 5); // the burst is far faster
+  it("is frozen at 0 when there is no motion (loops 0, no pulses)", () => {
+    expect(trackOffset({ pulses: [], loops: 0, dir: 1 }, D / 2, period, D)).toBe(0);
   });
 
-  it("easeProgress goes exactly 0→1 over the clip (seam math)", () => {
-    expect(easeProgress(0, mp)).toBeCloseTo(0, 6);
-    expect(easeProgress(mp.durationSeconds, mp)).toBeCloseTo(1, 6);
+  it("actually moves during the clip when it has motion", () => {
+    const tr = tracks[2] as Track;
+    const samples = [0.2, 0.5, 0.8].map((f) => trackOffset(tr, D * f, period, D).toFixed(1));
+    expect(new Set(samples).size).toBeGreaterThan(1);
   });
 
-  it("varied pulse weights make some pulses bigger, but still end at 1 (seam preserved)", () => {
-    const weights = makePulseWeights(3, 4, 0.6);
-    expect(weights).toHaveLength(4);
-    expect(new Set(weights.map((w) => w.toFixed(3))).size).toBeGreaterThan(1); // not uniform
-    const varied: MotionParams = { ...mp, baseDrift: 0, pulseWeights: weights };
-    expect(easeProgress(varied.durationSeconds, varied)).toBeCloseTo(1, 6); // seam intact
-    // The advance across each pulse differs (organic, non-uniform cadence).
-    const steps = [0, 1, 2, 3].map((i) => {
-      const seg = varied.durationSeconds / 4;
-      return easeProgress(i * seg + seg * 0.85, varied) - easeProgress(i * seg + seg * 0.15, varied);
-    });
-    expect(Math.max(...steps) - Math.min(...steps)).toBeGreaterThan(0.02);
+  it("direction flips the sign of travel (up = mirror of down)", () => {
+    const pulses = [{ at: 0.2, duration: 0.2, distance: 0.5 }];
+    const down = trackOffset({ pulses, loops: 1, dir: 1 }, D * 0.5, period, D);
+    const up = trackOffset({ pulses, loops: 1, dir: -1 }, D * 0.5, period, D);
+    expect((down + up) % period).toBeCloseTo(0, 4); // mod-mirror around the period
   });
 
-  it("makePulseWeights is deterministic and uniform at variance 0", () => {
-    expect(makePulseWeights(5, 4, 0.6)).toEqual(makePulseWeights(5, 4, 0.6));
-    expect(makePulseWeights(5, 4, 0)).toEqual([1, 1, 1, 1]);
+  it("stagger shifts the start position by a fraction of a period, preserving the seam", () => {
+    const base: Track = { pulses: [{ at: 0.1, duration: 0.15, distance: 0.5 }], loops: 1, dir: 1 };
+    const staggered: Track = { ...base, stagger: 0.25 };
+    // t=0 starts shifted by 0.25 of a period (instead of 0)
+    expect(trackOffset(base, 0, period, D)).toBeCloseTo(0, 6);
+    expect(trackOffset(staggered, 0, period, D)).toBeCloseTo(0.25 * period, 6);
+    // still seamless: offset(D) ≡ offset(0)
+    expect(trackOffset(staggered, D, period, D)).toBeCloseTo(trackOffset(staggered, 0, period, D), 6);
+    // a constant phase shift at every moment (mod period)
+    const mod = (n: number): number => ((n % period) + period) % period;
+    for (const f of [0, 0.3, 0.6, 0.9]) {
+      const delta = mod(trackOffset(staggered, D * f, period, D) - trackOffset(base, D * f, period, D));
+      expect(delta).toBeCloseTo(0.25 * period, 4);
+    }
   });
 });
 
 describe("loopTime", () => {
   it("passes through within duration and wraps beyond it", () => {
-    expect(loopTime(3, 5)).toBe(3); // t < dur ⇒ unchanged (existing scenes)
-    expect(loopTime(7, 5)).toBeCloseTo(2, 6); // wraps
+    expect(loopTime(3, 5)).toBe(3);
+    expect(loopTime(7, 5)).toBeCloseTo(2, 6);
     expect(loopTime(12, 5)).toBeCloseTo(2, 6);
   });
 
@@ -100,36 +115,5 @@ describe("loopTime", () => {
     expect(loopTime(4, 0)).toBe(4);
     expect(loopTime(4, NaN)).toBe(4);
     expect(loopTime(4, Infinity)).toBe(4);
-  });
-});
-
-describe("assignTiles", () => {
-  it("fills columns × tilesPerColumn, uses only the given keys, and is deterministic", () => {
-    const keys = ["a", "b", "c", "d"];
-    const grid = assignTiles(keys, 5, 4);
-    expect(grid).toHaveLength(5);
-    expect(grid.every((col) => col.length === 4)).toBe(true);
-    for (const col of grid) for (const k of col) expect(keys).toContain(k);
-    expect(assignTiles(keys, 5, 4)).toEqual(grid); // deterministic
-  });
-
-  it("cycles through every input key across the wall", () => {
-    const keys = ["a", "b", "c", "d", "e"];
-    const used = new Set(assignTiles(keys, 4, 5).flat());
-    expect(used).toEqual(new Set(keys));
-  });
-
-  it("does not collapse a column to one image when columns is a multiple of the key count", () => {
-    // The bug case: 6 columns, 6 keys, 3 tiles each — every column must hold distinct keys.
-    const keys = ["a", "b", "c", "d", "e", "f"];
-    const grid = assignTiles(keys, 6, 3);
-    for (const col of grid) expect(new Set(col).size).toBe(3); // no all-same column
-  });
-
-  it("tolerates an empty input list", () => {
-    expect(assignTiles([], 2, 2)).toEqual([
-      ["", ""],
-      ["", ""],
-    ]);
   });
 });

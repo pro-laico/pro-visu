@@ -104,53 +104,53 @@ export interface SpecimenOptionsInput {
    *   → foreground) on a dark palette chosen so the accent reads.
    */
   template?: SpecimenTemplate;
-  /** Display name shown bottom-left (e.g. "ABC Oracle"). */
+  /** Display name shown bottom-left (e.g. "ABC Oracle"). Default none. */
   name?: string;
-  /** Demo mode: overlay the active pulse's name bottom-right, to see which beat is playing. */
+  /** Demo mode: overlay the active pulse's name bottom-right, to see which beat is playing. Default false. */
   demo?: boolean;
-  /** Output frames per second. */
+  /** Output frames per second. Default 30. */
   fps?: number;
   /** Clip length in seconds. Defaults to the (mirrored) sum of the pulse durations; set to override. */
   durationSeconds?: number;
-  /** Output frame width in px (default 1920). */
+  /** Output frame width in px. Default 1920. */
   width?: number;
-  /** Output frame height in px (default 1080). */
+  /** Output frame height in px. Default 1080. */
   height?: number;
-  /** Render scale (1 = 1:1; higher = crisper capture, downscaled into the video). */
+  /** Render scale (1 = 1:1; higher = crisper capture, downscaled into the video). Default 1. */
   deviceScaleFactor?: number;
-  /** Glyph weight on the variable-font axis, 1–1000. */
+  /** Glyph weight on the variable-font axis, 1–1000. Default 820. */
   weight?: number;
-  /** Number of glyph rows. The glyph size is derived so the rows fill the top 80% of the frame. */
+  /** Number of glyph rows. The glyph size is derived so the rows fill the top 80% of the frame. Default 3. */
   lines?: number;
-  /** Line-height of the glyph block (default 0.78 — tight, cap-height-hugging). */
+  /** Line-height of the glyph block. Default 0.78 (tight, cap-height-hugging). */
   leading?: number;
-  /** Glyphs to exclude from the showcase, e.g. "QXZ" (case-insensitive). */
+  /** Glyphs to exclude from the showcase, e.g. "QXZ" (case-insensitive). Default none. */
   blacklist?: string;
   /** Override the glyph pool the specimen draws from (≥2 distinct characters). Default A–Z 0–9 + symbols. */
   characterPool?: string;
-  /** Schedule seed — same seed ⇒ identical animation. Change for a different (still deterministic) take. */
+  /** Schedule seed — same seed ⇒ identical animation. Change for a different (still deterministic) take. Default 1. */
   seed?: number;
-  /** Color tokens the glyphs cycle through. Override any subset. */
+  /** Color tokens the glyphs cycle through. Override any subset. Default: light-grey palette. */
   colors?: SpecimenColorsInput;
-  /** Relative likelihood of each color token on a random (non-targeted) color change (default 2/2/1). */
+  /** Relative likelihood of each color token on a random (non-targeted) color change. Default 2 / 2 / 1. */
   colorWeights?: SpecimenColorWeightsInput;
-  /** The animation storyboard: an ordered sequence of pulses (beats). */
+  /** The animation storyboard: an ordered sequence of pulses (beats). Default: a lively built-in storyboard. */
   pulses?: PulseInput[];
-  /** Multiply every pulse's glyph-change fraction (1 = baseline, 2 = twice as busy, 0 = none). */
+  /** Multiply every pulse's glyph-change fraction (1 = baseline, 2 = twice as busy, 0 = none). Default 1. */
   characterIntensity?: number;
-  /** Multiply every pulse's color-change fraction (1 = baseline, 2 = twice as busy, 0 = none). */
+  /** Multiply every pulse's color-change fraction (1 = baseline, 2 = twice as busy, 0 = none). Default 1. */
   colorIntensity?: number;
   /**
-   * Max fraction a line's total width may drift as its glyphs change (default 0.05). Glyph swaps are
+   * Max fraction a line's total width may drift as its glyphs change. Default 0.05. Glyph swaps are
    * width-compensated to stay within this, so the left-aligned right edge barely moves.
    */
   maxLineDrift?: number;
   /**
    * Mirror the pulses (play them out and back) so the clip ends on its opening frame and loops
-   * seamlessly. Doubles the clip length. Set false for a one-shot that ends on the last state.
+   * seamlessly. Doubles the clip length. Set false for a one-shot that ends on the last state. Default true.
    */
   mirror?: boolean;
-  /** x264 quality, 0–51 (lower = better quality / larger file). */
+  /** x264 quality, 0–51 (lower = better quality / larger file). Default 18. */
   crf?: number;
   /** Output filename; defaults to "<slug(asset name)>.mp4". */
   fileName?: string;

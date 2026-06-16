@@ -1,6 +1,6 @@
 import type { ScrollReelOptions } from "@/generators/scroll-reel/options";
 import type { ScreenshotsOptions } from "@/generators/screenshots/options";
-import type { SceneOptions } from "@/generators/scene/options";
+import type { WallOptions } from "@/generators/wall/options";
 import type { SpecimenOptions } from "@/generators/specimen/options";
 import type { PaletteOptions } from "@/generators/palette/options";
 import type { PaletteReelOptions } from "@/generators/palette-reel/options";
@@ -92,7 +92,7 @@ export interface AssetBaseInput {
 export type AssetSpecInput =
   | (AssetBaseInput & { url?: string; generator: "scroll-reel"; options?: ScrollReelOptions })
   | (AssetBaseInput & { url?: string; generator: "screenshots"; options?: ScreenshotsOptions })
-  | (AssetBaseInput & { url?: string; generator: "scene"; options?: SceneOptions })
+  | (AssetBaseInput & { generator: "wall"; options?: WallOptions })
   | (AssetBaseInput & { generator: "specimen"; options: SpecimenOptions })
   | (AssetBaseInput & { generator: "palette"; options: PaletteOptions })
   | (AssetBaseInput & { generator: "palette-reel"; options: PaletteReelOptions })

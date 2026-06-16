@@ -16,7 +16,7 @@ import {
   type ServerTasks,
   type TaskHandle,
 } from "@/server/manage-server";
-import { runPipeline, type AssetOutcome } from "@/pipeline/runner";
+import { runPipeline, applyDerivedInputs, type AssetOutcome } from "@/pipeline/runner";
 import { expandSelection, dependenciesOf } from "@/pipeline/graph";
 import { createReporter } from "@/cli/live-reporter";
 import type { Reporter } from "@/pipeline/reporter";
@@ -122,7 +122,19 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   // tracker's footer shows the "esc to cancel" hint.
   reporter.begin();
 
-  const baseServerCfg = options.skipServer ? undefined : config.settings.server;
+  // The managed server only matters to url-based generators (it captures web pages). If nothing in
+  // the selection needs a URL — e.g. only a `test`-mode wall, or other local generators — skip it
+  // automatically so previews don't pay for a site build/boot they never use. Derive option-declared
+  // dependencies first (e.g. a real wall's tile producers) so the selection — and this check — see
+  // them; a `test`-mode wall declares none, so it collapses to just itself.
+  applyDerivedInputs(config);
+  const selected = expandSelection(config.assets, requested);
+  const anyNeedsServer = selected.some((s) => Boolean(getGenerator(s.generator)?.requiresUrl));
+  if (config.settings.server && !options.skipServer && !anyNeedsServer) {
+    logger.info("No selected asset needs a URL — skipping the managed server.");
+  }
+
+  const baseServerCfg = options.skipServer || !anyNeedsServer ? undefined : config.settings.server;
   // --skip-build keeps the managed server but drops its one-shot build (the site is unchanged).
   const serverCfg =
     baseServerCfg && options.skipBuild ? { ...baseServerCfg, build: undefined } : baseServerCfg;
@@ -150,7 +162,7 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     tasks.server = taskHandle(reporter, "@server");
   }
   if (reporter.isLive) {
-    for (const spec of expandSelection(config.assets, requested)) {
+    for (const spec of selected) {
       reporter.add({
         id: spec.name,
         name: spec.name,
