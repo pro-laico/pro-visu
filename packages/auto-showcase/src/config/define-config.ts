@@ -4,6 +4,7 @@ import type { SceneOptions } from "@/generators/scene/options";
 import type { SpecimenOptions } from "@/generators/specimen/options";
 import type { PaletteOptions } from "@/generators/palette/options";
 import type { PaletteReelOptions } from "@/generators/palette-reel/options";
+import type { ImageOptions } from "@/generators/image/options";
 
 /**
  * Author-facing config types. These power editor autocomplete in `showcase.config.ts`.
@@ -94,7 +95,8 @@ export type AssetSpecInput =
   | (AssetBaseInput & { url?: string; generator: "scene"; options?: SceneOptions })
   | (AssetBaseInput & { generator: "specimen"; options: SpecimenOptions })
   | (AssetBaseInput & { generator: "palette"; options: PaletteOptions })
-  | (AssetBaseInput & { generator: "palette-reel"; options: PaletteReelOptions });
+  | (AssetBaseInput & { generator: "palette-reel"; options: PaletteReelOptions })
+  | (AssetBaseInput & { generator: "image"; options: ImageOptions });
 
 export interface ShowcaseUserConfig {
   settings?: ShowcaseSettingsInput;

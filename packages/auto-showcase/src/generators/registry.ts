@@ -5,6 +5,7 @@ import { sceneGenerator } from "@/generators/scene";
 import { specimenGenerator } from "@/generators/specimen";
 import { paletteGenerator } from "@/generators/palette";
 import { paletteReelGenerator } from "@/generators/palette-reel";
+import { imageGenerator } from "@/generators/image";
 
 const registry = new Map<string, Generator<unknown>>();
 
@@ -31,3 +32,4 @@ register(sceneGenerator);
 register(specimenGenerator);
 register(paletteGenerator);
 register(paletteReelGenerator);
+register(imageGenerator);

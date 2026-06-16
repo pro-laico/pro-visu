@@ -97,7 +97,22 @@ nudges between — not the constant churn)
 | 7 | Pipeline proof (8 product stills only, draft 15fps). Layout + differential scroll + warm tonal read beautifully. |
 | 7 | Full 20-source variety (draft). Reads exactly like the reference, warm/editorial. To re-sweep: the VESPER wordmark + V monogram sometimes land near each other (brand-heavy cluster) — pick a seed that separates them; keep the cognac tote + swatch apart. |
 
-## Final build (24 tiles)
+## Redesign → real-content tiles (current)
+Replaced the synthetic lookbook-panel tiles + low-res focus-crops with **real, high-fidelity content**:
+- **12 image tiles** — the actual high-res asset photos used directly via a NEW **`image` generator**
+  (passthrough: copies the source file, e.g. `public/img/products/*.jpg`, so tiles are full source
+  resolution, ~864×1184, not 274px re-captures). Products ×8 + editorial + atelier + hero + about-hero.
+- **6 UI page tiles** — crisp 3:4 viewport `screenshots` of the real pages (home, shop, pdp-coat,
+  pdp-slip, about, lookbook), `fullPage:false`, 900×1200 @ dsf2 → 1800×2400.
+- **6 clips** — real UI in motion at 900×1200: `clip-cart` (add→drawer→close), `clip-menu`,
+  `clip-quickadd`, `clip-wishlist`, `clip-size`, `clip-homescroll` (boomerang, exact 4s perfect loop).
+  Interaction clips return to start state to read as loops (realtime → variable length, so a tiny seam
+  at the wall wrap is accepted on those few tiles).
+- Wall `inputs` reordered to interleave image/UI/clip; static images sit in the edge-repeat cells
+  (s2–s4) and the unshown cells (s10/s15/s20), motion clips + the cognac accent placed elsewhere.
+- The `image` generator is a general, reusable addition (any static asset → scene input / manifest).
+
+## (Earlier) lookbook-panel build (24 tiles)
 - **24 distinct tiles = 6 cols × 4 rows** (fixes the 20-tile duplicate-column/skipped-tile quirk; only
   a minor residual: cells s10/s15/s20 aren't shown and s2–s4 repeat at both edge columns, so focal
   tiles are placed off those — see the inputs comment in showcase.config.ts).

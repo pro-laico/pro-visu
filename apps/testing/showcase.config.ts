@@ -19,105 +19,152 @@ import { defineConfig } from "auto-showcase";
 //    Cards/backdrops = ink bg + paper text. Cursor (interactions) = camel #8c7355, slow + deliberate.
 //  • Respect negative space; no clutter, no UI chrome we don't mean to show.
 // ════════════════════════════════════════════════════════════════════════════════════════
-// Media-wall tile producers (build order step 2: pipeline proof). Each product photo is captured
-// as a static 3:4 tile by focus-cropping its card image on /shop. `focus` records realtime and emits
-// one .mp4 (the unambiguous primary output a wall input slot consumes); with no actions + a static
-// page the clip reads as a still tile. 2s loops cleanly inside the 16s wall (8×).
-const PRODUCT_TILES = [
-  { name: "tile-coat", n: 1 },
-  { name: "tile-crewneck", n: 2 },
-  { name: "tile-trouser", n: 3 },
-  { name: "tile-slip", n: 4 },
-  { name: "tile-blazer", n: 5 },
-  { name: "tile-tote", n: 6 },
-  { name: "tile-turtleneck", n: 7 },
-  { name: "tile-overshirt", n: 8 },
-].map((p) => ({
-  name: p.name,
-  url: "/shop",
-  generator: "scroll-reel" as const,
-  options: {
-    width: 1440,
-    height: 1000,
-    deviceScaleFactor: 2,
-    waitForSelector: ".product img",
-    pauseAnimations: true,
-    focus: { selector: `.grid .product:nth-child(${p.n}) .product-media`, padding: 0, holdMs: 2000 },
-  },
-}));
+// Media-wall tiles — REAL, high-fidelity content (replacing the earlier synthetic lookbook panels
+// and low-res focus-crops):
+//   IMAGE_TILES — the actual high-resolution asset photos, used directly via the `image` generator
+//                 (no re-capture, so full source resolution).
+//   UI_PAGES    — crisp 3:4 captures of the real storefront pages.
+//   CLIPS       — short looping clips of the real UI in motion / interactions.
+const IMAGE_TILES = [
+  { name: "img-coat", src: "public/img/products/the-camel-coat.jpg" },
+  { name: "img-crew", src: "public/img/products/cashmere-crewneck.jpg" },
+  { name: "img-trouser", src: "public/img/products/pleated-wool-trouser.jpg" },
+  { name: "img-slip", src: "public/img/products/silk-slip-dress.jpg" },
+  { name: "img-blazer", src: "public/img/products/double-breasted-blazer.jpg" },
+  { name: "img-tote", src: "public/img/products/leather-tote.jpg" },
+  { name: "img-turtle", src: "public/img/products/ribbed-turtleneck.jpg" },
+  { name: "img-overshirt", src: "public/img/products/tailored-overshirt.jpg" },
+  { name: "img-editorial", src: "public/img/editorial.jpg" },
+  { name: "img-atelier", src: "public/img/about-atelier.jpg" },
+  { name: "img-hero", src: "public/img/hero.jpg" },
+  { name: "img-abouthero", src: "public/img/about-hero.jpg" },
+].map((t) => ({ name: t.name, generator: "image" as const, options: { src: t.src } }));
 
-// Lookbook tiles — each /lookbook panel is authored at 3:4, so focus-cropping its #id yields a
-// clean tile. These are the TYPE / MARK / spec / editorial stills (the animated count-up tile is
-// STAT_YEARS below, kept separate so its animation is NOT frozen).
-const LOOKBOOK_TILES = [
-  { name: "tile-wordmark", sel: "#lb-wordmark" },
-  { name: "tile-manifesto", sel: "#lb-manifesto" },
-  { name: "tile-quote", sel: "#lb-quote" },
-  { name: "tile-mark", sel: "#lb-mark" },
-  { name: "tile-swatch", sel: "#lb-swatch" },
-  { name: "tile-spec-coat", sel: "#lb-spec-coat" },
-  { name: "tile-spec-tote", sel: "#lb-spec-tote" },
-  { name: "tile-editorial", sel: "#lb-editorial" },
-  { name: "tile-atelier", sel: "#lb-atelier" },
-  { name: "tile-ships", sel: "#lb-ships" },
-  { name: "tile-runs", sel: "#lb-runs" },
-  { name: "tile-spec-crew", sel: "#lb-spec-crew" },
-  { name: "tile-care", sel: "#lb-care" },
+// Real storefront pages, captured as crisp 3:4 viewport stills. screenshots' page shot is the
+// producer's primary output, so each feeds a wall tile directly (no element-index ambiguity).
+const UI_PAGES = [
+  { name: "ui-home", url: "/" },
+  { name: "ui-shop", url: "/shop" },
+  { name: "ui-pdp-coat", url: "/products/the-camel-coat" },
+  { name: "ui-pdp-slip", url: "/products/silk-slip-dress" },
+  { name: "ui-about", url: "/about" },
+  { name: "ui-lookbook", url: "/lookbook" },
 ].map((t) => ({
   name: t.name,
-  url: "/lookbook",
-  generator: "scroll-reel" as const,
+  url: t.url,
+  generator: "screenshots" as const,
   options: {
-    width: 1280,
-    height: 1100,
-    deviceScaleFactor: 2,
-    waitForSelector: ".lb-grid",
-    pauseAnimations: true,
-    focus: { selector: t.sel, padding: 0, holdMs: 2000 },
+    fullPage: false,
+    waitForSelector: "img",
+    breakpoints: [{ name: "tile", width: 900, height: 1200, deviceScaleFactor: 2 }],
   },
 }));
 
-// The showpiece "alive" tile: a CSS count-up. No pauseAnimations (let it run); 4s hold = two full
-// 2s count loops, which loops seamlessly inside the 16s wall.
-const STAT_YEARS = {
-  name: "tile-stat-years",
-  url: "/lookbook",
-  generator: "scroll-reel" as const,
-  options: {
-    width: 1280,
-    height: 1100,
-    deviceScaleFactor: 2,
-    waitForSelector: "#lb-stat-years .stat-count",
-    focus: { selector: "#lb-stat-years", padding: 0, holdMs: 4000 },
+// Short clips of the real UI in motion at 3:4. The interaction clips return to their start state so
+// they read as loops (realtime → duration varies, so a tiny seam at the wall wrap is acceptable on
+// these few tiles); the boomerang scroll is frame-stepped at an exact 4s (divides 16s) for a perfect
+// loop. Cursor is the brand camel.
+const CLIPS = [
+  {
+    name: "clip-cart", // add to bag → cart drawer slides in → close
+    url: "/products/the-camel-coat",
+    generator: "scroll-reel" as const,
+    options: {
+      width: 900,
+      height: 1200,
+      deviceScaleFactor: 2,
+      fps: 30,
+      cursor: { color: "#8c7355" },
+      actions: [
+        { do: "click" as const, selector: ".size-options button:nth-of-type(3)", holdMs: 500 },
+        { do: "click" as const, selector: "#pdp-add", holdMs: 1800 },
+        { do: "click" as const, selector: "#cart-drawer .drawer-close", holdMs: 1500 },
+      ],
+    },
   },
-};
-
-// More animated tiles: a 2nd count-up (0→100%) and the auto-cycling mini-gallery. Both self-loop in
-// ≤4s, which divides the 16s wall, so they loop seamlessly as tiles.
-const STAT_PCT = {
-  name: "tile-stat-pct",
-  url: "/lookbook",
-  generator: "scroll-reel" as const,
-  options: {
-    width: 1280,
-    height: 1100,
-    deviceScaleFactor: 2,
-    waitForSelector: "#lb-stat-pct .stat-count",
-    focus: { selector: "#lb-stat-pct", padding: 0, holdMs: 4000 },
+  {
+    name: "clip-menu", // open mega-menu → hover a link → close (over the lookbook)
+    url: "/lookbook",
+    generator: "scroll-reel" as const,
+    options: {
+      width: 900,
+      height: 1200,
+      deviceScaleFactor: 2,
+      fps: 30,
+      cursor: { color: "#8c7355" },
+      actions: [
+        { do: "click" as const, selector: "#menu-button", holdMs: 900 },
+        { do: "hover" as const, selector: "#menu-panel a", holdMs: 900 },
+        { do: "click" as const, selector: "#menu-button", holdMs: 1200 },
+      ],
+    },
   },
-};
-const GALLERY = {
-  name: "tile-gallery",
-  url: "/lookbook",
-  generator: "scroll-reel" as const,
-  options: {
-    width: 1280,
-    height: 1100,
-    deviceScaleFactor: 2,
-    waitForSelector: "#lb-gallery .mg-frame",
-    focus: { selector: "#lb-gallery", padding: 0, holdMs: 4000 },
+  {
+    name: "clip-quickadd", // hover a card → quick-add slides up → move away
+    url: "/shop",
+    generator: "scroll-reel" as const,
+    options: {
+      width: 900,
+      height: 1200,
+      deviceScaleFactor: 2,
+      fps: 30,
+      cursor: { color: "#8c7355" },
+      actions: [
+        { do: "hover" as const, selector: "#shop-grid .product:nth-child(1) .product-media", holdMs: 1600 },
+        { do: "move" as const, x: 0.5, y: 0.96, holdMs: 1200 },
+      ],
+    },
   },
-};
+  {
+    name: "clip-wishlist", // tap the heart on → off (home new-arrivals grid)
+    url: "/",
+    generator: "scroll-reel" as const,
+    options: {
+      width: 900,
+      height: 1200,
+      deviceScaleFactor: 2,
+      fps: 30,
+      cursor: { color: "#8c7355" },
+      actions: [
+        { do: "hover" as const, selector: "#new-arrivals .product:nth-child(2) .product-media", holdMs: 400 },
+        { do: "click" as const, selector: "#new-arrivals .product:nth-child(2) .wishlist", holdMs: 1300 },
+        { do: "click" as const, selector: "#new-arrivals .product:nth-child(2) .wishlist", holdMs: 1300 },
+      ],
+    },
+  },
+  {
+    name: "clip-size", // cycle size chips S → M → L → M (on the slip dress)
+    url: "/products/silk-slip-dress",
+    generator: "scroll-reel" as const,
+    options: {
+      width: 900,
+      height: 1200,
+      deviceScaleFactor: 2,
+      fps: 30,
+      cursor: { color: "#8c7355" },
+      actions: [
+        { do: "click" as const, selector: ".size-options button:nth-of-type(1)", holdMs: 700 },
+        { do: "click" as const, selector: ".size-options button:nth-of-type(3)", holdMs: 700 },
+        { do: "click" as const, selector: ".size-options button:nth-of-type(4)", holdMs: 700 },
+        { do: "click" as const, selector: ".size-options button:nth-of-type(3)", holdMs: 700 },
+      ],
+    },
+  },
+  {
+    name: "clip-scroll", // gentle page scroll (about), perfect 4s boomerang loop
+    url: "/about",
+    generator: "scroll-reel" as const,
+    options: {
+      width: 900,
+      height: 1200,
+      deviceScaleFactor: 2,
+      fps: 30,
+      duration: 4000,
+      loop: "boomerang" as const,
+      waitForSelector: ".about-hero-media img",
+    },
+  },
+];
 
 export default defineConfig({
   settings: {
@@ -137,49 +184,46 @@ export default defineConfig({
   // so nothing renders until we've agreed the starter set.
   assets: [
     // ─────────────────────────────────────────────────────────────────────────────────────
-    // ACTIVE — media-wall pipeline proof (build order step 2): 8 product photos as static 3:4
-    // tiles assembled into a minimal 6-column wall. With only 8 distinct inputs the grid will
-    // intentionally repeat them ~2–3× — this validates the producer → wall → render pipeline
-    // before we expand to the full ~18-tile timeline (see WALL-TIMELINE.md).
+    // ACTIVE — the media wall + its tile producers: real high-res images + real UI captures +
+    // looping interaction clips (see WALL-TIMELINE.md).
     // ─────────────────────────────────────────────────────────────────────────────────────
-    ...PRODUCT_TILES,
-    ...LOOKBOOK_TILES,
-    STAT_YEARS,
-    STAT_PCT,
-    GALLERY,
+    ...IMAGE_TILES,
+    ...UI_PAGES,
+    ...CLIPS,
     {
       name: "lookbook-wall",
       generator: "scene",
-      // 24 distinct sources = exactly 6 cols × 4 rows. Archetypes interleaved (product · stat · image
-      // · type · spec · mark · gallery). Tile→cell uses index (5·col + row) mod 24, so cells s10/s15/
-      // s20 are not shown and s2–s4 appear at both edge columns — focal tiles (★) are kept out of
-      // those: count-up s5, mini-gallery s9, cognac tote s11, count-up% s16, swatch s19.
+      // 24 distinct sources = exactly 6 cols × 4 rows, interleaved (image · UI · clip). Tile→cell uses
+      // index (5·col + row) mod 24, so cells s10/s15/s20 aren't shown and s2–s4 repeat at both edge
+      // columns — so those carry static images (fine to repeat), and the cognac-tote accent (s7) +
+      // the motion clips are placed elsewhere.
       inputs: {
-        s1: "tile-coat",
-        s2: "tile-trouser",
-        s3: "tile-manifesto",
-        s4: "tile-turtleneck",
-        s5: "tile-stat-years",
-        s6: "tile-editorial",
-        s7: "tile-spec-coat",
-        s8: "tile-quote",
-        s9: "tile-gallery",
-        s10: "tile-ships",
-        s11: "tile-tote",
-        s12: "tile-wordmark",
-        s13: "tile-crewneck",
-        s14: "tile-mark",
-        s15: "tile-care",
-        s16: "tile-stat-pct",
-        s17: "tile-slip",
-        s18: "tile-atelier",
-        s19: "tile-swatch",
-        s20: "tile-spec-crew",
-        s21: "tile-blazer",
-        s22: "tile-runs",
-        s23: "tile-overshirt",
-        s24: "tile-spec-tote",
+        s1: "img-coat",
+        s2: "img-crew",
+        s3: "img-editorial",
+        s4: "img-trouser",
+        s5: "clip-cart",
+        s6: "ui-home",
+        s7: "img-tote",
+        s8: "ui-shop",
+        s9: "clip-quickadd",
+        s10: "img-turtle",
+        s11: "img-slip",
+        s12: "clip-menu",
+        s13: "ui-pdp-coat",
+        s14: "img-atelier",
+        s15: "img-overshirt",
+        s16: "clip-wishlist",
+        s17: "img-hero",
+        s18: "ui-about",
+        s19: "clip-size",
+        s20: "img-blazer",
+        s21: "ui-lookbook",
+        s22: "clip-scroll",
+        s23: "img-abouthero",
+        s24: "ui-pdp-slip",
       },
+
       options: {
         scene: "wall",
         width: 1920,
