@@ -54,7 +54,13 @@ export interface DashboardVM {
   /** Header rollup across assets: done/total + cached. */
   overall: { done: number; total: number; cached: number };
   setup: RowVM[];
+  /** The asset rows to render — a window around the active rows when they don't all fit the height. */
   assets: RowVM[];
+  /** Asset rows hidden above / below the visible window (0 when everything fits). */
+  assetsBefore: number;
+  assetsAfter: number;
+  /** Largest valid window start (0 when everything fits) — lets the UI clamp manual scrolling. */
+  maxStart: number;
   /** Running / waiting / failed cells for the ASSETS section header (done lives in the rollup). */
   tally: TallyCell[];
   footer: { text: string; tone: "dim" | "warn" };
@@ -181,6 +187,9 @@ export function buildView(
   frame: number,
   now: number,
   columns?: number,
+  rows?: number,
+  /** Manual window start (row index) for scrolling; null/undefined = auto-follow the running rows. */
+  viewStart?: number | null,
 ): DashboardVM {
   const jobs = new Map(snapshot.jobs.map((j) => [j.id, j]));
   const cancelling = snapshot.cancelRequested;
@@ -217,11 +226,54 @@ export function buildView(
     text: oneLine(l.message),
   }));
 
+  // Keep the live block within the terminal height. Rendering more lines than the terminal has rows
+  // makes Ink's in-place redraw fight the terminal's own scroll (the rows "jiggle"), so when the asset
+  // rows don't all fit, show a window around the active rows and mark how many are hidden above/below.
+  let visibleAssets = assets;
+  let assetsBefore = 0;
+  let assetsAfter = 0;
+  let maxStart = 0;
+  if (rows && rows > 0) {
+    // Fixed chrome: borders(2) + header(1) + ASSETS margin+label(2) + footer margin+line(2) = 7,
+    // plus the setup block (margin+label+rows) when present, plus a 1-row safety margin.
+    const chrome = 7 + (setup.length > 0 ? 2 + setup.length : 0) + 1;
+    const budget = Math.max(1, rows - chrome);
+    if (assets.length > budget) {
+      const show = Math.max(1, budget - 2); // reserve up to two "N more" marker lines
+      maxStart = assets.length - show;
+      let start: number;
+      if (typeof viewStart === "number") {
+        // Manual scroll: honor the requested start, clamped to the list.
+        start = Math.max(0, Math.min(viewStart, maxStart));
+      } else {
+        // Auto-follow: centre the window on the running rows (or the next waiting one).
+        const runningPos: number[] = [];
+        assetJobs.forEach((j, i) => {
+          if (j.status === "running") runningPos.push(i);
+        });
+        let anchor: number;
+        if (runningPos.length) {
+          anchor = Math.floor((runningPos[0]! + runningPos[runningPos.length - 1]!) / 2);
+        } else {
+          const firstWaiting = assetJobs.findIndex((j) => j.status === "waiting");
+          anchor = firstWaiting >= 0 ? firstWaiting : assetJobs.length - 1;
+        }
+        start = Math.max(0, Math.min(anchor - Math.floor(show / 2), maxStart));
+      }
+      visibleAssets = assets.slice(start, start + show);
+      assetsBefore = start;
+      assetsAfter = assets.length - (start + show);
+    }
+  }
+
   return {
     elapsed: formatElapsed(now - snapshot.startTime),
     overall: { done, total: assetJobs.length, cached },
     setup,
-    assets,
+    assets: visibleAssets,
+    assetsBefore,
+    assetsAfter,
+    maxStart,
     tally,
     footer,
     cancelling,

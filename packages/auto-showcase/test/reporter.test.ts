@@ -226,6 +226,58 @@ describe("buildView", () => {
     });
   });
 
+  it("shows every asset row when they fit the terminal height", () => {
+    const s = new DashboardStore(0);
+    for (let i = 0; i < 4; i++) s.add({ id: `a${i}`, name: `a${i}`, detail: "scene" });
+    const vm = buildView(s.getSnapshot(), 0, 0, 100, 40);
+    expect(vm.assets).toHaveLength(4);
+    expect(vm.assetsBefore).toBe(0);
+    expect(vm.assetsAfter).toBe(0);
+  });
+
+  it("windows the asset rows to fit the height, anchored on the running row", () => {
+    const s = new DashboardStore(0);
+    for (let i = 0; i < 20; i++) s.add({ id: `a${i}`, name: `a${i}`, detail: "scene" });
+    s.status("a10", "running", 0); // anchor mid-list
+    const rowsBudget = 16;
+    const vm = buildView(s.getSnapshot(), 0, 0, 100, rowsBudget);
+
+    const markerLines = (vm.assetsBefore > 0 ? 1 : 0) + (vm.assetsAfter > 0 ? 1 : 0);
+    const chrome = 7 + 1; // no setup + 1 safety
+    // The whole live block (chrome + markers + visible rows) must fit the terminal — that's the fix.
+    expect(vm.assets.length + markerLines + chrome).toBeLessThanOrEqual(rowsBudget);
+    // Nothing is lost: hidden-above + visible + hidden-below covers all 20.
+    expect(vm.assetsBefore + vm.assets.length + vm.assetsAfter).toBe(20);
+    expect(vm.assetsBefore).toBeGreaterThan(0);
+    expect(vm.assetsAfter).toBeGreaterThan(0);
+    expect(vm.assets.some((r) => r.id === "a10")).toBe(true); // the active row stays in view
+    // The tally still counts ALL assets (not just the visible window).
+    expect(vm.tally).toEqual([
+      { text: "1 running", color: "cyan" },
+      { text: "19 waiting", color: undefined },
+    ]);
+  });
+
+  it("scrolls the asset window to a manual start, clamped to maxStart", () => {
+    const s = new DashboardStore(0);
+    for (let i = 0; i < 20; i++) s.add({ id: `a${i}`, name: `a${i}`, detail: "scene" });
+    s.status("a10", "running", 0);
+    const rowsBudget = 16; // budget 8 → show 6 → maxStart = 20 - 6 = 14
+
+    expect(buildView(s.getSnapshot(), 0, 0, 100, rowsBudget).maxStart).toBe(14);
+
+    // Manual start at the top overrides the running-anchored window.
+    const top = buildView(s.getSnapshot(), 0, 0, 100, rowsBudget, 0);
+    expect(top.assetsBefore).toBe(0);
+    expect(top.assets[0]!.id).toBe("a0");
+
+    // Over-scroll is clamped to maxStart (window pinned to the end, nothing hidden below).
+    const bottom = buildView(s.getSnapshot(), 0, 0, 100, rowsBudget, 999);
+    expect(bottom.assetsBefore).toBe(14);
+    expect(bottom.assetsAfter).toBe(0);
+    expect(bottom.assets.at(-1)!.id).toBe("a19");
+  });
+
   it("drops columns on narrow terminals", () => {
     const s = fixture();
     const wide = buildView(s.getSnapshot(), 0, 0, 120);
