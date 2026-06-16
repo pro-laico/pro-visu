@@ -59,7 +59,16 @@ function computeLayout(
   const pulseDuration = Math.max(0.1, num("pulseDuration", 1));
   const baseDrift = Math.min(1, Math.max(0, num("baseDrift", 0.08)));
   const pulseVariance = Math.min(1, Math.max(0, num("pulseVariance", 0.6)));
-  const pulseWeights = makePulseWeights(seed, pulses, pulseVariance);
+  // Explicit per-pulse weights (length === pulses) give deterministic control over the cadence —
+  // e.g. two strong moves with small nudges between ([1.5, 0.5, 1.5, 0.5]) — overriding the seeded
+  // `pulseVariance`. Otherwise the sizes are seeded for an organic, non-uniform cadence.
+  const explicitWeights = Array.isArray(o.pulseWeights)
+    ? (o.pulseWeights as unknown[]).filter((w): w is number => typeof w === "number" && w >= 0)
+    : null;
+  const pulseWeights =
+    explicitWeights && explicitWeights.length === pulses
+      ? explicitWeights
+      : makePulseWeights(seed, pulses, pulseVariance);
 
   // Columns fill the width exactly (unitX = tileW + padding = width/columns), so one column-set
   // spans the viewport and the ×2 horizontal copies tile the pan seamlessly.

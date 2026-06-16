@@ -65,6 +65,31 @@ function whenLoaded(v: HTMLVideoElement): Promise<void> {
   });
 }
 
+/**
+ * Resolve once the video has actually PRESENTED a frame to the compositor — not merely fired
+ * `seeked` (which only means currentTime updated). Without this, a screenshot taken right after a
+ * seek on a cold context captures a blank/black tile because the decoded frame hasn't painted yet
+ * (every parallel frame-worker's first frame hit this). `requestVideoFrameCallback` fires on the
+ * next presented frame; fall back to a rAF + timeout where it's unavailable or doesn't fire.
+ */
+function presented(v: HTMLVideoElement): Promise<void> {
+  const rvfc = (
+    v as unknown as { requestVideoFrameCallback?: (cb: () => void) => number }
+  ).requestVideoFrameCallback?.bind(v);
+  if (!rvfc) return nextFrame();
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (): void => {
+      if (done) return;
+      done = true;
+      resolve();
+    };
+    rvfc(() => finish());
+    // Safety net: a paused, already-decoded video may not always schedule the callback promptly.
+    setTimeout(finish, 250);
+  });
+}
+
 function seekTo(v: HTMLVideoElement, t: number): Promise<void> {
   // Loop short videos across a longer clip (e.g. tiles in the media wall) instead of freezing on
   // the last frame. For existing scenes the input reel ≈ the clip length, so t < duration and the
@@ -72,13 +97,15 @@ function seekTo(v: HTMLVideoElement, t: number): Promise<void> {
   const dur = v.duration;
   const target =
     Number.isFinite(dur) && dur > 0 ? Math.min(loopTime(t, dur), dur - 1e-3) : t;
-  if (Math.abs(v.currentTime - target) < 1e-4 && v.readyState >= 2) return Promise.resolve();
+  // Already at the target: still ensure a frame is presented (a cold context may not have painted).
+  if (Math.abs(v.currentTime - target) < 1e-4 && v.readyState >= 2) return presented(v);
   return new Promise((resolve) => {
-    const done = (): void => {
-      v.removeEventListener("seeked", done);
-      resolve();
+    const onSeeked = (): void => {
+      v.removeEventListener("seeked", onSeeked);
+      // Wait for the seeked frame to be presented before resolving, so the screenshot isn't blank.
+      void presented(v).then(resolve);
     };
-    v.addEventListener("seeked", done);
+    v.addEventListener("seeked", onSeeked);
     v.currentTime = target;
   });
 }

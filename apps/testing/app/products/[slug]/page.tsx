@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { AddToBag } from "@/app/components/AddToBag";
 import { ProductCard } from "@/app/components/ProductCard";
 import { Placeholder } from "@/app/components/Placeholder";
+import { MiniGallery } from "@/app/components/MiniGallery";
 import { getProduct, PRODUCTS, relatedProducts } from "@/app/lib/catalog";
 
 export function generateStaticParams() {
@@ -34,16 +35,25 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       <section id="product" className="pdp">
         <div className="pdp-gallery">
           {product.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={product.image} alt={product.name} className="pdp-image" />
+            <>
+              <MiniGallery src={product.image} alt={product.name} ratio="4 / 5" />
+              <div className="pdp-gallery-thumbs">
+                {["50% 18%", "50% 50%", "50% 82%"].map((pos) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={pos} className="pdp-thumb" src={product.image as string} alt="" style={{ objectPosition: pos }} />
+                ))}
+              </div>
+            </>
           ) : (
-            <Placeholder tone={product.tone} ratio="4 / 5" />
+            <>
+              <Placeholder tone={product.tone} ratio="4 / 5" />
+              <div className="pdp-gallery-thumbs">
+                <Placeholder tone={product.tone} ratio="1 / 1" />
+                <Placeholder tone="bone" ratio="1 / 1" />
+                <Placeholder tone={product.tone} ratio="1 / 1" />
+              </div>
+            </>
           )}
-          <div className="pdp-gallery-thumbs">
-            <Placeholder tone={product.tone} ratio="1 / 1" />
-            <Placeholder tone="bone" ratio="1 / 1" />
-            <Placeholder tone={product.tone} ratio="1 / 1" />
-          </div>
         </div>
 
         <div className="pdp-info">

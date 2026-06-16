@@ -1,6 +1,6 @@
 import path from "node:path";
 import { existsSync } from "node:fs";
-import { readFile, rename, writeFile } from "node:fs/promises";
+import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { ensureDir } from "@/utils/fs";
 import {
   emptyManifest,
@@ -32,7 +32,19 @@ export async function readManifest(outDir: string): Promise<Manifest> {
   return parsed.data;
 }
 
-/** Atomically write the manifest (sorted by id for stable diffs). */
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Lock errors the tmp→rename swap can hit transiently on Windows (held handles, AV scans). */
+const TRANSIENT_RENAME_CODES = new Set(["EPERM", "EACCES", "EBUSY"]);
+
+/**
+ * Atomically write the manifest (sorted by id for stable diffs).
+ *
+ * The tmp→rename swap can fail with EPERM/EACCES/EBUSY on Windows when another process holds a
+ * brief handle on the target — the managed server serving `public/`, an editor, or antivirus
+ * scanning the just-written file. Retry the rename a few times with backoff, then fall back to a
+ * direct (non-atomic) overwrite, so a long generation run never dies on a flaky lock.
+ */
 export async function writeManifest(outDir: string, manifest: Manifest): Promise<void> {
   await ensureDir(outDir);
   const file = manifestPath(outDir);
@@ -41,8 +53,27 @@ export async function writeManifest(outDir: string, manifest: Manifest): Promise
     ...manifest,
     assets: [...manifest.assets].sort((a, b) => a.id.localeCompare(b.id)),
   };
-  await writeFile(tmp, `${JSON.stringify(sorted, null, 2)}\n`, "utf8");
-  await rename(tmp, file);
+  const contents = `${JSON.stringify(sorted, null, 2)}\n`;
+  await writeFile(tmp, contents, "utf8");
+
+  const maxAttempts = 5;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await rename(tmp, file);
+      return;
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (!code || !TRANSIENT_RENAME_CODES.has(code)) throw err;
+      if (attempt < maxAttempts) {
+        await sleep(attempt * 50); // 50,100,150,200ms backoff
+        continue;
+      }
+      // The lock outlived our retries — overwrite in place (non-atomic) and clean up the tmp.
+      await writeFile(file, contents, "utf8");
+      await rm(tmp, { force: true });
+      return;
+    }
+  }
 }
 
 /**

@@ -138,6 +138,12 @@ export const wallSceneOptionsSchema = z
     baseDrift: z.number().min(0).max(1).default(0.08),
     /** How much pulse sizes vary (0 = uniform pulses; ~0.6 = organic, some bigger than others). */
     pulseVariance: z.number().min(0).max(1).default(0.6),
+    /**
+     * Explicit per-pulse sizes (length must equal `pulses`); overrides the seeded `pulseVariance`
+     * for deterministic cadence control — e.g. `[1.5, 0.5, 1.5, 0.5]` = two strong moves with small
+     * nudges between. The sum is normalized, so total travel (and the seamless loop) is unchanged.
+     */
+    pulseWeights: z.array(z.number().nonnegative()).optional(),
     /** Seed for the per-column speed variation — same seed ⇒ identical wall (workers must agree). */
     seed: z.number().int().default(1),
   })
@@ -268,6 +274,8 @@ export interface WallSceneOptionsInput {
   baseDrift?: number;
   /** How much pulse sizes vary (0 = uniform; ~0.6 = organic, some bigger than others). */
   pulseVariance?: number;
+  /** Explicit per-pulse sizes (length must equal `pulses`); overrides seeded `pulseVariance`. */
+  pulseWeights?: number[];
   /** Seed for the per-column speed variation. */
   seed?: number;
 }

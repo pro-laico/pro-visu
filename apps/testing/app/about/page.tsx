@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Placeholder } from "@/app/components/Placeholder";
+import { StatTile } from "@/app/components/StatTile";
 import { MEDIA } from "@/app/lib/media";
 
 export const metadata = {
@@ -42,6 +43,12 @@ export default function About() {
           Vesper began in a single Paris atelier with a simple brief: make a small number of beautifully resolved
           clothes, and make them properly. Thirty years on, the brief has not changed.
         </p>
+      </section>
+
+      <section id="about-stats" className="about-stats" aria-label="By the numbers">
+        <StatTile value={30} unit="Years" label="The House" caption="Considered since 1994" animate />
+        <StatTile value={2} unit="Ateliers" label="The Making" caption={"Paris & Porto"} />
+        <StatTile value="1 of 200" label="The Quantity" caption="Measured runs, rarely discounted" />
       </section>
 
       <section id="about-pillars" className="section">

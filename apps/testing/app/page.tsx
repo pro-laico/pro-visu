@@ -70,7 +70,7 @@ export default function Home() {
             Photographed in northern Portugal, our Autumn collection returns to the house essentials — the coat, the
             crewneck, the trouser — reworked in heavier, longer-lasting cloth.
           </p>
-          <Link href="/shop" className="btn btn-outline">
+          <Link href="/lookbook" className="btn btn-outline">
             Explore the lookbook
           </Link>
         </div>

@@ -1206,3 +1206,378 @@ p.lead {
     flex-direction: column;
   }
 }
+
+/* ============================================================================
+   Lookbook + reusable tiles (StatTile / ProductSpecCard / BrandMark / swatch)
+   ========================================================================== */
+
+/* ----- Count-up: a pure-CSS @property counter (no JS), so it bakes cleanly
+   into a realtime tile capture and loops seamlessly on the wall ------------- */
+@property --vesper-stat {
+  syntax: "<integer>";
+  initial-value: 0;
+  inherits: false;
+}
+@keyframes vesper-count {
+  0% {
+    --vesper-stat: 0;
+  }
+  78% {
+    --vesper-stat: var(--to, 0);
+  }
+  100% {
+    --vesper-stat: var(--to, 0);
+  }
+}
+
+/* ----- Stat tile ---------------------------------------------------------- */
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+}
+.stat-tile-label {
+  display: block;
+}
+.stat-figure {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(44px, 7vw, 76px);
+  line-height: 0.92;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.16em;
+}
+.stat-unit {
+  font-family: var(--font-sans);
+  font-size: 0.3em;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.stat-count {
+  counter-reset: c var(--vesper-stat);
+  animation: vesper-count 2s linear infinite;
+}
+.stat-count::after {
+  content: counter(c);
+}
+.stat-caption {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  max-width: 18em;
+}
+
+/* ----- Lookbook grid + panels -------------------------------------------- */
+.lb-grid {
+  max-width: var(--maxw);
+  margin-inline: auto;
+  padding: clamp(20px, 3vw, 40px) var(--gutter) clamp(40px, 6vw, 88px);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(10px, 1.4vw, 18px);
+}
+.lb-panel {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: var(--ink);
+  color: var(--paper);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 12px;
+  padding: 26px;
+}
+.lb-image {
+  padding: 0;
+}
+.lb-panel > img,
+.lb-panel .ph-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  aspect-ratio: auto;
+}
+/* Lighten the stat eyebrow + caption when they sit on a dark panel. */
+.lb-panel .eyebrow {
+  color: rgba(246, 243, 237, 0.6);
+}
+.lb-panel .stat-caption {
+  color: rgba(246, 243, 237, 0.7);
+}
+.lb-wordmark {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: clamp(28px, 4vw, 46px);
+  letter-spacing: 0.34em;
+  text-indent: 0.34em;
+}
+.lb-kicker {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(246, 243, 237, 0.6);
+}
+.lb-display {
+  font-family: var(--font-serif);
+  font-size: clamp(26px, 3.2vw, 40px);
+  line-height: 1.12;
+}
+.lb-display-sm {
+  font-size: clamp(22px, 2.8vw, 32px);
+  font-style: italic;
+}
+.lb-quote {
+  gap: 16px;
+}
+.lb-cta {
+  display: flex;
+  justify-content: center;
+  padding: 0 var(--gutter) clamp(64px, 9vw, 120px);
+}
+
+/* ----- Brand mark --------------------------------------------------------- */
+.brand-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.brand-mark-glyph {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: clamp(64px, 10vw, 108px);
+  line-height: 0.78;
+}
+.brand-mark-word {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  font-size: 15px;
+}
+.brand-mark-sub {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(246, 243, 237, 0.55);
+}
+
+/* ----- Palette swatch panel ---------------------------------------------- */
+.lb-swatch {
+  padding: 0;
+  gap: 0;
+}
+.lb-swatch-band {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  padding: 8px 12px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* ----- Product spec card (tokenized) ------------------------------------- */
+.spec-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--paper-2);
+}
+.lb-panel > .spec-card {
+  position: absolute;
+  inset: 0;
+}
+.spec-card-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  aspect-ratio: auto;
+}
+.spec-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(246, 243, 237, 0.94);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.spec-bar-top {
+  top: 0;
+}
+.spec-bar-bottom {
+  bottom: 0;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+}
+.spec-card-name {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+.spec-card-cloth {
+  color: var(--muted);
+}
+
+/* ----- About: "by the numbers" band -------------------------------------- */
+.about-stats {
+  max-width: var(--maxw);
+  margin-inline: auto;
+  padding: clamp(24px, 4vw, 56px) var(--gutter);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(24px, 5vw, 72px);
+}
+.about-stats .stat-tile {
+  padding: 16px 0;
+}
+
+/* ----- Mini-gallery (living product views; crossfades 3 framings on a 4s loop) ------------- */
+.mini-gallery {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: var(--paper-2);
+}
+.mg-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  animation: mgCycle 4s linear infinite;
+}
+.mg-2 {
+  animation-delay: -1.333s;
+}
+.mg-3 {
+  animation-delay: -2.667s;
+}
+@keyframes mgCycle {
+  0% {
+    opacity: 1;
+  }
+  27% {
+    opacity: 1;
+  }
+  40% {
+    opacity: 0;
+  }
+  93% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+.lb-panel > .mini-gallery {
+  position: absolute;
+  inset: 0;
+  aspect-ratio: auto !important;
+}
+/* PDP real detail thumbnails (replaces the tonal placeholders) */
+.pdp-thumb {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
+/* ----- Wishlist (save-for-later heart on product cards) ------------------- */
+.wishlist {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 100px;
+  background: rgba(246, 243, 237, 0.85);
+  border: 0;
+  color: var(--ink);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.product-media:hover .wishlist,
+.wishlist.is-saved,
+.wishlist:focus-visible {
+  opacity: 1;
+  transform: none;
+}
+.wishlist svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+.wishlist.is-saved svg {
+  fill: var(--camel-deep);
+  stroke: var(--camel-deep);
+  animation: heartPop 0.4s ease;
+}
+@keyframes heartPop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ----- Newsletter focus (footer signup underline grows on focus) --------- */
+.signup-row {
+  position: relative;
+}
+.signup-row::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: var(--paper);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.signup-row:focus-within::after {
+  transform: scaleX(1);
+}
+
+@media (max-width: 900px) {
+  .lb-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .about-stats {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+}
