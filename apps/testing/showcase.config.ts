@@ -7,7 +7,7 @@ import { defineConfig, type AssetSpecInput } from "auto-showcase";
 // Server plumbing: with a managed server the tool injects PORT into the command and treats the
 // server's URL as the default base. URL-based assets omit `url` to capture the root (home), or
 // set a relative `url` (e.g. "/shop") that resolves against the server; local generators
-// (palette, palette-reel, specimen, scene) need no url at all.
+// (palette, palette-reel, specimen, image) need no url at all.
 // ════════════════════════════════════════════════════════════════════════════════════════
 // FEEL — "Quiet & slow" (the authoring guideline for every asset)
 //  • Pace: unhurried. Target every clip at ~10s. Hold long on each section; never rush a scroll.
@@ -24,12 +24,10 @@ import { defineConfig, type AssetSpecInput } from "auto-showcase";
 // opens, a heart fills, a size is chosen). Two small producer families feed it:
 //   IMAGE_TILES — a few full-res photos via the `image` generator (passthrough → full source res). The
 //                 photography is the accent here, not the bulk — the videos lead.
-//   CLIPS       — mobile-viewport (390×844) interaction clips, each EXACTLY 8s so it loops 3× inside
-//                 the 24s wall. Authored as: hold still on a component → one interaction → settle back
-//                 to rest, so the loop is seamless. Cursor hidden (the UI animates on its own — cleaner
+//   CLIPS       — mobile-viewport (390×844) interaction clips, each 8s or 12s (divisors of the 24s wall,
+//                 so they loop cleanly). Authored as: hold still on a component → one interaction → settle
+//                 back to rest, so the loop is seamless. Cursor hidden (the UI animates on its own — cleaner
 //                 than a pointer dot on a small tile; flip `cursor.show` true to show the camel cursor).
-// LIVE — to return to fast layout/motion iteration, re-wrap this block as a comment, comment out the
-// spreads in `assets`, and set `test: true` back on the wall.
 const IMAGE_TILES = [
   { name: "img-hero", src: "public/img/hero.jpg" },
   { name: "img-editorial", src: "public/img/editorial.jpg" },
@@ -38,15 +36,16 @@ const IMAGE_TILES = [
 ].map((t): AssetSpecInput => ({ name: t.name, generator: "image", options: { src: t.src } }));
 
 // Mobile interaction clips. Shared recipe (`CLIP_VIEW`): a 390×844 phone viewport, cursor hidden, and
-// per-clip budgets that sum to EXACTLY 8000ms — startDelayMs + endDwellMs + Σ(durationMs + holdMs). The
-// generator trims the kept clip to that length (dropping the nav lead), so 8s is exact and each loops 3×
-// inside the 24s wall. Every click/hover first scrolls its target to centre, so the opening `hover`
-// frames the component and the clip reads as: a still phone screen → one interaction → back to rest.
+// per-clip budgets that sum to a clean length — startDelayMs + endDwellMs + Σ(durationMs + holdMs). The
+// generator trims the kept clip to that length (dropping the nav lead). Lengths are divisors of the 24s
+// wall so every tile loops cleanly: most are 8s (loop 3×); the two CART clips are 12s (loop 2×) so the
+// open drawer can sit on screen for several seconds before it closes. Whatever an interaction reveals
+// (an open drawer, a filled heart, a chosen size) is held well past a second — never a blink. Every
+// click/hover first scrolls its target to centre, so the clip reads: still phone screen → one
+// interaction (held) → back to rest.
 //
-// SIX distinct clips (no clip is reused on the wall → no synchronised "twins"). Their interaction
-// WINDOWS are deliberately staggered across the 8s — menu ≈1.0–3.9s · wishlist ≈2.0–4.8 · cart ≈3.2–6.2
-// · cart-trouser ≈4.4–7.4 · size ≈5.4–8.0 · wishlist-slip ≈6.0–8.0 — so the wall never goes "all still
-// then all active" at once; at any moment one or two tiles are doing their thing while the rest hold.
+// SIX distinct clips (no clip is reused on the wall → no synchronised "twins"), with staggered action
+// windows + mixed lengths so the wall never goes "all still then all active" at once.
 const CLIP_VIEW = { width: 390, height: 844, deviceScaleFactor: 2, fps: 30, cursor: { show: false } };
 const CLIPS: AssetSpecInput[] = [
   {
@@ -81,34 +80,38 @@ const CLIPS: AssetSpecInput[] = [
     },
   },
   {
-    name: "clip-cart", // PDP coat: hold on Add-to-bag → tap → cart drawer slides in → close → rest
+    // PDP coat: hold on Add-to-bag → tap → cart drawer slides in, HELD OPEN ~4s → close → rest. 12s
+    // (loops 2× in the wall) so the open drawer reads clearly instead of flashing closed.
+    name: "clip-cart",
     url: "/products/the-camel-coat",
     generator: "scroll-reel",
     options: {
       ...CLIP_VIEW,
       waitForSelector: "#pdp-add",
       startDelayMs: 0,
-      endDwellMs: 1800,
+      endDwellMs: 2000,
       actions: [
-        { do: "hover", selector: "#pdp-add", durationMs: 0, holdMs: 3200 }, // centre + hold still
-        { do: "click", selector: "#pdp-add", durationMs: 0, holdMs: 1700 }, // drawer slides in (0.4s)
-        { do: "click", selector: "#cart-drawer .drawer-close", durationMs: 0, holdMs: 1300 }, // slides out
+        { do: "hover", selector: "#pdp-add", durationMs: 0, holdMs: 3000 }, // centre + hold still
+        { do: "click", selector: "#pdp-add", durationMs: 0, holdMs: 4500 }, // drawer slides in (0.4s) and stays open ~4s
+        { do: "click", selector: "#cart-drawer .drawer-close", durationMs: 0, holdMs: 2500 }, // slides out + settle
       ],
     },
   },
   {
-    name: "clip-cart-trouser", // PDP trouser: same flow, a DIFFERENT bag ($ + product) → not a twin of clip-cart
+    // PDP trouser: same flow, a DIFFERENT bag ($ + product) → not a twin of clip-cart. 12s, drawer
+    // held open ~3.6s; acts a touch later than clip-cart so they don't open in lockstep.
+    name: "clip-cart-trouser",
     url: "/products/pleated-wool-trouser",
     generator: "scroll-reel",
     options: {
       ...CLIP_VIEW,
       waitForSelector: "#pdp-add",
       startDelayMs: 0,
-      endDwellMs: 600,
+      endDwellMs: 1000,
       actions: [
-        { do: "hover", selector: "#pdp-add", durationMs: 0, holdMs: 4400 }, // longer still, acts later
-        { do: "click", selector: "#pdp-add", durationMs: 0, holdMs: 1700 }, // drawer slides in
-        { do: "click", selector: "#cart-drawer .drawer-close", durationMs: 0, holdMs: 1300 }, // slides out
+        { do: "hover", selector: "#pdp-add", durationMs: 0, holdMs: 4500 }, // longer still, acts later
+        { do: "click", selector: "#pdp-add", durationMs: 0, holdMs: 4000 }, // drawer slides in and stays open ~3.6s
+        { do: "click", selector: "#cart-drawer .drawer-close", durationMs: 0, holdMs: 2500 }, // slides out + settle
       ],
     },
   },
@@ -138,9 +141,9 @@ const CLIPS: AssetSpecInput[] = [
       startDelayMs: 0,
       endDwellMs: 0,
       actions: [
-        { do: "hover", selector: "#shop-grid .product:nth-child(4) .product-media", durationMs: 0, holdMs: 6000 }, // long still
+        { do: "hover", selector: "#shop-grid .product:nth-child(4) .product-media", durationMs: 0, holdMs: 5600 }, // long still
         { do: "click", selector: "#shop-grid .product:nth-child(4) .wishlist", durationMs: 0, holdMs: 1200 }, // heartPop
-        { do: "click", selector: "#shop-grid .product:nth-child(4) .wishlist", durationMs: 0, holdMs: 800 }, // unsave
+        { do: "click", selector: "#shop-grid .product:nth-child(4) .wishlist", durationMs: 0, holdMs: 1200 }, // unsave (held > 1s)
       ],
     },
   },
@@ -159,8 +162,10 @@ export default defineConfig({
       "scroll-reel": { width: 1280, height: 800, fps: 30 },
     },
   },
-  // LIVE — the media wall, fed by its tile producers. The wall is the only top-level asset for now
-  // (the rest of the program lives in the parked backlog below); promote those one at a time.
+  // The complete VESPER program: the media wall + its tile producers, the storefront films,
+  // element-focus crops, scripted interaction tours, a stitched journey, responsive stills, and the
+  // brand colour/type pieces. Render everything with `pnpm generate`, or a subset with
+  // `pnpm generate --asset <name>` (repeatable). Producers run before the assets that depend on them.
   assets: [
     // ─────────────────────────────────────────────────────────────────────────────────────
     // THE WALL'S TILE PRODUCERS — 4 full-res photos + 6 mobile interaction clips. The wall derives its
@@ -187,7 +192,7 @@ export default defineConfig({
         workers: 1,
         deviceScaleFactor: 2,
         crf: 18,
-        durationSeconds: 24, // the "main" clip; 24 = 3 × the 8s tile clips, so every tile loops cleanly
+        durationSeconds: 24, // a multiple of the 8s and 12s tile clips, so every tile loops cleanly
         background: "#1a1714",
         gap: 2,
         tileAspect: 0.75, // fallback only — tiles take their own height (mobile clips ~9:19, photos ~3:4 → masonry)
@@ -211,7 +216,6 @@ export default defineConfig({
       },
     },
 
-    /* ═══ PARKED BACKLOG — uncomment an entry into `assets` above to enable it ═══════════════
     // ─────────────────────────────────────────────────────────────────────────────────────
     // MOTION — storefront films (scroll-reels over the real pages)
     // ─────────────────────────────────────────────────────────────────────────────────────
@@ -249,6 +253,21 @@ export default defineConfig({
       },
     },
 
+    // Square 1:1 social cut (Instagram feed) — emitted as mp4 + animated WebP (smaller than gif).
+    {
+      name: "home-square",
+      generator: "scroll-reel",
+      options: {
+        width: 1080,
+        height: 1080,
+        deviceScaleFactor: 2,
+        duration: 5000,
+        aspect: "1:1",
+        outputs: ["mp4", "webp"],
+        waitForSelector: ".hero-media img",
+      },
+    },
+
     // The collection page, captured at two viewports (each emits its own asset) so the
     // responsive product grid of real photography reads on desktop and tablet alike.
     {
@@ -272,9 +291,20 @@ export default defineConfig({
       generator: "scroll-reel",
       url: "/products/the-camel-coat",
       options: {
-        waitForSelector: ".pdp-image",
+        waitForSelector: ".mini-gallery img", // the PDP's crossfading product gallery
         autoSections: { durationMs: 10000 },
         annotations: [{ ring: "#pdp-add", text: "Add to bag", atMs: 2500, untilMs: 5500, position: "bottom" }],
+      },
+    },
+
+    // A second product film (the silk slip dress) so product coverage isn't only the camel coat.
+    {
+      name: "product-slip",
+      generator: "scroll-reel",
+      url: "/products/silk-slip-dress",
+      options: {
+        waitForSelector: ".mini-gallery img",
+        autoSections: { durationMs: 10000 },
       },
     },
 
@@ -287,6 +317,37 @@ export default defineConfig({
         waitForSelector: ".about-hero-media img",
         autoSections: { durationMs: 10000 },
         kenBurns: { scaleTo: 1.04 },
+      },
+    },
+
+    // The lookbook brand board — a page built for capture (every panel carries a stable id).
+    {
+      name: "lookbook",
+      generator: "scroll-reel",
+      url: "/lookbook",
+      options: {
+        waitForSelector: "#lb-editorial img",
+        autoSections: { durationMs: 11000 },
+      },
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────────────────
+    // LOOP — a seamless hero background clip (boomerang + a held Ken Burns zoom, no visible seam)
+    // ─────────────────────────────────────────────────────────────────────────────────────
+
+    // Drop-in looping hero video: one choreography beat holds on the hero while a gentle zoom plays
+    // out and back (loop: "boomerang"), so the clip loops with no seam — ideal as a web hero bg.
+    {
+      name: "hero-loop",
+      generator: "scroll-reel",
+      options: {
+        duration: 4000,
+        loop: "boomerang",
+        startDelayMs: 0,
+        endDwellMs: 0,
+        kenBurns: { scaleTo: 1.05, originY: 0.4 },
+        choreography: [{ to: "0%", durationMs: 4000, holdMs: 0 }], // hold on the hero; the zoom carries the motion
+        waitForSelector: ".hero-media img",
       },
     },
 
@@ -308,6 +369,21 @@ export default defineConfig({
         focus: { selector: "#feature-card", actions: [{ do: "click", selector: "#feature-card .quick-add" }] },
       },
     },
+
+    // ─────────────────────────────────────────────────────────────────────────────────────
+    // LOOKBOOK TILES — focus crops of the /lookbook brand board (each panel is a stable-id 3:4 tile).
+    // The page is built for this; these double as standalone editorial tiles and extra wall tiles.
+    // ─────────────────────────────────────────────────────────────────────────────────────
+    { name: "lb-wordmark", generator: "scroll-reel", url: "/lookbook", options: { focus: { selector: "#lb-wordmark", padding: 0, holdMs: 2500 } } },
+    {
+      name: "lb-editorial",
+      generator: "scroll-reel",
+      url: "/lookbook",
+      options: { waitForSelector: "#lb-editorial img", focus: { selector: "#lb-editorial", padding: 0, holdMs: 2500 } },
+    },
+    { name: "lb-spec", generator: "scroll-reel", url: "/lookbook", options: { focus: { selector: "#lb-spec-coat", padding: 0, holdMs: 2500 } } },
+    { name: "lb-swatch", generator: "scroll-reel", url: "/lookbook", options: { focus: { selector: "#lb-swatch", padding: 0, holdMs: 2500 } } },
+    { name: "lb-quote", generator: "scroll-reel", url: "/lookbook", options: { focus: { selector: "#lb-quote", padding: 0, holdMs: 2500 } } },
 
     // ─────────────────────────────────────────────────────────────────────────────────────
     // INTERACTION — scripted realtime tours with a synthetic cursor
@@ -387,57 +463,6 @@ export default defineConfig({
           { selector: "#hero", name: "hero" },
           { selector: "#new-arrivals", name: "arrivals" },
         ],
-      },
-    },
-
-    // ─────────────────────────────────────────────────────────────────────────────────────
-    // SCENES — composite captures into device frames + a media wall
-    // ─────────────────────────────────────────────────────────────────────────────────────
-
-    // Phone: a phone-width capture composited into a phone mockup.
-    { name: "phone-cap", generator: "scroll-reel", options: { width: 390, height: 844, duration: 5000, waitForSelector: ".hero-media img" } },
-    {
-      name: "phone",
-      generator: "scene",
-      inputs: { screen: "phone-cap" },
-      options: { scene: "phone", width: 1080, height: 1350, capture: "frames", durationSeconds: 6 },
-    },
-
-    // Desktop: one clean 16:10 capture, reused as the screen for both a laptop and a browser frame.
-    { name: "site-cap", generator: "scroll-reel", options: { width: 1440, height: 900, duration: 6000, waitForSelector: ".hero-media img" } },
-    {
-      name: "laptop",
-      generator: "scene",
-      inputs: { screen: "site-cap" },
-      options: { scene: "laptop", width: 1600, height: 1000, capture: "frames", durationSeconds: 6, background: "#1a1714" },
-    },
-    {
-      name: "browser",
-      generator: "scene",
-      inputs: { screen: "site-cap" },
-      options: {
-        scene: "browser",
-        width: 1600,
-        height: 1000,
-        capture: "frames",
-        durationSeconds: 6,
-        background: "#1a1714",
-        sceneOptions: { url: "vesper.example" },
-      },
-    },
-
-    // Media wall: a marquee of storefront films, panning over an ink backdrop.
-    {
-      name: "lookbook-wall",
-      generator: "scene",
-      inputs: { a: "shop", b: "product", c: "about", d: "hero" },
-      options: {
-        scene: "wall",
-        width: 1920,
-        height: 1080,
-        capture: "frames",
-        durationSeconds: 8,
-        sceneOptions: { columns: 4, tileAspect: 0.75, background: "#1a1714", cornerRadius: 8 },
       },
     },
 
@@ -532,6 +557,5 @@ export default defineConfig({
         ],
       },
     },
-    ═══ end parked backlog ═══════════════════════════════════════════════════════════════ */
   ],
 });
