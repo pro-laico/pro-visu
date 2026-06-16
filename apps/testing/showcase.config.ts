@@ -1,4 +1,4 @@
-import { defineConfig } from "auto-showcase";
+import { defineConfig, type AssetSpecInput } from "auto-showcase";
 
 // An expansive showcase for the VESPER storefront — now that the site ships real on-model
 // photography (hero, editorial, about, and a photo per product), the config tours every
@@ -19,156 +19,132 @@ import { defineConfig } from "auto-showcase";
 //    Cards/backdrops = ink bg + paper text. Cursor (interactions) = camel #8c7355, slow + deliberate.
 //  • Respect negative space; no clutter, no UI chrome we don't mean to show.
 // ════════════════════════════════════════════════════════════════════════════════════════
-// Media-wall tiles — REAL, high-fidelity content (replacing the earlier synthetic lookbook panels
-// and low-res focus-crops):
-//   IMAGE_TILES — the actual high-resolution asset photos, used directly via the `image` generator
-//                 (no re-capture, so full source resolution).
-//   UI_PAGES    — crisp 3:4 captures of the real storefront pages.
-//   CLIPS       — short looping clips of the real UI in motion / interactions.
-// PARKED while testing the wall in `test` mode (the wall uses faux tiles, so these producers aren't
-// needed). Uncomment this block — and the spreads in `assets` — to render the real wall.
-/*
+// Media wall — a quiet grid of MOBILE phone screens. Most of the time each tile just sits there like a
+// nice still of the storefront; now and then one does a single thing (a drawer slides in, the menu
+// opens, a heart fills, a size is chosen). Two small producer families feed it:
+//   IMAGE_TILES — a few full-res photos via the `image` generator (passthrough → full source res). The
+//                 photography is the accent here, not the bulk — the videos lead.
+//   CLIPS       — mobile-viewport (390×844) interaction clips, each EXACTLY 8s so it loops 3× inside
+//                 the 24s wall. Authored as: hold still on a component → one interaction → settle back
+//                 to rest, so the loop is seamless. Cursor hidden (the UI animates on its own — cleaner
+//                 than a pointer dot on a small tile; flip `cursor.show` true to show the camel cursor).
+// LIVE — to return to fast layout/motion iteration, re-wrap this block as a comment, comment out the
+// spreads in `assets`, and set `test: true` back on the wall.
 const IMAGE_TILES = [
-  { name: "img-coat", src: "public/img/products/the-camel-coat.jpg" },
-  { name: "img-crew", src: "public/img/products/cashmere-crewneck.jpg" },
-  { name: "img-trouser", src: "public/img/products/pleated-wool-trouser.jpg" },
-  { name: "img-slip", src: "public/img/products/silk-slip-dress.jpg" },
-  { name: "img-blazer", src: "public/img/products/double-breasted-blazer.jpg" },
-  { name: "img-tote", src: "public/img/products/leather-tote.jpg" },
-  { name: "img-turtle", src: "public/img/products/ribbed-turtleneck.jpg" },
-  { name: "img-overshirt", src: "public/img/products/tailored-overshirt.jpg" },
+  { name: "img-hero", src: "public/img/hero.jpg" },
   { name: "img-editorial", src: "public/img/editorial.jpg" },
   { name: "img-atelier", src: "public/img/about-atelier.jpg" },
-  { name: "img-hero", src: "public/img/hero.jpg" },
-  { name: "img-abouthero", src: "public/img/about-hero.jpg" },
-].map((t) => ({ name: t.name, generator: "image" as const, options: { src: t.src } }));
+  { name: "img-tote", src: "public/img/products/leather-tote.jpg" }, // cognac accent
+].map((t): AssetSpecInput => ({ name: t.name, generator: "image", options: { src: t.src } }));
 
-// Real storefront pages, captured as crisp 3:4 viewport stills. screenshots' page shot is the
-// producer's primary output, so each feeds a wall tile directly (no element-index ambiguity).
-const UI_PAGES = [
-  { name: "ui-home", url: "/" },
-  { name: "ui-shop", url: "/shop" },
-  { name: "ui-pdp-coat", url: "/products/the-camel-coat" },
-  { name: "ui-pdp-slip", url: "/products/silk-slip-dress" },
-  { name: "ui-about", url: "/about" },
-  { name: "ui-lookbook", url: "/lookbook" },
-].map((t) => ({
-  name: t.name,
-  url: t.url,
-  generator: "screenshots" as const,
-  options: {
-    fullPage: false,
-    waitForSelector: "img",
-    breakpoints: [{ name: "tile", width: 900, height: 1200, deviceScaleFactor: 2 }],
-  },
-}));
-
-// Short clips of the real UI in motion at 3:4. The interaction clips return to their start state so
-// they read as loops (realtime → duration varies, so a tiny seam at the wall wrap is acceptable on
-// these few tiles); the boomerang scroll is frame-stepped at an exact 4s (divides 16s) for a perfect
-// loop. Cursor is the brand camel.
-const CLIPS = [
+// Mobile interaction clips. Shared recipe (`CLIP_VIEW`): a 390×844 phone viewport, cursor hidden, and
+// per-clip budgets that sum to EXACTLY 8000ms — startDelayMs + endDwellMs + Σ(durationMs + holdMs). The
+// generator trims the kept clip to that length (dropping the nav lead), so 8s is exact and each loops 3×
+// inside the 24s wall. Every click/hover first scrolls its target to centre, so the opening `hover`
+// frames the component and the clip reads as: a still phone screen → one interaction → back to rest.
+//
+// SIX distinct clips (no clip is reused on the wall → no synchronised "twins"). Their interaction
+// WINDOWS are deliberately staggered across the 8s — menu ≈1.0–3.9s · wishlist ≈2.0–4.8 · cart ≈3.2–6.2
+// · cart-trouser ≈4.4–7.4 · size ≈5.4–8.0 · wishlist-slip ≈6.0–8.0 — so the wall never goes "all still
+// then all active" at once; at any moment one or two tiles are doing their thing while the rest hold.
+const CLIP_VIEW = { width: 390, height: 844, deviceScaleFactor: 2, fps: 30, cursor: { show: false } };
+const CLIPS: AssetSpecInput[] = [
   {
-    name: "clip-cart", // add to bag → cart drawer slides in → close
-    url: "/products/the-camel-coat",
-    generator: "scroll-reel" as const,
-    options: {
-      width: 900,
-      height: 1200,
-      deviceScaleFactor: 2,
-      fps: 30,
-      cursor: { color: "#8c7355" },
-      actions: [
-        { do: "click" as const, selector: ".size-options button:nth-of-type(3)", holdMs: 500 },
-        { do: "click" as const, selector: "#pdp-add", holdMs: 1800 },
-        { do: "click" as const, selector: "#cart-drawer .drawer-close", holdMs: 1500 },
-      ],
-    },
-  },
-  {
-    name: "clip-menu", // open mega-menu → hover a link → close (over the lookbook)
-    url: "/lookbook",
-    generator: "scroll-reel" as const,
-    options: {
-      width: 900,
-      height: 1200,
-      deviceScaleFactor: 2,
-      fps: 30,
-      cursor: { color: "#8c7355" },
-      actions: [
-        { do: "click" as const, selector: "#menu-button", holdMs: 900 },
-        { do: "hover" as const, selector: "#menu-panel a", holdMs: 900 },
-        { do: "click" as const, selector: "#menu-button", holdMs: 1200 },
-      ],
-    },
-  },
-  {
-    name: "clip-quickadd", // hover a card → quick-add slides up → move away
-    url: "/shop",
-    generator: "scroll-reel" as const,
-    options: {
-      width: 900,
-      height: 1200,
-      deviceScaleFactor: 2,
-      fps: 30,
-      cursor: { color: "#8c7355" },
-      actions: [
-        { do: "hover" as const, selector: "#shop-grid .product:nth-child(1) .product-media", holdMs: 1600 },
-        { do: "move" as const, x: 0.5, y: 0.96, holdMs: 1200 },
-      ],
-    },
-  },
-  {
-    name: "clip-wishlist", // tap the heart on → off (home new-arrivals grid)
+    name: "clip-menu", // Home: hold on the hero → open the mega-menu → close → rest (acts EARLY)
     url: "/",
-    generator: "scroll-reel" as const,
+    generator: "scroll-reel",
     options: {
-      width: 900,
-      height: 1200,
-      deviceScaleFactor: 2,
-      fps: 30,
-      cursor: { color: "#8c7355" },
+      ...CLIP_VIEW,
+      waitForSelector: ".hero-media img",
+      startDelayMs: 1000,
+      endDwellMs: 4100,
       actions: [
-        { do: "hover" as const, selector: "#new-arrivals .product:nth-child(2) .product-media", holdMs: 400 },
-        { do: "click" as const, selector: "#new-arrivals .product:nth-child(2) .wishlist", holdMs: 1300 },
-        { do: "click" as const, selector: "#new-arrivals .product:nth-child(2) .wishlist", holdMs: 1300 },
+        { do: "click", selector: "#menu-button", durationMs: 0, holdMs: 1600 }, // mega panel opens
+        { do: "click", selector: "#menu-button", durationMs: 0, holdMs: 1300 }, // and closes (toggle)
       ],
     },
   },
   {
-    name: "clip-size", // cycle size chips S → M → L → M (on the slip dress)
+    name: "clip-wishlist", // Shop p1 (coat): hold on the card → tap the heart (fills) → tap (empties) → rest
+    url: "/shop",
+    generator: "scroll-reel",
+    options: {
+      ...CLIP_VIEW,
+      waitForSelector: "#shop-grid .product img",
+      startDelayMs: 0,
+      endDwellMs: 3200,
+      actions: [
+        { do: "hover", selector: "#shop-grid .product:nth-child(1) .product-media", durationMs: 0, holdMs: 2000 },
+        { do: "click", selector: "#shop-grid .product:nth-child(1) .wishlist", durationMs: 0, holdMs: 1500 }, // heartPop
+        { do: "click", selector: "#shop-grid .product:nth-child(1) .wishlist", durationMs: 0, holdMs: 1300 }, // unsave
+      ],
+    },
+  },
+  {
+    name: "clip-cart", // PDP coat: hold on Add-to-bag → tap → cart drawer slides in → close → rest
+    url: "/products/the-camel-coat",
+    generator: "scroll-reel",
+    options: {
+      ...CLIP_VIEW,
+      waitForSelector: "#pdp-add",
+      startDelayMs: 0,
+      endDwellMs: 1800,
+      actions: [
+        { do: "hover", selector: "#pdp-add", durationMs: 0, holdMs: 3200 }, // centre + hold still
+        { do: "click", selector: "#pdp-add", durationMs: 0, holdMs: 1700 }, // drawer slides in (0.4s)
+        { do: "click", selector: "#cart-drawer .drawer-close", durationMs: 0, holdMs: 1300 }, // slides out
+      ],
+    },
+  },
+  {
+    name: "clip-cart-trouser", // PDP trouser: same flow, a DIFFERENT bag ($ + product) → not a twin of clip-cart
+    url: "/products/pleated-wool-trouser",
+    generator: "scroll-reel",
+    options: {
+      ...CLIP_VIEW,
+      waitForSelector: "#pdp-add",
+      startDelayMs: 0,
+      endDwellMs: 600,
+      actions: [
+        { do: "hover", selector: "#pdp-add", durationMs: 0, holdMs: 4400 }, // longer still, acts later
+        { do: "click", selector: "#pdp-add", durationMs: 0, holdMs: 1700 }, // drawer slides in
+        { do: "click", selector: "#cart-drawer .drawer-close", durationMs: 0, holdMs: 1300 }, // slides out
+      ],
+    },
+  },
+  {
+    name: "clip-size", // PDP slip: hold on the size row → tap L → tap back to M (the default) → rest (acts LATE)
     url: "/products/silk-slip-dress",
-    generator: "scroll-reel" as const,
+    generator: "scroll-reel",
     options: {
-      width: 900,
-      height: 1200,
-      deviceScaleFactor: 2,
-      fps: 30,
-      cursor: { color: "#8c7355" },
+      ...CLIP_VIEW,
+      waitForSelector: "#pdp-add",
+      startDelayMs: 0,
+      endDwellMs: 0,
       actions: [
-        { do: "click" as const, selector: ".size-options button:nth-of-type(1)", holdMs: 700 },
-        { do: "click" as const, selector: ".size-options button:nth-of-type(3)", holdMs: 700 },
-        { do: "click" as const, selector: ".size-options button:nth-of-type(4)", holdMs: 700 },
-        { do: "click" as const, selector: ".size-options button:nth-of-type(3)", holdMs: 700 },
+        { do: "hover", selector: ".size-options", durationMs: 0, holdMs: 5400 }, // long still on the chips
+        { do: "click", selector: ".size-options button:nth-of-type(4)", durationMs: 0, holdMs: 1400 }, // L
+        { do: "click", selector: ".size-options button:nth-of-type(3)", durationMs: 0, holdMs: 1200 }, // back to M
       ],
     },
   },
   {
-    name: "clip-scroll", // gentle page scroll (about), perfect 4s boomerang loop
-    url: "/about",
-    generator: "scroll-reel" as const,
+    name: "clip-wishlist-slip", // Shop p4 (slip): heart on a different product → not a twin of clip-wishlist
+    url: "/shop",
+    generator: "scroll-reel",
     options: {
-      width: 900,
-      height: 1200,
-      deviceScaleFactor: 2,
-      fps: 30,
-      duration: 4000,
-      loop: "boomerang" as const,
-      waitForSelector: ".about-hero-media img",
+      ...CLIP_VIEW,
+      waitForSelector: "#shop-grid .product img",
+      startDelayMs: 0,
+      endDwellMs: 0,
+      actions: [
+        { do: "hover", selector: "#shop-grid .product:nth-child(4) .product-media", durationMs: 0, holdMs: 6000 }, // long still
+        { do: "click", selector: "#shop-grid .product:nth-child(4) .wishlist", durationMs: 0, holdMs: 1200 }, // heartPop
+        { do: "click", selector: "#shop-grid .product:nth-child(4) .wishlist", durationMs: 0, holdMs: 800 }, // unsave
+      ],
     },
   },
 ];
-*/
 
 export default defineConfig({
   settings: {
@@ -183,103 +159,54 @@ export default defineConfig({
       "scroll-reel": { width: 1280, height: 800, fps: 30 },
     },
   },
-  // Assets are PARKED while we plan the small-scale rollout (see the FEEL guidelines above).
-  // Promote entries out of the backlog block below into this array one at a time. Empty for now
-  // so nothing renders until we've agreed the starter set.
+  // LIVE — the media wall, fed by its tile producers. The wall is the only top-level asset for now
+  // (the rest of the program lives in the parked backlog below); promote those one at a time.
   assets: [
     // ─────────────────────────────────────────────────────────────────────────────────────
-    // TESTING THE WALL — the wall runs in `test: true` preview mode (faux labeled color boxes), so
-    // its tile producers are PARKED below. No producers + no managed server → renders in seconds.
-    // To go live: uncomment the spreads below, the producer consts up top, and drop `test` on the wall.
+    // THE WALL'S TILE PRODUCERS — 4 full-res photos + 6 mobile interaction clips. The wall derives its
+    // dependencies from these by name, so they must sit in `assets` alongside it.
     // ─────────────────────────────────────────────────────────────────────────────────────
-    // ...IMAGE_TILES,
-    // ...UI_PAGES,
-    // ...CLIPS,
+    ...IMAGE_TILES,
+    ...CLIPS,
     {
       name: "lookbook-wall",
       generator: "wall",
-      // No `inputs` map — each column lists the assets it stacks (by name), so the wall derives its
-      // dependencies from the columns below. 6 columns × 4 tiles = the 24 sources, interleaved
-      // (image · UI · clip) so every column reads as a mix; each column carries its OWN Y motion.
-      // Friendly `wall` generator: grid + motion knobs at the top level (no nested sceneOptions).
+      // No `inputs` map — each column lists the tiles it stacks (by name), so the wall derives its
+      // dependencies from the columns below. 5 columns × 2 tiles = 10 slots: 6 are mobile clips
+      // (videos lead), 4 are photos (accent). Each column carries its OWN gentle Y drift.
       options: {
         width: 1920,
         height: 1080,
         fps: 30,
-        // While TESTING, use "realtime" — it records the live scene once (much faster). Switch back to
-        // "frames" for the real render: it's frame-exact, crisp (supersampled) and parallelizable.
-        capture: "realtime",
+        // Real render: "frames" is frame-exact and crisp (supersampled). For fast layout/motion
+        // iteration, set `test: true` (faux tiles) + "realtime" for a seconds-long preview.
+        capture: "frames",
         // Single worker: tile <video>s stay warm across sequential seeks. Parallel workers each cold-
         // start their range and capture the seeked frame before it decodes → black tiles at every
         // worker boundary. (Slower, but correct; revisit a parallel-safe warm-up later.)
         workers: 1,
         deviceScaleFactor: 2,
         crf: 18,
-        durationSeconds: 30,
+        durationSeconds: 24, // the "main" clip; 24 = 3 × the 8s tile clips, so every tile loops cleanly
         background: "#1a1714",
         gap: 2,
-        tileAspect: 0.75,
+        tileAspect: 0.75, // fallback only — tiles take their own height (mobile clips ~9:19, photos ~3:4 → masonry)
         cornerRadius: 0,
-        // PREVIEW MODE — faux labeled color boxes instead of real tiles, so no producers run and the
-        // wall renders in seconds while you dial in motion/layout. Tiles auto-color from their name;
-        // a few are themed via `testTiles` below. Each faux tile can set its own `aspect` (w/h) so the
-        // preview shows the same mixed-height masonry the real media will — 16:9 reads short, 9:16
-        // tall, all at the same column width. Tiles without an `aspect` use `tileAspect` (0.75 here).
-        // Remove `test`/`testTiles` for the real render.
-        test: true,
-        testTiles: {
-          "img-coat": { color: "#b49a77", size: "3:4", aspect: 0.75 },
-          "img-editorial": { color: "#6b6f58", size: "3:2", aspect: 1.5 },
-          "img-hero": { color: "#7a5234", size: "16:9", aspect: 1.78 }, // short landscape
-          "img-tote": { color: "#8a5a3c", size: "4:5", aspect: 0.8 }, // cognac accent
-          "ui-home": { color: "#5c5e4c", size: "3:4 UI", aspect: 0.75 },
-          "ui-lookbook": { color: "#4a4c3e", size: "16:9 UI", aspect: 1.78 },
-          "clip-cart": { color: "#1f2a24", size: "9:16", aspect: 0.5625 }, // tall portrait
-          "clip-scroll": { color: "#243029", size: "1:1", aspect: 1 },
-        },
-        // Motion — the uniform pulse model (see WALL-TIMELINE.md). A track's travel = `loops`
-        // continuous whole-clip periods + the sum of its `pulses` (each an eased move of `distance`
-        // periods, starting at `at` (0..1 of the clip) over `duration` seconds). The total rounds up
-        // to a whole number of periods, so every column lands back on its start → seamless.
-        //  • System 1 — X pan: one gentle continuous leftward sweep over the 16s (no pulse).
-        //  • System 2 — per-column Y: a quiet baseline scroll with the occasional pulse. Just FIVE
-        //    pulses across the whole wall, each ≥1s apart (so moves never bunch up): one wall-level
-        //    pulse (inherited by the columns that don't override) at ~1.3s, then four columns with
-        //    their own single pulse at ~4.0s · 7.2s · 9.9s · 12.8s.
-        loops: 0, // wall-level default base scroll for columns that don't override it
-        // The single wall-level pulse — fires for every column that omits its own `pulses` (cols 1 & 5).
-        pulses: [{ at: 0.8, duration: 0.05, distance: 0.2, easing: "ease-in-out-strong" }], // ~2.4s move
-        pan: { direction: "left", loops: 1 }, // steady whole-wall creep, exactly one wrap over the clip
-        // Each column = its tiles (stacked top→bottom, cycled to fill) + its own motion. Distances are
-        // fractions of one tile-set; the engine rounds each column's total up to a seamless whole.
-        // `stagger` (0..1) shifts each column's start position so the (all-image) top row doesn't line
-        // up across columns — spread the values so neighbours don't share a phase.
+        // Motion — deliberately quiet so the wall reads like a grid of still phone screens, the life
+        // coming from the clips' own interactions. Each column does ONE gentle, seamless drift over the
+        // 24s (`loops: 1`), neighbours alternating up/down with spread `stagger`s so they neither move
+        // in lockstep nor line up. No X pan, no pulses — calm. (For an even stiller look, set a column's
+        // `loops: 0` to pin it: it then features its top tile with the next as a peek.)
+        loops: 1, // one seamless tile-set drift over the clip, for every column that doesn't override it
+        // Each column = its tiles (top→bottom, cycled to fill) + its motion. `stagger` (0..1) offsets a
+        // column's start position; `direction` flips the drift. All six clips are distinct (no tile is
+        // reused), so nothing reads as a synchronised twin.
         columns: [
-          {
-            // inherits the wall-level pulse (≈1.3s)
-            tiles: ["img-coat", "clip-cart", "ui-home", "img-tote"],
-          },
-          {
-            tiles: ["img-crew", "ui-shop", "img-turtle", "clip-quickadd"],
-            pulses: [{ at: 0.1, duration: 0.14, distance: 0.20, easing: "ease-in-out" }], // start ≈4.0s
-          },
-          {
-            tiles: ["img-editorial", "clip-menu", "ui-pdp-coat", "img-atelier"],
-            pulses: [{ at: 0.45, duration: 0.15, distance: 0.5, easing: "ease-out" }], // start ≈7.2s
-          },
-          {
-            tiles: ["img-trouser", "ui-about", "clip-wishlist", "img-hero"],
-            pulses: [{ at: 0.62, duration: 0.11, distance: 0.35, easing: "ease-in" }], // start ≈9.9s
-          },
-          {
-            // inherits the wall-level pulse (≈1.3s); a touch faster baseline + its own stagger keep it
-            // off lockstep with col 1 (which shares the same pulse).
-            tiles: ["img-slip", "clip-size", "ui-lookbook", "img-overshirt"],
-          },
-          {
-            tiles: ["img-blazer", "ui-pdp-slip", "clip-scroll", "img-abouthero"],
-            pulses: [{ at: 0.8, duration: 0.13, distance: 0.5, easing: "ease-in-out-strong" }], // start ≈12.8s
-          },
+          { tiles: ["clip-cart", "img-hero"], direction: "down", stagger: 0.0 },
+          { tiles: ["clip-menu", "img-editorial"], direction: "up", stagger: 0.42 },
+          { tiles: ["clip-wishlist", "img-atelier"], direction: "down", stagger: 0.68 },
+          { tiles: ["clip-size", "img-tote"], direction: "up", stagger: 0.18 },
+          { tiles: ["clip-cart-trouser", "clip-wishlist-slip"], direction: "down", stagger: 0.54 }, // all-video column
         ],
       },
     },
