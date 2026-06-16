@@ -24,6 +24,10 @@ export interface FrameCaptureArgs {
   /** Scratch dir for per-worker segments. */
   tmpDir: string;
   logger: Logger;
+  /** Fractional progress (0–1) as frames complete. */
+  onProgress?: (fraction: number) => void;
+  /** Cancels the capture mid-flight. */
+  signal?: AbortSignal;
 }
 
 /**
@@ -48,6 +52,8 @@ export async function captureSceneFrames(args: FrameCaptureArgs): Promise<void> 
     workers: args.workers,
     tmpDir: args.tmpDir,
     logger: args.logger,
+    onProgress: args.onProgress,
+    signal: args.signal,
     prepare: async (page) => {
       await page.goto(args.url, { waitUntil: "load" });
       await page.waitForFunction(

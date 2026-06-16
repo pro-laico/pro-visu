@@ -35,9 +35,17 @@ Run the generators defined in your config; writes assets and `manifest.json` int
 | `--cache` | Skip assets whose inputs + options + tool fingerprint are unchanged. |
 | `--verbose` | Verbose (debug) logging. |
 
-On an interactive terminal, a live tracker shows per-asset progress. Press **Esc** or
-**Ctrl+C** to cancel gracefully (in-flight work finishes, then the server/browser are torn
-down); press again to force-quit.
+On an interactive terminal, a live dashboard groups setup (build/server) and per-asset
+progress, each row with a progress bar, its current step, and elapsed time. Frame-stepped
+captures (scroll reels, scenes) show a real percentage and ETA; other work shows an
+indeterminate indicator. A header rollup tracks overall `done/total` (and cached) progress, and
+the layout adapts to the terminal width. Press **Esc** or **Ctrl+C** to cancel: in-flight
+captures are aborted promptly (the frame loop stops and ffmpeg is killed), then the
+server/browser are torn down; press again to force-quit.
+
+When the run finishes, a summary panel lists each asset's dimensions and size with totals.
+Set `SHOWCASE_LIVE=0` to force plain logs, or `SHOWCASE_LIVE=1` to force the dashboard on a
+terminal that mis-reports as non-interactive.
 
 ## `showcase list` <small>(alias `ls`)</small>
 

@@ -55,6 +55,7 @@ const FORMAT_ORDER = ["mp4", "gif", "webp", "poster"] as const;
 export async function produceOutputs(job: OutputJob): Promise<AssetRecord[]> {
   const { ctx, options } = job;
   const logger = ctx.logger;
+  const signal = ctx.signal; // a cancel kills any in-progress reframe/encode here too
 
   // 1. Aspect reframe (once, shared by every output) — or use the capture as-is.
   let videoMp4 = job.sourceMp4;
@@ -78,6 +79,7 @@ export async function produceOutputs(job: OutputJob): Promise<AssetRecord[]> {
         preset: job.preset,
       }),
       logger,
+      signal,
     );
     videoMp4 = reframed;
   }
@@ -114,6 +116,7 @@ export async function produceOutputs(job: OutputJob): Promise<AssetRecord[]> {
           preset: job.preset,
         }),
         logger,
+        signal,
       );
       extraMs += ms;
       return seg;
@@ -124,7 +127,7 @@ export async function produceOutputs(job: OutputJob): Promise<AssetRecord[]> {
     if (options.outro) segs.push(await makeCard(options.outro, "outro"));
     if (segs.length > 1) {
       const stitched = path.join(ctx.tmpDir, `${slugify(job.assetId)}-carded.mp4`);
-      await concatMp4(segs, stitched, logger);
+      await concatMp4(segs, stitched, logger, signal);
       videoMp4 = stitched;
     }
   }
@@ -144,16 +147,18 @@ export async function produceOutputs(job: OutputJob): Promise<AssetRecord[]> {
     if (fmt === "mp4") {
       await copyFile(videoMp4, outPath);
     } else if (fmt === "gif") {
-      await runFfmpeg(buildGifArgs({ inputPath: videoMp4, outputPath: outPath, fps: gifFps }), logger);
+      await runFfmpeg(buildGifArgs({ inputPath: videoMp4, outputPath: outPath, fps: gifFps }), logger, signal);
     } else if (fmt === "webp") {
       await runFfmpeg(
         buildWebpArgs({ inputPath: videoMp4, outputPath: outPath, fps: gifFps, quality: 75 }),
         logger,
+        signal,
       );
     } else {
       await runFfmpeg(
         buildPosterArgs({ inputPath: posterSource, outputPath: outPath, atSeconds: 0 }),
         logger,
+        signal,
       );
     }
 

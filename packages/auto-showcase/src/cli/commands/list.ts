@@ -4,7 +4,8 @@ import { createLogger } from "@/utils/logger";
 import { loadShowcaseConfig, ConfigNotFoundError } from "@/config/load";
 import { readManifest } from "@/manifest/manifest";
 import { DEFAULT_OUTDIR } from "@/config/defaults";
-import { formatBytes, reportConfigError } from "@/cli/ui";
+import { reportConfigError } from "@/cli/ui";
+import { formatBytes } from "@/utils/format";
 
 export interface ListOptions {
   cwd?: string;

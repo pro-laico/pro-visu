@@ -19,6 +19,10 @@ export interface CreateContextArgs {
   toolVersion: string;
   quality: "draft" | "final";
   manifest: ManifestStore;
+  /** Forwarded to the live dashboard as this asset's progress (0–1). */
+  onProgress?: (value: number) => void;
+  /** Aborts in-flight work when the run is cancelled. */
+  signal?: AbortSignal;
 }
 
 /** Build a per-(generator, target) context, ensuring the generator's output subdir exists. */
@@ -38,5 +42,7 @@ export async function createContext(args: CreateContextArgs): Promise<PipelineCo
     toolVersion: args.toolVersion,
     quality: args.quality,
     writeAsset: (record) => args.manifest.upsert(record),
+    progress: args.onProgress,
+    signal: args.signal,
   };
 }

@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { formatElapsed, truncate } from "@/pipeline/reporter";
-import { LiveReporter, NoopReporter, createReporter } from "@/cli/live-reporter";
+import { DashboardStore, type JobView } from "@/cli/dashboard/store";
+import {
+  PROGRESS_COL,
+  SPINNER,
+  buildView,
+  glyph,
+  progressColumn,
+  waitingReason,
+} from "@/cli/dashboard/view-model";
+import { InkReporter, NoopReporter, createReporter } from "@/cli/dashboard";
 
 describe("formatElapsed", () => {
   it("formats mm:ss and floors to whole seconds", () => {
@@ -19,135 +28,253 @@ describe("truncate", () => {
   });
 });
 
-/** Minimal stdout-like sink that records everything written. */
-function fakeStream() {
-  const writes: string[] = [];
-  const stream = {
-    columns: 80,
-    write(s: string) {
-      writes.push(s);
-      return true;
-    },
-  };
-  return { stream: stream as unknown as NodeJS.WriteStream, text: () => writes.join("") };
-}
+describe("DashboardStore", () => {
+  it("adds rows as waiting and reflects status transitions", () => {
+    const s = new DashboardStore(0);
+    s.add({ id: "home-reel", name: "home-reel", detail: "scroll-reel" });
+    let job = s.getSnapshot().jobs[0]!;
+    expect(job.status).toBe("waiting");
+    expect(job.step).toBe("");
 
-describe("LiveReporter", () => {
-  it("renders a row per task and reflects status transitions", () => {
-    const { stream, text } = fakeStream();
-    const r = new LiveReporter(stream);
-    r.begin();
-    r.add({ id: "@build", name: "build", detail: "server", system: true });
-    r.add({ id: "home-reel", name: "home-reel", detail: "scroll-reel" });
-    r.add({ id: "phone-frame", name: "phone-frame", detail: "scene", deps: ["home-reel"] });
-    expect(text()).toContain("build");
-    expect(text()).toContain("home-reel");
-    expect(text()).toContain("waiting on home-reel");
+    s.status("home-reel", "running", 1000);
+    job = s.getSnapshot().jobs[0]!;
+    expect(job.status).toBe("running");
+    expect(job.startedAt).toBe(1000);
+    expect(job.step).toBe("starting…"); // waiting → running fills an interim step
 
-    r.status("home-reel", "running");
-    r.route("home-reel", "info", "recording…");
-    r.status("home-reel", "ok");
-    expect(text()).toContain("✓"); // ok glyph
-    expect(text()).toContain("recording…");
-    expect(text()).toContain("esc to cancel"); // footer hint
-
-    r.stop();
-    expect(text()).toContain("\x1b[?25h"); // cursor restored
+    s.step("home-reel", "recording…");
+    s.status("home-reel", "ok", 4000);
+    job = s.getSnapshot().jobs[0]!;
+    expect(job.status).toBe("ok");
+    expect(job.endedAt).toBe(4000);
+    expect(job.step).toBe("recording…"); // a real step is kept, not overwritten with "done"
   });
 
-  it("shows gated jobs as 'waiting for build' until setup completes", () => {
-    const { stream, text } = fakeStream();
-    const r = new LiveReporter(stream);
-    r.begin();
-    r.add({ id: "@build", name: "build", detail: "server", system: true });
-    r.add({ id: "@server", name: "server", detail: "server", system: true });
-    r.add({
-      id: "home-reel",
-      name: "home-reel",
-      detail: "scroll-reel",
-      gatedBy: ["@build", "@server"],
+  it("labels cached and bare-ok rows", () => {
+    const s = new DashboardStore(0);
+    s.add({ id: "a", name: "a", detail: "scene" });
+    s.add({ id: "b", name: "b", detail: "scene" });
+    s.status("a", "cached", 10);
+    s.status("b", "running", 0);
+    s.status("b", "ok", 10); // no step set → "done"
+    const [a, b] = s.getSnapshot().jobs as [JobView, JobView];
+    expect(a.step).toBe("cached");
+    expect(b.step).toBe("done");
+  });
+
+  it("ignores unknown ids and de-dupes adds", () => {
+    const s = new DashboardStore(0);
+    s.add({ id: "a", name: "a", detail: "scene" });
+    s.add({ id: "a", name: "again", detail: "scene" }); // ignored
+    s.status("ghost", "ok"); // ignored, no throw
+    expect(s.getSnapshot().jobs).toHaveLength(1);
+    expect(s.getSnapshot().jobs[0]!.name).toBe("a");
+    expect(s.has("a")).toBe(true);
+    expect(s.has("ghost")).toBe(false);
+  });
+
+  it("commits logs with stable, monotonic keys", () => {
+    const s = new DashboardStore(0);
+    s.log("info", "first");
+    s.log("error", "second");
+    const { logs } = s.getSnapshot();
+    expect(logs.map((l) => l.message)).toEqual(["first", "second"]);
+    expect(logs[1]!.key).toBeGreaterThan(logs[0]!.key);
+  });
+
+  it("records clamped progress on a running row", () => {
+    const s = new DashboardStore(0);
+    s.add({ id: "a", name: "a", detail: "scene" });
+    s.progress("a", 0.5);
+    expect(s.getSnapshot().jobs[0]!.progress).toBe(0.5);
+    s.progress("a", 1.7); // clamped to [0,1]
+    expect(s.getSnapshot().jobs[0]!.progress).toBe(1);
+    s.progress("ghost", 0.5); // unknown id ignored, no throw
+  });
+
+  it("keeps snapshot identity stable between mutations and notifies subscribers", () => {
+    const s = new DashboardStore(0);
+    const first = s.getSnapshot();
+    expect(s.getSnapshot()).toBe(first); // stable with no change
+
+    let notifications = 0;
+    const unsubscribe = s.subscribe(() => (notifications += 1));
+    s.add({ id: "a", name: "a", detail: "scene" });
+    const second = s.getSnapshot();
+    expect(second).not.toBe(first); // new reference after a change
+    expect(s.getSnapshot()).toBe(second); // stable again until the next change
+    expect(notifications).toBe(1);
+
+    unsubscribe();
+    s.cancelling();
+    expect(notifications).toBe(1); // no longer subscribed
+  });
+});
+
+describe("waitingReason", () => {
+  const map = (jobs: JobView[]): Map<string, JobView> => new Map(jobs.map((j) => [j.id, j]));
+
+  it("names pending gates, then pending deps, then queued", () => {
+    const build: JobView = { id: "@build", name: "build", detail: "server", status: "running", step: "" };
+    const dep: JobView = { id: "home", name: "home", detail: "scroll-reel", status: "ok", step: "" };
+    const gated: JobView = {
+      id: "frame",
+      name: "frame",
+      detail: "scene",
+      status: "waiting",
+      step: "",
+      gatedBy: ["@build"],
+      deps: ["home"],
+    };
+    expect(waitingReason(gated, map([build, dep, gated]))).toBe("waiting for build");
+
+    build.status = "ok"; // gate satisfied → fall through to deps (already done) → queued
+    expect(waitingReason(gated, map([build, dep, gated]))).toBe("queued");
+
+    dep.status = "running"; // a pending dep
+    expect(waitingReason(gated, map([build, dep, gated]))).toBe("waiting on home");
+  });
+});
+
+describe("glyph + progressColumn", () => {
+  const running: JobView = { id: "a", name: "a", detail: "scene", status: "running", step: "" };
+
+  it("animates the spinner and tints amber while cancelling", () => {
+    expect(glyph(running, 0, false)).toEqual({ text: SPINNER[0], color: "cyan" });
+    expect(glyph(running, 1, false).text).toBe(SPINNER[1]);
+    expect(glyph(running, 0, true).color).toBe("yellow");
+    expect(glyph({ ...running, status: "ok" }, 0, false)).toEqual({ text: "✓", color: "green" });
+    expect(glyph({ ...running, status: "waiting" }, 0, false)).toEqual({ text: "·", dim: true });
+  });
+
+  it("keeps the progress column a fixed width for every state", () => {
+    for (const status of ["waiting", "running", "ok", "failed", "cached"] as const) {
+      expect(progressColumn({ ...running, status }, 3, false).text).toHaveLength(PROGRESS_COL);
+    }
+  });
+
+  it("shows an indeterminate sweep when no fraction is reported", () => {
+    const col = progressColumn(running, 1, false);
+    expect(col.text).toContain("▓"); // one lit cell sweeping
+    expect(col.text).not.toMatch(/%/); // no percentage without a fraction
+  });
+
+  it("draws a determinate bar with a percentage when progress is known", () => {
+    const col = progressColumn({ ...running, progress: 0.5 }, 0, false);
+    expect(col.text).toContain("50%");
+    expect(col.text).toHaveLength(PROGRESS_COL);
+    expect(col.color).toBe("cyan");
+  });
+});
+
+describe("buildView", () => {
+  function fixture(): DashboardStore {
+    const s = new DashboardStore(0);
+    s.add({ id: "@build", name: "build", detail: "server", system: true });
+    s.add({ id: "@server", name: "server", detail: "server", system: true, gatedBy: ["@build"] });
+    s.add({ id: "home", name: "home-reel", detail: "scroll-reel", gatedBy: ["@build", "@server"] });
+    s.add({ id: "shop", name: "shop-reel", detail: "scroll-reel", gatedBy: ["@build", "@server"] });
+    return s;
+  }
+
+  it("splits setup from assets and rolls up an asset-only count", () => {
+    const s = fixture();
+    s.status("home", "running", 0);
+    const vm = buildView(s.getSnapshot(), 0, 5000);
+    expect(vm.setup.map((r) => r.name)).toEqual(["build", "server"]);
+    expect(vm.assets.map((r) => r.name)).toEqual(["home-reel", "shop-reel"]);
+    // Header rollup counts assets only; setup rows (build/server) are excluded.
+    expect(vm.overall).toEqual({ done: 0, total: 2, cached: 0 });
+    // The section tally carries the live breakdown (done lives in the header rollup).
+    expect(vm.tally.map((c) => c.text)).toEqual(["1 running", "1 waiting"]);
+    expect(vm.elapsed).toBe("0:05"); // now - startTime
+  });
+
+  it("counts cached assets in the rollup", () => {
+    const s = fixture();
+    s.status("home", "cached", 0);
+    s.status("shop", "ok", 0);
+    expect(buildView(s.getSnapshot(), 0, 0).overall).toEqual({ done: 2, total: 2, cached: 1 });
+  });
+
+  it("surfaces the gated waiting reason and elapsed in rows", () => {
+    const s = fixture();
+    const vm = buildView(s.getSnapshot(), 0, 0);
+    const home = vm.assets.find((r) => r.name === "home-reel")!;
+    expect(home.step.text).toBe("waiting for build, server");
+    expect(home.elapsed).toBe(""); // waiting rows show no timer
+  });
+
+  it("appends a ~ETA once a determinate row is underway", () => {
+    const s = fixture();
+    s.status("home", "running", 0);
+    s.progress("home", 0.25); // 25% in 10s ⇒ ~30s remaining
+    const home = buildView(s.getSnapshot(), 0, 10_000).assets.find((r) => r.name === "home-reel")!;
+    expect(home.elapsed).toBe("0:10 ~0:30");
+  });
+
+  it("reports a failed count and paints failed steps red", () => {
+    const s = fixture();
+    s.status("home", "running", 0);
+    s.step("home", "boom");
+    s.status("home", "failed", 1000);
+    const vm = buildView(s.getSnapshot(), 0, 0);
+    expect(vm.tally.some((c) => c.text === "1 failed" && c.color === "red")).toBe(true);
+    expect(vm.assets.find((r) => r.name === "home-reel")!.step).toMatchObject({
+      text: "boom",
+      color: "red",
     });
-    expect(text()).toContain("waiting for build, server");
-
-    r.status("@build", "ok");
-    r.status("@server", "ok"); // gates done → no asset deps → queued
-    const before = text().length;
-    r.status("home-reel", "running"); // force a fresh render
-    expect(text().slice(before)).toContain("home-reel");
-    r.stop();
   });
 
-  it("keeps rows within the terminal width and collapses multi-line steps (no redraw drift)", () => {
-    const { stream, text } = fakeStream(); // columns: 80
-    const r = new LiveReporter(stream);
-    r.begin();
-    r.add({ id: "@build", name: "build", detail: "server", system: true });
-    r.status("@build", "running");
-    // A long, multi-line step like routed build output — must not fill `cols` (would auto-wrap and
-    // corrupt the cursor-up redraw) and must render as a single physical line.
-    r.route("@build", "info", "ok\nprerendered as static HTML " + "x".repeat(500));
-    r.status("@build", "running"); // force a render with the long step
-    r.stop();
-    const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "");
-    for (const ln of stripAnsi(text()).split("\n")) {
-      expect(ln.length).toBeLessThan(80); // strictly under cols → terminal won't wrap the row
-    }
-    expect(stripAnsi(text())).toContain("ok prerendered"); // newline collapsed to a space
+  it("drops columns on narrow terminals", () => {
+    const s = fixture();
+    const wide = buildView(s.getSnapshot(), 0, 0, 120);
+    expect(wide.showDetail).toBe(true);
+    expect(wide.showProgress).toBe(true);
+    const mid = buildView(s.getSnapshot(), 0, 0, 70);
+    expect(mid.showDetail).toBe(false);
+    expect(mid.showProgress).toBe(true);
+    const narrow = buildView(s.getSnapshot(), 0, 0, 50);
+    expect(narrow.showProgress).toBe(false);
   });
 
-  it("flips the footer to a 'cancelling…' banner once cancellation is requested", () => {
-    const { stream, text } = fakeStream();
-    const r = new LiveReporter(stream);
-    r.begin();
-    r.add({ id: "a", name: "a", detail: "scene" });
-    r.add({ id: "b", name: "b", detail: "scene" });
-    r.status("a", "running");
-    r.status("b", "running");
-    expect(text()).toContain("esc to cancel");
+  it("swaps the footer for a cancelling banner that names in-flight work", () => {
+    const s = fixture();
+    s.status("home", "running", 0);
+    expect(buildView(s.getSnapshot(), 0, 0).footer).toEqual({ text: "esc to cancel", tone: "dim" });
 
-    const before = text().length;
-    r.cancelling();
-    const after = text().slice(before);
-    expect(after).toContain("cancelling…"); // banner replaces the idle hint
-    expect(after).toContain("finishing 2"); // names the in-flight count
-    expect(after).not.toContain("esc to cancel");
-    r.stop();
+    s.cancelling();
+    expect(buildView(s.getSnapshot(), 0, 0).footer).toEqual({
+      text: "cancelling… finishing 1 · esc to force",
+      tone: "warn",
+    });
   });
 
-  it("keeps rows under the terminal width when the asset name is very long (no redraw wall)", () => {
-    const { stream, text } = fakeStream(); // columns: 80
-    const r = new LiveReporter(stream);
-    r.begin();
-    // A filename far longer than the name column — padEnd alone would overrun cols and wrap.
-    const longName = "font-specimen-demo-intense-with-a-really-really-long-name-3";
-    r.add({ id: longName, name: longName, detail: "specimen" });
-    r.status(longName, "running");
-    r.route(longName, "info", "rendering scene \"specimen\" (realtime)");
-    r.status(longName, "running"); // force a render with the long name + step
-    const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "");
-    for (const ln of stripAnsi(text()).split("\n")) {
-      expect(ln.length).toBeLessThan(80); // strictly under cols → terminal won't wrap the row
-    }
-    expect(stripAnsi(text())).toContain("…"); // the long name was ellipsized, not overrun
-    r.stop();
-  });
-
-  it("declines to route tags it doesn't own", () => {
-    const { stream } = fakeStream();
-    const r = new LiveReporter(stream);
-    r.begin();
-    r.add({ id: "a", name: "a", detail: "scroll-reel" });
-    expect(r.route("a", "info", "x")).toBe(true);
-    expect(r.route("not-a-job", "info", "x")).toBe(false);
-    r.stop();
+  it("collapses multi-line routed output into a single-line step", () => {
+    const s = fixture();
+    s.status("home", "running", 0);
+    s.step("home", "ok\nprerendered\tstatic");
+    const home = buildView(s.getSnapshot(), 0, 0).assets.find((r) => r.name === "home-reel")!;
+    expect(home.step.text).toBe("ok prerendered static");
   });
 });
 
 describe("createReporter", () => {
-  it("is no-op without a TTY and live with one", () => {
+  it("is no-op without a TTY and the live dashboard with one", () => {
     delete process.env.SHOWCASE_LIVE;
     expect(createReporter({ tty: false, verbose: false })).toBeInstanceOf(NoopReporter);
-    expect(createReporter({ tty: true, verbose: false })).toBeInstanceOf(LiveReporter);
+    expect(createReporter({ tty: true, verbose: false })).toBeInstanceOf(InkReporter);
     expect(createReporter({ tty: true, verbose: true })).toBeInstanceOf(NoopReporter);
+  });
+
+  it("respects the SHOWCASE_LIVE override", () => {
+    try {
+      process.env.SHOWCASE_LIVE = "1";
+      expect(createReporter({ tty: false, verbose: true })).toBeInstanceOf(InkReporter);
+      process.env.SHOWCASE_LIVE = "0";
+      expect(createReporter({ tty: true, verbose: false })).toBeInstanceOf(NoopReporter);
+    } finally {
+      delete process.env.SHOWCASE_LIVE;
+    }
   });
 });

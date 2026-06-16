@@ -21,6 +21,10 @@ export interface AssetOutcome {
   status: "ok" | "failed";
   records: AssetRecord[];
   error?: Error;
+  /** True when the asset was served from cache (skipped, unchanged). */
+  cached?: boolean;
+  /** True when the asset was aborted in-flight by a cancel (not a real failure). */
+  cancelled?: boolean;
 }
 
 export interface RunOptions {
@@ -151,7 +155,13 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
           log.info("cached — unchanged, skipped");
           reporter?.status(spec.name, "cached");
           recordDone(spec.name, existing);
-          return { name: spec.name, generator: spec.generator, status: "ok", records: [existing] };
+          return {
+            name: spec.name,
+            generator: spec.generator,
+            status: "ok",
+            records: [existing],
+            cached: true,
+          };
         }
       }
 
@@ -168,6 +178,8 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
         toolVersion: opts.toolVersion,
         quality,
         manifest,
+        onProgress: reporter ? (v) => reporter.progress(spec.name, v) : undefined,
+        signal: opts.signal,
       });
 
       const result = await generator.run(ctx, options);
@@ -181,6 +193,11 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
       return { name: spec.name, generator: spec.generator, status: "ok", records: result.assets };
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
+      // A cancelled run aborts in-flight work mid-flight: that's an expected stop, not a failure —
+      // don't log a scary error or flag the row red; mark it cancelled and move on.
+      if (opts.signal?.aborted) {
+        return { name: spec.name, generator: spec.generator, status: "failed", records: [], error: err, cancelled: true };
+      }
       log.error(err.message);
       reporter?.status(spec.name, "failed");
       return { name: spec.name, generator: spec.generator, status: "failed", records: [], error: err };

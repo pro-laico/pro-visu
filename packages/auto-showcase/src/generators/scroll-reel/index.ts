@@ -56,6 +56,7 @@ async function run(
       durationSeconds,
       crop: cropBox,
       logger: ctx.logger,
+      signal: ctx.signal,
     });
     const [stats, contentHash] = await Promise.all([stat(outPath), sha256File(outPath)]);
     const record: AssetRecord = {
@@ -110,6 +111,7 @@ async function run(
       startOffsetSeconds: leadSeconds,
       durationSeconds,
       logger: ctx.logger,
+      signal: ctx.signal,
     });
     const [stats, contentHash] = await Promise.all([stat(outPath), sha256File(outPath)]);
     const record: AssetRecord = {
@@ -140,6 +142,7 @@ async function run(
       options.colorScheme === "dark" ? "dark" : options.colorScheme === "light" ? "light" : undefined;
     const workers = options.workers ?? autoWorkers();
     const segments: string[] = [];
+    const routeCount = options.routes.length; // captured: narrowing doesn't persist into the progress closure
     let totalMs = 0;
     for (let i = 0; i < options.routes.length; i++) {
       const r = options.routes[i]!;
@@ -171,12 +174,15 @@ async function run(
         colorScheme: scheme,
         tmpDir: ctx.tmpDir,
         logger: ctx.logger,
+        // Weight each route's capture into one overall 0–1 across the whole tour.
+        onProgress: ctx.progress ? (f) => ctx.progress?.((i + f) / routeCount) : undefined,
+        signal: ctx.signal,
       });
       segments.push(segPath);
       totalMs += scrollTimelineTotalMs(routeOpts);
     }
     const tourMp4 = path.join(ctx.tmpDir, `${slugify(ctx.target.name)}-tour.mp4`);
-    await concatMp4(segments, tourMp4, ctx.logger);
+    await concatMp4(segments, tourMp4, ctx.logger, ctx.signal);
     const baseName = (options.fileName ?? `${slugify(ctx.target.name)}.mp4`).replace(/\.mp4$/i, "");
     const recs = await produceOutputs({
       ctx,
@@ -231,6 +237,7 @@ async function run(
       startOffsetSeconds: leadSeconds,
       durationSeconds,
       logger: ctx.logger,
+      signal: ctx.signal,
     });
     const [stats, contentHash] = await Promise.all([stat(outPath), sha256File(outPath)]);
     const record: AssetRecord = {
@@ -292,6 +299,8 @@ async function run(
       colorScheme: v.colorScheme,
       tmpDir: ctx.tmpDir,
       logger: ctx.logger,
+      onProgress: ctx.progress,
+      signal: ctx.signal,
     });
     // Reframe to the requested aspect (if any) and emit each output format as its own asset.
     const recs = await produceOutputs({

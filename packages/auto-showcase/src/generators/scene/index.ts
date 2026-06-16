@@ -106,6 +106,8 @@ export async function renderScene(
         workers,
         tmpDir: ctx.tmpDir,
         logger: ctx.logger,
+        onProgress: ctx.progress,
+        signal: ctx.signal,
       });
     } else {
       ctx.logger.info(`rendering scene "${options.scene}" (realtime)`);
@@ -132,6 +134,7 @@ export async function renderScene(
         startOffsetSeconds: recording.leadSeconds,
         durationSeconds: options.durationSeconds,
         logger: ctx.logger,
+        signal: ctx.signal,
       });
     }
 

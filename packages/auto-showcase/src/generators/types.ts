@@ -33,6 +33,17 @@ export interface PipelineContext {
   quality: "draft" | "final";
   /** Record a produced asset in the manifest (idempotent by id). */
   writeAsset: (record: AssetRecord) => Promise<void>;
+  /**
+   * Report fractional progress (0–1) for this asset, surfaced as a determinate bar + ETA in the
+   * live dashboard. Optional — generators with countable work (e.g. frame-stepped capture) call it;
+   * others leave the row on an indeterminate indicator.
+   */
+  progress?: (value: number) => void;
+  /**
+   * Aborts when the run is cancelled. Generators with long-running work (frame loops, ffmpeg) should
+   * honor it so a cancel stops in-flight work promptly instead of waiting for the asset to finish.
+   */
+  signal?: AbortSignal;
 }
 
 export interface GeneratorResult {

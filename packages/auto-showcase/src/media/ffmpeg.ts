@@ -192,9 +192,10 @@ export interface FrameEncoder {
 }
 
 /** Spawn an ffmpeg that consumes piped JPEG frames and writes an mp4 — no frames hit disk. */
-export function startFrameEncoder(a: FramePipeArgs, logger?: Logger): FrameEncoder {
+export function startFrameEncoder(a: FramePipeArgs, logger?: Logger, signal?: AbortSignal): FrameEncoder {
   const child = spawn(ffmpegPath(), buildFramePipeArgs(a), {
     stdio: ["pipe", "ignore", "pipe"],
+    signal, // a cancelled run kills the encoder instead of waiting for it to drain
   });
   let stderr = "";
   let failed: Error | null = null;
@@ -252,6 +253,7 @@ export async function concatMp4(
   segments: string[],
   outPath: string,
   logger?: Logger,
+  signal?: AbortSignal,
 ): Promise<void> {
   await ensureDir(path.dirname(outPath));
   // concat demuxer wants forward slashes and single-quoted paths.
@@ -259,17 +261,17 @@ export async function concatMp4(
   const list = segments.map((s) => `file '${s.replace(/\\/g, "/")}'`).join("\n");
   await writeFile(listFile, `${list}\n`, "utf8");
   try {
-    await runFfmpeg(buildConcatArgs(listFile, outPath), logger);
+    await runFfmpeg(buildConcatArgs(listFile, outPath), logger, signal);
   } finally {
     await rm(listFile, { force: true });
   }
 }
 
-/** Run ffmpeg with an explicit argv, rejecting on a non-zero exit. */
-export async function runFfmpeg(argv: string[], logger?: Logger): Promise<void> {
+/** Run ffmpeg with an explicit argv, rejecting on a non-zero exit (or when `signal` aborts). */
+export async function runFfmpeg(argv: string[], logger?: Logger, signal?: AbortSignal): Promise<void> {
   const bin = ffmpegPath();
   await new Promise<void>((resolve, reject) => {
-    const child = spawn(bin, argv, { stdio: ["ignore", "ignore", "pipe"] });
+    const child = spawn(bin, argv, { stdio: ["ignore", "ignore", "pipe"], signal });
     let stderr = "";
     child.stderr.on("data", (chunk: Buffer) => {
       const text = chunk.toString();
@@ -286,10 +288,10 @@ export async function runFfmpeg(argv: string[], logger?: Logger): Promise<void> 
 
 /** Re-encode the recorded webm into an mp4 at outputPath. */
 export async function transcodeToMp4(
-  args: TranscodeArgs & { logger?: Logger },
+  args: TranscodeArgs & { logger?: Logger; signal?: AbortSignal },
 ): Promise<void> {
   await ensureDir(path.dirname(args.outputPath));
-  await runFfmpeg(buildTranscodeArgs(args), args.logger);
+  await runFfmpeg(buildTranscodeArgs(args), args.logger, args.signal);
 }
 
 // --- output transforms: aspect reframing + alternate formats (gif / webp / poster) ---

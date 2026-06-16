@@ -60,6 +60,10 @@ export interface ScrollFramesArgs {
   colorScheme?: "light" | "dark";
   tmpDir: string;
   logger: Logger;
+  /** Fractional progress (0–1) as frames complete. */
+  onProgress?: (fraction: number) => void;
+  /** Cancels the capture mid-flight. */
+  signal?: AbortSignal;
 }
 
 /**
@@ -189,6 +193,8 @@ export async function captureScrollFrames(a: ScrollFramesArgs): Promise<void> {
     workers: a.workers,
     tmpDir: a.tmpDir,
     logger: a.logger,
+    onProgress: a.onProgress,
+    signal: a.signal,
     prepare: async (page, { logger }) => {
       // Force the color scheme + block tracker requests before navigation so load-time media queries
       // and the network match the intended capture.

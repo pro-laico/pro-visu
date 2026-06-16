@@ -1,19 +1,7 @@
-import pc from "picocolors";
 import { ConfigNotFoundError, ConfigValidationError } from "@/config/load";
 import type { Logger } from "@/utils/logger";
 import type { AssetOutcome } from "@/pipeline/runner";
-
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  const units = ["KB", "MB", "GB"];
-  let value = bytes / 1024;
-  let i = 0;
-  while (value >= 1024 && i < units.length - 1) {
-    value /= 1024;
-    i += 1;
-  }
-  return `${value.toFixed(1)} ${units[i]}`;
-}
+import { renderSummary } from "@/cli/dashboard/Summary";
 
 /** Print a friendly, actionable message for config load/validation errors. */
 export function reportConfigError(logger: Logger, err: unknown): void {
@@ -32,7 +20,7 @@ export function reportConfigError(logger: Logger, err: unknown): void {
   logger.error(err instanceof Error ? err.message : String(err));
 }
 
-/** Print the per-asset result lines and a one-line tally. */
+/** Print the final results panel (a rendered Ink summary) and a one-line note when nothing matched. */
 export function printSummary(
   logger: Logger,
   outcomes: AssetOutcome[],
@@ -43,24 +31,5 @@ export function printSummary(
     return;
   }
   logger.log("");
-  for (const outcome of outcomes) {
-    if (outcome.status === "ok") {
-      for (const record of outcome.records) {
-        logger.log(
-          `  ${pc.green("✓")} ${pc.bold(outcome.name)}  ${pc.dim(record.file)}  ` +
-            `${pc.dim(`${record.width}×${record.height}`)}  ${pc.dim(formatBytes(record.bytes))}`,
-        );
-      }
-    } else {
-      logger.log(
-        `  ${pc.red("✗")} ${pc.bold(outcome.name)}  ${pc.red(outcome.error?.message ?? "failed")}`,
-      );
-    }
-  }
-  const ok = outcomes.filter((o) => o.status === "ok").length;
-  const failed = outcomes.length - ok;
-  logger.log("");
-  logger.log(
-    `${pc.green(`${ok} ok`)}${failed ? `, ${pc.red(`${failed} failed`)}` : ""}  →  ${outDir}`,
-  );
+  logger.log(renderSummary(outcomes, outDir, process.stdout.columns ?? 80));
 }

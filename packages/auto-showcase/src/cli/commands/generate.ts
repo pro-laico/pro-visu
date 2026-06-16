@@ -18,7 +18,7 @@ import {
 } from "@/server/manage-server";
 import { runPipeline, applyDerivedInputs, type AssetOutcome } from "@/pipeline/runner";
 import { expandSelection, dependenciesOf } from "@/pipeline/graph";
-import { createReporter } from "@/cli/live-reporter";
+import { createReporter } from "@/cli/dashboard";
 import type { Reporter } from "@/pipeline/reporter";
 import { TOOL_VERSION } from "@/version";
 import { reportConfigError, printSummary } from "@/cli/ui";
@@ -97,7 +97,9 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   await startRunState(outDir);
   const abort = new AbortController();
   let interrupted = false;
-  const disposeInterrupt = watchForInterrupt(
+  // The live dashboard owns the keyboard (Ink raw mode), so the watcher only handles signals there
+  // and the dashboard calls `trigger` on Esc/Ctrl+C — one keypress owner, no clash.
+  const { dispose: disposeInterrupt, trigger: interruptTrigger } = watchForInterrupt(
     () => {
       interrupted = true;
       abort.abort(); // graceful: stop launching new work, let in-flight finish, then tear down
@@ -109,12 +111,16 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     () => {
       try {
         process.stdin.setRawMode?.(false); // restore the terminal before bailing
+        process.stdout.write("\x1b[?25h"); // and the cursor (force-quit skips Ink's own cleanup)
       } catch {
         /* ignore */
       }
       process.exit(130);
     },
+    { keyboard: !reporter.isLive },
   );
+  // Hand the cancel trigger to the live dashboard so its useInput handler drives the same flow.
+  if (reporter.isLive) reporter.attachInput?.(interruptTrigger);
 
   // From here the live tracker owns the terminal. Plan ALL rows up front — setup (build/server)
   // then every asset, with the assets gated on setup so they read "waiting for build" until it
@@ -217,7 +223,9 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   if (interrupted) {
     // A graceful cancel is a clean stop, not a failure — exit 0 so the shell/pnpm doesn't print a
     // scary "command failed with exit code 130" wrapper. (A second Esc force-quits with 130 above.)
-    logger.warn(`Interrupted — stopped cleanly (${outcomes.length} asset(s) finished).`);
+    // In-flight assets are aborted mid-work, so only the ones that actually completed are "finished".
+    const finished = outcomes.filter((o) => o.status === "ok").length;
+    logger.warn(`Interrupted — stopped cleanly (${finished} asset(s) finished).`);
     process.exitCode = 0;
     return;
   }

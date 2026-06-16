@@ -24,9 +24,10 @@ export interface LogSink {
 }
 
 /**
- * A logger that diverts *tagged* entries (e.g. `logger.withTag("home-reel").info(…)`) to a
- * sink — used to feed each asset's progress into the live tracker — while untagged entries
- * (and anything the sink declines) print normally.
+ * A logger that diverts entries to a sink: *tagged* entries (e.g.
+ * `logger.withTag("home-reel").info(…)`) feed each asset's progress into the live dashboard, while
+ * untagged entries are committed above it — so the live renderer owns the terminal and stray logs
+ * never corrupt its output. Anything the sink declines (e.g. after teardown) prints normally.
  */
 export function createReportingLogger(level: LogLevel, sink: LogSink): Logger {
   const passthrough = createConsola({ level: LEVEL_MAP[level] });
@@ -38,7 +39,7 @@ export function createReportingLogger(level: LogLevel, sink: LogSink): Logger {
           const tag = typeof logObj.tag === "string" ? logObj.tag : "";
           const args = (logObj.args ?? []) as unknown[];
           const message = args.map((a) => (typeof a === "string" ? a : String(a))).join(" ");
-          if (tag && sink.route(tag, logObj.type, message)) return;
+          if (sink.route(tag, logObj.type, message)) return;
           const fn = (passthrough as unknown as Record<string, unknown>)[logObj.type];
           const emit =
             typeof fn === "function"

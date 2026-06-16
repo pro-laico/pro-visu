@@ -30,9 +30,17 @@ export interface Reporter extends LogSink {
   add(row: RowInit): void;
   status(id: string, status: JobStatus): void;
   step(id: string, text: string): void;
+  /** Report fractional progress (0–1) for a running row, for a determinate bar + ETA. */
+  progress(id: string, value: number): void;
   /** Signal a graceful cancellation is underway, so the UI can show it's winding down. */
   cancelling(): void;
   stop(): void;
+  /**
+   * Hand the live renderer a cancel trigger so it can own keyboard input (Esc/Ctrl+C) itself —
+   * one keypress owner, no clash with the signal/keypress watcher. No-op renderers don't implement
+   * it (the caller keeps its own keypress watching).
+   */
+  attachInput?(onInterrupt: () => void): void;
 }
 
 /** mm:ss for a millisecond duration (pure — unit-tested). */

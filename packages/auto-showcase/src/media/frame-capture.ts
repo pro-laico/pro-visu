@@ -42,6 +42,10 @@ export interface FrameStepArgs<S = unknown> {
   prepare: (page: Page, helpers: { logger: Logger }) => Promise<S>;
   /** Advance the page to clip-time `t` (seconds) before the screenshot. */
   seekToFrame: (page: Page, t: number, state: S) => Promise<void>;
+  /** Called with fractional progress (0–1) as frames complete (aggregated across workers). */
+  onProgress?: (fraction: number) => void;
+  /** Cancels the capture: the frame loop stops at the next boundary and the encoder is killed. */
+  signal?: AbortSignal;
 }
 
 /** Default parallel workers: about half the cores, capped at 6 (each is a browser context). */
@@ -86,6 +90,9 @@ interface ChunkArgs<S> {
   logger: Logger;
   prepare: (page: Page, helpers: { logger: Logger }) => Promise<S>;
   seekToFrame: (page: Page, t: number, state: S) => Promise<void>;
+  /** Called once per encoded frame (for aggregated progress). */
+  onFrame?: () => void;
+  signal?: AbortSignal;
 }
 
 /** Render a contiguous frame range in its own browser context, encoding to one mp4 segment. */
@@ -100,6 +107,7 @@ async function renderChunk<S>(a: ChunkArgs<S>): Promise<void> {
 
   try {
     const state = await a.prepare(page, { logger: a.logger });
+    a.signal?.throwIfAborted(); // bail before spawning the encoder if we were cancelled during prepare
 
     const encoder = startFrameEncoder(
       {
@@ -112,6 +120,7 @@ async function renderChunk<S>(a: ChunkArgs<S>): Promise<void> {
         inputFormat: a.frameFormat,
       },
       a.logger,
+      a.signal,
     );
     // Playwright rejects `quality` for png screenshots, so only pass it on the jpeg path.
     const shotOptions =
@@ -119,10 +128,12 @@ async function renderChunk<S>(a: ChunkArgs<S>): Promise<void> {
         ? ({ type: "png" } as const)
         : ({ type: "jpeg", quality: a.jpegQuality } as const);
     for (let frame = a.frameStart; frame < a.frameEnd; frame++) {
+      a.signal?.throwIfAborted(); // a cancelled run stops here, not after every frame is rendered
       const t = frame * a.timeStep;
       await a.seekToFrame(page, t, state);
       const buf = await page.screenshot(shotOptions);
       await encoder.write(buf);
+      a.onFrame?.();
     }
     await encoder.done();
   } finally {
@@ -146,6 +157,14 @@ export async function captureFramedVideo<S>(args: FrameStepArgs<S>): Promise<voi
   const frameFormat = args.frameFormat ?? "jpeg";
   const jpegQuality = args.jpegQuality ?? 90;
   const ranges = planFrames(totalFrames, Math.max(1, args.workers ?? 1));
+  // Aggregate frame completions across parallel workers into a single 0–1 fraction.
+  let completed = 0;
+  const onFrame = args.onProgress
+    ? () => {
+        completed += 1;
+        args.onProgress?.(completed / totalFrames);
+      }
+    : undefined;
   const common = {
     browser: args.browser,
     width: args.width,
@@ -160,6 +179,8 @@ export async function captureFramedVideo<S>(args: FrameStepArgs<S>): Promise<voi
     logger: args.logger,
     prepare: args.prepare,
     seekToFrame: args.seekToFrame,
+    onFrame,
+    signal: args.signal,
   };
 
   if (ranges.length === 1) {
@@ -182,5 +203,6 @@ export async function captureFramedVideo<S>(args: FrameStepArgs<S>): Promise<voi
     segs.map((r) => r.seg),
     args.outPath,
     args.logger,
+    args.signal,
   );
 }

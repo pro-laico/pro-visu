@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
-import { autoWorkers, planFrames } from "@/media/frame-capture";
+import { describe, expect, it, vi } from "vitest";
+import type { Browser } from "playwright-core";
+import { autoWorkers, captureFramedVideo, planFrames } from "@/media/frame-capture";
+import { createLogger } from "@/utils/logger";
 
 describe("planFrames", () => {
   it("returns a single range when workers is 1", () => {
@@ -42,5 +44,42 @@ describe("autoWorkers", () => {
     const w = autoWorkers();
     expect(w).toBeGreaterThanOrEqual(1);
     expect(w).toBeLessThanOrEqual(6);
+  });
+});
+
+describe("captureFramedVideo cancellation", () => {
+  it("aborts after prepare without spawning the encoder or stepping frames", async () => {
+    const seekToFrame = vi.fn(async () => {});
+    const close = vi.fn(async () => {});
+    const page = {
+      on: () => {},
+      screenshot: async () => Buffer.alloc(0),
+    };
+    const context = { newPage: async () => page, close };
+    const browser = { newContext: async () => context } as unknown as Browser;
+
+    const controller = new AbortController();
+    controller.abort(); // already cancelled before any frame work
+
+    await expect(
+      captureFramedVideo({
+        browser,
+        width: 100,
+        height: 100,
+        deviceScaleFactor: 1,
+        fps: 10,
+        durationSeconds: 1,
+        crf: 30,
+        outPath: "out.mp4",
+        tmpDir: ".",
+        logger: createLogger("silent"),
+        signal: controller.signal,
+        prepare: async () => ({}),
+        seekToFrame,
+      }),
+    ).rejects.toThrow();
+
+    expect(seekToFrame).not.toHaveBeenCalled(); // never reached the frame loop / encoder
+    expect(close).toHaveBeenCalled(); // browser context still cleaned up
   });
 });
