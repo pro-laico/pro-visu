@@ -403,7 +403,7 @@ export interface KenBurnsInput {
 export interface CursorInput {
   /** Show the cursor. Default true (when `actions` is set). */
   show?: boolean;
-  /** Cursor size (px). Default 20. */
+  /** Cursor size (px). Default 22. */
   size?: number;
   /** Cursor color. Default white-with-shadow. */
   color?: string;

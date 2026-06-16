@@ -262,11 +262,14 @@ assets: [
 | `showcase init` | Scaffold config, create + gitignore the output dir, ensure Chromium |
 | `showcase generate [--asset <name>]` | Run generators per config; writes assets + `manifest.json` |
 | `showcase list` | Show generated assets recorded in the manifest |
+| `showcase reset` | Clean up orphaned processes/temp from an interrupted run |
 
 `generate` flags: `--draft` (faster, lower-fidelity iteration), `--cache` (skip assets whose
-inputs+options are unchanged), `--skip-server` (use an already-running site), `--concurrency`,
-`--verbose`. A managed server (`settings.server`) can build → start → capture → stop the site
-automatically so the npm script is just `showcase generate`.
+inputs+options are unchanged), `--skip-server` (use an already-running site), `--skip-build`
+(keep the managed server but skip its build), `--concurrency`, `--verbose`. A managed server
+(`settings.server`) can build → start → capture → stop the site automatically so the npm script
+is just `showcase generate`. See the [CLI docs](https://github.com/chad-hill/auto-showcase) for the
+full flag list.
 
 ## Using it from source
 

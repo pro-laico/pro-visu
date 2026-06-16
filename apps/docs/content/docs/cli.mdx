@@ -37,11 +37,17 @@ Run the generators defined in your config; writes assets and `manifest.json` int
 
 On an interactive terminal, a live dashboard groups setup (build/server) and per-asset
 progress, each row with a progress bar, its current step, and elapsed time. Frame-stepped
-captures (scroll reels, scenes) show a real percentage and ETA; other work shows an
+video captures show a real percentage and ETA; realtime recordings and stills show an
 indeterminate indicator. A header rollup tracks overall `done/total` (and cached) progress, and
-the layout adapts to the terminal width. Press **Esc** or **Ctrl+C** to cancel: in-flight
-captures are aborted promptly (the frame loop stops and ffmpeg is killed), then the
-server/browser are torn down; press again to force-quit.
+the layout adapts to the terminal width — when there are more assets than fit, the rows show a
+window around the running ones with `↑ N more` / `↓ N more` markers.
+
+Keys:
+
+- **Esc** / **Ctrl+C** — cancel: in-flight captures are aborted promptly (the frame loop stops and
+  ffmpeg is killed), then the server/browser are torn down; press again to force-quit.
+- **↑ / ↓** (and **PgUp / PgDn**) — scroll the asset window; this pauses auto-follow.
+- **f** — resume following the running rows.
 
 When the run finishes, a summary panel lists each asset's dimensions and size with totals.
 Set `SHOWCASE_LIVE=0` to force plain logs, or `SHOWCASE_LIVE=1` to force the dashboard on a

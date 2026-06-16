@@ -3,7 +3,8 @@
 A pnpm + Turborepo workspace for the **auto-showcase** screenshot/reel generator and its apps.
 
 - **[`packages/auto-showcase`](packages/auto-showcase/README.md)** — the library + `showcase` CLI that
-  generates marketing/showcase assets (scroll reels, screenshots, scenes, …) from a website.
+  generates marketing/showcase assets (scroll reels, screenshots, media walls, type/colour specimens, …)
+  from a website.
 - **`apps/docs`** — the documentation site (fumadocs).
 - **`apps/testing`** — a sample target site that exercises every generator, with a `/gallery` of the
   generated assets and output checks.
@@ -20,4 +21,4 @@ pnpm docs         # dev the docs app
 pnpm testing      # dev the testing app
 ```
 
-The library is published from `packages/auto-showcase`; see its README for full generator/option docs.
+The library lives in `packages/auto-showcase`; see its README for full generator/option docs.
