@@ -3,13 +3,28 @@ import { z } from "zod";
 /** A named viewport to capture at. */
 const breakpointSchema = z
   .object({
-    name: z.string().min(1),
-    width: z.number().int().positive(),
+    name: z
+      .string()
+      .min(1)
+      .describe("Label for this viewport — used in the filename + manifest id (e.g. \"desktop\")."),
+    width: z.number().int().positive().describe("Viewport width in CSS px."),
     /** Viewport height. Note: ignored for `fullPage` shots (Playwright resizes to the page height);
      *  only affects viewport/element captures. */
-    height: z.number().int().positive().default(900),
+    height: z
+      .number()
+      .int()
+      .positive()
+      .default(900)
+      .describe(
+        "Viewport height in CSS px. Default 900. Ignored for fullPage shots; only affects viewport/element captures.",
+      ),
     /** Override the generator-level deviceScaleFactor for this breakpoint. */
-    deviceScaleFactor: z.number().positive().max(4).optional(),
+    deviceScaleFactor: z
+      .number()
+      .positive()
+      .max(4)
+      .optional()
+      .describe("Override the generator-level deviceScaleFactor for this breakpoint. Omit to inherit it."),
   })
   .strict();
 export type Breakpoint = z.infer<typeof breakpointSchema>;
@@ -17,9 +32,9 @@ export type Breakpoint = z.infer<typeof breakpointSchema>;
 /** A specific element to capture (in addition to the page) at each breakpoint. */
 const elementShotSchema = z
   .object({
-    selector: z.string().min(1),
+    selector: z.string().min(1).describe("CSS selector of the element to shoot."),
     /** Used in the filename + manifest id. */
-    name: z.string().min(1),
+    name: z.string().min(1).describe("Name used in the filename + manifest id for this element shot."),
   })
   .strict();
 
@@ -31,23 +46,55 @@ export const screenshotsOptionsSchema = z
       .default([
         { name: "desktop", width: 1440, height: 900 },
         { name: "mobile", width: 390, height: 844 },
-      ]),
+      ])
+      .describe(
+        "Viewports to capture at (at least one); each emits its own asset. Default: desktop 1440×900 + mobile 390×844.",
+      ),
     /** Capture the entire scrollable page (vs. just the viewport). */
-    fullPage: z.boolean().default(true),
-    format: z.enum(["png", "jpeg"]).default("png"),
+    fullPage: z
+      .boolean()
+      .default(true)
+      .describe("Capture the entire scrollable page (vs. just the viewport). Default true."),
+    format: z.enum(["png", "jpeg"]).default("png").describe("Image format. Default \"png\"."),
     /** jpeg only, 1–100. */
-    quality: z.number().int().min(1).max(100).optional(),
-    deviceScaleFactor: z.number().positive().max(4).default(2),
+    quality: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .optional()
+      .describe("JPEG quality, 1–100 (jpeg only; rejected for png). Omit for the encoder default."),
+    deviceScaleFactor: z
+      .number()
+      .positive()
+      .max(4)
+      .default(2)
+      .describe("Render scale (2 = retina-crisp). Default 2."),
     waitUntil: z
       .enum(["load", "domcontentloaded", "networkidle", "commit"])
-      .default("networkidle"),
-    waitForSelector: z.string().optional(),
+      .default("networkidle")
+      .describe("Page-load milestone to wait for before capturing. Default \"networkidle\"."),
+    waitForSelector: z
+      .string()
+      .optional()
+      .describe("Optional element to wait for before capturing (e.g. a hero image). Omit to skip."),
     /** Element captures taken at every breakpoint. */
-    elements: z.array(elementShotSchema).default([]),
+    elements: z
+      .array(elementShotSchema)
+      .default([])
+      .describe("Specific elements to crop (in addition to the page) at every breakpoint. Default none."),
     /** png only: capture with a transparent background. */
-    omitBackground: z.boolean().default(false),
+    omitBackground: z
+      .boolean()
+      .default(false)
+      .describe("Capture with a transparent background (png only). Default false."),
     /** Extra settle time after load before capturing (ms). */
-    settleMs: z.number().int().nonnegative().default(0),
+    settleMs: z
+      .number()
+      .int()
+      .nonnegative()
+      .default(0)
+      .describe("Extra settle time after load before capturing (ms). Default 0."),
   })
   .strict()
   .refine((o) => !(o.format === "png" && o.quality != null), {

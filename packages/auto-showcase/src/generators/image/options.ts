@@ -14,8 +14,11 @@ export interface ImageOptions {
 
 export const imageOptionsSchema = z
   .object({
-    src: z.string().min(1),
-    fileName: z.string().optional(),
+    src: z.string().min(1).describe("Path to the source image (relative to the cwd, or absolute)."),
+    fileName: z
+      .string()
+      .optional()
+      .describe('Output filename; defaults to "<slug(asset name)><ext of src>".'),
   })
   .strict();
 

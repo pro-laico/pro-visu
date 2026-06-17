@@ -7,6 +7,8 @@ import { createLogger } from "@/utils/logger";
 import { ensureChromium } from "@/browser-install/ensure-chromium";
 import { ensureFfmpeg } from "@/media/ensure-ffmpeg";
 import { DEFAULT_OUTDIR } from "@/config/defaults";
+import { serializeConfigJsonSchema } from "@/config/json-schema";
+import { DEFAULT_SCHEMA_FILE } from "@/cli/commands/schema";
 
 const CONFIG_FILES = [
   "showcase.config.ts",
@@ -59,25 +61,54 @@ export default defineConfig({
 });
 `;
 
+// A dependency-free JSON config + a sibling JSON Schema (for editor autocomplete). Use this when
+// running the tool via npx / a global install rather than as a project dev-dependency.
+const JSON_CONFIG_TEMPLATE = `{
+  "$schema": "./${DEFAULT_SCHEMA_FILE}",
+  "settings": {
+    "outDir": "showcase",
+    "concurrency": 2,
+    "browser": { "headless": true },
+    "defaults": {
+      "scroll-reel": { "width": 1440, "height": 900, "fps": 30 }
+    }
+  },
+  "assets": [
+    { "name": "home-reel", "url": "http://localhost:3101", "generator": "scroll-reel" }
+  ]
+}
+`;
+
 export interface InitOptions {
   cwd?: string;
   /** --no-script sets this to false. */
   script?: boolean;
   skipBrowser?: boolean;
+  /** Scaffold a JSON config + JSON Schema instead of a TS `defineConfig` file. */
+  json?: boolean;
 }
 
 export async function runInit(options: InitOptions = {}): Promise<void> {
   const cwd = resolveCwd(options.cwd);
   const logger = createLogger("info");
   let createdSomething = false;
+  const configFile = options.json ? "showcase.config.json" : "showcase.config.ts";
 
   // 1. Config file
   const existingConfig = findExistingConfig(cwd);
   if (existingConfig) {
     logger.info(`config exists (${existingConfig}) — leaving it untouched`);
+  } else if (options.json) {
+    await writeFile(path.join(cwd, configFile), JSON_CONFIG_TEMPLATE, "utf8");
+    logger.success(`created ${configFile}`);
+    // Materialize the matching JSON Schema so the JSON config gets editor autocomplete + validation
+    // with no dependency on this package — it works the same whether run via npx, global, or a dep.
+    await writeFile(path.join(cwd, DEFAULT_SCHEMA_FILE), serializeConfigJsonSchema(), "utf8");
+    logger.success(`created ${DEFAULT_SCHEMA_FILE}`);
+    createdSomething = true;
   } else {
-    await writeFile(path.join(cwd, "showcase.config.ts"), CONFIG_TEMPLATE, "utf8");
-    logger.success("created showcase.config.ts");
+    await writeFile(path.join(cwd, configFile), CONFIG_TEMPLATE, "utf8");
+    logger.success(`created ${configFile}`);
     createdSomething = true;
   }
 
@@ -132,8 +163,8 @@ export async function runInit(options: InitOptions = {}): Promise<void> {
   logger.log("");
   logger.info(
     createdSomething
-      ? "Next: edit showcase.config.ts, start your site (or use a deployed URL), then run `showcase generate`."
-      : "Already initialized. Edit showcase.config.ts, then run `showcase generate`.",
+      ? `Next: edit ${configFile}, start your site (or use a deployed URL), then run \`showcase generate\`.`
+      : `Already initialized. Edit ${configFile}, then run \`showcase generate\`.`,
   );
 }
 

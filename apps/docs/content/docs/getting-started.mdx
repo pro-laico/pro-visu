@@ -5,35 +5,45 @@ description: Install auto-showcase, scaffold a config, and generate your first a
 
 ## Install
 
-`auto-showcase` isn't on npm yet, but it works in a real website repo today. Pick one:
+Two ways to run it — same CLI, same generators; they differ only in how you install it and author
+config:
 
-**A — From GitHub (simplest):**
+| | **Dev dependency** (recommended) | **Global / `npx`** (no install) |
+|---|---|---|
+| Install | `pnpm add -D auto-showcase` | `npm i -g auto-showcase`, or just `npx auto-showcase …` |
+| Config | TS `showcase.config.ts` (`defineConfig`) — or JSON | JSON `showcase.config.json` |
+| Editor help | Full TypeScript checking + autocomplete + hover docs | Autocomplete + validation + hover docs from a generated JSON Schema |
+| Version | Pinned in your lockfile → you and CI build identical assets | Floating (npx fetches latest; pin with `auto-showcase@x.y.z`) |
+| Best for | A repo you own, and CI pipelines | One-off captures, trying it out |
 
-```bash
-pnpm add -D github:chad-hill/auto-showcase
-```
+A TS `showcase.config.ts` needs the **dev dependency** because it does
+`import { defineConfig } from "auto-showcase"`, which has to resolve from your project's
+`node_modules` (both to type-check and to run). A JSON config has no import, so it works in any
+mode — and `showcase init --json` generates a `showcase.schema.json` that gives editors the same
+autocomplete, validation, and hover docs.
 
-pnpm builds it on install (via the `prepare` script), so the `showcase` binary is ready.
-
-**B — From a local clone with `pnpm link` (best while iterating on the tool):**
-
-```bash
-# in the auto-showcase repo
-pnpm install && pnpm build && pnpm link --global
-# in your website repo
-pnpm link --global auto-showcase
-```
-
-Re-run `pnpm build` in the tool repo after changes; the link picks them up.
-
-**C — As a local `file:` dependency (pinned path):**
+**A — As a project dev-dependency (recommended):**
 
 ```bash
-pnpm -C /path/to/auto-showcase install && pnpm -C /path/to/auto-showcase build
-# then in your website repo's package.json:
-#   "devDependencies": { "auto-showcase": "file:/path/to/auto-showcase" }
-pnpm install
+pnpm add -D auto-showcase
 ```
+
+Gives you the typed `defineConfig` authoring experience and pins the version in your lockfile, so
+you — and CI — generate byte-identical assets.
+
+**B — Without installing (npx or global):**
+
+```bash
+npx auto-showcase init --json     # dependency-free JSON config + JSON Schema
+npx auto-showcase generate
+```
+
+…or install globally (`npm i -g auto-showcase`). No project dependency; the generated
+`showcase.schema.json` still gives your editor autocomplete + validation on the JSON config.
+
+> **Unreleased builds** (contributing, or pinning `main`): install from GitHub
+> (`pnpm add -D github:chad-hill/auto-showcase`), a `pnpm link`, or a `file:` path — see the
+> [package README](https://github.com/chad-hill/auto-showcase) for those.
 
 ## Initialise
 
@@ -43,7 +53,8 @@ npx showcase init
 
 `init` is idempotent and sets up everything needed:
 
-- writes a starter `showcase.config.ts` (unless a config already exists),
+- writes a starter `showcase.config.ts` (unless a config already exists) — or, with `--json`, a
+  `showcase.config.json` plus a `showcase.schema.json` for editor autocomplete,
 - creates the output directory (`showcase/`) and adds it to `.gitignore`,
 - adds a `"showcase": "showcase generate"` script to `package.json` (skip with `--no-script`),
 - downloads the managed Chromium and ensures ffmpeg (skip with `--skip-browser`).
@@ -73,6 +84,10 @@ export default defineConfig({
   ],
 });
 ```
+
+If you scaffolded with `--json`, the equivalent `showcase.config.json` carries a
+`"$schema": "./showcase.schema.json"` line — your editor reads it for the same autocomplete and
+validation. Refresh that schema after upgrading the tool with `showcase schema`.
 
 See [Configuration](/docs/configuration) for the full shape, and
 [Generators](/docs/generators) for every asset type and its options.

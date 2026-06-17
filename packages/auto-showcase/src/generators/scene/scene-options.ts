@@ -73,13 +73,20 @@ const wallEasingEnum = z.enum([
 export const wallPulseSchema = z
   .object({
     /** When the pulse starts, as a fraction of the clip (0..1). */
-    at: z.number().min(0).max(1),
+    at: z.number().min(0).max(1).describe("When the pulse starts, as a fraction of the clip (0..1)."),
     /** How long the move takes, as a fraction of the clip (0..1). */
-    duration: z.number().positive().max(1),
+    duration: z
+      .number()
+      .positive()
+      .max(1)
+      .describe("How long the move takes, as a fraction of the clip (0..1)."),
     /** How far it travels, in periods (1 = one full tile-set / one wrap). Usually 0..1. */
-    distance: z.number().nonnegative(),
+    distance: z
+      .number()
+      .nonnegative()
+      .describe("How far it travels, in periods (1 = one full tile-set / wrap). Usually 0..1."),
     /** Easing of the move's ramp. */
-    easing: wallEasingEnum.default("ease-in-out"),
+    easing: wallEasingEnum.default("ease-in-out").describe("Easing of the move's ramp. Default 'ease-in-out'."),
   })
   .strict();
 
@@ -87,11 +94,15 @@ export const wallPulseSchema = z
 export const wallPanSchema = z
   .object({
     /** Pan direction. */
-    direction: z.enum(["left", "right"]).default("left"),
+    direction: z.enum(["left", "right"]).default("left").describe("Pan direction. Default 'left'."),
     /** Continuous whole-clip horizontal loops (0 = no pan unless `pulses` move it). */
-    loops: z.number().nonnegative().default(0),
+    loops: z
+      .number()
+      .nonnegative()
+      .default(0)
+      .describe("Continuous whole-clip horizontal loops (0 = no pan unless pulses move it). Default 0."),
     /** Pulses added on top of the base loops. */
-    pulses: z.array(wallPulseSchema).default([]),
+    pulses: z.array(wallPulseSchema).default([]).describe("Pulses added on top of the base loops."),
   })
   .strict();
 
@@ -103,15 +114,30 @@ export const wallPanSchema = z
 export const wallColumnSchema = z
   .object({
     /** Assets stacked in this column, by name (cycled to fill the height). At least one. */
-    tiles: z.array(z.string().min(1)).min(1),
+    tiles: z
+      .array(z.string().min(1))
+      .min(1)
+      .describe("Assets stacked in this column, by name (cycled to fill the height). At least one."),
     /** Constant start-position shift, 0..1 of a tile-set — de-aligns columns with similar content. */
-    stagger: z.number().min(0).max(1).default(0),
+    stagger: z
+      .number()
+      .min(0)
+      .max(1)
+      .default(0)
+      .describe("Start-position shift (0..1 of a tile-set) that de-aligns columns with similar content. Default 0."),
     /** Scroll direction. Defaults to "down". */
-    direction: z.enum(["up", "down"]).optional(),
+    direction: z.enum(["up", "down"]).optional().describe("Scroll direction. Default 'down'."),
     /** Continuous whole-clip loops for this column. Omit to inherit the wall-level `loops`. */
-    loops: z.number().nonnegative().optional(),
+    loops: z
+      .number()
+      .nonnegative()
+      .optional()
+      .describe("Continuous whole-clip loops for this column. Omit to inherit the wall-level loops."),
     /** This column's pulses. Omit to inherit the wall-level `pulses`. */
-    pulses: z.array(wallPulseSchema).optional(),
+    pulses: z
+      .array(wallPulseSchema)
+      .optional()
+      .describe("This column's pulses. Omit to inherit the wall-level pulses."),
   })
   .strict();
 
@@ -122,12 +148,19 @@ export const wallColumnSchema = z
 export const fauxTileSchema = z
   .object({
     /** Box fill (any CSS color). Omit to auto-derive a distinct color from the tile name. */
-    color: z.string().optional(),
+    color: z
+      .string()
+      .optional()
+      .describe("Box fill (any CSS color). Omit to auto-derive a distinct color from the tile name."),
     /** Optional caption shown under the name (e.g. "16:9") — purely cosmetic. */
-    size: z.string().optional(),
+    size: z.string().optional().describe("Optional caption shown under the name (e.g. 16:9) — purely cosmetic."),
     /** This faux tile's aspect ratio (width / height): 1.78 = 16:9 (short), 0.56 = 9:16 (tall), 1 =
      *  square. Omit to use the wall's `tileAspect` default. Real tiles use their media's own aspect. */
-    aspect: z.number().positive().optional(),
+    aspect: z
+      .number()
+      .positive()
+      .optional()
+      .describe("Faux tile aspect (w/h): 1.78 = 16:9, 0.56 = 9:16, 1 = square. Omit to use the wall's tileAspect."),
   })
   .strict();
 

@@ -6,6 +6,18 @@ All notable changes to `auto-showcase` are documented here. The format is based 
 
 ## [Unreleased]
 
+### Added
+
+- **Update notifications** — the CLI checks npm at most once a day (in a detached background process)
+  and prints an install-mode-aware upgrade notice after a command finishes. Best-effort and
+  non-blocking; quiet in CI, non-TTY output, and on the dev build. Opt out with `NO_UPDATE_NOTIFIER`
+  or `--no-update-notifier`.
+- **Dependency-free JSON config** — use the tool via `npx`/global with a `showcase.config.json` and
+  no project dependency. `showcase init --json` scaffolds the JSON config plus a matching
+  `showcase.schema.json`, and a new `showcase schema` command (re)generates that schema from the
+  installed tool — so a JSON config gets the same editor autocomplete + validation (including
+  per-generator `options`) as the typed `defineConfig` path.
+
 ## [0.2.0] - 2026-06-17
 
 First public release — a portable CLI that generates marketing/showcase assets of

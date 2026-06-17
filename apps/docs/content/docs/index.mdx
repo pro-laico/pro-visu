@@ -42,14 +42,23 @@ The pipeline is a plugin contract, so new asset types slot in without core chang
 
 ## Quick start
 
+As a project dev-dependency (recommended — typed config + a version pinned for reproducible builds):
+
 ```bash
-pnpm add -D auto-showcase   # not on npm yet — see Getting started
+pnpm add -D auto-showcase   # adds it to your repo
 npx showcase init           # scaffold config, gitignore the output dir, ensure a browser
 npx showcase generate       # capture the assets in your config
 ```
 
-Continue with [**Getting started**](/docs/getting-started) for installation (including using
-it before it's published to npm), or jump to [**Configuration**](/docs/configuration).
+Or with no install at all, via `npx` or a global install, using a JSON config:
+
+```bash
+npx auto-showcase init --json   # scaffold showcase.config.json + a JSON Schema
+npx auto-showcase generate
+```
+
+Continue with [**Getting started**](/docs/getting-started) for the full comparison of both modes
+(and using an unreleased build), or jump to [**Configuration**](/docs/configuration).
 
 > Captures run in a managed Chromium (downloaded once on first use) and encode with a bundled
 > ffmpeg — no global installs required.

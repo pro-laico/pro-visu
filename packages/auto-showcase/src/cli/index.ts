@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import { cac } from "cac";
 import { TOOL_VERSION } from "@/version";
+import { checkForUpdates } from "@/cli/update-check";
 import { runInit } from "@/cli/commands/init";
 import { runGenerate } from "@/cli/commands/generate";
 import { runList } from "@/cli/commands/list";
 import { runReset } from "@/cli/commands/reset";
+import { runSchema } from "@/cli/commands/schema";
 
 const cli = cac("showcase");
 
@@ -13,6 +15,7 @@ cli
   .option("--cwd <dir>", "Working directory")
   .option("--no-script", "Do not add a package.json script")
   .option("--skip-browser", "Do not install Chromium")
+  .option("--json", "Scaffold a dependency-free JSON config + JSON Schema (for npx / global use)")
   .action(runInit);
 
 cli
@@ -38,6 +41,12 @@ cli
   .action(runList);
 
 cli
+  .command("schema", "Write a JSON Schema for showcase.config.json (editor autocomplete)")
+  .option("--cwd <dir>", "Working directory")
+  .option("--out <path>", "Output path (default showcase.schema.json)")
+  .action(runSchema);
+
+cli
   .command("reset", "Clean up orphaned processes/temp from an interrupted run")
   .option("--config <path>", "Path to a config file")
   .option("--cwd <dir>", "Working directory")
@@ -50,6 +59,8 @@ cli.version(TOOL_VERSION);
 const parsed = cli.parse(process.argv, { run: false });
 
 async function main(): Promise<void> {
+  // Fire-and-forget: arms a deferred "newer version on npm" notice (best-effort, non-blocking).
+  checkForUpdates();
   if (!cli.matchedCommand) {
     // --help / --version were already handled by parse(); otherwise show help.
     if (!parsed.options.help && !parsed.options.version) cli.outputHelp();

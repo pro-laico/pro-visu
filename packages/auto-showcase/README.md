@@ -14,18 +14,46 @@ folder.
 > Requires Node ≥ 18.18. The first run downloads a managed Chromium (cached and shared
 > across projects); ffmpeg is bundled — no global installs required.
 
-## Quick start (in a website repo)
+## Install & usage
+
+Two ways to run it — same `showcase` CLI, same generators. They differ only in how you install it
+and author config:
+
+| | **Dev dependency** (recommended) | **Global / `npx`** (no install) |
+|---|---|---|
+| Install | `pnpm add -D auto-showcase` | `npm i -g auto-showcase`, or just `npx auto-showcase …` |
+| Config | TS `showcase.config.ts` (`defineConfig`) — or JSON | JSON `showcase.config.json` |
+| Editor help | Full TypeScript checking + autocomplete + hover docs | Autocomplete + validation + hover docs from a generated JSON Schema |
+| Version | Pinned in your lockfile → you and CI build identical assets | Floating (npx fetches latest; pin with `auto-showcase@x.y.z`) |
+| Best for | A repo you own, and CI pipelines | One-off captures, trying it out, throwaway scripts |
+
+> **Why a TS config needs the dev-dependency:** `showcase.config.ts` does
+> `import { defineConfig } from "auto-showcase"`, which must resolve from your project's
+> `node_modules` — both to type-check *and* to run. A JSON config has no import, so it works in every
+> mode, and the generated `showcase.schema.json` gives editors the same autocomplete, validation, and
+> hover docs. So: want the typed config and reproducible pins → dev dependency; want zero install →
+> global/npx with a JSON config.
+
+### As a dev dependency (recommended)
 
 ```bash
-# install
-pnpm add -D auto-showcase        # or: npx auto-showcase
-
-# scaffold config + gitignore + ensure a browser
-npx showcase init
-
-# edit showcase.config.ts, then start your site (or use a deployed URL) and:
+pnpm add -D auto-showcase     # or: npm i -D auto-showcase  /  yarn add -D auto-showcase
+npx showcase init             # scaffolds showcase.config.ts, gitignores showcase/, ensures a browser
+# edit showcase.config.ts, start your site (or use a deployed URL), then:
 npx showcase generate
 ```
+
+### Globally or via `npx` (no install)
+
+```bash
+npx auto-showcase init --json     # scaffolds showcase.config.json + showcase.schema.json
+# edit showcase.config.json, then:
+npx auto-showcase generate
+```
+
+…or install once with `npm i -g auto-showcase` and drop the `npx`. `init --json` points the config at
+the generated schema (`"$schema": "./showcase.schema.json"`), so your editor gives full autocomplete +
+validation with no project dependency — refresh it after upgrading the tool with `showcase schema`.
 
 ## Config
 
@@ -50,6 +78,11 @@ export default defineConfig({
 
 Config is discovered in multiple formats: `showcase.config.{ts,js,mjs,cjs,json}`,
 `.showcaserc`, or a `showcase` key in `package.json`. Use `--config <path>` to override.
+
+Prefer JSON (or running via `npx`/global)? `showcase init --json` writes the same config as
+`showcase.config.json` plus a `showcase.schema.json`, wired up with `"$schema": "./showcase.schema.json"`
+so your editor still autocompletes and validates every field. `showcase schema` regenerates that
+schema (run it after upgrading the tool).
 
 ## Generators
 
@@ -259,9 +292,10 @@ assets: [
 
 | Command | What it does |
 |---|---|
-| `showcase init` | Scaffold config, create + gitignore the output dir, ensure Chromium |
+| `showcase init` | Scaffold config, create + gitignore the output dir, ensure Chromium. `--json` scaffolds a dependency-free JSON config + JSON Schema instead of the TS one |
 | `showcase generate [--asset <name>]` | Run generators per config; writes assets + `manifest.json` |
 | `showcase list` | Show generated assets recorded in the manifest |
+| `showcase schema [--out <path>]` | Write a JSON Schema for `showcase.config.json` (editor autocomplete); re-run after upgrading to refresh it |
 | `showcase reset` | Clean up orphaned processes/temp from an interrupted run |
 
 `generate` flags: `--draft` (faster, lower-fidelity iteration), `--cache` (skip assets whose
@@ -271,10 +305,14 @@ inputs+options are unchanged), `--skip-server` (use an already-running site), `-
 is just `showcase generate`. See the [CLI docs](https://github.com/chad-hill/auto-showcase) for the
 full flag list.
 
-## Using it from source
+The CLI checks npm at most once a day and, if a newer version is out, prints an upgrade notice
+after the command finishes. It's best-effort and non-blocking, and stays quiet in CI and piped
+output; disable it with `NO_UPDATE_NOTIFIER=1` or `--no-update-notifier`.
 
-Prefer the published package (`pnpm add -D auto-showcase`). To use an unreleased build —
-while contributing, or to pin `main` — pick one:
+## Using an unreleased build (from source)
+
+The published package covers the modes above. To use an **unreleased** build — while contributing,
+or to pin `main` — pick one:
 
 **A — From this GitHub repo (simplest):**
 ```bash

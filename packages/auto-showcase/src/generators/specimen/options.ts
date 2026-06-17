@@ -9,20 +9,34 @@ import { z } from "zod";
 export const pulseSchema = z
   .object({
     /** Human label for the beat, e.g. "color sweep" — purely to keep the config readable. */
-    name: z.string().default(""),
+    name: z
+      .string()
+      .default("")
+      .describe('Human label for the beat, e.g. "color sweep" — purely to keep the config readable.'),
     /** Length of this beat, in seconds. */
-    duration: z.number().positive(),
+    duration: z.number().positive().describe("Length of this beat, in seconds."),
     /** Fraction of cells whose glyph changes during this beat (0..1; 1 = every cell once). */
-    chars: z.number().nonnegative().default(0),
+    chars: z
+      .number()
+      .nonnegative()
+      .default(0)
+      .describe("Fraction of cells whose glyph changes during this beat (0..1; 1 = every cell once; 0 = a hold). Default 0."),
     /** Fraction of cells whose color changes during this beat (0..1; 1 = every cell once). */
-    colors: z.number().nonnegative().default(0),
+    colors: z
+      .number()
+      .nonnegative()
+      .default(0)
+      .describe("Fraction of cells whose color changes during this beat (0..1; 1 = every cell once). Default 0."),
     /**
      * Target color for this beat's color changes. When set, every color change in the beat goes to
      * this exact token (a deliberate sweep) instead of a weighted-random pick. Set `colors: 1` with
      * `pacing: "even"` to wash the whole specimen to one color evenly. Omit for the default
      * scattered, weighted-random recoloring.
      */
-    color: z.enum(["foreground", "muted", "accent"]).optional(),
+    color: z
+      .enum(["foreground", "muted", "accent"])
+      .optional()
+      .describe("Target color token for this beat's color changes (a deliberate sweep); omit for the default weighted-random recoloring."),
     /**
      * How the changes are distributed in time across the beat — like a CSS easing curve:
      * "linear"/"even" = uniform, "ease-in" = front-loaded, "ease-out" = back-loaded,
@@ -30,7 +44,8 @@ export const pulseSchema = z
      */
     pacing: z
       .enum(["even", "linear", "ease-in", "ease-out", "ease-in-out", "random"])
-      .default("even"),
+      .default("even")
+      .describe("How changes are distributed in time across the beat (CSS-easing-like): even/linear, ease-in, ease-out, ease-in-out, random. Default even."),
   })
   .strict();
 
@@ -267,47 +282,166 @@ function applyTemplate(raw: unknown): unknown {
  */
 const specimenObjectSchema = z
   .object({
-    font: z.string().min(1),
-    template: z.enum(["demo", "sweep"]).optional(),
-    name: z.string().default(""),
-    demo: z.boolean().default(false),
-    fps: z.number().int().positive().max(120).default(30),
-    durationSeconds: z.number().positive().optional(),
-    width: z.number().int().positive().default(1920),
-    height: z.number().int().positive().default(1080),
-    deviceScaleFactor: z.number().positive().max(4).default(1),
-    weight: z.number().int().min(1).max(1000).default(820),
-    lines: z.number().int().min(1).max(40).default(3),
-    leading: z.number().positive().default(0.78),
-    blacklist: z.string().default(""),
+    font: z
+      .string()
+      .min(1)
+      .describe("Font file to showcase (path relative to the working dir, or absolute). Required."),
+    template: z
+      .enum(["demo", "sweep"])
+      .optional()
+      .describe("Load a named option preset (demo or sweep); your explicit options still override what it sets."),
+    name: z
+      .string()
+      .default("")
+      .describe('Display name shown bottom-left (e.g. "ABC Oracle"). Default none.'),
+    demo: z
+      .boolean()
+      .default(false)
+      .describe("Demo mode: overlay the active pulse's name bottom-right, to see which beat is playing. Default false."),
+    fps: z
+      .number()
+      .int()
+      .positive()
+      .max(120)
+      .default(30)
+      .describe("Output frames per second. Default 30."),
+    durationSeconds: z
+      .number()
+      .positive()
+      .optional()
+      .describe("Clip length in seconds. Defaults to the (mirrored) sum of the pulse durations; set to override."),
+    width: z
+      .number()
+      .int()
+      .positive()
+      .default(1920)
+      .describe("Output frame width in px. Default 1920."),
+    height: z
+      .number()
+      .int()
+      .positive()
+      .default(1080)
+      .describe("Output frame height in px. Default 1080."),
+    deviceScaleFactor: z
+      .number()
+      .positive()
+      .max(4)
+      .default(1)
+      .describe("Render scale (1 = 1:1; higher = crisper capture, downscaled into the video). Default 1."),
+    weight: z
+      .number()
+      .int()
+      .min(1)
+      .max(1000)
+      .default(820)
+      .describe("Glyph weight on the variable-font axis, 1–1000. Default 820."),
+    lines: z
+      .number()
+      .int()
+      .min(1)
+      .max(40)
+      .default(3)
+      .describe("Number of glyph rows; glyph size is derived so rows fill the top 80% of the frame. Default 3."),
+    leading: z
+      .number()
+      .positive()
+      .default(0.78)
+      .describe("Line-height of the glyph block. Default 0.78 (tight, cap-height-hugging)."),
+    blacklist: z
+      .string()
+      .default("")
+      .describe('Glyphs to exclude from the showcase, e.g. "QXZ" (case-insensitive). Default none.'),
     characterPool: z
       .string()
       .refine((s) => new Set([...s.trim()]).size >= 2, "characterPool needs ≥2 distinct characters")
-      .optional(),
-    seed: z.number().int().default(1),
+      .optional()
+      .describe("Override the glyph pool the specimen draws from (≥2 distinct characters). Default A–Z 0–9 + symbols."),
+    seed: z
+      .number()
+      .int()
+      .default(1)
+      .describe("Schedule seed — same seed ⇒ identical animation. Change for a different deterministic take. Default 1."),
     colors: z
       .object({
-        background: z.string().default("#eceef1"),
-        foreground: z.string().default("#16181d"),
-        muted: z.string().default("#a7adb6"),
-        accent: z.string().optional(), // defaults to `background` at render (accent glyphs blend in)
-        label: z.string().optional(), // defaults to `foreground` at render
+        background: z
+          .string()
+          .default("#eceef1")
+          .describe("Backdrop behind the glyphs."),
+        foreground: z
+          .string()
+          .default("#16181d")
+          .describe("Primary glyph color — the resting majority."),
+        muted: z
+          .string()
+          .default("#a7adb6")
+          .describe("Muted/secondary glyph color."),
+        accent: z
+          .string()
+          .optional()
+          .describe("Accent color for occasional pops; defaults to `background` (accent glyphs blend in) if unset."), // defaults to `background` at render (accent glyphs blend in)
+        label: z
+          .string()
+          .optional()
+          .describe("Color of the font-name label (bottom corner); defaults to `foreground` if unset."), // defaults to `foreground` at render
       })
-      .default({}),
+      .default({})
+      .describe("Color tokens the glyphs cycle through (any CSS colors). Override any subset. Default: light-grey palette."),
     colorWeights: z
       .object({
-        foreground: z.number().nonnegative().default(2),
-        muted: z.number().nonnegative().default(2),
-        accent: z.number().nonnegative().default(1),
+        foreground: z
+          .number()
+          .nonnegative()
+          .default(2)
+          .describe("Relative likelihood of the foreground token on a random color change. Default 2."),
+        muted: z
+          .number()
+          .nonnegative()
+          .default(2)
+          .describe("Relative likelihood of the muted token on a random color change. Default 2."),
+        accent: z
+          .number()
+          .nonnegative()
+          .default(1)
+          .describe("Relative likelihood of the accent token on a random color change. Default 1."),
       })
-      .default({}),
-    pulses: z.array(pulseSchema).min(1).default(DEFAULT_PULSES),
-    characterIntensity: z.number().nonnegative().default(1),
-    colorIntensity: z.number().nonnegative().default(1),
-    maxLineDrift: z.number().positive().max(0.5).default(0.05),
-    mirror: z.boolean().default(true),
-    crf: z.number().int().min(0).max(51).default(18),
-    fileName: z.string().optional(),
+      .default({})
+      .describe("Relative likelihood of each color token on a random (non-targeted) color change. Default 2 / 2 / 1."),
+    pulses: z
+      .array(pulseSchema)
+      .min(1)
+      .default(DEFAULT_PULSES)
+      .describe("The animation storyboard: an ordered sequence of pulses (beats). Default: a lively built-in storyboard."),
+    characterIntensity: z
+      .number()
+      .nonnegative()
+      .default(1)
+      .describe("Multiply every pulse's glyph-change fraction (1 = baseline, 2 = twice as busy, 0 = none). Default 1."),
+    colorIntensity: z
+      .number()
+      .nonnegative()
+      .default(1)
+      .describe("Multiply every pulse's color-change fraction (1 = baseline, 2 = twice as busy, 0 = none). Default 1."),
+    maxLineDrift: z
+      .number()
+      .positive()
+      .max(0.5)
+      .default(0.05)
+      .describe("Max fraction a line's total width may drift as its glyphs change; swaps are width-compensated. Default 0.05."),
+    mirror: z
+      .boolean()
+      .default(true)
+      .describe("Mirror the pulses (play out and back) for a seamless loop; doubles the clip length. Default true."),
+    crf: z
+      .number()
+      .int()
+      .min(0)
+      .max(51)
+      .default(18)
+      .describe("x264 quality, 0–51 (lower = better quality / larger file). Default 18."),
+    fileName: z
+      .string()
+      .optional()
+      .describe('Output filename; defaults to "<slug(asset name)>.mp4".'),
   })
   .strict();
 
