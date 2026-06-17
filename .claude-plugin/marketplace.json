@@ -1,0 +1,16 @@
+{
+  "name": "prolaico",
+  "owner": {
+    "name": "Pro Laico",
+    "email": "chad@prolaico.com"
+  },
+  "plugins": [
+    {
+      "name": "pro-visu",
+      "source": "./plugins/pro-visu",
+      "description": "Set up pro-visu in a project and generate showcase assets — scroll reels, screenshots, media walls, and type/colour specimens. Built so an AI agent can scaffold the config for the site you want to showcase.",
+      "version": "0.1.0",
+      "author": { "name": "Pro Laico", "url": "https://pro-visu.com" }
+    }
+  ]
+}

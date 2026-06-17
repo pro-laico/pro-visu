@@ -5,14 +5,14 @@
   "type": "module",
   "license": "MIT",
   "author": "Pro Laico",
-  "homepage": "https://github.com/chad-hill/pro-visu#readme",
+  "homepage": "https://pro-visu.com",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/chad-hill/pro-visu.git",
+    "url": "git+https://github.com/pro-laico/pro-visu.git",
     "directory": "packages/pro-visu"
   },
   "bugs": {
-    "url": "https://github.com/chad-hill/pro-visu/issues"
+    "url": "https://github.com/pro-laico/pro-visu/issues"
   },
   "publishConfig": {
     "access": "public"

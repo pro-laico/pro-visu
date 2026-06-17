@@ -3,7 +3,7 @@
 ## Reporting a vulnerability
 
 Please report security issues privately via GitHub's
-[private vulnerability reporting](https://github.com/chad-hill/pro-visu/security/advisories/new)
+[private vulnerability reporting](https://github.com/pro-laico/pro-visu/security/advisories/new)
 rather than a public issue. We'll acknowledge within a few days and keep you
 updated on a fix.
 

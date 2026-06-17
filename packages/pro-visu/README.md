@@ -95,7 +95,7 @@ and are merged beneath each asset's own `options`.
 | `screenshots` | png/jpeg page + element captures per breakpoint | `breakpoints[]`, `fullPage`, `format`, `elements[]`, `deviceScaleFactor` |
 | `wall` | mp4 media wall — columns of your assets, each scrolling on its own, looping seamlessly | `columns[]` (tiles + per-column motion), `pulses`, `loops`, `pan`, `gap`/`tileAspect`/`cornerRadius`, `stagger`, `test` |
 | `image` | passthrough — registers an existing image file as an asset (e.g. a wall tile) | `src`, `fileName` |
-| `specimen` / `palette` / `palette-reel` | type specimen / colour palette (still + reel) | see the [docs](https://github.com/chad-hill/pro-visu#readme) |
+| `specimen` / `palette` / `palette-reel` | type specimen / colour palette (still + reel) | see the [docs](https://pro-visu.com/docs) |
 
 ```ts
 assets: [
@@ -302,7 +302,7 @@ assets: [
 inputs+options are unchanged), `--skip-server` (use an already-running site), `--skip-build`
 (keep the managed server but skip its build), `--concurrency`, `--verbose`. A managed server
 (`settings.server`) can build → start → capture → stop the site automatically so the npm script
-is just `pro-visu generate`. See the [CLI docs](https://github.com/chad-hill/pro-visu) for the
+is just `pro-visu generate`. See the [CLI docs](https://pro-visu.com/docs/cli) for the
 full flag list.
 
 The CLI checks npm at most once a day and, if a newer version is out, prints an upgrade notice
@@ -316,7 +316,7 @@ or to pin `main` — pick one:
 
 **A — From this GitHub repo (simplest):**
 ```bash
-pnpm add -D github:chad-hill/pro-visu
+pnpm add -D github:pro-laico/pro-visu
 ```
 pnpm builds it on install (via the `prepare` script), so the `pro-visu` binary is ready.
 

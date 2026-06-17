@@ -3,6 +3,22 @@ title: Getting started
 description: Install pro-visu, scaffold a config, and generate your first assets.
 ---
 
+## Set it up with Claude Code (fastest)
+
+pro-visu ships a **Claude Code plugin** so an AI agent can install it and write the config for you.
+In Claude Code, add the marketplace and install the plugin:
+
+```text
+/plugin marketplace add pro-laico/pro-visu
+/plugin install pro-visu@prolaico
+```
+
+Then just ask — e.g. _"set up pro-visu for this project and capture the homepage."_ The skill
+installs the CLI, scaffolds `pro-visu.config.ts`, picks generators, points them at your site (or a
+[managed server](/docs/configuration/managed-server)), and runs the generate for you.
+
+Prefer to wire it up by hand? The rest of this page is the manual path.
+
 ## Install
 
 Two ways to run it — same CLI, same generators; they differ only in how you install it and author
@@ -42,8 +58,8 @@ npx pro-visu generate
 `pro-visu.schema.json` still gives your editor autocomplete + validation on the JSON config.
 
 > **Unreleased builds** (contributing, or pinning `main`): install from GitHub
-> (`pnpm add -D github:chad-hill/pro-visu`), a `pnpm link`, or a `file:` path — see the
-> [package README](https://github.com/chad-hill/pro-visu) for those.
+> (`pnpm add -D github:pro-laico/pro-visu`), a `pnpm link`, or a `file:` path — see the
+> [package README](https://github.com/pro-laico/pro-visu) for those.
 
 ## Initialise
 
