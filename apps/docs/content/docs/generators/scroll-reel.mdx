@@ -73,6 +73,20 @@ options: {
 - **`loop: "none" | "boomerang"`** — boomerang plays forward then back for a seamless loop.
   Default `"none"`.
 
+`autoSections` is the hands-off alternative to `choreography` — it finds the page's sections and
+paces a pan/hold through them inside a fixed time budget:
+
+```ts
+options: {
+  autoSections: {
+    durationMs: 12000,      // total budget — the whole pass fits inside it
+    holdMs: 700,            // dwell on each detected section
+    maxSections: 8,         // cap how many it stops on
+    minHeightFraction: 0.5, // ignore sections shorter than half the viewport
+  },
+}
+```
+
 ## Clean capture
 
 Suppress real-site noise so frames are clean and deterministic:
@@ -84,6 +98,22 @@ Suppress real-site noise so frames are clean and deterministic:
   `blockHosts: []`, `blockResourceTypes: []` (e.g. `["media", "font"]`).
 - **Settling:** `settlePerFrame` (default on; off in `--draft`) waits for fonts + in-view
   images each frame, bounded by `settleMaxMs` (default `250`).
+
+```ts
+options: {
+  // Hide chrome that shouldn't be in the shot
+  hideSelectors: ["#cookie-banner", ".intercom-launcher"],
+  clickSelectors: ["#onetrust-accept-btn-handler"], // best-effort consent dismissal
+  injectCss: ".promo-bar { display: none !important }",
+  // Determinism
+  freezeClock: true,        // pin Date.now / performance.now / Math.random
+  pauseAnimations: true,    // hold CSS animations/transitions on their first frame
+  // Network
+  blockTrackers: true,      // default — aborts analytics/ads/session-replay
+  blockHosts: ["widget.example.com"],
+  blockResourceTypes: ["media"], // skip heavy autoplay video, etc.
+}
+```
 
 ## Variants — one config, many assets
 
@@ -147,6 +177,18 @@ options: {
   `holdMs` default `600`. Cursor defaults: `show` `true`, `size` `22`, `color` `#0b0b0f`.
 - **`focus: { selector, padding?, actions?, holdMs? }`** — capture a single component
   (optionally trigger it first), cropped to its box. Defaults: `padding` `24`, `holdMs` `2000`.
+
+```ts
+options: {
+  // Crop to one component, triggering its toggle before the hold
+  focus: {
+    selector: "#pricing-card",
+    padding: 32,
+    actions: [{ do: "click", selector: "#billing-annual" }],
+    holdMs: 2500,
+  },
+}
+```
 
 Setting `actions` or `focus` emits a **single asset** and records realtime: variants
 (`viewports` / `colorScheme: "both"`), cards (`intro` / `outro`), `annotations`, `aspect`, and

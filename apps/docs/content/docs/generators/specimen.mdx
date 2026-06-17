@@ -109,6 +109,20 @@ each key falls back independently.
 excludes that token from random recoloring entirely (an explicit pulse `color` can still target
 it).
 
+```ts
+options: {
+  font: "public/fonts/YourFont.woff2",
+  name: "Your Font",
+  colors: {
+    background: "#1a1714",
+    foreground: "#f6f3ed",
+    muted: "#8a7e6f",
+    accent: "#b49a77",   // set accent — left unset, accent glyphs blend into the background
+  },
+  colorWeights: { foreground: 3, muted: 2, accent: 1 }, // keep accent a rare pop
+}
+```
+
 ## Behaviours
 
 - **Width-stable layout.** Glyphs are packed into `lines` left-aligned rows, each filled to a

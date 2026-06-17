@@ -49,6 +49,32 @@ is required. No `url`. Output is png.
 
 The available corner field ids are `name`, `hex`, `rgb`, `oklch`, `hsl`, and `cmyk`.
 
+Place specific fields in each corner (each corner stacks its list top→bottom), and pick a layout:
+
+```ts
+{
+  name: "brand-colors",
+  generator: "palette",
+  options: {
+    colors: [
+      { name: "Ink", hex: "#1a1714" },
+      { name: "Camel", hex: "#b49a77" },
+      { name: "Paper", hex: "#f6f3ed" },
+      { name: "Loden", hex: "#5c5e4c" },
+    ],
+    layout: "grid",
+    gridColumns: 2,
+    topLeft: ["name"],
+    topRight: ["hex"],
+    bottomLeft: ["rgb"],
+    bottomRight: ["oklch"],
+    rgbStyle: "css",                     // rgb(26, 23, 20)
+    fontFile: "public/fonts/Inter.woff2", // optional — embeds your brand font
+    uppercase: true,
+  },
+}
+```
+
 ## Field formats
 
 How each field renders:
