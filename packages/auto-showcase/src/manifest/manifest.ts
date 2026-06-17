@@ -9,7 +9,7 @@ import {
   type Manifest,
 } from "@/manifest/schema";
 
-export function manifestPath(outDir: string): string {
+function manifestPath(outDir: string): string {
   return path.join(outDir, "manifest.json");
 }
 

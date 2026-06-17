@@ -132,7 +132,7 @@ export function rgbToCmyk({ r, g, b }: Rgb): Cmyk {
 }
 
 /** WCAG relative luminance (0..1) of an sRGB color. */
-export function relativeLuminance({ r, g, b }: Rgb): number {
+function relativeLuminance({ r, g, b }: Rgb): number {
   return (
     0.2126 * srgbToLinear(r / 255) +
     0.7152 * srgbToLinear(g / 255) +

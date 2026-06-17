@@ -8,7 +8,7 @@ import type { Logger } from "@/utils/logger";
 const require = createRequire(import.meta.url);
 
 /** Is a managed Chromium present on disk for playwright-core? */
-export function isChromiumInstalled(): boolean {
+function isChromiumInstalled(): boolean {
   try {
     const exe = chromium.executablePath();
     return !!exe && existsSync(exe);

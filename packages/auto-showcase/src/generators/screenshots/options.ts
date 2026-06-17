@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /** A named viewport to capture at. */
-export const breakpointSchema = z
+const breakpointSchema = z
   .object({
     name: z.string().min(1),
     width: z.number().int().positive(),
@@ -15,7 +15,7 @@ export const breakpointSchema = z
 export type Breakpoint = z.infer<typeof breakpointSchema>;
 
 /** A specific element to capture (in addition to the page) at each breakpoint. */
-export const elementShotSchema = z
+const elementShotSchema = z
   .object({
     selector: z.string().min(1),
     /** Used in the filename + manifest id. */

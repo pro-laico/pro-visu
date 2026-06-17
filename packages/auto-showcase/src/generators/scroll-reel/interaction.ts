@@ -15,9 +15,9 @@ export const DEFAULT_ACTION_DURATION_MS = 700;
 /** Default pause after a step that omits `holdMs`. */
 export const DEFAULT_ACTION_HOLD_MS = 600;
 /** Default dwell on the focused element. */
-export const DEFAULT_FOCUS_HOLD_MS = 2000;
+const DEFAULT_FOCUS_HOLD_MS = 2000;
 /** Default padding around a focused element when cropping. */
-export const DEFAULT_FOCUS_PADDING = 24;
+const DEFAULT_FOCUS_PADDING = 24;
 
 /**
  * Pure: turn an element box (CSS px) + padding into an even-dimensioned crop rectangle clamped to the

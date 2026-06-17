@@ -15,7 +15,7 @@ import { pulseSchema } from "@/generators/specimen/options";
  * The specimen scene's wire format — produced by the specimen *generator* (its friendly options
  * are the real authoring surface), validated here so generator and scene can't drift apart.
  */
-export const specimenSceneOptionsSchema = z
+const specimenSceneOptionsSchema = z
   .object({
     label: z.string().default(""),
     demo: z.boolean().default(false),
@@ -56,7 +56,7 @@ export const specimenSceneOptionsSchema = z
   .strict();
 
 /** The wall's easing curves (kebab-cased, matching the rest of the tool). */
-export const wallEasingEnum = z.enum([
+const wallEasingEnum = z.enum([
   "linear",
   "ease-in",
   "ease-out",
@@ -189,7 +189,7 @@ const reelItemSchema = z
   })
   .strict();
 
-export const paletteReelSceneOptionsSchema = z
+const paletteReelSceneOptionsSchema = z
   .object({
     items: z.array(reelItemSchema).min(1),
     orientation: z.enum(["rows", "columns"]).default("rows"),

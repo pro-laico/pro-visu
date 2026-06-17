@@ -9,7 +9,7 @@ import { imageGenerator } from "@/generators/image";
 
 const registry = new Map<string, Generator<unknown>>();
 
-export function register<T>(gen: Generator<T>): void {
+function register<T>(gen: Generator<T>): void {
   registry.set(gen.id, gen as Generator<unknown>);
 }
 

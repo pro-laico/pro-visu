@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const easingSchema = z.enum([
+const easingSchema = z.enum([
   "linear",
   "easeInOutCubic",
   "easeInOutQuad",
@@ -12,7 +12,7 @@ export const easingSchema = z.enum([
 export type Easing = z.infer<typeof easingSchema>;
 
 /** One choreographed scroll step (see `choreography` below). */
-export const choreographyStepSchema = z
+const choreographyStepSchema = z
   .object({
     /** Target: a 0..1 number, an "NN%" string, or a CSS selector to bring into view. */
     to: z.union([z.number(), z.string()]),
@@ -25,7 +25,7 @@ export const choreographyStepSchema = z
   .strict();
 
 /** One step of a scripted interaction (see `actions` below). */
-export const interactionActionSchema = z
+const interactionActionSchema = z
   .object({
     do: z.enum(["move", "click", "hover", "type", "scrollTo", "wait"]),
     /** Target element for move/click/hover/type. */
@@ -45,7 +45,7 @@ export const interactionActionSchema = z
   .strict();
 
 /** Tuning for auto-section choreography (see `autoSections` below). */
-export const autoSectionsSchema = z
+const autoSectionsSchema = z
   .object({
     /** Min element height (as a fraction of the viewport) to count as a section. Default 0.5. */
     minHeightFraction: z.number().positive().max(2).optional(),
@@ -63,7 +63,7 @@ export const autoSectionsSchema = z
   .strict();
 
 /** An intro/outro card (see `intro` / `outro`). */
-export const cardSchema = z
+const cardSchema = z
   .object({
     title: z.string().optional(),
     subtitle: z.string().optional(),
@@ -75,7 +75,7 @@ export const cardSchema = z
   .strict();
 
 /** A timed on-screen annotation (see `annotations`). */
-export const annotationSchema = z
+const annotationSchema = z
   .object({
     /** Caption text shown while active. */
     text: z.string().optional(),

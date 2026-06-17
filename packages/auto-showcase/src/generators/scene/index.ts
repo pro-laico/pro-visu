@@ -14,7 +14,7 @@ import { slugify } from "@/utils/paths";
 import type { PipelineContext } from "@/generators/types";
 import type { AssetRecord } from "@/manifest/schema";
 
-export const SCENE_ID = "scene";
+const SCENE_ID = "scene";
 
 /** The built scene app shipped alongside the CLI bundle (dist/scene-app). */
 function sceneAppDir(): string {

@@ -42,7 +42,7 @@ export function buildCleanCss(opts: CleanCssOptions): string {
  * or the rAF timestamp, so it won't break apps that read `new Date()`; pair with `pauseAnimations` (CSS)
  * for visual stillness. Must be self-contained (serialized into the page).
  */
-export function freezeClockScript(): void {
+function freezeClockScript(): void {
   try {
     const FIXED = 1700000000000; // a fixed epoch (2023-11-14) so the page never sees time advance
     Date.now = () => FIXED;
@@ -121,7 +121,7 @@ export async function installNetworkHygiene(
  * Runs in the page: pause and rewind all media so autoplay video/audio can't make frames depend on
  * wall-clock time (frame-stepping screenshots a static page). Self-contained (serialized into the page).
  */
-export function pauseAllMedia(): void {
+function pauseAllMedia(): void {
   const doc = (globalThis as { document?: { querySelectorAll(s: string): ArrayLike<unknown> } }).document;
   if (!doc) return;
   try {
@@ -142,7 +142,7 @@ export function pauseAllMedia(): void {
 }
 
 /** Runs in the page: add a theme class to <html> (e.g. to force a dark variant). Self-contained. */
-export function applyThemeClass(cls: string): void {
+function applyThemeClass(cls: string): void {
   try {
     (
       globalThis as { document?: { documentElement?: { classList?: { add(c: string): void } } } }

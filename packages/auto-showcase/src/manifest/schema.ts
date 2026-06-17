@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /** One generated asset, recorded in showcase/manifest.json. Keyed by `id` (the asset name). */
-export const assetRecordSchema = z.object({
+const assetRecordSchema = z.object({
   /** Unique asset id — the asset spec's `name`. */
   id: z.string(),
   generator: z.string(),

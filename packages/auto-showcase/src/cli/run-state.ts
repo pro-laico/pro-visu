@@ -18,7 +18,7 @@ export interface RunState {
   tmpDirs?: string[];
 }
 
-export function runStatePath(outDir: string): string {
+function runStatePath(outDir: string): string {
   return path.join(outDir, ".showcase-run.json");
 }
 

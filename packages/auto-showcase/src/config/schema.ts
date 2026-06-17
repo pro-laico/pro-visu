@@ -1,11 +1,11 @@
 import { z } from "zod";
 
 /** Friendly log levels surfaced in config + CLI. */
-export const logLevelSchema = z.enum(["silent", "error", "warn", "info", "debug"]);
+const logLevelSchema = z.enum(["silent", "error", "warn", "info", "debug"]);
 export type LogLevel = z.infer<typeof logLevelSchema>;
 
 /** Playwright launch controls, settable per-repo. */
-export const browserSettingsSchema = z
+const browserSettingsSchema = z
   .object({
     headless: z.boolean().default(true),
     /** Browser channel, e.g. "chrome" or "msedge". Omit to use the managed Chromium. */

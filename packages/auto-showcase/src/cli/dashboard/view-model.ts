@@ -5,7 +5,7 @@ import type { DashboardSnapshot, JobView } from "./store";
 export const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 /** Width of the bar itself, in cells. */
-export const BAR_WIDTH = 8;
+const BAR_WIDTH = 8;
 /** Full width of the progress column: bar + space + a right-aligned "NN%". */
 export const PROGRESS_COL = BAR_WIDTH + 4;
 const BAR_FULL = "▓";

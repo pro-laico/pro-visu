@@ -6,7 +6,7 @@ import { z } from "zod";
  * surface). Per-scene knobs go in `sceneOptions`, validated against the selected scene's schema in
  * scene-options.ts.
  */
-export const sceneOptionsSchema = z
+const sceneOptionsSchema = z
   .object({
     /** Built-in scene id (e.g. "wall"). */
     scene: z.string().default("wall"),

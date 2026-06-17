@@ -9,7 +9,7 @@ import type { Logger } from "@/utils/logger";
 const require = createRequire(import.meta.url);
 
 /** Does the bundled ffmpeg binary exist AND actually execute on this platform? */
-export async function ffmpegWorks(): Promise<boolean> {
+async function ffmpegWorks(): Promise<boolean> {
   let bin: string;
   try {
     bin = ffmpegPath();

@@ -16,7 +16,7 @@ export function generatorDir(outDir: string, generatorId: string): string {
 }
 
 /** Normalize a path to forward slashes (for stable, cross-platform manifest entries). */
-export function toPosix(p: string): string {
+function toPosix(p: string): string {
   return p.split(path.sep).join("/");
 }
 

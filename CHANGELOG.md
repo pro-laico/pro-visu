@@ -6,5 +6,38 @@ All notable changes to `auto-showcase` are documented here. The format is based 
 
 ## [Unreleased]
 
-_Preparing the first npm release: packaging metadata, license, CI, and a
-tag-driven release workflow (npm Trusted Publishing)._
+## [0.2.0] - 2026-06-17
+
+First public release — a portable CLI that generates marketing/showcase assets of
+any website. Install it into a repo, point it at a URL, and it writes assets into a
+gitignored `showcase/` folder. Pre-1.0: the option surface may still shift.
+
+### Added
+
+- **`scroll-reel` generator** — deterministic, frame-stepped recording to mp4 (byte-identical
+  run-to-run, supersampled, parallelized across workers). Covers scroll reels, choreographed
+  section tours, auto-section detection, Ken Burns, boomerang loops, scripted interaction with a
+  synthetic cursor, single-element focus, multi-page route tours, clean-capture (tracker/animation
+  blocking, clock freezing), variants (color-scheme × viewport matrix), social reframing
+  (`9:16`/`1:1`), extra outputs (`gif`/`webp`/`poster`), and intro/outro cards + annotations.
+- **`screenshots` generator** — responsive full-page and element captures per breakpoint.
+- **`wall` generator** — a seamless-looping media wall that composites your other assets into
+  columns, each scrolling on its own with a uniform pulse-based motion model; dependencies are
+  derived from the tile names (no `inputs` map). Includes a `test` preview mode.
+- **`image` generator** — passthrough that registers an existing file as a reusable asset (e.g. a
+  wall tile).
+- **`specimen`, `palette`, `palette-reel` generators** — type specimen and colour palette
+  (still + reel), rendered through the bundled scene engine.
+- **CLI** — `init`, `generate` (with `--draft`/`--cache`/`--skip-server`/`--skip-build`/
+  `--concurrency`/`--asset`), `list`, and `reset`; a live Ink dashboard; an optional managed
+  server that can build → start → capture → stop the target site automatically.
+- **Config** — `defineConfig` with `settings` + `assets`, discovered via
+  `showcase.config.{ts,js,mjs,cjs,json}`, `.showcaserc`, or a `package.json` key; authoring types
+  generated from the validation schema.
+- **Zero global installs** — managed Chromium downloaded on first run (cached and shared across
+  projects); ffmpeg bundled via `ffmpeg-static`.
+
+### Packaging
+
+- npm packaging metadata, MIT license, CI (typecheck + test + build), and a tag-driven release
+  workflow using npm Trusted Publishing (OIDC) with provenance.

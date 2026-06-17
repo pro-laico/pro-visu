@@ -32,8 +32,8 @@ export interface TranscodeArgs {
  * matrix (for RGB inputs like PNG frames/overlays, a later auto-inserted converter would otherwise
  * use an unspecified matrix). `COLOR_TAGS` writes the matching metadata into the x264 VUI/container.
  */
-export const SCALE_COLOR = "out_color_matrix=bt709:out_range=tv";
-export const COLOR_TAGS = [
+const SCALE_COLOR = "out_color_matrix=bt709:out_range=tv";
+const COLOR_TAGS = [
   "-colorspace",
   "bt709",
   "-color_primaries",
