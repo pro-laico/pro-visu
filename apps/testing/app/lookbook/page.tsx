@@ -35,7 +35,7 @@ export default function Lookbook() {
       </section>
 
       {/* An editorial brand board: imagery, type, proof-points, and tokenized product cards.
-          Each panel carries a stable id so showcase.config.ts can focus-capture it as a 3:4 tile. */}
+          Each panel carries a stable id so pro-visu.config.ts can focus-capture it as a 3:4 tile. */}
       <section className="lb-grid section-flush" aria-label="Lookbook">
         <div className="lb-panel lb-type" id="lb-wordmark">
           <span className="lb-wordmark">VESPER</span>

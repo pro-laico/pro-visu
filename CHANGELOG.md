@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to `auto-showcase` are documented here. The format is based on
+All notable changes to `pro-visu` are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com), and the project adheres to
 [Semantic Versioning](https://semver.org).
 
@@ -12,9 +12,9 @@ All notable changes to `auto-showcase` are documented here. The format is based 
   and prints an install-mode-aware upgrade notice after a command finishes. Best-effort and
   non-blocking; quiet in CI, non-TTY output, and on the dev build. Opt out with `NO_UPDATE_NOTIFIER`
   or `--no-update-notifier`.
-- **Dependency-free JSON config** — use the tool via `npx`/global with a `showcase.config.json` and
-  no project dependency. `showcase init --json` scaffolds the JSON config plus a matching
-  `showcase.schema.json`, and a new `showcase schema` command (re)generates that schema from the
+- **Dependency-free JSON config** — use the tool via `npx`/global with a `pro-visu.config.json` and
+  no project dependency. `pro-visu init --json` scaffolds the JSON config plus a matching
+  `pro-visu.schema.json`, and a new `pro-visu schema` command (re)generates that schema from the
   installed tool — so a JSON config gets the same editor autocomplete + validation (including
   per-generator `options`) as the typed `defineConfig` path.
 
@@ -22,7 +22,7 @@ All notable changes to `auto-showcase` are documented here. The format is based 
 
 First public release — a portable CLI that generates marketing/showcase assets of
 any website. Install it into a repo, point it at a URL, and it writes assets into a
-gitignored `showcase/` folder. Pre-1.0: the option surface may still shift.
+gitignored `pro-visu/` folder. Pre-1.0: the option surface may still shift.
 
 ### Added
 
@@ -44,7 +44,7 @@ gitignored `showcase/` folder. Pre-1.0: the option surface may still shift.
   `--concurrency`/`--asset`), `list`, and `reset`; a live Ink dashboard; an optional managed
   server that can build → start → capture → stop the target site automatically.
 - **Config** — `defineConfig` with `settings` + `assets`, discovered via
-  `showcase.config.{ts,js,mjs,cjs,json}`, `.showcaserc`, or a `package.json` key; authoring types
+  `pro-visu.config.{ts,js,mjs,cjs,json}`, `.pro-visurc`, or a `package.json` key; authoring types
   generated from the validation schema.
 - **Zero global installs** — managed Chromium downloaded on first run (cached and shared across
   projects); ffmpeg bundled via `ffmpeg-static`.

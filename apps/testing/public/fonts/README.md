@@ -1,6 +1,6 @@
 # Font fixtures
 
-Variable fonts used by the `type-*` specimen demos in `apps/testing/showcase.config.ts`. All
+Variable fonts used by the `type-*` specimen demos in `apps/testing/pro-visu.config.ts`. All
 three are licensed under the **SIL Open Font License 1.1** (OFL), which permits bundling and
 redistribution. Each are the latin `wght` variable subsets from the matching
 `@fontsource-variable/*` packages.

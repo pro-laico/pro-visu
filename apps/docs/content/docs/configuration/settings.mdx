@@ -8,7 +8,7 @@ The `settings` block controls repo-level CLI behaviour. Every field has a defaul
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
-| `outDir` | `string` | `"showcase"` | Output directory, relative to the repo root. Holds generated assets + `manifest.json`. |
+| `outDir` | `string` | `"pro-visu"` | Output directory, relative to the repo root. Holds generated assets + `manifest.json`. |
 | `concurrency` | `number` | `2` | How many assets to generate in parallel (shared browser, separate contexts). Lower to `1` to cap memory on heavy runs. |
 | `maxMemoryMB` | `number` | — | Raise the Node heap to this many MB. Heavy jobs (large frame-stepped walls) can exceed Node's ~4 GB default and crash with "JavaScript heap out of memory"; when set above the current limit the CLI re-execs itself with `--max-old-space-size`. This is the **Node** process heap, not the browser's. |
 | `logLevel` | `"silent" \| "error" \| "warn" \| "info" \| "debug"` | `"info"` | Log verbosity. `--verbose` forces `debug`. |

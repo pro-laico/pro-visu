@@ -4,7 +4,7 @@ import { source } from "@/lib/source";
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <DocsLayout tree={source.pageTree} nav={{ title: "auto-showcase docs" }}>
+    <DocsLayout tree={source.pageTree} nav={{ title: "pro-visu docs" }}>
       {children}
     </DocsLayout>
   );

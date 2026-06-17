@@ -1,26 +1,26 @@
 ---
 title: Introduction
-description: auto-showcase turns a website into marketing assets — scroll reels, screenshots, media walls, and specimens — from a single config.
+description: pro-visu turns a website into marketing assets — scroll reels, screenshots, media walls, and specimens — from a single config.
 ---
 
-**auto-showcase** is a portable CLI that turns the websites you build into marketing and
+**pro-visu** is a portable CLI that turns the websites you build into marketing and
 showcase assets: scroll reels, responsive screenshots, looping media walls, and font/colour
-specimens — all from a single `showcase.config.ts`.
+specimens — all from a single `pro-visu.config.ts`.
 
-Install it into a website repo, point assets at a URL, and run `showcase generate`. Output
-is written into a gitignored `showcase/` folder alongside a `manifest.json`.
+Install it into a website repo, point assets at a URL, and run `pro-visu generate`. Output
+is written into a gitignored `pro-visu/` folder alongside a `manifest.json`.
 
 ## The mental model
 
 Three pieces:
 
-1. **Config** — a `showcase.config.ts` with two blocks: `settings` (repo-level CLI behaviour)
+1. **Config** — a `pro-visu.config.ts` with two blocks: `settings` (repo-level CLI behaviour)
    and `assets` (the list of things to generate).
 2. **Generators** — each asset names a `generator` that knows how to produce one kind of
    output. Options are merged from `settings.defaults["<generator>"]` and the asset's own
    `options`.
 3. **Manifest** — every run writes `<outDir>/manifest.json` recording what was produced
-   (id, generator, file, dimensions, bytes, duration). `showcase list` prints it.
+   (id, generator, file, dimensions, bytes, duration). `pro-visu list` prints it.
 
 Assets can also depend on each other through `inputs`, forming a small DAG — for example, a
 [wall](/docs/generators/wall) whose tiles are images, screenshots, and clips produced by other
@@ -45,16 +45,16 @@ The pipeline is a plugin contract, so new asset types slot in without core chang
 As a project dev-dependency (recommended — typed config + a version pinned for reproducible builds):
 
 ```bash
-pnpm add -D auto-showcase   # adds it to your repo
-npx showcase init           # scaffold config, gitignore the output dir, ensure a browser
-npx showcase generate       # capture the assets in your config
+pnpm add -D pro-visu   # adds it to your repo
+npx pro-visu init           # scaffold config, gitignore the output dir, ensure a browser
+npx pro-visu generate       # capture the assets in your config
 ```
 
 Or with no install at all, via `npx` or a global install, using a JSON config:
 
 ```bash
-npx auto-showcase init --json   # scaffold showcase.config.json + a JSON Schema
-npx auto-showcase generate
+npx pro-visu init --json   # scaffold pro-visu.config.json + a JSON Schema
+npx pro-visu generate
 ```
 
 Continue with [**Getting started**](/docs/getting-started) for the full comparison of both modes

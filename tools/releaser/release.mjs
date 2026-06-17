@@ -20,7 +20,7 @@ import path from "node:path";
  */
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const PKG_JSON = path.join(REPO_ROOT, "packages", "auto-showcase", "package.json");
+const PKG_JSON = path.join(REPO_ROOT, "packages", "pro-visu", "package.json");
 const RELEASE_TYPES = ["patch", "minor", "major", "prerelease"];
 
 /** Pure SemVer increment — no external deps. */

@@ -1,5 +1,5 @@
 /* ============================================================================
-   VESPER — design system for the auto-showcase storefront target
+   VESPER — design system for the pro-visu storefront target
    ========================================================================== */
 
 :root {
@@ -1152,7 +1152,7 @@ button {
   color: var(--paper);
 }
 
-/* ----- Gallery viewer (auto-showcase asset preview) ----------------------- */
+/* ----- Gallery viewer (pro-visu asset preview) ----------------------- */
 
 p.lead {
   font-size: 20px;

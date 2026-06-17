@@ -23,7 +23,7 @@ import path from "node:path";
 // pnpm/npm are `.cmd` shims on Windows, which Node can only launch via a shell.
 const RUN_OPTS = { shell: true };
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const PKG_DIR = path.join(REPO_ROOT, "packages", "auto-showcase");
+const PKG_DIR = path.join(REPO_ROOT, "packages", "pro-visu");
 
 /** Is `name@version` already on the npm registry? */
 function isPublished(name, version) {

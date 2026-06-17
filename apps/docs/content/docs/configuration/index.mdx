@@ -1,17 +1,17 @@
 ---
 title: Configuration
-description: The showcase.config file — settings, assets, options merging, and the input graph.
+description: The pro-visu.config file — settings, assets, options merging, and the input graph.
 ---
 
-`showcase init` writes a `showcase.config.ts`. It has two blocks: `settings` (repo-level CLI
+`pro-visu init` writes a `pro-visu.config.ts`. It has two blocks: `settings` (repo-level CLI
 behaviour) and `assets` (what to generate).
 
 ```ts
-import { defineConfig } from "auto-showcase";
+import { defineConfig } from "pro-visu";
 
 export default defineConfig({
   settings: {
-    outDir: "showcase",
+    outDir: "pro-visu",
     concurrency: 2,
     browser: { headless: true },
     defaults: { "scroll-reel": { width: 1440, height: 900, fps: 30 } },
@@ -29,11 +29,11 @@ every field, but the config is validated again at runtime.
 
 Without `--config <path>`, the CLI discovers config in any of these forms:
 
-- `showcase.config.ts` · `.js` · `.mjs` · `.cjs` · `.json`
-- `.showcaserc` / `.showcaserc.json`
-- a `"showcase"` key in `package.json`
+- `pro-visu.config.ts` · `.js` · `.mjs` · `.cjs` · `.json`
+- `.pro-visurc` / `.pro-visurc.json`
+- a `"pro-visu"` key in `package.json`
 
-A `.ts` config that imports `defineConfig` requires the `auto-showcase` package to be
+A `.ts` config that imports `defineConfig` requires the `pro-visu` package to be
 resolvable from that folder; a `.json` config does not.
 
 ## Assets

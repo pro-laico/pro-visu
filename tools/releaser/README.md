@@ -1,6 +1,6 @@
 # Releaser
 
-Tag-driven npm publishing for `auto-showcase`, modeled on atomic-payload's
+Tag-driven npm publishing for `pro-visu`, modeled on atomic-payload's
 `tools/releaser`. Plain Node ESM — no extra dependencies.
 
 ## Cutting a release (maintainers)
@@ -10,7 +10,7 @@ pnpm release                 # patch bump (interactive); also --bump minor|major
 git push --follow-tags       # the v* tag triggers .github/workflows/release.yml
 ```
 
-`release.mjs` bumps `packages/auto-showcase/package.json`, commits
+`release.mjs` bumps `packages/pro-visu/package.json`, commits
 `chore(release): vX.Y.Z`, and creates the annotated `vX.Y.Z` tag. The workflow then
 runs `pnpm publish-packages` to publish to npm.
 

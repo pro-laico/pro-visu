@@ -12,8 +12,8 @@ next-env.d.ts
 .vscode/
 
 # generated showcase output (testing app)
-apps/*/showcase/
-apps/*/public/showcase/
+apps/*/pro-visu/
+apps/*/public/pro-visu/
 
 # fumadocs generated source
 **/.source/

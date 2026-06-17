@@ -1,7 +1,7 @@
 # Contributing
 
 Thanks for your interest! This is a pnpm + Turborepo monorepo; the publishable
-library lives in [`packages/auto-showcase`](packages/auto-showcase), with a docs
+library lives in [`packages/pro-visu`](packages/pro-visu), with a docs
 site (`apps/docs`) and a sample target site (`apps/testing`).
 
 ## Setup
@@ -23,7 +23,7 @@ pnpm docs                         # run the docs site locally
 ## Pull requests
 
 - Keep changes focused and match the surrounding code style.
-- Add or update tests for behavior changes (`packages/auto-showcase/test`).
+- Add or update tests for behavior changes (`packages/pro-visu/test`).
 - Make sure `pnpm typecheck` and `pnpm test` pass before opening a PR.
 
 ## Releases (maintainers)

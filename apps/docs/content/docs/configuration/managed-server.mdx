@@ -3,12 +3,12 @@ title: Managed server
 description: Let showcase build, start, wait for, and stop your site automatically.
 ---
 
-When `settings.server` is set, `showcase generate` builds your site (if a `build` is given),
+When `settings.server` is set, `pro-visu generate` builds your site (if a `build` is given),
 starts it, waits for it to respond, runs the capture, then shuts it down — so a project's npm
-script can be just `showcase generate`.
+script can be just `pro-visu generate`.
 
 ```ts
-import { defineConfig } from "auto-showcase";
+import { defineConfig } from "pro-visu";
 
 export default defineConfig({
   settings: {
@@ -51,7 +51,7 @@ A normal run is: **build → start → wait for ready → capture all assets →
 
 The server is **skipped automatically when nothing in the selection needs a URL** — i.e. every
 selected asset is a local generator (`wall`, `image`, `palette`, `specimen`, `palette-reel`). So a
-[`wall` in `test` mode](/docs/generators/wall#test-mode-fast-preview), or `showcase generate <a
+[`wall` in `test` mode](/docs/generators/wall#test-mode-fast-preview), or `pro-visu generate <a
 local asset>`, renders without paying for a site build/boot it never uses. (A real `wall` still
 pulls in its URL-based tile producers, so the server starts for it.)
 
@@ -63,5 +63,5 @@ Two flags adjust the lifecycle explicitly:
 - `--skip-build` — keep the managed server but drop its `build` step, for fast iteration when
   the site itself is unchanged.
 
-If a run is killed hard before teardown, [`showcase reset`](/docs/cli#showcase-reset) stops any
+If a run is killed hard before teardown, [`pro-visu reset`](/docs/cli#showcase-reset) stops any
 orphaned server process tree and cleans up temp directories.

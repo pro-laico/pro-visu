@@ -22,7 +22,7 @@ const sans = Jost({
 export const metadata = {
   title: "VESPER — Considered tailoring, quietly made",
   description:
-    "Maison Vesper. Ready-to-wear outerwear, knitwear and tailoring, made in Europe. A sample storefront used to generate and validate auto-showcase assets.",
+    "Maison Vesper. Ready-to-wear outerwear, knitwear and tailoring, made in Europe. A sample storefront used to generate and validate pro-visu assets.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

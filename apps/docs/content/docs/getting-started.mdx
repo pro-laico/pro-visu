@@ -1,6 +1,6 @@
 ---
 title: Getting started
-description: Install auto-showcase, scaffold a config, and generate your first assets.
+description: Install pro-visu, scaffold a config, and generate your first assets.
 ---
 
 ## Install
@@ -10,22 +10,22 @@ config:
 
 | | **Dev dependency** (recommended) | **Global / `npx`** (no install) |
 |---|---|---|
-| Install | `pnpm add -D auto-showcase` | `npm i -g auto-showcase`, or just `npx auto-showcase …` |
-| Config | TS `showcase.config.ts` (`defineConfig`) — or JSON | JSON `showcase.config.json` |
+| Install | `pnpm add -D pro-visu` | `npm i -g pro-visu`, or just `npx pro-visu …` |
+| Config | TS `pro-visu.config.ts` (`defineConfig`) — or JSON | JSON `pro-visu.config.json` |
 | Editor help | Full TypeScript checking + autocomplete + hover docs | Autocomplete + validation + hover docs from a generated JSON Schema |
-| Version | Pinned in your lockfile → you and CI build identical assets | Floating (npx fetches latest; pin with `auto-showcase@x.y.z`) |
+| Version | Pinned in your lockfile → you and CI build identical assets | Floating (npx fetches latest; pin with `pro-visu@x.y.z`) |
 | Best for | A repo you own, and CI pipelines | One-off captures, trying it out |
 
-A TS `showcase.config.ts` needs the **dev dependency** because it does
-`import { defineConfig } from "auto-showcase"`, which has to resolve from your project's
+A TS `pro-visu.config.ts` needs the **dev dependency** because it does
+`import { defineConfig } from "pro-visu"`, which has to resolve from your project's
 `node_modules` (both to type-check and to run). A JSON config has no import, so it works in any
-mode — and `showcase init --json` generates a `showcase.schema.json` that gives editors the same
+mode — and `pro-visu init --json` generates a `pro-visu.schema.json` that gives editors the same
 autocomplete, validation, and hover docs.
 
 **A — As a project dev-dependency (recommended):**
 
 ```bash
-pnpm add -D auto-showcase
+pnpm add -D pro-visu
 ```
 
 Gives you the typed `defineConfig` authoring experience and pins the version in your lockfile, so
@@ -34,45 +34,45 @@ you — and CI — generate byte-identical assets.
 **B — Without installing (npx or global):**
 
 ```bash
-npx auto-showcase init --json     # dependency-free JSON config + JSON Schema
-npx auto-showcase generate
+npx pro-visu init --json     # dependency-free JSON config + JSON Schema
+npx pro-visu generate
 ```
 
-…or install globally (`npm i -g auto-showcase`). No project dependency; the generated
-`showcase.schema.json` still gives your editor autocomplete + validation on the JSON config.
+…or install globally (`npm i -g pro-visu`). No project dependency; the generated
+`pro-visu.schema.json` still gives your editor autocomplete + validation on the JSON config.
 
 > **Unreleased builds** (contributing, or pinning `main`): install from GitHub
-> (`pnpm add -D github:chad-hill/auto-showcase`), a `pnpm link`, or a `file:` path — see the
-> [package README](https://github.com/chad-hill/auto-showcase) for those.
+> (`pnpm add -D github:chad-hill/pro-visu`), a `pnpm link`, or a `file:` path — see the
+> [package README](https://github.com/chad-hill/pro-visu) for those.
 
 ## Initialise
 
 ```bash
-npx showcase init
+npx pro-visu init
 ```
 
 `init` is idempotent and sets up everything needed:
 
-- writes a starter `showcase.config.ts` (unless a config already exists) — or, with `--json`, a
-  `showcase.config.json` plus a `showcase.schema.json` for editor autocomplete,
-- creates the output directory (`showcase/`) and adds it to `.gitignore`,
-- adds a `"showcase": "showcase generate"` script to `package.json` (skip with `--no-script`),
+- writes a starter `pro-visu.config.ts` (unless a config already exists) — or, with `--json`, a
+  `pro-visu.config.json` plus a `pro-visu.schema.json` for editor autocomplete,
+- creates the output directory (`pro-visu/`) and adds it to `.gitignore`,
+- adds a `"pro-visu": "pro-visu generate"` script to `package.json` (skip with `--no-script`),
 - downloads the managed Chromium and ensures ffmpeg (skip with `--skip-browser`).
 
 The first browser download is one-time, cached, and shared across projects.
 
 ## Configure
 
-Open `showcase.config.ts` and point an asset at your site. The starter looks like this:
+Open `pro-visu.config.ts` and point an asset at your site. The starter looks like this:
 
 ```ts
-import { defineConfig } from "auto-showcase";
+import { defineConfig } from "pro-visu";
 
 const URL = "http://localhost:3101";
 
 export default defineConfig({
   settings: {
-    outDir: "showcase",
+    outDir: "pro-visu",
     concurrency: 2,
     browser: { headless: true },
     defaults: {
@@ -85,9 +85,9 @@ export default defineConfig({
 });
 ```
 
-If you scaffolded with `--json`, the equivalent `showcase.config.json` carries a
-`"$schema": "./showcase.schema.json"` line — your editor reads it for the same autocomplete and
-validation. Refresh that schema after upgrading the tool with `showcase schema`.
+If you scaffolded with `--json`, the equivalent `pro-visu.config.json` carries a
+`"$schema": "./pro-visu.schema.json"` line — your editor reads it for the same autocomplete and
+validation. Refresh that schema after upgrading the tool with `pro-visu schema`.
 
 See [Configuration](/docs/configuration) for the full shape, and
 [Generators](/docs/generators) for every asset type and its options.
@@ -97,25 +97,25 @@ See [Configuration](/docs/configuration) for the full shape, and
 Start your site (or use a deployed URL), then:
 
 ```bash
-npx showcase generate
+npx pro-visu generate
 ```
 
 Each asset is rendered into `outDir` and recorded in `manifest.json`. Review what was
 produced with:
 
 ```bash
-npx showcase list
+npx pro-visu list
 ```
 
 > **Don't want to start the site yourself?** Configure a [managed server](/docs/configuration/managed-server)
-> and the CLI will build → start → capture → stop it for you, so `showcase generate` is the only command you run.
+> and the CLI will build → start → capture → stop it for you, so `pro-visu generate` is the only command you run.
 
 ## Iterate faster
 
-- `showcase generate --draft` — lower fps/scale and a faster encoder for quick previews.
-- `showcase generate --asset home-reel` — only (re)build named assets (repeatable).
-- `showcase generate --cache` — skip assets whose inputs + options are unchanged.
-- `showcase generate --skip-build` — keep the managed server but skip its build step.
+- `pro-visu generate --draft` — lower fps/scale and a faster encoder for quick previews.
+- `pro-visu generate --asset home-reel` — only (re)build named assets (repeatable).
+- `pro-visu generate --cache` — skip assets whose inputs + options are unchanged.
+- `pro-visu generate --skip-build` — keep the managed server but skip its build step.
 
 See the full [CLI reference](/docs/cli).
 

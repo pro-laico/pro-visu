@@ -2,7 +2,7 @@
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 
-const outDir = path.join(process.cwd(), "public", "showcase");
+const outDir = path.join(process.cwd(), "public", "pro-visu");
 const manifestPath = path.join(outDir, "manifest.json");
 
 let manifest;

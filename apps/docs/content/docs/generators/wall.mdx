@@ -126,7 +126,7 @@ options: {
   so you can flip `test: true` on an existing wall and immediately preview the layout/motion.
 - **Match the real heights.** Real tiles take their height from the media; a faux box can't know that,
   so give the ones whose shape matters an `aspect` (w/h) to mirror the final masonry. Unset → `tileAspect`.
-- **No server.** Since a test wall needs no site, `showcase generate` [auto-skips the managed
+- **No server.** Since a test wall needs no site, `pro-visu generate` [auto-skips the managed
   server](/docs/configuration/managed-server) (no asset in the selection needs a URL).
 - While iterating, also set `capture: "realtime"` — it records the scene once instead of frame-stepping.
 

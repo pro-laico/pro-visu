@@ -1,5 +1,5 @@
 {
-  "name": "auto-showcase-monorepo",
+  "name": "pro-visu-monorepo",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.5.2",
@@ -11,7 +11,7 @@
     "dev": "turbo run dev",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "build:lib": "turbo run build --filter=auto-showcase",
+    "build:lib": "turbo run build --filter=pro-visu",
     "docs": "turbo run dev --filter=docs",
     "testing": "turbo run dev --filter=testing",
     "generate": "pnpm --filter=testing generate",

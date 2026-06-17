@@ -1,8 +1,8 @@
-# auto-showcase (monorepo)
+# pro-visu (monorepo)
 
-A pnpm + Turborepo workspace for the **auto-showcase** screenshot/reel generator and its apps.
+A pnpm + Turborepo workspace for the **pro-visu** screenshot/reel generator and its apps.
 
-- **[`packages/auto-showcase`](packages/auto-showcase/README.md)** — the library + `showcase` CLI that
+- **[`packages/pro-visu`](packages/pro-visu/README.md)** — the library + `pro-visu` CLI that
   generates marketing/showcase assets (scroll reels, screenshots, media walls, type/colour specimens, …)
   from a website.
 - **`apps/docs`** — the documentation site (fumadocs).
@@ -21,4 +21,4 @@ pnpm docs         # dev the docs app
 pnpm testing      # dev the testing app
 ```
 
-The library lives in `packages/auto-showcase`; see its README for full generator/option docs.
+The library lives in `packages/pro-visu`; see its README for full generator/option docs.
