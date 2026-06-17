@@ -64,8 +64,8 @@ export class InkReporter implements Reporter {
     this.store.progress(id, value);
   }
 
-  cancelling(): void {
-    this.store.cancelling();
+  cancelling(reason?: string): void {
+    this.store.cancelling(reason);
   }
 
   route(tag: string, type: string, message: string): boolean {

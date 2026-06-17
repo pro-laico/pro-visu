@@ -25,6 +25,8 @@ export interface DashboardSnapshot {
   logs: LogLine[];
   startTime: number;
   cancelRequested: boolean;
+  /** Optional banner verb shown while cancelling (e.g. "low memory — stopping…"). */
+  cancelReason?: string;
 }
 
 /**
@@ -40,6 +42,7 @@ export class DashboardStore {
   private logs: LogLine[] = [];
   private logSeq = 0;
   private cancelRequested = false;
+  private cancelReason?: string;
   private readonly startTime: number;
   private snap: DashboardSnapshot;
   private readonly listeners = new Set<() => void>();
@@ -70,6 +73,7 @@ export class DashboardStore {
       logs: this.logs,
       startTime: this.startTime,
       cancelRequested: this.cancelRequested,
+      cancelReason: this.cancelReason,
     };
   }
 
@@ -123,10 +127,11 @@ export class DashboardStore {
     this.commit();
   }
 
-  /** Flip into the "cancelling…" state (idempotent). */
-  cancelling(): void {
+  /** Flip into the "cancelling…" state (idempotent). An optional reason customizes the banner verb. */
+  cancelling(reason?: string): void {
     if (this.cancelRequested) return;
     this.cancelRequested = true;
+    this.cancelReason = reason;
     this.commit();
   }
 }

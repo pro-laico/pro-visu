@@ -60,6 +60,13 @@ export const settingsSchema = z.object({
   outDir: z.string().min(1).default("showcase"),
   /** How many assets to generate in parallel (shared browser, separate contexts). */
   concurrency: z.number().int().positive().default(2),
+  /**
+   * Raise the Node heap (V8 old-space) to this many MB for the run. Heavy jobs — large frame-stepped
+   * walls especially — can exceed Node's default ~4 GB limit and crash with "JavaScript heap out of
+   * memory". When set above the current limit, the CLI re-execs itself with `--max-old-space-size`.
+   * (This is the Node process heap, not the browser's — the browser manages its own memory.)
+   */
+  maxMemoryMB: z.number().int().positive().optional(),
   logLevel: logLevelSchema.default("info"),
   browser: browserSettingsSchema.default({}),
   /**

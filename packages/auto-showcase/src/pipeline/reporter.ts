@@ -32,8 +32,9 @@ export interface Reporter extends LogSink {
   step(id: string, text: string): void;
   /** Report fractional progress (0–1) for a running row, for a determinate bar + ETA. */
   progress(id: string, value: number): void;
-  /** Signal a graceful cancellation is underway, so the UI can show it's winding down. */
-  cancelling(): void;
+  /** Signal a graceful cancellation is underway, so the UI can show it's winding down. An optional
+   *  reason replaces the default "cancelling…" banner verb (e.g. "low memory — stopping…"). */
+  cancelling(reason?: string): void;
   stop(): void;
   /**
    * Hand the live renderer a cancel trigger so it can own keyboard input (Esc/Ctrl+C) itself —

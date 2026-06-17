@@ -56,6 +56,13 @@ export interface ShowcaseSettingsInput {
   outDir?: string;
   /** How many assets to generate in parallel (shared browser, separate contexts). */
   concurrency?: number;
+  /**
+   * Raise the Node heap (V8 old-space) to this many MB. Heavy jobs — large frame-stepped walls
+   * especially — can exceed Node's ~4 GB default and crash with "JavaScript heap out of memory".
+   * When set above the current limit, the CLI re-execs itself with `--max-old-space-size`. This is
+   * the Node process heap, not the browser's.
+   */
+  maxMemoryMB?: number;
   /** CLI log verbosity. */
   logLevel?: LogLevel;
   /** Playwright launch controls. */

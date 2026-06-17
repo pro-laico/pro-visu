@@ -6,6 +6,8 @@ import type { ResolvedConfig } from "@/config/schema";
 import { resolveTargets } from "@/config/resolve-targets";
 import { getGenerator } from "@/generators/registry";
 import { watchForInterrupt } from "@/cli/interrupt";
+import { reexecWithMemory, currentHeapLimitMB } from "@/cli/reexec";
+import v8 from "node:v8";
 import { startRunState, updateRunState, clearRunState } from "@/cli/run-state";
 import { ensureChromium } from "@/browser-install/ensure-chromium";
 import { ensureFfmpeg } from "@/media/ensure-ffmpeg";
@@ -53,6 +55,14 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     return;
   }
   const { config } = loaded;
+
+  // Honor settings.maxMemoryMB: if it wants more heap than this process has, re-exec with a larger
+  // --max-old-space-size and let the child run the whole command. Must happen before any heavy work.
+  if (await reexecWithMemory(config.settings.maxMemoryMB)) return;
+  if (config.settings.maxMemoryMB) {
+    bootstrapLog.info(`Node heap limit: ${currentHeapLimitMB()} MB (settings.maxMemoryMB=${config.settings.maxMemoryMB})`);
+  }
+
   const level = options.verbose ? "debug" : config.settings.logLevel;
   // Live job tracker on an interactive TTY; per-asset logs feed each row's current step.
   const reporter = createReporter({ tty: Boolean(process.stdout.isTTY), verbose: !!options.verbose });
@@ -97,6 +107,7 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   await startRunState(outDir);
   const abort = new AbortController();
   let interrupted = false;
+  let lowMemory = false;
   // The live dashboard owns the keyboard (Ink raw mode), so the watcher only handles signals there
   // and the dashboard calls `trigger` on Esc/Ctrl+C — one keypress owner, no clash.
   const { dispose: disposeInterrupt, trigger: interruptTrigger } = watchForInterrupt(
@@ -127,6 +138,26 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   // finishes. The build no longer dumps raw CLI output; it feeds the "build" row's step. The
   // tracker's footer shows the "esc to cancel" hint.
   reporter.begin();
+
+  // Memory watchdog: if the Node heap nears its limit, stop the run gracefully (like Esc) with a clear
+  // message instead of letting V8 hard-crash ("JavaScript heap out of memory"). Fires once; raise
+  // settings.maxMemoryMB (more heap) or lower settings.concurrency to avoid it.
+  const memTimer = setInterval(() => {
+    if (interrupted) return;
+    const limit = v8.getHeapStatistics().heap_size_limit;
+    const used = process.memoryUsage().heapUsed;
+    if (limit > 0 && used / limit > 0.88) {
+      lowMemory = true;
+      interrupted = true;
+      abort.abort();
+      if (reporter.isLive) reporter.cancelling("low memory — stopping…");
+      else
+        logger.warn(
+          "Low memory — stopping early to avoid a crash (raise settings.maxMemoryMB or lower concurrency).",
+        );
+    }
+  }, 1500);
+  memTimer.unref?.();
 
   // The managed server only matters to url-based generators (it captures web pages). If nothing in
   // the selection needs a URL — e.g. only a `test`-mode wall, or other local generators — skip it
@@ -214,6 +245,7 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
       setupFailed = true;
     }
   } finally {
+    clearInterval(memTimer);
     reporter.stop(); // erase the live block before the final summary
     disposeInterrupt();
     await server?.stop();
@@ -221,11 +253,18 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   }
 
   if (interrupted) {
-    // A graceful cancel is a clean stop, not a failure — exit 0 so the shell/pnpm doesn't print a
-    // scary "command failed with exit code 130" wrapper. (A second Esc force-quits with 130 above.)
-    // In-flight assets are aborted mid-work, so only the ones that actually completed are "finished".
+    // A graceful stop is a clean exit, not a failure — exit 0 so the shell/pnpm doesn't print a
+    // scary "command failed" wrapper. In-flight assets are aborted mid-work, so only the ones that
+    // actually completed are "finished".
     const finished = outcomes.filter((o) => o.status === "ok").length;
-    logger.warn(`Interrupted — stopped cleanly (${finished} asset(s) finished).`);
+    if (lowMemory) {
+      logger.warn(
+        `Stopped early — low memory (${finished} asset(s) finished). Raise settings.maxMemoryMB or ` +
+          `lower settings.concurrency, then re-run (already-finished assets are cached if --cache is on).`,
+      );
+    } else {
+      logger.warn(`Interrupted — stopped cleanly (${finished} asset(s) finished).`);
+    }
     process.exitCode = 0;
     return;
   }

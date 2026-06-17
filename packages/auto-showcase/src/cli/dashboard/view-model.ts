@@ -216,8 +216,9 @@ export function buildView(
   if (waiting) tally.push({ text: `${waiting} waiting`, color: undefined });
   if (failed) tally.push({ text: `${failed} failed`, color: "red" });
 
+  const verb = snapshot.cancelReason ?? "cancelling…";
   const footer: DashboardVM["footer"] = cancelling
-    ? { text: running ? `cancelling… finishing ${running} · esc to force` : "cancelling… · esc to force", tone: "warn" }
+    ? { text: running ? `${verb} finishing ${running} · esc to force` : `${verb} · esc to force`, tone: "warn" }
     : { text: "esc to cancel", tone: "dim" };
 
   const logs: LogVM[] = snapshot.logs.map((l) => ({

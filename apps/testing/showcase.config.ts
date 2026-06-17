@@ -152,6 +152,10 @@ const CLIPS: AssetSpecInput[] = [
 export default defineConfig({
   settings: {
     outDir: "public/showcase", // so the Next app serves assets at /showcase/* (and /gallery shows them)
+    // Serial + a roomy Node heap: the frame-stepped wall is memory-heavy, so run one asset at a time
+    // (no two captures sharing RAM) and raise the heap past Node's ~4 GB default so the run finishes.
+    concurrency: 1,
+    maxMemoryMB: 8192,
     browser: { headless: true },
     server: {
       build: "pnpm build",

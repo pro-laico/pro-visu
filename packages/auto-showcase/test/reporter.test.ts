@@ -302,6 +302,16 @@ describe("buildView", () => {
     });
   });
 
+  it("uses a custom cancel reason in the banner (e.g. low memory)", () => {
+    const s = fixture();
+    s.status("home", "running", 0);
+    s.cancelling("low memory — stopping…");
+    expect(buildView(s.getSnapshot(), 0, 0).footer).toEqual({
+      text: "low memory — stopping… finishing 1 · esc to force",
+      tone: "warn",
+    });
+  });
+
   it("collapses multi-line routed output into a single-line step", () => {
     const s = fixture();
     s.status("home", "running", 0);
