@@ -25,3 +25,4 @@ apps/*/public/pro-visu/
 # personal / machine-specific
 .claude/settings.local.json
 *.code-workspace
+.mcp.json
