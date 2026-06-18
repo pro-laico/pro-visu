@@ -5,7 +5,7 @@ screenshots, media walls — with more asset types to come) of the websites you 
 into any website repo, point it at a URL, and it writes assets into a gitignored `pro-visu/`
 folder.
 
-> Status: **0.2** (pre-1.0; the option surface may still shift). Generators: `scroll-reel` (deterministic frame-stepped recording → mp4 — scroll
+> Status: **0.3** (pre-1.0; the option surface may still shift). Generators: `scroll-reel` (deterministic frame-stepped recording → mp4 — scroll
 > reels, choreographed tours, scripted interaction, social formats and more), `screenshots`
 > (responsive full-page + element captures), `wall` (a seamless-looping media wall of your
 > assets), `image` (register a file for reuse), plus `specimen`/`palette`/`palette-reel`. The
