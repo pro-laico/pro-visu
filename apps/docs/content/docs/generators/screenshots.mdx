@@ -21,6 +21,56 @@ specific elements. Output is png or jpeg.
 }
 ```
 
+A full-page desktop capture — the whole scrollable page, far taller than the 900px viewport
+(scroll the panel):
+
+<ImageExample
+  tall
+  src="/examples/docs-shot-desktop.jpg"
+  width={2880}
+  height={10090}
+  alt="A full-page desktop screenshot of the VESPER storefront, captured well beyond the viewport height."
+  caption="fullPage: true — Playwright resizes to the document height, so the whole page is in one shot."
+  code={`{
+  name: "home-desktop",
+  generator: "screenshots",
+  options: {
+    breakpoints: [
+      {
+        name: "desktop",
+        width: 1440,
+        height: 900,
+      },
+    ],
+    fullPage: true,
+  },
+}`}
+/>
+
+And the same site on a phone, just the viewport — as a visitor first sees it:
+
+<ImageExample
+  src="/examples/docs-shot-mobile.png"
+  width={780}
+  height={1688}
+  alt="A mobile viewport screenshot of the VESPER storefront at 390×844."
+  caption="fullPage: false on a 390×844 phone — the above-the-fold view, not the whole page."
+  code={`{
+  name: "home-mobile",
+  generator: "screenshots",
+  options: {
+    breakpoints: [
+      {
+        name: "mobile",
+        width: 390,
+        height: 844,
+      },
+    ],
+    fullPage: false,
+  },
+}`}
+/>
+
 ## Options
 
 | Option | Type | Default | Meaning |
@@ -68,3 +118,32 @@ logged with a warning and skipped — the page shot and remaining elements/break
 - A very large `fullPage` shot (>16000px on either axis) emits a warning, since Chromium caps
   screenshots near ~32767px and a high `deviceScaleFactor` can push a tall page past that — the
   result may be clipped or slow. Lower the scale if you hit this.
+
+## Capturing the UI in a particular state
+
+`screenshots` captures the page as it loads — it's **stateless**, with no clicks or scripted steps.
+To showcase the UI in a *state* (a menu open, a tab switched, a form filled), drive it with a
+[`scroll-reel`](/docs/generators/scroll-reel) interaction instead and use that clip. Here, on a
+phone viewport, a scripted tap opens the menu and holds it open:
+
+<Example
+  clip="docs-menu"
+  caption="A phone-viewport scroll-reel standing in for a 'stateful screenshot' — the mobile menu open, captured."
+  code={`{
+  name: "menu-open",
+  url: "https://your-site.com",
+  generator: "scroll-reel",
+  options: {
+    width: 390,
+    height: 844,
+    cursor: { color: "#8c7355" },
+    actions: [
+      {
+        do: "click",
+        selector: "#menu-button",
+        holdMs: 2600,
+      },
+    ],
+  },
+}`}
+/>

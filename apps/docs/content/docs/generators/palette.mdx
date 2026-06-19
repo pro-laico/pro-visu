@@ -23,6 +23,27 @@ is required. No `url`. Output is png.
 }
 ```
 
+<ImageExample
+  src="/examples/docs-palette.png"
+  width={2800}
+  height={3500}
+  alt="The VESPER brand palette rendered as five labelled swatches with hex and oklch values."
+  caption="The default rows layout — each swatch labelled with auto-contrasting text."
+  code={`{
+  name: "colors",
+  generator: "palette",
+  options: {
+    colors: [
+      { name: "Ink", hex: "#1a1714" },
+      { name: "Paper", hex: "#f6f3ed" },
+      { name: "Camel", hex: "#b49a77" },
+      { name: "Loden", hex: "#5c5e4c" },
+      { name: "Cognac", hex: "#8a5a3c" },
+    ],
+  },
+}`}
+/>
+
 ## Options
 
 | Option | Type | Default | Meaning |

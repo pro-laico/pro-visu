@@ -3,3 +3,35 @@
 @import "fumadocs-ui/css/preset.css";
 
 @source "../node_modules/fumadocs-ui/dist/**/*.js";
+
+/* Themed scrollbars — replaces the default OS scrollbar across the site (page, code blocks, and
+   the scrollable full-page-screenshot panels). Colours come from the fumadocs tokens, so they
+   track light/dark automatically. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-fd-border, rgb(120 120 120 / 0.5)) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--color-fd-border, rgb(120 120 120 / 0.5));
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-fd-muted-foreground, rgb(120 120 120 / 0.8));
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}

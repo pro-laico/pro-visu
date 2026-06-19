@@ -12,6 +12,50 @@ run-to-run**.
 { name: "home", url: "https://your-site.com", generator: "scroll-reel" }
 ```
 
+The clip below is a `scroll-reel` captured from a real storefront — one choreography beat
+holds on the hero while a gentle Ken Burns push plays out and back (`loop: "boomerang"`), so it
+loops with no visible seam:
+
+<Example
+  clip="hero-loop"
+  caption="A seamless looping hero — boomerang playback folds the Ken Burns zoom so the first and last frames match."
+  code={`{
+  name: "hero-loop",
+  generator: "scroll-reel",
+  options: {
+    duration: 4000,
+    // forward then back → no seam
+    loop: "boomerang",
+    kenBurns: {
+      scaleTo: 1.05,
+      originY: 0.4,
+    },
+    // hold the hero; the zoom moves
+    choreography: [
+      { to: "0%", durationMs: 4000 },
+    ],
+  },
+}`}
+/>
+
+And here it *actually scrolls*: `autoSections` detects the page's sections and paces a pan/hold
+down the whole page within a fixed time budget — a hands-off tour, no choreography to author:
+
+<Example
+  clip="docs-scroll"
+  caption="autoSections walks the home page top to bottom, holding briefly on each detected section."
+  code={`{
+  name: "home",
+  url: "https://your-site.com",
+  generator: "scroll-reel",
+  options: {
+    autoSections: {
+      durationMs: 9000,
+    },
+  },
+}`}
+/>
+
 ## Core sizing
 
 | Option | Meaning |
@@ -155,6 +199,25 @@ options: {
   annotations: [{ text: "Real-time data", ring: "#chart", atMs: 1000, untilMs: 3000 }],
 }
 ```
+
+A vertical cut of the same page — `aspect: "9:16"` reframes the capture for a Reel or Story:
+
+<Example
+  clip="docs-vertical"
+  portrait
+  caption="The same scroll, reframed vertical for social. Add outputs for gif/poster to cover organic formats too."
+  code={`{
+  name: "home-vertical",
+  url: "https://your-site.com",
+  generator: "scroll-reel",
+  options: {
+    width: 430,
+    height: 932,
+    duration: 5000,
+    aspect: "9:16",
+  },
+}`}
+/>
 
 ## Scripted interaction & element focus
 

@@ -54,6 +54,16 @@ export interface SeekScrollArgs {
 export interface MeasureOffsetsArgs {
   /** CSS selectors to resolve to normalized scroll positions (0..1). */
   selectors: string[];
+  /**
+   * Pixels a sticky/fixed header intrudes from the top — each resolved target is pulled UP by this so
+   * the selector lands below the header, not under it. Measured by {@link measureTopInset}; default 0.
+   */
+  headerInsetPx?: number;
+}
+
+export interface MeasureTopInsetArgs {
+  /** Don't count a top element taller than this fraction of the viewport (skips full-screen overlays). */
+  maxFraction?: number;
 }
 
 export interface DetectSectionsArgs {
@@ -63,6 +73,12 @@ export interface DetectSectionsArgs {
   selector: string | null;
   /** Cap on the number of returned sections. */
   maxSections: number;
+  /**
+   * Pixels a sticky/fixed header intrudes from the top of the viewport. Each section target is pulled
+   * UP by this, so a scrolled-to section sits just below the header instead of being clipped by it.
+   * Measured once by {@link measureTopInset}; defaults to 0 (no header).
+   */
+  headerInsetPx?: number;
 }
 
 // Browser globals — declared loosely (no DOM lib in this Node project). The exported functions are
@@ -212,7 +228,9 @@ export async function detectSectionOffsets(args: DetectSectionsArgs): Promise<nu
     }
     // Apply the height filter only to the heuristic; trust an explicit selector verbatim.
     if (!args.selector && rect.height < minH) continue;
-    const top = docTarget ? rect.top + curScroll : rect.top - containerTop + curScroll;
+    const rawTop = docTarget ? rect.top + curScroll : rect.top - containerTop + curScroll;
+    // Pull the target up by the sticky/fixed header height so the section isn't clipped under it.
+    const top = rawTop - (args.headerInsetPx ?? 0);
     const y = Math.max(0, Math.min(distance, top));
     offsets.push(y / distance);
   }
@@ -292,7 +310,9 @@ export async function measureNormalizedOffsets(
     }
     if (!el) return null;
     const rect = el.getBoundingClientRect();
-    const offsetTop = docTarget ? rect.top + curScroll : rect.top - containerTop + curScroll;
+    const rawTop = docTarget ? rect.top + curScroll : rect.top - containerTop + curScroll;
+    // Pull the target up by the sticky/fixed header height so the selector lands below it, not under it.
+    const offsetTop = rawTop - (args.headerInsetPx ?? 0);
     const y = Math.max(0, Math.min(distance, offsetTop));
     return distance > 0 ? y / distance : 0;
   });
@@ -331,6 +351,111 @@ export async function measureNormalizedOffsets(
       t === document.documentElement ||
       t === document.body
     );
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function maxScrollOf(t: any): number {
+    return Math.max(0, t.scrollHeight - t.clientHeight);
+  }
+}
+
+/**
+ * Runs INSIDE the page. Measures how far a sticky/fixed header intrudes from the top of the viewport
+ * (px) so scroll targets can be pulled up by it — otherwise a scrolled-to section lands UNDER the
+ * header and looks clipped. Probe-scrolls down one viewport so a `position: sticky` header is actually
+ * pinned, takes the lowest bottom edge among wide, top-anchored fixed/sticky elements, then restores
+ * the scroll. Returns 0 when there's no such header. Self-contained (serialized via page.evaluate).
+ */
+export async function measureTopInset(args: MeasureTopInsetArgs): Promise<number> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const target = findScrollTarget(document, getComputedStyle) as any;
+  const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+  const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+  const maxFraction = args.maxFraction ?? 0.4;
+  const distance = maxScrollOf(target);
+  const cur = isDocTarget(target)
+    ? window.pageYOffset || document.documentElement.scrollTop || 0
+    : target.scrollTop;
+  // Pin any top-sticky header by scrolling past its natural position, then settle one frame.
+  scrollTargetTo(target, Math.min(cur + vh, distance));
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  let inset = 0;
+  try {
+    const all = document.querySelectorAll("body *");
+    for (let i = 0; i < all.length; i++) {
+      const el = all[i];
+      let position = "";
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        position = (getComputedStyle(el) as any).position;
+      } catch {
+        continue;
+      }
+      if (position !== "fixed" && position !== "sticky") continue;
+      let r: { top: number; bottom: number; width: number; height: number };
+      try {
+        r = el.getBoundingClientRect();
+      } catch {
+        continue;
+      }
+      // A header pinned to the top: starts at the very top, spans most of the width, isn't a
+      // full-screen overlay, and reaches lower than anything found so far.
+      if (
+        r.top <= 2 &&
+        r.width >= vw * 0.6 &&
+        r.height > 0 &&
+        r.bottom > inset &&
+        r.bottom <= vh * maxFraction
+      ) {
+        inset = r.bottom;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  scrollTargetTo(target, cur); // restore the original scroll
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  return inset;
+
+  // --- inlined, self-contained scroll helpers (duplicated elsewhere in this file; see note above) ---
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function findScrollTarget(doc: any, gcs: (el: any) => { overflowY: string }): unknown {
+    const se = doc.scrollingElement || doc.documentElement;
+    if (se && se.scrollHeight - se.clientHeight > 1) return se;
+    let best: unknown = null;
+    let bestArea = 0;
+    const all = doc.querySelectorAll("*");
+    for (let i = 0; i < all.length; i++) {
+      const el = all[i];
+      let oy = "";
+      try {
+        oy = gcs(el).overflowY;
+      } catch {
+        oy = "";
+      }
+      const scrollable = oy === "auto" || oy === "scroll" || oy === "overlay";
+      if (scrollable && el.scrollHeight - el.clientHeight > 1) {
+        const area = el.clientWidth * el.clientHeight;
+        if (area > bestArea) {
+          bestArea = area;
+          best = el;
+        }
+      }
+    }
+    return best || se;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function isDocTarget(t: any): boolean {
+    return (
+      t === (document.scrollingElement || document.documentElement) ||
+      t === document.documentElement ||
+      t === document.body
+    );
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function scrollTargetTo(t: any, y: number): void {
+    if (isDocTarget(t)) window.scrollTo({ top: y, left: 0, behavior: "instant" });
+    else if (t.scrollTo) t.scrollTo({ top: y, left: 0, behavior: "instant" });
+    else t.scrollTop = y;
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function maxScrollOf(t: any): number {

@@ -21,6 +21,21 @@ everything else has a sensible default. No `url` required.
 }
 ```
 
+<Example
+  clip="type-sans"
+  caption="The sweep template on Inter — a seamless looping wash of per-glyph colour sweeps."
+  code={`{
+  name: "type-sans",
+  generator: "specimen",
+  options: {
+    font: "public/fonts/Inter.woff2",
+    name: "Inter",
+    template: "sweep",
+    lines: 4,
+  },
+}`}
+/>
+
 ## Templates
 
 `template` loads a named preset; your explicit options still override what it sets.
@@ -29,6 +44,23 @@ everything else has a sensible default. No `url` required.
   (muted → accent → foreground) on a dark palette chosen so the accent reads.
 - **`"demo"`** — a labelled walkthrough of every pulse behaviour (each easing curve, a colour
   sweep, a mingle) with demo mode on; runs once, no mirror.
+
+The **demo** template on a different typeface (a serif this time) — demo mode overlays each beat's
+name as it plays, so you can see exactly what every pulse setting does:
+
+<Example
+  clip="docs-type-demo"
+  caption="The demo template on Fraunces — a labelled tour through linear / ease-in / ease-out / colour sweeps."
+  code={`{
+  name: "type-demo",
+  generator: "specimen",
+  options: {
+    font: "public/fonts/Fraunces.woff2",
+    name: "Fraunces",
+    template: "demo",
+  },
+}`}
+/>
 
 ## Pulses (the storyboard)
 

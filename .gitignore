@@ -26,3 +26,7 @@ apps/*/public/pro-visu/
 .claude/settings.local.json
 *.code-workspace
 .mcp.json
+
+# env files with secrets (e.g. Mux tokens for apps/docs next-video)
+.env
+.env*.local

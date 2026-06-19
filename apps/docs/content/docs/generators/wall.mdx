@@ -38,6 +38,41 @@ assets: [
 ]
 ```
 
+A very simple wall — three columns of photos, each with one gentle drift, looping seamlessly:
+
+<Example
+  clip="docs-wall"
+  caption="Three columns of image tiles. The producers (the photos) run first; the wall is derived from the tile names."
+  code={`{
+  name: "lookbook-wall",
+  generator: "wall",
+  options: {
+    width: 960,
+    height: 540,
+    durationSeconds: 8,
+    background: "#1a1714",
+    // one gentle drift over the clip
+    loops: 1,
+    columns: [
+      {
+        tiles: ["img-coat", "img-editorial"],
+        direction: "down",
+      },
+      {
+        tiles: ["img-hero", "img-tote"],
+        direction: "up",
+        stagger: 0.4,
+      },
+      {
+        tiles: ["img-slip", "img-atelier"],
+        direction: "down",
+        stagger: 0.2,
+      },
+    ],
+  },
+}`}
+/>
+
 ## Columns are self-contained units
 
 `columns` is an **array** (minimum 3) — its length is the column count. Each entry owns both its
@@ -131,6 +166,48 @@ options: {
 - While iterating, also set `capture: "realtime"` — it records the scene once instead of frame-stepping.
 
 Turn `test`/`testTiles` off (and switch `capture` back to `"frames"`) for the real render.
+
+This is the same three-column wall as above, but in test mode — the tiles are faux labelled boxes
+standing in for (slow-to-render) video assets, so it previews in **seconds** instead of waiting on
+every clip to generate. Dial in the layout and motion here, then drop `test`/`realtime` for the
+real frame-stepped render:
+
+<Example
+  clip="docs-wall-test"
+  caption="test: true + capture: realtime — faux boxes labelled with their tile names, no producers, rendered in seconds."
+  code={`{
+  name: "lookbook-wall",
+  generator: "wall",
+  options: {
+    // faux labelled boxes, no producers
+    test: true,
+    // record the scene once
+    capture: "realtime",
+    width: 960,
+    height: 540,
+    durationSeconds: 8,
+    // 9:16, matches phone-clip tiles
+    tileAspect: 0.5625,
+    loops: 1,
+    columns: [
+      {
+        tiles: ["home", "pricing"],
+        direction: "down",
+      },
+      {
+        tiles: ["product", "lookbook"],
+        direction: "up",
+        stagger: 0.4,
+      },
+      {
+        tiles: ["about", "contact"],
+        direction: "down",
+        stagger: 0.2,
+      },
+    ],
+  },
+}`}
+/>
 
 ## Capture modes
 

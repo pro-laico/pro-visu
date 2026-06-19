@@ -8,12 +8,14 @@
     "build": "next build",
     "start": "next start",
     "postinstall": "fumadocs-mdx",
+    "sync-videos": "next-video sync",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "fumadocs-core": "^16.10.2",
     "fumadocs-ui": "^16.10.2",
     "next": "^16.2.9",
+    "next-video": "^2.8.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

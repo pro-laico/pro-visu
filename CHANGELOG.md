@@ -4,6 +4,15 @@ All notable changes to `pro-visu` are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com), and the project adheres to
 [Semantic Versioning](https://semver.org).
 
+## [0.3.1] - 2026-06-18
+
+### Fixed
+
+- **`scroll-reel` honors sticky/fixed headers** — `autoSections` (and `choreography` scroll-to-selector)
+  now pull each section target up by the height of a pinned header, so a scrolled-to section lands just
+  below the header instead of being clipped underneath it. Auto-detected (no config); a page with no
+  sticky/fixed header is unaffected.
+
 ## [0.3.0] - 2026-06-18
 
 ### Added

@@ -10,6 +10,8 @@ specimens — all from a single `pro-visu.config.ts`.
 Install it into a website repo, point assets at a URL, and run `pro-visu generate`. Output
 is written into a gitignored `pro-visu/` folder alongside a `manifest.json`.
 
+<Showcase clip="docs-home" />
+
 ## The mental model
 
 Three pieces:
@@ -20,7 +22,7 @@ Three pieces:
    output. Options are merged from `settings.defaults["<generator>"]` and the asset's own
    `options`.
 3. **Manifest** — every run writes `<outDir>/manifest.json` recording what was produced
-   (id, generator, file, dimensions, bytes, duration). `pro-visu list` prints it.
+   (id, generator, file, dimensions, bytes, durationMs). `pro-visu list` prints it.
 
 Assets can also depend on each other through `inputs`, forming a small DAG — for example, a
 [wall](/docs/generators/wall) whose tiles are images, screenshots, and clips produced by other

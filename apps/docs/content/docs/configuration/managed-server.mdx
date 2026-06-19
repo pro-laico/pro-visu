@@ -1,6 +1,6 @@
 ---
 title: Managed server
-description: Let showcase build, start, wait for, and stop your site automatically.
+description: Let pro-visu build, start, wait for, and stop your site automatically.
 ---
 
 When `settings.server` is set, `pro-visu generate` builds your site (if a `build` is given),
@@ -63,5 +63,5 @@ Two flags adjust the lifecycle explicitly:
 - `--skip-build` — keep the managed server but drop its `build` step, for fast iteration when
   the site itself is unchanged.
 
-If a run is killed hard before teardown, [`pro-visu reset`](/docs/cli#showcase-reset) stops any
+If a run is killed hard before teardown, [`pro-visu reset`](/docs/cli#pro-visu-reset) stops any
 orphaned server process tree and cleans up temp directories.

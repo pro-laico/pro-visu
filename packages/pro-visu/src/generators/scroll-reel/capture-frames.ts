@@ -3,6 +3,7 @@ import { captureFramedVideo } from "@/media/frame-capture";
 import {
   detectSectionOffsets,
   measureNormalizedOffsets,
+  measureTopInset,
   prepareScroll,
   seekScrollTo,
   settleInView,
@@ -88,8 +89,11 @@ async function buildScrollTimeline(
     const selectors = steps
       .map((s) => s.to)
       .filter((to): to is string => typeof to === "string" && !to.trim().endsWith("%"));
+    const headerInsetPx = selectors.length > 0 ? await page.evaluate(measureTopInset, {}) : 0;
     const measured =
-      selectors.length > 0 ? await page.evaluate(measureNormalizedOffsets, { selectors }) : [];
+      selectors.length > 0
+        ? await page.evaluate(measureNormalizedOffsets, { selectors, headerInsetPx })
+        : [];
 
     let mi = 0;
     let prevY = 0;
@@ -129,10 +133,12 @@ async function buildScrollTimeline(
   // 2. Auto-sections: detect the page's sections and pan/hold through them within a fixed budget.
   if (options.autoSections) {
     const cfg = options.autoSections === true ? {} : options.autoSections;
+    const headerInsetPx = await page.evaluate(measureTopInset, {});
     const offsets = await page.evaluate(detectSectionOffsets, {
       minHeightFraction: cfg.minHeightFraction ?? DEFAULT_AUTO_MIN_HEIGHT_FRACTION,
       selector: cfg.selector ?? null,
       maxSections: cfg.maxSections ?? DEFAULT_AUTO_MAX_SECTIONS,
+      headerInsetPx,
     });
     const autoSteps = autoSectionSteps({
       offsets,

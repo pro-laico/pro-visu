@@ -24,6 +24,28 @@ Output is mp4.
 }
 ```
 
+<Example
+  clip="colors-reel"
+  caption="The VESPER brand palette as a looping reveal — each colour expands to show its hex + oklch, then collapses."
+  code={`{
+  name: "colors-reel",
+  generator: "palette-reel",
+  options: {
+    colors: [
+      { name: "Ink", hex: "#1a1714" },
+      { name: "Paper", hex: "#f6f3ed" },
+      { name: "Camel", hex: "#b49a77" },
+      { name: "Loden", hex: "#5c5e4c" },
+      { name: "Cognac", hex: "#8a5a3c" },
+    ],
+    details: ["hex", "oklch"],
+    uppercase: true,
+    background: "#1a1714",
+    textLight: "#f6f3ed",
+  },
+}`}
+/>
+
 ## Options
 
 ### Colours & reveal
