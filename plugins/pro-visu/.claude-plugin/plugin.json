@@ -1,7 +1,7 @@
 {
   "name": "pro-visu",
   "description": "Set up and run pro-visu in any project to generate showcase assets of a website (scroll reels, screenshots, media walls, type/colour specimens).",
-  "version": "0.1.0",
+  "version": "0.3.1",
   "author": { "name": "Pro Laico", "url": "https://pro-visu.com" },
   "homepage": "https://pro-visu.com"
 }
