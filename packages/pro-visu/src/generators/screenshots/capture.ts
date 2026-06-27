@@ -1,7 +1,9 @@
 import type { Browser, Page } from "playwright-core";
 import type { Logger } from "@/utils/logger";
 import { mapLimit } from "@/utils/concurrency";
+import { applyCapture } from "@/pipeline/capture";
 import { prepareScroll } from "@/generators/scroll-reel/scroll";
+import type { ResolvedCaptureSettings } from "@/config/schema";
 import type { ResolvedScreenshotsOptions } from "@/generators/screenshots/options";
 
 /** Minimum settle at the bottom for lazy/below-the-fold content (esp. for fullPage shots). */
@@ -18,6 +20,7 @@ export interface CaptureArgs {
   url: string;
   options: ResolvedScreenshotsOptions;
   logger: Logger;
+  capture?: ResolvedCaptureSettings;
 }
 
 type PageShotOptions = NonNullable<Parameters<Page["screenshot"]>[0]>;
@@ -50,6 +53,7 @@ async function captureBreakpoint(
       viewport: { width: bp.width, height: bp.height },
       deviceScaleFactor: bp.deviceScaleFactor ?? options.deviceScaleFactor,
     });
+    await applyCapture(context, args.capture, url);
     const page = await context.newPage();
     try {
       logger.debug(`[${bp.name}] navigating to ${url}`);

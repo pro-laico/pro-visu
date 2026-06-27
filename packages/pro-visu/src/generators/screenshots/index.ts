@@ -35,6 +35,7 @@ async function run(
     url,
     options,
     logger: ctx.logger,
+    capture: ctx.capture,
   });
 
   const records: AssetRecord[] = [];

@@ -1,0 +1,108 @@
+import os from "node:os";
+import path from "node:path";
+import https from "node:https";
+import type { IncomingMessage } from "node:http";
+import { createWriteStream } from "node:fs";
+import { mkdir, rename, rm, chmod } from "node:fs/promises";
+import { createGunzip } from "node:zlib";
+import { pipeline } from "node:stream/promises";
+
+/**
+ * ffmpeg binary provisioning, vendored so pro-visu carries NO `ffmpeg-static` dependency. That
+ * package fetches its binary via a postinstall script, which pnpm 10+/npm block by default —
+ * tripping a build-script approval prompt in every consuming repo. We instead pull the SAME
+ * prebuilt static binaries `ffmpeg-static` publishes on GitHub, but on demand into a shared cache
+ * (the way we already fetch Chromium), so installing pro-visu downloads nothing and prompts nothing.
+ *
+ * Licensing: these are the eugeneware/ffmpeg-static GPL builds. The matching LICENSE lives next to
+ * each release asset (`<platform>-<arch>.LICENSE`) — see FFMPEG_RELEASE below.
+ */
+
+/** The ffmpeg-static GitHub release we pull from (ffmpeg 6.1.1). Bump alongside a binary refresh. */
+export const FFMPEG_RELEASE = process.env.FFMPEG_BINARY_RELEASE || "b6.1.1";
+
+/** Base URL for the release assets (override for a private mirror via FFMPEG_BINARIES_URL). */
+const BINARIES_URL =
+  process.env.FFMPEG_BINARIES_URL ||
+  "https://github.com/eugeneware/ffmpeg-static/releases/download";
+
+/** Platform → arches with a published static binary (mirrors ffmpeg-static's matrix). */
+const SUPPORTED: Record<string, readonly string[]> = {
+  darwin: ["x64", "arm64"],
+  linux: ["x64", "ia32", "arm64", "arm"],
+  win32: ["x64", "ia32"],
+  freebsd: ["x64"],
+};
+
+/** Whether a prebuilt binary exists for the current platform/arch. */
+export function ffmpegIsSupported(): boolean {
+  return (SUPPORTED[process.platform] ?? []).includes(process.arch);
+}
+
+/** Shared cache dir for the managed binary (one copy across all projects). Override: PROVISU_FFMPEG_DIR. */
+export function ffmpegCacheDir(): string {
+  const base =
+    process.env.PROVISU_FFMPEG_DIR || path.join(os.homedir(), ".cache", "pro-visu", "ffmpeg");
+  return path.join(base, FFMPEG_RELEASE);
+}
+
+/** Absolute path of the managed binary in the cache (a release bump lands in its own subdir). */
+export function ffmpegCachedBinary(): string {
+  return path.join(ffmpegCacheDir(), process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg");
+}
+
+/** The binary path to spawn: an explicit FFMPEG_BIN override, else the managed cache binary. */
+export function ffmpegBinaryPath(): string {
+  return process.env.FFMPEG_BIN || ffmpegCachedBinary();
+}
+
+/** Download URL for the current platform's gzipped binary, or null if unsupported. */
+export function ffmpegDownloadUrl(): string | null {
+  if (!ffmpegIsSupported()) return null;
+  return `${BINARIES_URL}/${FFMPEG_RELEASE}/ffmpeg-${process.platform}-${process.arch}.gz`;
+}
+
+/** HTTPS GET that follows redirects (GitHub releases 302 → S3), resolving to the 200 response stream. */
+function getFollowing(url: string, redirects = 5): Promise<IncomingMessage> {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, { headers: { "User-Agent": "pro-visu" } }, (res) => {
+      const status = res.statusCode ?? 0;
+      if (status >= 300 && status < 400 && res.headers.location) {
+        res.resume();
+        if (redirects <= 0) return reject(new Error("Too many redirects fetching ffmpeg."));
+        resolve(getFollowing(new URL(res.headers.location, url).toString(), redirects - 1));
+        return;
+      }
+      if (status !== 200) {
+        res.resume();
+        reject(new Error(`ffmpeg download failed: HTTP ${status} for ${url}`));
+        return;
+      }
+      resolve(res);
+    });
+    req.on("error", reject);
+  });
+}
+
+/**
+ * Download + gunzip the static ffmpeg binary into the shared cache (atomically, via a temp file), and
+ * mark it executable. Targets the managed cache path — never an FFMPEG_BIN override. Returns its path.
+ */
+export async function downloadFfmpeg(): Promise<string> {
+  const url = ffmpegDownloadUrl();
+  if (!url) {
+    throw new Error(
+      `No prebuilt ffmpeg for ${process.platform}/${process.arch}. Set FFMPEG_BIN to a local ffmpeg binary.`,
+    );
+  }
+  const dest = ffmpegCachedBinary();
+  const tmp = `${dest}.download`;
+  await mkdir(path.dirname(dest), { recursive: true });
+  await rm(tmp, { force: true });
+  const res = await getFollowing(url);
+  await pipeline(res, createGunzip(), createWriteStream(tmp));
+  await chmod(tmp, 0o755).catch(() => {}); // no-op / unsupported on Windows
+  await rm(dest, { force: true });
+  await rename(tmp, dest);
+  return dest;
+}

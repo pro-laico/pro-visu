@@ -98,6 +98,39 @@ export const serverSettingsSchema = z
   .strict();
 export type ResolvedServerSettings = z.infer<typeof serverSettingsSchema>;
 
+/**
+ * "Capture mode" toggles applied to every URL-based capture, so a site can render a clean, settled
+ * snapshot (animations finished, no cookie banner, no chat widget, …) while keeping that behavior
+ * for real users. Delivered three ways so a site can read whichever fits its rendering model:
+ * a query param, cookies (SSR-readable + persist across in-app navigation — best for multi-route
+ * reels), and an init script / localStorage for client-only reads. All are optional.
+ */
+export const captureSettingsSchema = z
+  .object({
+    /** Query params appended to every URL-based asset (e.g. `{ capture: "1" }` → `?capture=1`). */
+    query: z
+      .record(z.string(), z.string())
+      .optional()
+      .describe('Query params appended to every URL-based asset, e.g. { capture: "1" }.'),
+    /** Cookies set on every capture context before navigation, scoped to the asset's origin. */
+    cookies: z
+      .array(z.object({ name: z.string().min(1), value: z.string() }).strict())
+      .optional()
+      .describe("Cookies set on every capture context before navigation (scoped to the asset's origin)."),
+    /** localStorage entries seeded before the page's own scripts run. */
+    localStorage: z
+      .record(z.string(), z.string())
+      .optional()
+      .describe("localStorage entries seeded (per origin) before the page's own scripts run."),
+    /** JS source run in every page before its own scripts — e.g. set a global capture flag. */
+    initScript: z
+      .string()
+      .optional()
+      .describe("JS run in every page before its own scripts (e.g. `window.__PV_CAPTURE__ = true`)."),
+  })
+  .strict();
+export type ResolvedCaptureSettings = z.infer<typeof captureSettingsSchema>;
+
 /** Repo-level CLI behavior (the `settings` block). */
 export const settingsSchema = z.object({
   /** Output directory, relative to the repo root. */
@@ -139,6 +172,10 @@ export const settingsSchema = z.object({
   server: serverSettingsSchema
     .optional()
     .describe("Build → start → wait → capture → stop a server automatically."),
+  /** "Capture mode" toggles (query/cookies/localStorage/init script) applied to every URL capture. */
+  capture: captureSettingsSchema
+    .optional()
+    .describe('Capture-mode toggles applied to every URL-based asset (e.g. disable animations / hide the cookie banner).'),
   /** Render quality. "draft" lowers fps/scale and speeds the encoder for fast iteration. */
   quality: z
     .enum(["draft", "final"])

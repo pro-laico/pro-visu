@@ -158,8 +158,9 @@ export default defineConfig({
     maxMemoryMB: 8192,
     browser: { headless: true },
     server: {
-      build: "pnpm build",
-      command: "pnpm exec next start", // tool sets PORT (defaults to 3101); Next binds it
+      build: "pnpm build", 
+      command: "pnpm exec next start", // tool sets PORT; Next binds it
+      port: 3400, // pinned (off the shared 3000 dev port); start script also uses 3400
       readyTimeoutMs: 180_000,
     },
     defaults: {

@@ -1,7 +1,7 @@
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { rm, writeFile } from "node:fs/promises";
-import ffmpegStatic from "ffmpeg-static";
+import { ffmpegBinaryPath } from "@/media/ffmpeg-binary";
 import { ensureDir } from "@/utils/fs";
 import type { Logger } from "@/utils/logger";
 
@@ -44,13 +44,9 @@ const COLOR_TAGS = [
   "tv",
 ];
 
-/** Absolute path to the bundled ffmpeg binary. */
+/** Absolute path to the managed ffmpeg binary (FFMPEG_BIN override, else the shared cache). */
 export function ffmpegPath(): string {
-  const p = ffmpegStatic as unknown as string | null;
-  if (!p) {
-    throw new Error("ffmpeg-static did not provide a binary for this platform.");
-  }
-  return p;
+  return ffmpegBinaryPath();
 }
 
 /**

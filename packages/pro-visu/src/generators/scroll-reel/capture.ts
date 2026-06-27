@@ -3,7 +3,9 @@ import { mkdtemp } from "node:fs/promises";
 import type { Browser } from "playwright-core";
 import type { Logger } from "@/utils/logger";
 import { ensureDir } from "@/utils/fs";
+import { applyCapture } from "@/pipeline/capture";
 import { pageScroll, prepareScroll } from "@/generators/scroll-reel/scroll";
+import type { ResolvedCaptureSettings } from "@/config/schema";
 import type { ResolvedScrollReelOptions } from "@/generators/scroll-reel/options";
 
 /** Time at the bottom for lazy/below-the-fold content to load during the (trimmed) warm-up pass. */
@@ -16,6 +18,7 @@ export interface CaptureArgs {
   /** Scratch root; a unique recording subdir is created inside. */
   tmpDir: string;
   logger: Logger;
+  capture?: ResolvedCaptureSettings;
 }
 
 export interface CaptureResult {
@@ -42,6 +45,7 @@ export async function captureScrollWebm(args: CaptureArgs): Promise<CaptureResul
       size: { width: options.width, height: options.height },
     },
   });
+  await applyCapture(context, args.capture, url);
   const page = await context.newPage();
   const video = page.video();
 

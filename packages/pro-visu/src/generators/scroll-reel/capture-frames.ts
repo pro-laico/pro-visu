@@ -1,5 +1,6 @@
 import type { Browser, Page } from "playwright-core";
 import { captureFramedVideo } from "@/media/frame-capture";
+import { applyCapture } from "@/pipeline/capture";
 import {
   detectSectionOffsets,
   measureNormalizedOffsets,
@@ -37,6 +38,7 @@ import {
   type ResolvedTimeline,
   type TimelineSpec,
 } from "@/generators/scroll-reel/timeline";
+import type { ResolvedCaptureSettings } from "@/config/schema";
 import type { ResolvedScrollReelOptions } from "@/generators/scroll-reel/options";
 import type { Logger } from "@/utils/logger";
 
@@ -59,6 +61,7 @@ export interface ScrollFramesArgs {
   settleMaxMs: number;
   /** Force a color scheme for this capture (emulated via prefers-color-scheme). */
   colorScheme?: "light" | "dark";
+  capture?: ResolvedCaptureSettings;
   tmpDir: string;
   logger: Logger;
   /** Fractional progress (0–1) as frames complete. */
@@ -205,6 +208,8 @@ export async function captureScrollFrames(a: ScrollFramesArgs): Promise<void> {
       // Force the color scheme + block tracker requests before navigation so load-time media queries
       // and the network match the intended capture.
       if (a.colorScheme) await page.emulateMedia({ colorScheme: a.colorScheme });
+      // Seed capture-mode cookies / init script on the context before any navigation.
+      await applyCapture(page.context(), a.capture, a.url);
       await installNetworkHygiene(page, options);
       // Pre-navigation hooks (e.g. freeze the clock, theme class) must be installed before page scripts.
       await installPreNav(page, options);

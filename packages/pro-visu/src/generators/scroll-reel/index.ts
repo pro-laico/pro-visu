@@ -37,6 +37,7 @@ async function run(
     ctx.logger.info(`recording ${url} (focus: ${options.focus.selector})`);
     const { webmPath, leadSeconds, durationSeconds, cropBox } = await captureFocusWebm({
       browser: ctx.browser,
+      capture: ctx.capture,
       url,
       options,
       colorScheme: scheme,
@@ -93,6 +94,7 @@ async function run(
     ctx.logger.info(`recording ${url} (interaction, ${options.actions.length} action(s))`);
     const { webmPath, leadSeconds, durationSeconds } = await captureInteractionWebm({
       browser: ctx.browser,
+      capture: ctx.capture,
       url,
       options,
       colorScheme: scheme,
@@ -162,6 +164,7 @@ async function run(
       );
       await captureScrollFrames({
         browser: ctx.browser,
+        capture: ctx.capture,
         url: routeUrl,
         options: routeOpts,
         outPath: segPath,
@@ -219,6 +222,7 @@ async function run(
     ctx.logger.info(`recording ${url} (realtime)`);
     const { webmPath, leadSeconds } = await captureScrollWebm({
       browser: ctx.browser,
+      capture: ctx.capture,
       url,
       options,
       tmpDir: ctx.tmpDir,
@@ -285,6 +289,7 @@ async function run(
     ctx.logger.info(`recording ${url}${label} (frame-stepped, ${workers} worker(s))`);
     await captureScrollFrames({
       browser: ctx.browser,
+      capture: ctx.capture,
       url,
       options: vopts,
       outPath: captureMp4,

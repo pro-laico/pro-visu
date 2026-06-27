@@ -2,7 +2,9 @@ import path from "node:path";
 import type { Browser } from "playwright-core";
 import { ensureDir } from "@/utils/fs";
 import { generatorDir, relPosix } from "@/utils/paths";
+import { withCaptureQuery } from "@/pipeline/capture";
 import type { Logger } from "@/utils/logger";
+import type { ResolvedCaptureSettings } from "@/config/schema";
 import type { ManifestStore } from "@/manifest/manifest";
 import type { AssetTarget, PipelineContext } from "@/generators/types";
 
@@ -19,6 +21,8 @@ export interface CreateContextArgs {
   toolVersion: string;
   quality: "draft" | "final";
   manifest: ManifestStore;
+  /** Capture-mode toggles applied to every context (and folded into the target URL's query). */
+  capture?: ResolvedCaptureSettings;
   /** Forwarded to the live dashboard as this asset's progress (0–1). */
   onProgress?: (value: number) => void;
   /** Aborts in-flight work when the run is cancelled. */
@@ -32,7 +36,10 @@ export async function createContext(args: CreateContextArgs): Promise<PipelineCo
 
   return {
     browser: args.browser,
-    target: args.target,
+    // Fold the capture query params into the target URL so every generator's `requireUrl(ctx)`
+    // captures in capture mode without each one re-applying it.
+    target: { ...args.target, url: withCaptureQuery(args.target.url, args.capture) },
+    capture: args.capture,
     resolvedInputs: args.resolvedInputs,
     outDir: args.outDir,
     resolveOutPath: (filename) => path.join(genDir, filename),

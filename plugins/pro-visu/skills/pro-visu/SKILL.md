@@ -84,9 +84,30 @@ pnpm exec pro-visu list                     # show what's in the manifest
 Assets land in `pro-visu/<generator>/...` with metadata in `pro-visu/manifest.json` (gitignored).
 Re-running replaces an asset's record by `name`.
 
+## Capture-safe animations (esp. screenshots)
+Screenshots freeze a single instant, so **JS/React-controlled animations don't capture cleanly** —
+they're caught mid-flight or in their pre-animation state, leaving **blank gaps, missing sections, or
+zeroed-out numbers** in the output. Disabling CSS transitions alone (e.g. Playwright's
+`animations: "disabled"`) does NOT fix these, because the visible state is gated in JS, not CSS.
+Common offenders:
+- **Reveal-on-scroll** (fade/slide-in via IntersectionObserver) → sections stay at `opacity: 0`, so a
+  full-page shot shows a large empty gap between the hero and footer.
+- **Number count-ups** (animate 0 → value) → captured as `0` or a partial value.
+- **Scroll-snap**, scroll-driven sequences, carousels, typewriters, parallax → caught at the wrong frame.
+
+**Fix at the SITE level: gate every such animation behind a toggle that renders the final/settled
+state, and toggle it OFF for captures.** Recommended mechanism: a query param the components read (e.g.
+`?capture=1` / `?novfx=1`), or a cookie/env, that makes reveals render visible, count-ups show their
+final number, and scroll-snap relax to normal flow. Then point the capture at that flag — give each
+asset's `url` the param (`/shop?capture=1`), or bake it into the managed-server base. Build the toggle
+in from the start on any site you intend to capture; it's far more reliable than trying to out-wait the
+animations from the capture side.
+
 ## Notes
 - Needs a **reachable URL or a managed server** — pro-visu won't boot a dev server unless
   `settings.server` is configured.
+- **JS-driven animations need a site-side off switch** — reveal-on-scroll, count-ups, and scroll-snap
+  capture as gaps/zeros; see *Capture-safe animations* above.
 - Node ≥ 18.18 + a package manager. The first generate downloads a managed Chromium (one-time,
   cached and shared across projects); ffmpeg is bundled.
 - Unreleased / pinned build: `pnpm add -D github:pro-laico/pro-visu`

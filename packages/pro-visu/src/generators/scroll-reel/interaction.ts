@@ -2,11 +2,13 @@ import path from "node:path";
 import { mkdtemp } from "node:fs/promises";
 import type { Browser, Page } from "playwright-core";
 import { ensureDir } from "@/utils/fs";
+import { applyCapture } from "@/pipeline/capture";
 import {
   applyPostNav,
   installNetworkHygiene,
   installPreNav,
 } from "@/generators/scroll-reel/clean-capture";
+import type { ResolvedCaptureSettings } from "@/config/schema";
 import type { ResolvedScrollReelOptions } from "@/generators/scroll-reel/options";
 import type { Logger } from "@/utils/logger";
 
@@ -264,6 +266,7 @@ export interface InteractionArgs {
   colorScheme?: "light" | "dark";
   tmpDir: string;
   logger: Logger;
+  capture?: ResolvedCaptureSettings;
 }
 
 export interface InteractionResult {
@@ -287,6 +290,7 @@ export async function captureInteractionWebm(args: InteractionArgs): Promise<Int
     deviceScaleFactor: options.deviceScaleFactor,
     recordVideo: { dir: recordDir, size: { width: options.width, height: options.height } },
   });
+  await applyCapture(context, args.capture, url);
   const page = await context.newPage();
   const video = page.video();
   const actions = options.actions ?? [];
@@ -366,6 +370,7 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
     deviceScaleFactor: options.deviceScaleFactor,
     recordVideo: { dir: recordDir, size: { width: options.width, height: options.height } },
   });
+  await applyCapture(context, args.capture, url);
   const page = await context.newPage();
   const video = page.video();
   const actions = focus.actions ?? [];

@@ -111,18 +111,30 @@ export async function prepareScroll(args: PrepareScrollArgs): Promise<void> {
 
   const sleep = (ms: number): Promise<void> =>
     new Promise((resolve) => setTimeout(() => resolve(), ms));
+  // Cap any awaited promise so a never-settling one can't wedge the whole prepare step. A
+  // `loading="lazy"` <img> that never enters the viewport (e.g. in a hidden carousel slide) never
+  // loads, so its `decode()` neither resolves nor rejects — and `document.fonts.ready` can stall on
+  // a webfont that never loads. Both run inside `page.evaluate`, which has no timeout, so without a
+  // cap a single such element hangs the entire capture indefinitely.
+  const withCap = <T>(p: Promise<T> | null, ms: number): Promise<T | void> =>
+    Promise.race([p ?? Promise.resolve(), sleep(ms)]);
 
   scrollTargetTo(target, maxScrollOf(target)); // jump to bottom to trigger lazy content
   await sleep(Math.max(0, args.settleMs));
   try {
-    await (document.fonts?.ready ?? Promise.resolve());
+    await withCap(document.fonts?.ready ?? null, 5000);
   } catch {
     /* no font set */
   }
   try {
     const imgs = Array.from(document.images ?? []);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await Promise.all(imgs.map((im: any) => (im.decode ? im.decode().catch(() => {}) : null)));
+    // Decode every image, but bound the whole batch — a real decode is sub-second; a stuck lazy/
+    // never-loading image would otherwise hang here forever (see `withCap` above).
+    await withCap(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      Promise.all(imgs.map((im: any) => (im.decode ? im.decode().catch(() => {}) : null))),
+      4000,
+    );
   } catch {
     /* decode unsupported */
   }

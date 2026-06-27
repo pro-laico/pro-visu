@@ -51,6 +51,17 @@ export interface ServerSettingsInput {
   reuseExisting?: boolean;
 }
 
+export interface CaptureSettingsInput {
+  /** Query params appended to every URL-based asset, e.g. `{ capture: "1" }` → `?capture=1`. */
+  query?: Record<string, string>;
+  /** Cookies set on every capture context before navigation (scoped to the asset's origin). */
+  cookies?: { name: string; value: string }[];
+  /** localStorage entries seeded (per origin) before the page's own scripts run. */
+  localStorage?: Record<string, string>;
+  /** JS run in every page before its own scripts, e.g. `window.__PV_CAPTURE__ = true`. */
+  initScript?: string;
+}
+
 export interface ShowcaseSettingsInput {
   /** Output directory for generated assets, relative to the repo root (default "pro-visu"). */
   outDir?: string;
@@ -69,6 +80,8 @@ export interface ShowcaseSettingsInput {
   browser?: BrowserSettingsInput;
   /** Build → start → wait → capture → stop a server automatically. */
   server?: ServerSettingsInput;
+  /** Capture-mode toggles applied to every URL-based asset (disable animations, hide cookie banner, …). */
+  capture?: CaptureSettingsInput;
   /** "draft" lowers fps/scale and speeds the encoder for fast iteration. */
   quality?: "draft" | "final";
   /** Skip assets whose inputs+options+tool fingerprint is unchanged (opt-in). */

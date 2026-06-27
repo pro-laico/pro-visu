@@ -1,14 +1,10 @@
-import path from "node:path";
 import { existsSync } from "node:fs";
-import { rm } from "node:fs/promises";
 import { spawn } from "node:child_process";
-import { createRequire } from "node:module";
 import { ffmpegPath } from "@/media/ffmpeg";
+import { downloadFfmpeg, ffmpegIsSupported } from "@/media/ffmpeg-binary";
 import type { Logger } from "@/utils/logger";
 
-const require = createRequire(import.meta.url);
-
-/** Does the bundled ffmpeg binary exist AND actually execute on this platform? */
+/** Does the managed ffmpeg binary exist AND actually execute on this platform? */
 async function ffmpegWorks(): Promise<boolean> {
   let bin: string;
   try {
@@ -32,20 +28,6 @@ async function ffmpegWorks(): Promise<boolean> {
   });
 }
 
-/** Locate ffmpeg-static's bundled downloader script. */
-function resolveInstallScript(): string | null {
-  try {
-    return require.resolve("ffmpeg-static/install.js");
-  } catch {
-    try {
-      const pkg = require.resolve("ffmpeg-static/package.json");
-      return path.join(path.dirname(pkg), "install.js");
-    } catch {
-      return null;
-    }
-  }
-}
-
 export interface EnsureFfmpegOptions {
   logger: Logger;
   /** When true, only report status; never download. */
@@ -53,42 +35,33 @@ export interface EnsureFfmpegOptions {
 }
 
 /**
- * Ensure a working ffmpeg binary. ffmpeg-static fetches its binary via a postinstall script,
- * which pnpm/npm block unless the consumer approves build scripts — leaving the binary
- * missing or corrupt so it fails to spawn (EFTYPE). We self-heal by running ffmpeg-static's
- * own downloader on demand (mirroring how we fetch Chromium), so consumers never have to
- * approve build scripts or install ffmpeg by hand.
+ * Ensure a working ffmpeg binary. pro-visu ships no ffmpeg and depends on no `ffmpeg-static`, so we
+ * fetch a prebuilt static binary on demand into a shared cache (mirroring how we fetch Chromium) —
+ * consumers never approve a build script or install ffmpeg by hand. An explicit FFMPEG_BIN that
+ * already runs is honored as-is and never overwritten.
  */
 export async function ensureFfmpeg(opts: EnsureFfmpegOptions): Promise<boolean> {
   if (await ffmpegWorks()) return true;
   if (opts.checkOnly) return false;
 
-  const installScript = resolveInstallScript();
-  if (!installScript) {
-    opts.logger.error("ffmpeg-static is not installed; cannot fetch an ffmpeg binary.");
+  if (process.env.FFMPEG_BIN) {
+    opts.logger.error(`FFMPEG_BIN is set to "${process.env.FFMPEG_BIN}" but that binary won't run.`);
+    return false;
+  }
+  if (!ffmpegIsSupported()) {
+    opts.logger.error(
+      `No prebuilt ffmpeg for ${process.platform}/${process.arch}. Set FFMPEG_BIN to a local ffmpeg binary.`,
+    );
     return false;
   }
 
   opts.logger.info("Fetching ffmpeg (one-time, ~80 MB)…");
-  // ffmpeg-static's installer treats any existing file as already-done, so clear a corrupt
-  // binary first to force a clean re-download.
   try {
-    await rm(ffmpegPath(), { force: true });
-  } catch {
-    /* path may not resolve yet — the download recreates it */
+    await downloadFfmpeg();
+  } catch (err) {
+    opts.logger.error(`ffmpeg download failed: ${(err as Error).message}`);
+    return false;
   }
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn(process.execPath, [installScript], {
-      cwd: path.dirname(installScript),
-      stdio: "inherit",
-    });
-    child.on("error", reject);
-    child.on("close", (code) =>
-      code === 0
-        ? resolve()
-        : reject(new Error(`ffmpeg download failed (exit code ${code}).`)),
-    );
-  });
 
   if (!(await ffmpegWorks())) {
     opts.logger.error("ffmpeg was downloaded but still won't run on this platform.");

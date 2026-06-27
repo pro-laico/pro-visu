@@ -15,6 +15,8 @@ export interface CacheKeyParts {
   files?: Record<string, string>;
   quality: string;
   toolVersion: string;
+  /** Capture-mode toggles — part of the output fingerprint (undefined drops out of the hash). */
+  capture?: unknown;
 }
 
 /** Deterministic JSON: object keys sorted recursively so the hash is stable. */

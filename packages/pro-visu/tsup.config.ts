@@ -23,7 +23,7 @@ export default defineConfig({
   sourcemap: true,
   // Inline the package version so the CLI doesn't read package.json at runtime.
   define: { __TOOL_VERSION__: JSON.stringify(pkg.version) },
-  // Runtime deps (playwright-core, ffmpeg-static, c12, etc.) stay external automatically
+  // Runtime deps (playwright-core, c12, etc.) stay external automatically
   // because they're in package.json `dependencies`. We only transpile our own `src`.
   // The `@/` alias resolves via tsconfig `paths` (esbuild reads it when bundling).
 });

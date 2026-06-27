@@ -144,6 +144,8 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
         files: fileHashes,
         quality,
         toolVersion: opts.toolVersion,
+        // Capture-mode toggles change the rendered output, so a change must bust the cache.
+        capture: opts.config.settings.capture,
       });
 
       if (cacheEnabled) {
@@ -178,6 +180,7 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
         toolVersion: opts.toolVersion,
         quality,
         manifest,
+        capture: opts.config.settings.capture,
         onProgress: reporter ? (v) => reporter.progress(spec.name, v) : undefined,
         signal: opts.signal,
       });

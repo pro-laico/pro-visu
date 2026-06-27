@@ -1,6 +1,7 @@
 import type { Browser } from "playwright-core";
 import type { ZodType, ZodTypeDef } from "zod";
 import type { Logger } from "@/utils/logger";
+import type { ResolvedCaptureSettings } from "@/config/schema";
 import type { AssetRecord } from "@/manifest/schema";
 
 /** The site/page an asset is generated for. `url` is absent for local `scene` assets. */
@@ -17,6 +18,12 @@ export interface PipelineContext {
   /** Shared, already-launched browser. Generators create their own contexts. */
   browser: Browser;
   target: AssetTarget;
+  /**
+   * Capture-mode toggles (cookies / localStorage / init script) to seed onto every context this
+   * generator opens, via `applyCapture`. Undefined when no `settings.capture` is configured. The
+   * query-param half is already folded into `target.url`.
+   */
+  capture?: ResolvedCaptureSettings;
   /** Absolute file paths of this asset's declared `inputs`, keyed by slot name. */
   resolvedInputs: Record<string, string>;
   /** Absolute output root (e.g. <repo>/showcase). */
