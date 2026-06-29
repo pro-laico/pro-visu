@@ -4,6 +4,32 @@ All notable changes to `pro-visu` are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com), and the project adheres to
 [Semantic Versioning](https://semver.org).
 
+## [0.4.0] - 2026-06-29
+
+### Added
+
+- **Capture mode (`settings.capture`)** — per-capture toggles applied to every URL-based asset so a
+  site can render a clean, settled snapshot (animations finished, no cookie banner, no chat widget)
+  while keeping that behavior for real users. Delivered four ways, so a site reads whichever fits its
+  rendering model: a `query` param appended to every URL, `cookies` (SSR-readable and persisted across
+  in-app navigation — best for multi-route reels), seeded `localStorage`, and an `initScript` run
+  before the page's own scripts. The toggles are folded into the cache key, so changing them
+  re-captures. Available on both the typed `defineConfig` path and the JSON config (with schema
+  autocomplete).
+- **Generator option types exported** — `Palette`, `PaletteReel`, and `Image` option types are now
+  part of the public API alongside the existing generators.
+
+### Changed
+
+- **ffmpeg is fetched on demand, not bundled** — dropped the `ffmpeg-static` dependency. The static
+  ffmpeg binary is now downloaded into a shared cache on first use (mirroring how managed Chromium is
+  fetched), so installing `pro-visu` no longer trips pnpm's build-script approval in consumer repos.
+
+### Fixed
+
+- **`prepareScroll` can't hang a capture** — the image-decode and `fonts.ready` waits are now bounded,
+  so a never-settling lazy image no longer stalls a capture indefinitely.
+
 ## [0.3.1] - 2026-06-18
 
 ### Fixed

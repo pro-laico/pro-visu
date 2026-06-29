@@ -109,6 +109,6 @@ animations from the capture side.
 - **JS-driven animations need a site-side off switch** — reveal-on-scroll, count-ups, and scroll-snap
   capture as gaps/zeros; see *Capture-safe animations* above.
 - Node ≥ 18.18 + a package manager. The first generate downloads a managed Chromium (one-time,
-  cached and shared across projects); ffmpeg is bundled.
+  cached and shared across projects); ffmpeg is fetched the same way on first use.
 - Unreleased / pinned build: `pnpm add -D github:pro-laico/pro-visu`
   (see https://pro-visu.com/docs/getting-started).

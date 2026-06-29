@@ -1,6 +1,6 @@
 {
   "name": "pro-visu",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "A portable CLI for generating showcase assets (scroll reels, and more) of the websites you build.",
   "type": "module",
   "license": "MIT",
