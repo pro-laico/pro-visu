@@ -15,6 +15,7 @@ The `settings` block controls repo-level CLI behaviour. Every field has a defaul
 | `quality` | `"draft" \| "final"` | `"final"` | `draft` lowers fps/scale and speeds the encoder for fast iteration (same as `--draft`). |
 | `cache` | `boolean` | `false` | Skip assets whose inputs + options + tool fingerprint are unchanged. Opt-in; can be stale. |
 | `browser` | `object` | — | Playwright launch controls (see below). |
+| `capture` | `object` | — | [Capture-mode](#capture) toggles applied to every URL-based asset, so a site can render a clean, settled snapshot for the camera. |
 | `defaults` | `object` | `{}` | Per-generator option defaults, keyed by generator id, merged beneath each asset's `options`. |
 | `server` | `object` | — | Optional [managed server](/docs/configuration/managed-server). |
 
@@ -41,6 +42,37 @@ settings: {
 ```
 
 When `channel` or `executablePath` is set, the managed Chromium is not required or installed.
+
+## `capture`
+
+A page that animates in — reveal-on-scroll, count-ups, scroll-snap — or shows a cookie banner or
+chat widget captures as gaps, zeros, or the wrong frame. `capture` lets a site render its final,
+settled state **for the camera only** while keeping the real behaviour for visitors. It's applied to
+every URL-based asset and folded into the cache key, so changing it re-captures.
+
+These toggles only deliver a signal; the **site has to read it** and render accordingly. They're
+delivered four ways so a site can use whichever fits its rendering model:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `query` | `Record<string, string>` | Query params appended to every URL-based asset, e.g. `{ capture: "1" }` → `?capture=1`. |
+| `cookies` | `{ name, value }[]` | Cookies set on every capture context before navigation (scoped to the asset's origin). SSR-readable and persisted across in-app navigation — the best fit for multi-route reels. |
+| `localStorage` | `Record<string, string>` | Entries seeded per origin before the page's own scripts run. |
+| `initScript` | `string` | JS run in every page before its own scripts, e.g. `window.__PV_CAPTURE__ = true`. |
+
+```ts
+settings: {
+  capture: {
+    query: { capture: "1" },                 // site reads ?capture=1 and renders settled
+    cookies: [{ name: "pv_capture", value: "1" }],
+    initScript: "window.__PV_CAPTURE__ = true",
+  },
+}
+```
+
+This is the **site-side** counterpart to a `scroll-reel`'s [clean capture](/docs/generators/scroll-reel#clean-capture)
+options: clean-capture hides noise from pro-visu's side (`hideSelectors`, `blockTrackers`), while
+`capture` flips a switch the site itself honours.
 
 ## `defaults`
 
