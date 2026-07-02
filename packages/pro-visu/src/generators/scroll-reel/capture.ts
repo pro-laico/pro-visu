@@ -63,7 +63,7 @@ export async function captureScrollWebm(args: CaptureArgs): Promise<CaptureResul
     // Everything above is blank/churn in the recording; the animated scroll starts now.
     leadSeconds = (Date.now() - recStart) / 1000;
     const distance = await page.evaluate(pageScroll, {
-      durationMs: options.duration,
+      durationMs: options.durationMs,
       easing: options.easing,
       startDelayMs: options.startDelayMs,
       endDwellMs: options.endDwellMs,

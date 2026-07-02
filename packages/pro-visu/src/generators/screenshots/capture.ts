@@ -26,25 +26,25 @@ export interface CaptureArgs {
 type PageShotOptions = NonNullable<Parameters<Page["screenshot"]>[0]>;
 
 /**
- * Capture page (and optional element) screenshots across every configured breakpoint.
- * Breakpoints render in parallel (each in its own isolated context, modest cap — full-page
- * buffers are memory-heavy); element shots stay sequential within a breakpoint. mapLimit
+ * Capture page (and optional element) screenshots across every configured viewport.
+ * Viewports render in parallel (each in its own isolated context, modest cap — full-page
+ * buffers are memory-heavy); element shots stay sequential within a viewport. mapLimit
  * preserves input order, so filenames/manifest ids are stable.
  */
 export async function captureScreenshots(args: CaptureArgs): Promise<Shot[]> {
   const { options } = args;
-  const perBreakpoint = await mapLimit(
-    options.breakpoints,
-    Math.min(3, options.breakpoints.length),
-    (bp) => captureBreakpoint(args, bp),
+  const perViewport = await mapLimit(
+    options.viewports,
+    Math.min(3, options.viewports.length),
+    (bp) => captureViewport(args, bp),
   );
-  return perBreakpoint.flat();
+  return perViewport.flat();
 }
 
-/** One breakpoint: fresh context → navigate → warm the page → page shot + element shots. */
-async function captureBreakpoint(
+/** One viewport: fresh context → navigate → warm the page → page shot + element shots. */
+async function captureViewport(
   args: CaptureArgs,
-  bp: ResolvedScreenshotsOptions["breakpoints"][number],
+  bp: ResolvedScreenshotsOptions["viewports"][number],
 ): Promise<Shot[]> {
   const { browser, url, options, logger } = args;
   const shots: Shot[] = [];
@@ -94,7 +94,7 @@ async function captureBreakpoint(
           elShotOptions.quality = options.quality;
         }
         // A present-but-hidden element (display:none until interaction) makes locator.screenshot
-        // throw; warn + skip it instead of aborting the whole breakpoint loop.
+        // throw; warn + skip it instead of aborting the whole viewport loop.
         try {
           shots.push({
             key: `${bp.name}-${element.name}`,

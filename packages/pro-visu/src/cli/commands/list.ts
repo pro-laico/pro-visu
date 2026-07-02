@@ -10,6 +10,8 @@ import { formatBytes } from "@/utils/format";
 export interface ListOptions {
   cwd?: string;
   config?: string;
+  /** Print the manifest as JSON (machine-readable, for scripts/CI). */
+  json?: boolean;
 }
 
 export async function runList(options: ListOptions = {}): Promise<void> {
@@ -31,6 +33,10 @@ export async function runList(options: ListOptions = {}): Promise<void> {
   }
 
   const manifest = await readManifest(outDir);
+  if (options.json) {
+    process.stdout.write(`${JSON.stringify({ outDir, assets: manifest.assets }, null, 2)}\n`);
+    return;
+  }
   if (manifest.assets.length === 0) {
     logger.info("Nothing generated yet. Run `pro-visu generate`.");
     return;

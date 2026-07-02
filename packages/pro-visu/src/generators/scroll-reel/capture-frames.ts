@@ -169,7 +169,7 @@ async function buildScrollTimeline(
   return finalize(
     defaultTimelineSpec({
       startDelayMs: options.startDelayMs,
-      durationMs: options.duration,
+      durationMs: options.durationMs,
       endDwellMs: options.endDwellMs,
       easing: options.easing,
     }),

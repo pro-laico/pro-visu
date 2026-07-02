@@ -11,12 +11,12 @@ describe("easing functions", () => {
 
   it("have the expected midpoints", () => {
     expect(EASINGS.linear(0.5)).toBeCloseTo(0.5);
-    expect(EASINGS.easeInOutCubic(0.5)).toBeCloseTo(0.5);
-    expect(EASINGS.easeInOutQuad(0.25)).toBeCloseTo(0.125);
-    expect(EASINGS.easeOutCubic(0.5)).toBeCloseTo(0.875);
-    expect(EASINGS.easeInOutSine(0.5)).toBeCloseTo(0.5);
-    expect(EASINGS.easeOutQuint(0.5)).toBeCloseTo(0.96875); // 1 - (1-0.5)^5, pinned to a constant
-    expect(EASINGS.easeInOutExpo(0.5)).toBeCloseTo(0.5);
+    expect(EASINGS["ease-in-out-cubic"](0.5)).toBeCloseTo(0.5);
+    expect(EASINGS["ease-in-out-quad"](0.25)).toBeCloseTo(0.125);
+    expect(EASINGS["ease-out-cubic"](0.5)).toBeCloseTo(0.875);
+    expect(EASINGS["ease-in-out-sine"](0.5)).toBeCloseTo(0.5);
+    expect(EASINGS["ease-out-quint"](0.5)).toBeCloseTo(0.96875); // 1 - (1-0.5)^5, pinned to a constant
+    expect(EASINGS["ease-in-out-expo"](0.5)).toBeCloseTo(0.5);
   });
 
   it("stay within [0,1] and never decrease", () => {

@@ -5,14 +5,14 @@ screenshots, media walls — with more asset types to come) of the websites you 
 into any website repo, point it at a URL, and it writes assets into a gitignored `pro-visu/`
 folder.
 
-> Status: **0.3** (pre-1.0; the option surface may still shift). Generators: `scroll-reel` (deterministic frame-stepped recording → mp4 — scroll
+> Status: **0.4** (pre-1.0; the option surface may still shift). Generators: `scroll-reel` (deterministic frame-stepped recording → mp4 — scroll
 > reels, choreographed tours, scripted interaction, social formats and more), `screenshots`
 > (responsive full-page + element captures), `wall` (a seamless-looping media wall of your
 > assets), `image` (register a file for reuse), plus `specimen`/`palette`/`palette-reel`. The
 > pipeline is a plugin contract, so new asset types slot in without core changes.
 
-> Requires Node ≥ 18.18. The first run downloads a managed Chromium (cached and shared
-> across projects); ffmpeg is bundled — no global installs required.
+> Requires Node ≥ 18.18. The first run downloads a managed Chromium and a static ffmpeg (both
+> cached and shared across projects) — no global installs required.
 
 ## Install & usage
 
@@ -79,6 +79,12 @@ export default defineConfig({
 Config is discovered in multiple formats: `pro-visu.config.{ts,js,mjs,cjs,json}`,
 `.pro-visurc`, or a `pro-visu` key in `package.json`. Use `--config <path>` to override.
 
+**Capture mode** (`settings.capture`) lets a site render a clean, settled snapshot for the camera
+only — animations finished, no cookie banner, no chat widget — while keeping the real behaviour
+for visitors. The signal is delivered as query params, cookies, localStorage, and/or an init
+script; the site reads whichever fits its rendering model. (A session cookie also carries auth
+for login-gated pages.) See the [settings docs](https://pro-visu.com/docs/configuration/settings#capture).
+
 Prefer JSON (or running via `npx`/global)? `pro-visu init --json` writes the same config as
 `pro-visu.config.json` plus a `pro-visu.schema.json`, wired up with `"$schema": "./pro-visu.schema.json"`
 so your editor still autocompletes and validates every field. `pro-visu schema` regenerates that
@@ -91,8 +97,8 @@ and are merged beneath each asset's own `options`.
 
 | Generator | Output | Key options |
 |---|---|---|
-| `scroll-reel` | mp4 of the site (frame-stepped by default) — scroll reels, choreographed tours, interaction demos | `width`/`height`/`fps`/`duration`/`easing` plus `capture`, `choreography`, `autoSections`, `kenBurns`, `loop`, clean-capture, `colorScheme`/`viewports`, `aspect`, `outputs`, `intro`/`outro`, `annotations`, `actions`, `focus`, `routes` — see [Recording reels in depth](#recording-reels-in-depth-scroll-reel) |
-| `screenshots` | png/jpeg page + element captures per breakpoint | `breakpoints[]`, `fullPage`, `format`, `elements[]`, `deviceScaleFactor` |
+| `scroll-reel` | mp4 of the site (frame-stepped by default) — scroll reels, choreographed tours, interaction demos | `width`/`height`/`fps`/`durationMs`/`easing` plus `capture`, `choreography`, `autoSections`, `kenBurns`, `loop`, clean-capture, `colorScheme`/`viewports`, `aspect`, `outputs`, `intro`/`outro`, `annotations`, `actions`, `focus`, `routes` — see [Recording reels in depth](#recording-reels-in-depth-scroll-reel) |
+| `screenshots` | png/jpeg page + element captures per viewport | `viewports[]`, `fullPage`, `format`, `elements[]`, `deviceScaleFactor` |
 | `wall` | mp4 media wall — columns of your assets, each scrolling on its own, looping seamlessly | `columns[]` (tiles + per-column motion), `pulses`, `loops`, `pan`, `gap`/`tileAspect`/`cornerRadius`, `stagger`, `test` |
 | `image` | passthrough — registers an existing image file as an asset (e.g. a wall tile) | `src`, `fileName` |
 | `specimen` / `palette` / `palette-reel` | type specimen / colour palette (still + reel) | see the [docs](https://pro-visu.com/docs) |
@@ -105,7 +111,7 @@ assets: [
     url: "https://your-site.com",
     generator: "screenshots",
     options: {
-      breakpoints: [
+      viewports: [
         { name: "desktop", width: 1440, height: 900 },
         { name: "mobile", width: 390, height: 844 },
       ],
@@ -125,7 +131,7 @@ run-to-run**. Every option below is a `scroll-reel` option.
 > Every option has hover docs in `pro-visu.config.ts` — the authoring types are generated from
 > the validation schema, so the editor always matches what the tool accepts.
 
-### Capture mode
+### Capture strategy
 
 | Option | Meaning |
 |---|---|
@@ -151,7 +157,7 @@ options: {
 }
 ```
 
-- `easing` — `linear`, `easeInOutCubic`/`Quad`, `easeOutCubic`/`Quint`, `easeInOutSine`/`Expo`.
+- `easing` — `linear`, `ease-in-out-cubic`, `ease-in-out-quad`, `ease-out-cubic`, `ease-out-quint`, `ease-in-out-sine`, `ease-in-out-expo`.
 - `choreography: [{ to, durationMs?, holdMs?, easing? }]` — replaces the single sweep with an
   authored sequence (`to` = a `0..1` number, an `"NN%"` string, or a CSS selector to bring into view).
 - `autoSections: true | { minHeightFraction?, selector?, holdMs?, durationMs?, maxSections?, constantVelocity? }`
@@ -261,11 +267,11 @@ assets: [
     name: "wall",
     generator: "wall",                       // no url, no inputs — derived from the tiles below
     options: {
-      durationSeconds: 16,
+      durationMs: 16000,
       pan: { direction: "left", loops: 1 },
       columns: [
         { tiles: ["img-coat", "ui-home"], direction: "down",
-          pulses: [{ at: 0.1, duration: 0.15, distance: 0.5 }] },
+          pulses: [{ at: 0.1, span: 0.15, distance: 0.5 }] },
         { tiles: ["ui-home", "img-coat"], direction: "up", loops: 1, stagger: 0.4 },
         { tiles: ["img-coat", "ui-home"], stagger: 0.15 },
       ],
@@ -275,7 +281,7 @@ assets: [
 ```
 
 - **Motion** is a uniform *pulse* model: a column's travel = `loops` continuous periods + its
-  `pulses` (each `{ at, duration, distance, easing }`, all clip-relative), rounded up to a whole
+  `pulses` (each `{ at, span, distance, easing }`, all clip-relative), rounded up to a whole
   number so it loops seamlessly. `loops` defaults to `0` (static unless a pulse moves it); `stagger`
   (0–1) phase-shifts a column so similar tiles don't line up.
 - **Tile sizing:** tiles fit the column width and take their height from the media's aspect, so
@@ -292,15 +298,17 @@ assets: [
 
 | Command | What it does |
 |---|---|
-| `pro-visu init` | Scaffold config, create + gitignore the output dir, ensure Chromium. `--json` scaffolds a dependency-free JSON config + JSON Schema instead of the TS one |
+| `pro-visu init` | Scaffold config (detecting your framework/package manager/dev port), create + gitignore the output dir, ensure Chromium. `--json` scaffolds a dependency-free JSON config + JSON Schema (auto-selected when pro-visu isn't a local dependency) |
 | `pro-visu generate [--asset <name>]` | Run generators per config; writes assets + `manifest.json` |
-| `pro-visu list` | Show generated assets recorded in the manifest |
+| `pro-visu doctor` | Check the setup — Node, config + asset options, Chromium, ffmpeg, URL reachability — without generating |
+| `pro-visu list [--json]` | Show generated assets recorded in the manifest |
 | `pro-visu schema [--out <path>]` | Write a JSON Schema for `pro-visu.config.json` (editor autocomplete); re-run after upgrading to refresh it |
 | `pro-visu reset` | Clean up orphaned processes/temp from an interrupted run |
 
 `generate` flags: `--draft` (faster, lower-fidelity iteration), `--cache` (skip assets whose
 inputs+options are unchanged), `--skip-server` (use an already-running site), `--skip-build`
-(keep the managed server but skip its build), `--concurrency`, `--verbose`. A managed server
+(keep the managed server but skip its build), `--dry-run` (validate + print the plan only),
+`--concurrency`, `--verbose`. A managed server
 (`settings.server`) can build → start → capture → stop the site automatically so the npm script
 is just `pro-visu generate`. See the [CLI docs](https://pro-visu.com/docs/cli) for the
 full flag list.

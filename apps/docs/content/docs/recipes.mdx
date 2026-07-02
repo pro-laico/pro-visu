@@ -18,7 +18,7 @@ A `9:16` clip with multiple output formats and title cards:
     width: 430,
     height: 932,
     deviceScaleFactor: 2,
-    duration: 5000,
+    durationMs: 5000,
     aspect: "9:16",
     outputs: ["mp4", "gif", "poster"],
     intro: { title: "Acme", subtitle: "Spring 2026" },
@@ -85,11 +85,11 @@ assets: [
     name: "wall",
     generator: "wall",
     options: {
-      durationSeconds: 16,
+      durationMs: 16000,
       pan: { direction: "left", loops: 1 },
       columns: [
         { tiles: ["img-hero", "shot-home"], direction: "down",
-          pulses: [{ at: 0.1, duration: 0.15, distance: 0.5 }] },
+          pulses: [{ at: 0.1, span: 0.15, distance: 0.5 }] },
         { tiles: ["shot-shop", "img-hero"], direction: "up", loops: 1, stagger: 0.4 },
         { tiles: ["shot-home", "shot-shop"], stagger: 0.15 },
       ],
@@ -140,8 +140,9 @@ Turn on caching to skip assets whose inputs and options are unchanged:
 
 ```bash
 pro-visu generate --cache
-# or persist it:
 ```
+
+…or persist it in the config:
 
 ```ts
 settings: { cache: true }

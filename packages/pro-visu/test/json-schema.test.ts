@@ -40,7 +40,7 @@ describe("generateConfigJsonSchema", () => {
     );
     const optionProps = ((((shots!.then as JsonObject).properties as JsonObject).options as JsonObject)
       .properties as JsonObject);
-    expect(optionProps.breakpoints).toBeDefined();
+    expect(optionProps.viewports).toBeDefined();
     expect(optionProps.fullPage).toBeDefined();
   });
 });

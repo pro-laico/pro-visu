@@ -56,15 +56,15 @@ Output is mp4.
 | `orientation` | `"rows" \| "columns"` | `"rows"` | Horizontal bands or full-height vertical strips. |
 | `details` | `FieldId[]` | `["hex","oklch","rgb"]` | Fields revealed when a colour expands (name is always shown). |
 
-### Timing (seconds)
+### Timing (milliseconds)
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `holdSeconds` | `number` | `2` | How long each colour stays fully open. |
-| `transitionSeconds` | `number` | `0.7` | Crossfade length between colours. |
+| `holdMs` | `number` | `2000` | How long each colour stays fully open (ms). |
+| `transitionMs` | `number` | `700` | Crossfade length between colours (ms). |
 | `bounce` | `boolean` | `true` | Ping-pong the sweep so every handoff is between neighbours (avoids a last→first pinch at the loop seam). When `false`, the reel wraps directly from the last item to the first — shorter, but crossfades non-adjacent bands at the seam. |
 | `easing` | `"linear" \| "ease-in" \| "ease-out" \| "ease-in-out"` | `"ease-in-out"` | Easing for the crossfade ramp. |
-| `durationSeconds` | `number` | derived | Override the derived clean-loop length. |
+| `durationMs` | `number` | derived | Override the derived clean-loop length (ms). |
 
 ### Layout & styling
 

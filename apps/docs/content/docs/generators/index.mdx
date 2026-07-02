@@ -8,8 +8,8 @@ the asset's own `options` (the asset wins). Each generator validates its own opt
 
 | Generator | Output | Needs `url`? | Key options |
 |---|---|---|---|
-| [`scroll-reel`](/docs/generators/scroll-reel) | mp4 (+ gif/webp/poster) | Yes | `width`/`height`/`fps`/`duration`, `capture`, `choreography`, `autoSections`, `kenBurns`, `loop`, clean-capture, `colorScheme`/`viewports`, `aspect`, `outputs`, `intro`/`outro`, `annotations`, `actions`, `focus`, `routes` |
-| [`screenshots`](/docs/generators/screenshots) | png / jpeg | Yes | `breakpoints[]`, `fullPage`, `format`, `elements[]`, `deviceScaleFactor` |
+| [`scroll-reel`](/docs/generators/scroll-reel) | mp4 (+ gif/webp/poster) | Yes | `width`/`height`/`fps`/`durationMs`, `capture`, `choreography`, `autoSections`, `kenBurns`, `loop`, clean-capture, `colorScheme`/`viewports`, `aspect`, `outputs`, `intro`/`outro`, `annotations`, `actions`, `focus`, `routes` |
+| [`screenshots`](/docs/generators/screenshots) | png / jpeg | Yes | `viewports[]`, `fullPage`, `format`, `elements[]`, `deviceScaleFactor` |
 | [`wall`](/docs/generators/wall) | mp4 | No | `columns[]` (tiles + per-column motion), `pulses`, `loops`, `pan`, `gap`/`tileAspect`, `test` |
 | [`image`](/docs/generators/image) | (passthrough) | No | `src`, `fileName` |
 | [`specimen`](/docs/generators/specimen) | mp4 | No | `font`, `template`, `pulses`, `colors`, `seed` |

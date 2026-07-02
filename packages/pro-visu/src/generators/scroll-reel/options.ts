@@ -2,12 +2,12 @@ import { z } from "zod";
 
 const easingSchema = z.enum([
   "linear",
-  "easeInOutCubic",
-  "easeInOutQuad",
-  "easeOutCubic",
-  "easeInOutSine",
-  "easeInOutExpo",
-  "easeOutQuint",
+  "ease-in-out-cubic",
+  "ease-in-out-quad",
+  "ease-out-cubic",
+  "ease-in-out-sine",
+  "ease-in-out-expo",
+  "ease-out-quint",
 ]);
 export type Easing = z.infer<typeof easingSchema>;
 
@@ -34,7 +34,7 @@ const choreographyStepSchema = z
       .describe("Hold time at this target after arriving (ms). Default 800."),
     easing: easingSchema
       .optional()
-      .describe('Easing for the travel to this target. Default "easeInOutCubic".'),
+      .describe('Easing for the travel to this target. Default "ease-in-out-cubic".'),
   })
   .strict();
 
@@ -220,15 +220,15 @@ export const scrollReelOptionsSchema = z
       .default(30)
       .describe("Output frames per second (re-encoded from the recording). Default 30."),
     /** Time to scroll from top to bottom (ms). */
-    duration: z
+    durationMs: z
       .number()
       .int()
       .positive()
       .default(6000)
       .describe("Time to scroll from top to bottom (ms). Default 6000."),
     easing: easingSchema
-      .default("easeInOutCubic")
-      .describe('Easing for the default top→bottom scroll. Default "easeInOutCubic".'),
+      .default("ease-in-out-cubic")
+      .describe('Easing for the default top→bottom scroll. Default "ease-in-out-cubic".'),
     /** Dwell at the top before scrolling (ms). */
     startDelayMs: z
       .number()
@@ -340,7 +340,7 @@ export const scrollReelOptionsSchema = z
         scaleTo: z.number().positive().optional().describe("End scale. Default 1.08."),
         easing: easingSchema
           .optional()
-          .describe('Easing for the zoom ramp. Default "easeInOutCubic".'),
+          .describe('Easing for the zoom ramp. Default "ease-in-out-cubic".'),
         /** Zoom origin X within the viewport (0 = left, 1 = right). Default 0.5. */
         originX: z
           .number()
@@ -659,7 +659,7 @@ export interface ChoreographyStepInput {
   durationMs?: number;
   /** Hold time at this target after arriving (ms). Default 800. */
   holdMs?: number;
-  /** Easing for the travel to this target. Default "easeInOutCubic". */
+  /** Easing for the travel to this target. Default "ease-in-out-cubic". */
   easing?: Easing;
 }
 
@@ -737,7 +737,7 @@ export interface KenBurnsInput {
   scaleFrom?: number;
   /** End scale. Default 1.08. */
   scaleTo?: number;
-  /** Easing for the zoom ramp. Default "easeInOutCubic". */
+  /** Easing for the zoom ramp. Default "ease-in-out-cubic". */
   easing?: Easing;
   /** Zoom origin X within the viewport (0 = left, 1 = right). Default 0.5. */
   originX?: number;
@@ -812,8 +812,8 @@ export interface ScrollReelOptionsInput {
   /** Output frames per second (re-encoded from the recording). Default 30. */
   fps?: number;
   /** Time to scroll from top to bottom (ms). Default 6000. */
-  duration?: number;
-  /** Easing for the default top→bottom scroll. Default "easeInOutCubic". */
+  durationMs?: number;
+  /** Easing for the default top→bottom scroll. Default "ease-in-out-cubic". */
   easing?: Easing;
   /** Dwell at the top before scrolling (ms). Default 500. */
   startDelayMs?: number;

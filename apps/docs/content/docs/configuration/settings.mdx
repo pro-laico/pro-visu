@@ -72,12 +72,21 @@ settings: {
 
 This is the **site-side** counterpart to a `scroll-reel`'s [clean capture](/docs/generators/scroll-reel#clean-capture)
 options: clean-capture hides noise from pro-visu's side (`hideSelectors`, `blockTrackers`), while
-`capture` flips a switch the site itself honours.
+`capture` flips a switch the site itself honours. (It's also distinct from scroll-reel's
+[capture *strategy*](/docs/generators/scroll-reel#capture-strategy) — `"frames"` vs `"realtime"` —
+which controls how frames are recorded, not what the site renders.)
+
+> **Auth:** `cookies` isn't limited to capture-mode signals — a session cookie carries auth, letting
+> captures reach login-gated pages. Keep the value in an env var, not the config; see
+> [Troubleshooting](/docs/troubleshooting#capturing-pages-behind-a-login).
 
 ## `defaults`
 
-Repo-wide defaults per generator. Keys are [generator ids](/docs/generators); the value is an
-options object merged underneath each asset's own `options` (the asset wins).
+Repo-wide defaults per generator. Keys are [generator ids](/docs/generators) — a key that matches
+no generator is flagged at generate time; the value is an options object merged underneath each
+asset's own `options` (the asset wins). Nested objects merge recursively — an asset that sets
+`kenBurns.scaleTo` keeps the default's other `kenBurns` fields — while arrays and primitives replace
+wholesale.
 
 ```ts
 settings: {

@@ -71,7 +71,7 @@ the pulse durations (doubled when `mirror` is on). Compose a sequence to author 
 | Pulse field | Type | Meaning |
 |---|---|---|
 | `name` | `string` | Human label for the beat (readability only). Default `""`. |
-| `duration` | `number` | Length of the beat, in seconds. **Required**, must be positive. |
+| `durationMs` | `number` | Length of the beat, in milliseconds. **Required**, must be positive. |
 | `chars` | `number` (0–1) | Fraction of cells whose glyph changes during the beat (`1` = every cell once). Default `0`. |
 | `colors` | `number` (0–1) | Fraction of cells whose colour changes during the beat (`1` = every cell once). Default `0`. |
 | `color` | `"foreground" \| "muted" \| "accent"` | Target every colour change at this token (a deliberate sweep) instead of a weighted-random pick. Omit for the default scattered recolour. |
@@ -87,9 +87,9 @@ options: {
   font: "public/fonts/YourFont.woff2",
   name: "Your Font",
   pulses: [
-    { name: "hold", duration: 0.8 },
-    { name: "to accent", duration: 2.2, colors: 1, color: "accent", pacing: "ease-in-out" },
-    { name: "glyph drift", duration: 1.4, chars: 0.5 },
+    { name: "hold", durationMs: 800 },
+    { name: "to accent", durationMs: 2200, colors: 1, color: "accent", pacing: "ease-in-out" },
+    { name: "glyph drift", durationMs: 1400, chars: 0.5 },
   ],
 }
 ```
@@ -103,7 +103,7 @@ options: {
 | `template` | `"demo" \| "sweep"` | — | Load a preset (overridable). |
 | `width` / `height` | `number` | `1920` / `1080` | Output frame size. |
 | `fps` | `number` (≤120) | `30` | Frames per second. |
-| `durationSeconds` | `number` | derived | Override the (mirrored) sum of pulse durations. |
+| `durationMs` | `number` | derived | Override the (mirrored) sum of pulse durations (ms). |
 | `deviceScaleFactor` | `number` (≤4) | `1` | Render scale. |
 | `weight` | `number` (1–1000) | `820` | Glyph weight on the variable-font axis. |
 | `lines` | `number` (1–40) | `3` | Number of glyph rows. The glyph size is derived so the rows fill the top 80% of the frame. |

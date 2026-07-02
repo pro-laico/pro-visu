@@ -1,9 +1,9 @@
 ---
 title: screenshots
-description: Responsive full-page and element captures, one set per breakpoint.
+description: Responsive full-page and element captures, one set per viewport.
 ---
 
-`screenshots` captures still images of a page at one or more breakpoints, optionally plus
+`screenshots` captures still images of a page at one or more viewports, optionally plus
 specific elements. Output is png or jpeg.
 
 ```ts
@@ -12,7 +12,7 @@ specific elements. Output is png or jpeg.
   url: "https://your-site.com",
   generator: "screenshots",
   options: {
-    breakpoints: [
+    viewports: [
       { name: "desktop", width: 1440, height: 900 },
       { name: "mobile", width: 390, height: 844 },
     ],
@@ -35,7 +35,7 @@ A full-page desktop capture — the whole scrollable page, far taller than the 9
   name: "home-desktop",
   generator: "screenshots",
   options: {
-    breakpoints: [
+    viewports: [
       {
         name: "desktop",
         width: 1440,
@@ -59,7 +59,7 @@ And the same site on a phone, just the viewport — as a visitor first sees it:
   name: "home-mobile",
   generator: "screenshots",
   options: {
-    breakpoints: [
+    viewports: [
       {
         name: "mobile",
         width: 390,
@@ -75,22 +75,22 @@ And the same site on a phone, just the viewport — as a visitor first sees it:
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `breakpoints` | `{ name, width, height?, deviceScaleFactor? }[]` | desktop 1440×900 + mobile 390×844 | Viewports to capture at. `height` defaults to `900`; `deviceScaleFactor` is positive, max `4`. |
+| `viewports` | `{ name, width, height?, deviceScaleFactor? }[]` | desktop 1440×900 + mobile 390×844 | Viewports to capture at. `height` defaults to `900`; `deviceScaleFactor` is positive, max `4`. |
 | `fullPage` | `boolean` | `true` | Capture the entire scrollable page vs. just the viewport. |
 | `format` | `"png" \| "jpeg"` | `"png"` | Output format. |
 | `quality` | `number` (1–100) | — | jpeg only. Rejected with `format: "png"`. |
-| `deviceScaleFactor` | `number` (>0, ≤4) | `2` | Render scale; a breakpoint can override it. |
+| `deviceScaleFactor` | `number` (>0, ≤4) | `2` | Render scale; a viewport can override it. |
 | `waitUntil` | `"load" \| "domcontentloaded" \| "networkidle" \| "commit"` | `"networkidle"` | Navigation wait condition. |
 | `waitForSelector` | `string` | — | Wait for this selector (state `visible`) before capturing. |
-| `elements` | `{ selector, name }[]` | `[]` | Element captures taken at every breakpoint. |
+| `elements` | `{ selector, name }[]` | `[]` | Element captures taken at every viewport. |
 | `omitBackground` | `boolean` | `false` | png only — capture with a transparent background. |
 | `settleMs` | `number` | `0` | Extra settle time before capturing. Floored at 600ms — see [Page warm-up](#page-warm-up). |
 
 > `height` is ignored for `fullPage` shots (Playwright resizes to the page height); it only
 > affects viewport and element captures.
 
-Each breakpoint produces a page shot (unless you scope to elements), and each `elements` entry
-produces one capture per breakpoint, named `<asset>-<breakpoint>-<element>`.
+Each viewport produces a page shot (unless you scope to elements), and each `elements` entry
+produces one capture per viewport, named `<asset>-<viewport>-<element>`.
 
 ## Page warm-up
 
@@ -108,12 +108,12 @@ content that the warm pass alone doesn't catch.
 
 Element captures never abort the run. If an `elements` selector matches zero nodes, or matches a
 node that can't be shot (e.g. a present-but-hidden `display:none` element), that capture is
-logged with a warning and skipped — the page shot and remaining elements/breakpoints still run.
+logged with a warning and skipped — the page shot and remaining elements/viewports still run.
 
 ## Rendering notes
 
-- Breakpoints render in parallel (cap of 3 at a time), each in its own isolated browser context;
-  element shots stay sequential within a breakpoint. Filenames and manifest ids stay in input
+- Viewports render in parallel (cap of 3 at a time), each in its own isolated browser context;
+  element shots stay sequential within a viewport. Filenames and manifest ids stay in input
   order regardless.
 - A very large `fullPage` shot (>16000px on either axis) emits a warning, since Chromium caps
   screenshots near ~32767px and a high `deviceScaleFactor` can push a tall page past that — the

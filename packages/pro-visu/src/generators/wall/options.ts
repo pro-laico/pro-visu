@@ -17,10 +17,10 @@ import {
  *
  * Motion is built from one uniform "pulse" primitive, shared by columns, the wall-level default, and
  * the pan. A track's travel = `loops` continuous whole-clip periods + the sum of its `pulses` (each
- * an eased move of `distance` periods starting at `at`, lasting `duration` — both 0..1 fractions of
+ * an eased move of `distance` periods starting at `at`, lasting `span` — both 0..1 fractions of
  * the clip). The total is rounded UP to a whole number of periods — the remainder folds into the
  * continuous scroll — so every track lands back on its start at the clip's end: the wall ALWAYS loops
- * seamlessly. (A pulse with `at + duration > 1` is shifted back to end at the loop point, so it can
+ * seamlessly. (A pulse with `at + span > 1` is shifted back to end at the loop point, so it can
  * never overrun the clip.)
  *   `pan`     — System 1: the whole wall pans on X.
  *   `columns` — System 2: each column scrolls on Y (its own `direction` / `loops` / `pulses`).
@@ -41,12 +41,12 @@ export const wallOptionsSchema = z
       .describe("Render scale (2 = retina-crisp, downscaled into the video). Default 2."),
     /** Output frames per second. */
     fps: z.number().int().positive().max(120).default(30).describe("Output frames per second. Default 30."),
-    /** Clip length (seconds) — the whole loop. Tile videos should loop within a length dividing this. */
-    durationSeconds: z
+    /** Clip length (ms) — the whole loop. Tile videos should loop within a length dividing this. */
+    durationMs: z
       .number()
       .positive()
-      .default(16)
-      .describe("Clip length in seconds — the whole loop. Default 16."),
+      .default(16_000)
+      .describe("Clip length in ms — the whole loop. Default 16000."),
     /** x264 quality, 0–51 (lower = better/larger). */
     crf: z
       .number()
@@ -161,8 +161,8 @@ export interface WallOptionsInput {
   deviceScaleFactor?: number;
   /** Output frames per second. Default 30. */
   fps?: number;
-  /** Clip length in seconds — the whole loop. Default 16. */
-  durationSeconds?: number;
+  /** Clip length in ms — the whole loop. Default 16000. */
+  durationMs?: number;
   /** x264 quality, 0–51 (lower = better quality / larger file). Default 18. */
   crf?: number;
   /**

@@ -7,10 +7,10 @@
  *
  * A track's motion = a continuous base scroll (`loops` whole periods over the clip) PLUS a set of
  * `pulses`. Each pulse is one eased move that adds `distance` periods of travel, starting at `at` and
- * lasting `duration` — both 0..1 fractions of the clip. The total travel is rounded UP to a whole
+ * lasting `span` — both 0..1 fractions of the clip. The total travel is rounded UP to a whole
  * number of periods and the remainder is folded into the continuous scroll, so the track lands exactly
  * back on its start at t = durationSeconds → a seamless loop, by construction, for any clip length.
- * Tracks are unit-tested for that seam property. (If `at + duration > 1`, the start shifts back so the
+ * Tracks are unit-tested for that seam property. (If `at + span > 1`, the start shifts back so the
  * pulse ends exactly at the loop point — a pulse can never overrun the clip, so the loop always closes.)
  */
 
@@ -18,12 +18,12 @@ export type Dir = 1 | -1;
 
 export type Easing = "linear" | "ease-in" | "ease-out" | "ease-in-out" | "ease-in-out-strong";
 
-/** One eased move that adds `distance` periods of travel at `at`, lasting `duration` (clip fractions). */
+/** One eased move that adds `distance` periods of travel at `at`, lasting `span` (clip fractions). */
 export interface PulseInput {
   /** When the pulse starts, as a fraction of the clip (0..1). */
   at: number;
   /** How long the move takes, as a fraction of the clip (0..1). */
-  duration: number;
+  span: number;
   /** How far it travels, in periods (1 = one full tile-set / one wrap). Usually 0..1. */
   distance: number;
   /** Easing of the move's ramp. */
@@ -84,9 +84,9 @@ export function trackTravel(
   const u = clamp01(t / D); // clip progress, 0..1
   let traveled = continuous * u;
   for (const p of pulses) {
-    // `duration` is a fraction of the clip; shift `at` back so the pulse always ends by u=1 (a 0.2
+    // `span` is a fraction of the clip; shift `at` back so the pulse always ends by u=1 (a 0.2
     // pulse at 0.9 starts at 0.8). This guarantees the pulse completes ⇒ the loop stays seamless.
-    const dur = Math.min(1, Math.max(1e-6, p.duration));
+    const dur = Math.min(1, Math.max(1e-6, p.span));
     const at = Math.min(Math.max(0, p.at), 1 - dur);
     traveled += Math.max(0, p.distance) * ease((u - at) / dur, p.easing);
   }

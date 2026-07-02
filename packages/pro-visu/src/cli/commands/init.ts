@@ -1,6 +1,7 @@
 import path from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { resolveCwd } from "@/utils/paths";
 import { ensureDir, ensureGitignoreEntry, pathExists } from "@/utils/fs";
 import { createLogger } from "@/utils/logger";
@@ -20,10 +21,90 @@ const CONFIG_FILES = [
   ".pro-visurc.json",
 ];
 
-const CONFIG_TEMPLATE = `import { defineConfig } from "pro-visu";
+type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
 
-// URL the capture assets point at. The optional managed server (below) binds this port.
-const URL = "http://localhost:3101";
+/** What init could learn about the host project, to scaffold a config that matches it. */
+interface ProjectInfo {
+  pm: PackageManager;
+  /** Display name of the detected framework (Next.js, Vite, …), if any. */
+  framework?: string;
+  /** The port the project's dev server most likely binds (framework default, or an explicit script flag). */
+  devPort?: number;
+  /** Whether `import "pro-visu"` resolves from this project (a TS config needs it; JSON doesn't). */
+  localDep: boolean;
+}
+
+/** Framework display name + conventional dev port, from package.json dependencies. */
+const FRAMEWORKS: readonly [dep: string, name: string, port: number][] = [
+  ["next", "Next.js", 3000],
+  ["nuxt", "Nuxt", 3000],
+  ["astro", "Astro", 4321],
+  ["@sveltejs/kit", "SvelteKit", 5173],
+  ["gatsby", "Gatsby", 8000],
+  ["@remix-run/dev", "Remix", 3000],
+  ["vite", "Vite", 5173],
+];
+
+/** Sniff the package manager, framework, dev port, and pro-visu install mode from the project. */
+function detectProject(cwd: string): ProjectInfo {
+  let pkg: Record<string, unknown> = {};
+  try {
+    pkg = JSON.parse(readFileSync(path.join(cwd, "package.json"), "utf8")) as Record<string, unknown>;
+  } catch {
+    /* no/unparseable package.json — fall back to plain defaults */
+  }
+
+  const pmField = typeof pkg.packageManager === "string" ? pkg.packageManager.split("@")[0] : "";
+  const pm: PackageManager =
+    pmField === "pnpm" || pmField === "yarn" || pmField === "bun" || pmField === "npm"
+      ? pmField
+      : existsSync(path.join(cwd, "pnpm-lock.yaml"))
+        ? "pnpm"
+        : existsSync(path.join(cwd, "yarn.lock"))
+          ? "yarn"
+          : existsSync(path.join(cwd, "bun.lockb")) || existsSync(path.join(cwd, "bun.lock"))
+            ? "bun"
+            : "npm";
+
+  const deps = {
+    ...(pkg.dependencies as Record<string, string> | undefined),
+    ...(pkg.devDependencies as Record<string, string> | undefined),
+  };
+  const match = FRAMEWORKS.find(([dep]) => deps[dep]);
+  // An explicit port flag in the dev script beats the framework's conventional default.
+  const devScript = (pkg.scripts as Record<string, string> | undefined)?.dev ?? "";
+  const flag = /(?:-p|--port)[ =](\d{2,5})/.exec(devScript);
+  const devPort = flag ? Number(flag[1]) : match?.[2];
+
+  // Resolve like the config loader will: through the project's node_modules (walking up), so
+  // monorepo hoisting counts. No resolution → a TS config's `import "pro-visu"` would fail.
+  let localDep = false;
+  try {
+    createRequire(path.join(cwd, "package.json")).resolve("pro-visu/package.json");
+    localDep = true;
+  } catch {
+    localDep = false;
+  }
+
+  return { pm, framework: match?.[1], devPort, localDep };
+}
+
+/** The project's own run command for a script ("npm run build" / "pnpm build" / …). */
+function runCmd(pm: PackageManager, script: string): string {
+  return pm === "npm" ? `npm run ${script}` : `${pm} ${script}`;
+}
+
+function tsConfigTemplate(info: ProjectInfo): string {
+  const port = info.devPort ?? 3101;
+  const urlComment = info.devPort
+    ? `// Your ${info.framework} dev server's URL — start it (\`${runCmd(info.pm, "dev")}\`) before generating,\n` +
+      `// point this at a deployed site, or enable the managed \`server\` block below instead.`
+    : "// URL the capture assets point at — your running site, a deployed URL, or the managed server below.";
+  const start = info.pm === "npm" ? "npm start" : `${info.pm} start`;
+  return `import { defineConfig } from "pro-visu";
+
+${urlComment}
+const URL = "http://localhost:${port}";
 
 export default defineConfig({
   settings: {
@@ -33,10 +114,11 @@ export default defineConfig({
     // installed Chrome, or args: ["--no-sandbox"] on CI.
     browser: { headless: true },
     // Optional: let the tool build + start your site, wait for it, capture, then stop it.
-    // 'port' defaults to 3101 (off the common 3000 dev port); your command must bind it.
+    // PORT is set in the command's env (default 3101), so PORT-honoring frameworks bind it
+    // automatically. If you enable this, point URL above at the same port.
     // server: {
-    //   build: "npm run build",
-    //   command: "npm start -- -p 3101", // e.g. Next: "npx next start -p 3101"
+    //   build: "${runCmd(info.pm, "build")}",
+    //   command: "${start}",
     //   port: 3101,
     // },
     defaults: {
@@ -49,7 +131,7 @@ export default defineConfig({
       name: "home-reel",
       url: URL,
       generator: "scroll-reel",
-      // options: { duration: 7000, waitForSelector: "main" },
+      // options: { durationMs: 7000, waitForSelector: "main" },
     },
     // A looping type-specimen from a font file (no URL needed):
     // {
@@ -60,10 +142,13 @@ export default defineConfig({
   ],
 });
 `;
+}
 
-// A dependency-free JSON config + a sibling JSON Schema (for editor autocomplete). Use this when
+// A dependency-free JSON config + a sibling JSON Schema (for editor autocomplete). Used when
 // running the tool via npx / a global install rather than as a project dev-dependency.
-const JSON_CONFIG_TEMPLATE = `{
+function jsonConfigTemplate(info: ProjectInfo): string {
+  const port = info.devPort ?? 3101;
+  return `{
   "$schema": "./${DEFAULT_SCHEMA_FILE}",
   "settings": {
     "outDir": "pro-visu",
@@ -74,10 +159,11 @@ const JSON_CONFIG_TEMPLATE = `{
     }
   },
   "assets": [
-    { "name": "home-reel", "url": "http://localhost:3101", "generator": "scroll-reel" }
+    { "name": "home-reel", "url": "http://localhost:${port}", "generator": "scroll-reel" }
   ]
 }
 `;
+}
 
 export interface InitOptions {
   cwd?: string;
@@ -92,14 +178,26 @@ export async function runInit(options: InitOptions = {}): Promise<void> {
   const cwd = resolveCwd(options.cwd);
   const logger = createLogger("info");
   let createdSomething = false;
-  const configFile = options.json ? "pro-visu.config.json" : "pro-visu.config.ts";
+
+  const info = detectProject(cwd);
+  if (info.framework) {
+    logger.info(`detected ${info.framework} (${info.pm}${info.devPort ? `, dev port ${info.devPort}` : ""})`);
+  }
+  // A TS config imports "pro-visu", which only resolves when the package is installed in the
+  // project. Running via npx/global? Fall back to the dependency-free JSON config automatically.
+  let useJson = Boolean(options.json);
+  if (!useJson && !info.localDep) {
+    useJson = true;
+    logger.info("pro-visu isn't a local dependency — scaffolding a JSON config (works via npx/global)");
+  }
+  const configFile = useJson ? "pro-visu.config.json" : "pro-visu.config.ts";
 
   // 1. Config file
   const existingConfig = findExistingConfig(cwd);
   if (existingConfig) {
     logger.info(`config exists (${existingConfig}) — leaving it untouched`);
-  } else if (options.json) {
-    await writeFile(path.join(cwd, configFile), JSON_CONFIG_TEMPLATE, "utf8");
+  } else if (useJson) {
+    await writeFile(path.join(cwd, configFile), jsonConfigTemplate(info), "utf8");
     logger.success(`created ${configFile}`);
     // Materialize the matching JSON Schema so the JSON config gets editor autocomplete + validation
     // with no dependency on this package — it works the same whether run via npx, global, or a dep.
@@ -107,7 +205,7 @@ export async function runInit(options: InitOptions = {}): Promise<void> {
     logger.success(`created ${DEFAULT_SCHEMA_FILE}`);
     createdSomething = true;
   } else {
-    await writeFile(path.join(cwd, configFile), CONFIG_TEMPLATE, "utf8");
+    await writeFile(path.join(cwd, configFile), tsConfigTemplate(info), "utf8");
     logger.success(`created ${configFile}`);
     createdSomething = true;
   }
@@ -161,9 +259,12 @@ export async function runInit(options: InitOptions = {}): Promise<void> {
   }
 
   logger.log("");
+  const startHint = info.devPort
+    ? `start your dev server (\`${runCmd(info.pm, "dev")}\`)`
+    : "start your site (or point the config at a deployed URL)";
   logger.info(
     createdSomething
-      ? `Next: edit ${configFile}, start your site (or use a deployed URL), then run \`pro-visu generate\`.`
+      ? `Next: edit ${configFile}, ${startHint}, then run \`pro-visu generate\`. (\`pro-visu doctor\` checks the setup.)`
       : `Already initialized. Edit ${configFile}, then run \`pro-visu generate\`.`,
   );
 }

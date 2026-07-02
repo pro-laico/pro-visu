@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /** A named viewport to capture at. */
-const breakpointSchema = z
+const viewportSchema = z
   .object({
     name: z
       .string()
@@ -18,18 +18,18 @@ const breakpointSchema = z
       .describe(
         "Viewport height in CSS px. Default 900. Ignored for fullPage shots; only affects viewport/element captures.",
       ),
-    /** Override the generator-level deviceScaleFactor for this breakpoint. */
+    /** Override the generator-level deviceScaleFactor for this viewport. */
     deviceScaleFactor: z
       .number()
       .positive()
       .max(4)
       .optional()
-      .describe("Override the generator-level deviceScaleFactor for this breakpoint. Omit to inherit it."),
+      .describe("Override the generator-level deviceScaleFactor for this viewport. Omit to inherit it."),
   })
   .strict();
-export type Breakpoint = z.infer<typeof breakpointSchema>;
+export type ScreenshotViewport = z.infer<typeof viewportSchema>;
 
-/** A specific element to capture (in addition to the page) at each breakpoint. */
+/** A specific element to capture (in addition to the page) at each viewport. */
 const elementShotSchema = z
   .object({
     selector: z.string().min(1).describe("CSS selector of the element to shoot."),
@@ -40,8 +40,8 @@ const elementShotSchema = z
 
 export const screenshotsOptionsSchema = z
   .object({
-    breakpoints: z
-      .array(breakpointSchema)
+    viewports: z
+      .array(viewportSchema)
       .min(1)
       .default([
         { name: "desktop", width: 1440, height: 900 },
@@ -78,11 +78,11 @@ export const screenshotsOptionsSchema = z
       .string()
       .optional()
       .describe("Optional element to wait for before capturing (e.g. a hero image). Omit to skip."),
-    /** Element captures taken at every breakpoint. */
+    /** Element captures taken at every viewport. */
     elements: z
       .array(elementShotSchema)
       .default([])
-      .describe("Specific elements to crop (in addition to the page) at every breakpoint. Default none."),
+      .describe("Specific elements to crop (in addition to the page) at every viewport. Default none."),
     /** png only: capture with a transparent background. */
     omitBackground: z
       .boolean()
@@ -109,8 +109,8 @@ export const screenshotsOptionsSchema = z
 // Exact<> guard at the bottom — a drift is a compile error.
 // ---------------------------------------------------------------------------
 
-/** A named viewport to capture at; each breakpoint emits its own asset. */
-export interface BreakpointInput {
+/** A named viewport to capture at; each viewport emits its own asset. */
+export interface ViewportInput {
   /** Label for this viewport — used in the filename + manifest id (e.g. "desktop"). */
   name: string;
   /** Viewport width in CSS px. */
@@ -120,11 +120,11 @@ export interface BreakpointInput {
    * full page height); only affects viewport/element captures.
    */
   height?: number;
-  /** Override the generator-level `deviceScaleFactor` for this breakpoint. Omit to inherit it. */
+  /** Override the generator-level `deviceScaleFactor` for this viewport. Omit to inherit it. */
   deviceScaleFactor?: number;
 }
 
-/** A specific element to capture (in addition to the page) at each breakpoint. */
+/** A specific element to capture (in addition to the page) at each viewport. */
 export interface ElementShotInput {
   /** CSS selector of the element to shoot. */
   selector: string;
@@ -134,14 +134,14 @@ export interface ElementShotInput {
 
 /**
  * Author-facing options for the `screenshots` generator — responsive stills of a page (one per
- * breakpoint), plus optional per-element crops. Everything is optional; sensible defaults apply.
+ * viewport), plus optional per-element crops. Everything is optional; sensible defaults apply.
  */
 export interface ScreenshotsOptionsInput {
   /**
    * Viewports to capture at (at least one); each emits its own asset. Default:
    * desktop 1440×900 + mobile 390×844.
    */
-  breakpoints?: BreakpointInput[];
+  viewports?: ViewportInput[];
   /** Capture the entire scrollable page (vs. just the viewport). Default true. */
   fullPage?: boolean;
   /** Image format. Default "png". */
@@ -154,7 +154,7 @@ export interface ScreenshotsOptionsInput {
   waitUntil?: "load" | "domcontentloaded" | "networkidle" | "commit";
   /** Optional element to wait for before capturing (e.g. a hero image). Omit to skip. */
   waitForSelector?: string;
-  /** Specific elements to crop (in addition to the page) at every breakpoint. Default none. */
+  /** Specific elements to crop (in addition to the page) at every viewport. Default none. */
   elements?: ElementShotInput[];
   /** Capture with a transparent background (png only). Default false. */
   omitBackground?: boolean;

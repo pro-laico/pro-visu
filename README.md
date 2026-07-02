@@ -71,8 +71,8 @@ npx pro-visu init --json
 npx pro-visu generate
 ```
 
-> Requires Node ≥ 18.18. The first run downloads a managed Chromium (cached and shared across
-> projects); ffmpeg is bundled — no global installs required.
+> Requires Node ≥ 18.18. The first run downloads a managed Chromium and a static ffmpeg (both
+> cached and shared across projects) — no global installs required.
 
 ## Documentation
 

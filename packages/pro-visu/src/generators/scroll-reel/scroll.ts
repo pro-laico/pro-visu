@@ -1,11 +1,11 @@
 export type EasingName =
   | "linear"
-  | "easeInOutCubic"
-  | "easeInOutQuad"
-  | "easeOutCubic"
-  | "easeInOutSine"
-  | "easeInOutExpo"
-  | "easeOutQuint";
+  | "ease-in-out-cubic"
+  | "ease-in-out-quad"
+  | "ease-out-cubic"
+  | "ease-in-out-sine"
+  | "ease-in-out-expo"
+  | "ease-out-quint";
 
 /**
  * Pure easing functions, t in [0,1] -> [0,1]. Unit-tested on the Node side; the formula inside
@@ -13,11 +13,11 @@ export type EasingName =
  */
 export const EASINGS: Record<EasingName, (t: number) => number> = {
   linear: (t) => t,
-  easeInOutCubic: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
-  easeInOutQuad: (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2),
-  easeOutCubic: (t) => 1 - Math.pow(1 - t, 3),
-  easeInOutSine: (t) => -(Math.cos(Math.PI * t) - 1) / 2,
-  easeInOutExpo: (t) =>
+  "ease-in-out-cubic": (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+  "ease-in-out-quad": (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2),
+  "ease-out-cubic": (t) => 1 - Math.pow(1 - t, 3),
+  "ease-in-out-sine": (t) => -(Math.cos(Math.PI * t) - 1) / 2,
+  "ease-in-out-expo": (t) =>
     t === 0
       ? 0
       : t === 1
@@ -25,7 +25,7 @@ export const EASINGS: Record<EasingName, (t: number) => number> = {
         : t < 0.5
           ? Math.pow(2, 20 * t - 10) / 2
           : (2 - Math.pow(2, -20 * t + 10)) / 2,
-  easeOutQuint: (t) => 1 - Math.pow(1 - t, 5),
+  "ease-out-quint": (t) => 1 - Math.pow(1 - t, 5),
 };
 
 export interface PageScrollArgs {
@@ -616,15 +616,15 @@ export async function pageScroll(args: PageScrollArgs): Promise<number> {
 
   const ease = (t: number): number => {
     switch (easing) {
-      case "easeInOutCubic":
+      case "ease-in-out-cubic":
         return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      case "easeInOutQuad":
+      case "ease-in-out-quad":
         return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-      case "easeOutCubic":
+      case "ease-out-cubic":
         return 1 - Math.pow(1 - t, 3);
-      case "easeInOutSine":
+      case "ease-in-out-sine":
         return -(Math.cos(Math.PI * t) - 1) / 2;
-      case "easeInOutExpo":
+      case "ease-in-out-expo":
         return t === 0
           ? 0
           : t === 1
@@ -632,7 +632,7 @@ export async function pageScroll(args: PageScrollArgs): Promise<number> {
             : t < 0.5
               ? Math.pow(2, 20 * t - 10) / 2
               : (2 - Math.pow(2, -20 * t + 10)) / 2;
-      case "easeOutQuint":
+      case "ease-out-quint":
         return 1 - Math.pow(1 - t, 5);
       default:
         return t;

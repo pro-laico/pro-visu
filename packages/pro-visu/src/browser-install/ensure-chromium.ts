@@ -52,7 +52,12 @@ export async function ensureChromium(opts: EnsureChromiumOptions): Promise<boole
     child.on("close", (code) =>
       code === 0
         ? resolve()
-        : reject(new Error(`Chromium install failed (exit code ${code}).`)),
+        : reject(
+            new Error(
+              `Chromium install failed (exit code ${code}). If you're offline or behind a proxy, ` +
+                `set HTTPS_PROXY, or point PLAYWRIGHT_DOWNLOAD_HOST at a mirror.`,
+            ),
+          ),
     );
   });
   opts.logger.success("Chromium installed.");

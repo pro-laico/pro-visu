@@ -1,4 +1,4 @@
 {
   "title": "Docs",
-  "pages": ["index", "getting-started", "configuration", "generators", "cli", "recipes"]
+  "pages": ["index", "getting-started", "configuration", "generators", "cli", "recipes", "troubleshooting"]
 }

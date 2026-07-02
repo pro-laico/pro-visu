@@ -1,6 +1,6 @@
 ---
 title: CLI reference
-description: The pro-visu commands — init, generate, list, and reset — and their flags.
+description: The pro-visu commands — init, generate, doctor, list, schema, and reset — and their flags.
 ---
 
 The CLI is `pro-visu` (available as `npx pro-visu` once installed). Every command accepts
@@ -17,7 +17,11 @@ Scaffold config, gitignore the output dir, wire a package script, and ensure a b
 | `--skip-browser` | Do not install Chromium / ffmpeg now (they're fetched on first `generate`). |
 | `--json` | Scaffold a dependency-free `pro-visu.config.json` + a sibling `pro-visu.schema.json` instead of the TS `defineConfig` file. Ideal for `npx` / global use. |
 
-`init` is idempotent — it leaves an existing config untouched and only creates what's missing.
+`init` is idempotent — it leaves an existing config untouched and only creates what's missing. It
+detects your package manager, framework, and dev port (e.g. Next.js on 3000, Vite on 5173) and
+scaffolds the config to match. When pro-visu isn't installed as a project dependency (npx / global
+use), it automatically falls back to the JSON config, since the TS template's
+`import { defineConfig } from "pro-visu"` wouldn't resolve.
 
 ## `pro-visu generate` <small>(alias `gen`)</small>
 
@@ -34,7 +38,12 @@ Run the generators defined in your config; writes assets and `manifest.json` int
 | `--skip-build` | Keep the managed server but skip its build step (fast iteration when the site is unchanged). |
 | `--draft` | Draft quality: faster, lower-fidelity renders for iteration. |
 | `--cache` | Skip assets whose inputs + options + tool fingerprint are unchanged. |
-| `--verbose` | Verbose (debug) logging. |
+| `--dry-run` | Validate the config + every asset's options and print the resolved plan (assets, URLs, server decision) without generating anything. |
+| `--verbose` | Verbose (debug) logging — plain log lines instead of the live dashboard. |
+
+Before any heavy work, `generate` validates every selected asset's options and — when no managed
+server is configured — probes the asset URLs, so a typo'd option or a dev server that isn't
+running fails in seconds with a pointed message.
 
 On an interactive terminal, a live dashboard groups setup (build/server) and per-asset
 progress, each row with a progress bar, its current step, and elapsed time. Frame-stepped
@@ -51,8 +60,20 @@ Keys:
 - **f** — resume following the running rows.
 
 When the run finishes, a summary panel lists each asset's dimensions and size with totals.
-Set `SHOWCASE_LIVE=0` to force plain logs, or `SHOWCASE_LIVE=1` to force the dashboard on a
-terminal that mis-reports as non-interactive.
+Set `PRO_VISU_LIVE=0` to force plain logs, or `PRO_VISU_LIVE=1` to force the dashboard on a
+terminal that mis-reports as non-interactive. (`SHOWCASE_LIVE` still works as a legacy alias.)
+
+## `pro-visu doctor`
+
+Check the setup without generating anything: Node version, config discovery + validation
+(including every asset's generator options and the dependency graph), Chromium, ffmpeg, and —
+when no managed server is configured — whether the asset URLs actually respond. Exits non-zero
+when something needs fixing, so it also works as a CI gate.
+
+| Flag | Meaning |
+|---|---|
+| `--config <path>` | Path to a config file. |
+| `--cwd <dir>` | Working directory. |
 
 ## `pro-visu list` <small>(alias `ls`)</small>
 
@@ -62,6 +83,7 @@ Print the assets recorded in the manifest (id, generator, file, dimensions, size
 |---|---|
 | `--config <path>` | Path to a config file. |
 | `--cwd <dir>` | Working directory. |
+| `--json` | Print the manifest as JSON (machine-readable, for scripts/CI). |
 
 ## `pro-visu schema`
 
@@ -99,7 +121,7 @@ The CLI checks npm at most once a day for a newer release and, if one exists, pr
 notice after the command finishes:
 
 ```
-Update available 0.2.0 → 0.3.0
+Update available 0.4.0 → 0.5.0
 Run `pnpm add -D pro-visu@latest` to update
 ```
 

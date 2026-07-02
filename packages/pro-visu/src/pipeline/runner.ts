@@ -11,9 +11,22 @@ import { getGenerator } from "@/generators/registry";
 import { ManifestStore } from "@/manifest/manifest";
 import { ensureDir, removeDir } from "@/utils/fs";
 import { sha256File } from "@/utils/hash";
+import { ZodError } from "zod";
+import { legacyOptionHint } from "@/generators/migration";
 import type { ResolvedAssetSpec, ResolvedConfig } from "@/config/schema";
 import type { Logger } from "@/utils/logger";
 import type { AssetRecord } from "@/manifest/schema";
+
+/** Render option-validation issues as pointed `options.path: message` bullets (+ rename hints). */
+function describeOptionIssues(generatorId: string, err: ZodError): string {
+  return err.issues
+    .map((issue) => {
+      const where = ["options", ...issue.path].join(".");
+      const hint = legacyOptionHint(generatorId, issue);
+      return `  • ${where}: ${issue.message}${hint ? ` — ${hint}` : ""}`;
+    })
+    .join("\n");
+}
 
 export interface AssetOutcome {
   name: string;
@@ -195,7 +208,14 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
       reporter?.status(spec.name, "ok");
       return { name: spec.name, generator: spec.generator, status: "ok", records: result.assets };
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
+      // A ZodError's own .message is a raw JSON dump of its issues — reshape it into the same
+      // pointed `options.path: message` bullets the config validator prints.
+      const err =
+        error instanceof ZodError
+          ? new Error(`Invalid ${spec.generator} options:\n${describeOptionIssues(spec.generator, error)}`)
+          : error instanceof Error
+            ? error
+            : new Error(String(error));
       // A cancelled run aborts in-flight work mid-flight: that's an expected stop, not a failure —
       // don't log a scary error or flag the row red; mark it cancelled and move on.
       if (opts.signal?.aborted) {
@@ -308,11 +328,29 @@ export function applyDerivedInputs(config: ResolvedConfig): void {
 /**
  * Merge a spec's options on top of the repo's per-generator defaults. Defaults are keyed
  * by generator id (the same string used in `assets[].generator`); per-asset options win.
+ * Plain objects merge recursively — an asset that sets `kenBurns.scaleTo` keeps the default's
+ * other `kenBurns` fields — while arrays and primitives replace wholesale.
  */
 export function mergeGeneratorOptions(
   defaults: Record<string, Record<string, unknown>>,
   spec: ResolvedAssetSpec,
 ): Record<string, unknown> {
   const generatorDefaults = defaults[spec.generator] ?? {};
-  return { ...generatorDefaults, ...spec.options };
+  return deepMerge(generatorDefaults, spec.options);
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function deepMerge(
+  base: Record<string, unknown>,
+  override: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...base };
+  for (const [key, value] of Object.entries(override)) {
+    const existing = out[key];
+    out[key] = isPlainObject(existing) && isPlainObject(value) ? deepMerge(existing, value) : value;
+  }
+  return out;
 }

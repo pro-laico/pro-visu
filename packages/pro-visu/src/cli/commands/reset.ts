@@ -2,6 +2,7 @@ import path from "node:path";
 import { resolveCwd, resolveOutDir } from "@/utils/paths";
 import { createLogger } from "@/utils/logger";
 import { loadShowcaseConfig } from "@/config/load";
+import { DEFAULT_OUTDIR } from "@/config/defaults";
 import { removeDir } from "@/utils/fs";
 import { readRunState, clearRunState, isAlive, killTreeByPid } from "@/cli/run-state";
 
@@ -22,7 +23,7 @@ export async function runReset(options: ResetOptions = {}): Promise<void> {
   const log = createLogger("info");
 
   // The run-state file lives under the output dir; fall back to the default if config can't load.
-  let outDir = path.join(cwd, "pro-visu");
+  let outDir = path.join(cwd, DEFAULT_OUTDIR);
   try {
     const { config } = await loadShowcaseConfig({ cwd, configFile: options.config });
     outDir = resolveOutDir(cwd, config.settings.outDir);

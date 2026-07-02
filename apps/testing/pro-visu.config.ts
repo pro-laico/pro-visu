@@ -11,7 +11,7 @@ import { defineConfig, type AssetSpecInput } from "pro-visu";
 // ════════════════════════════════════════════════════════════════════════════════════════
 // FEEL — "Quiet & slow" (the authoring guideline for every asset)
 //  • Pace: unhurried. Target every clip at ~10s. Hold long on each section; never rush a scroll.
-//  • Easing: gentle (easeInOutSine / easeOutCubic). No linear, no snap.
+//  • Easing: gentle (ease-in-out-sine / ease-out-cubic). No linear, no snap.
 //  • Motion: at most a whisper of Ken Burns (scaleTo ≤ 1.04). Let the photography sit still.
 //  • Captions/cards: minimal — ideally none while we set the tone. If used: restrained, in the
 //    brand voice ("quietly made"), never salesy.
@@ -197,7 +197,7 @@ export default defineConfig({
         workers: 1,
         deviceScaleFactor: 2,
         crf: 18,
-        durationSeconds: 24, // a multiple of the 8s and 12s tile clips, so every tile loops cleanly
+        durationMs: 24_000, // a multiple of the 8s and 12s tile clips, so every tile loops cleanly
         background: "#1a1714",
         gap: 2,
         tileAspect: 0.75, // fallback only — tiles take their own height (mobile clips ~9:19, photos ~3:4 → masonry)
@@ -251,7 +251,7 @@ export default defineConfig({
         width: 430,
         height: 932,
         deviceScaleFactor: 2,
-        duration: 5000,
+        durationMs: 5000,
         aspect: "9:16",
         outputs: ["mp4", "gif", "poster"],
         waitForSelector: ".hero-media img",
@@ -266,7 +266,7 @@ export default defineConfig({
         width: 1080,
         height: 1080,
         deviceScaleFactor: 2,
-        duration: 5000,
+        durationMs: 5000,
         aspect: "1:1",
         outputs: ["mp4", "webp"],
         waitForSelector: ".hero-media img",
@@ -346,7 +346,7 @@ export default defineConfig({
       name: "hero-loop",
       generator: "scroll-reel",
       options: {
-        duration: 4000,
+        durationMs: 4000,
         loop: "boomerang",
         startDelayMs: 0,
         endDwellMs: 0,
@@ -459,7 +459,7 @@ export default defineConfig({
       name: "shots",
       generator: "screenshots",
       options: {
-        breakpoints: [
+        viewports: [
           { name: "desktop", width: 1440, height: 900 },
           { name: "mobile", width: 390, height: 844 },
         ],
@@ -533,12 +533,12 @@ export default defineConfig({
         weight: 480,
         colors: { background: "#f6f3ed", foreground: "#1a1714", muted: "#b49a77", accent: "#8a5a3c" },
         pulses: [
-          { name: "rest", duration: 1.2 },
-          { name: "set", duration: 1.6, chars: 0.5, pacing: "ease-in-out" },
-          { name: "to camel", duration: 1.4, colors: 1, color: "muted", pacing: "ease-out" },
-          { name: "cognac pops", duration: 1.0, colors: 0.35, color: "accent", pacing: "random" },
-          { name: "to ink", duration: 1.4, colors: 1, color: "foreground", pacing: "ease-in" },
-          { name: "settle", duration: 0.8 },
+          { name: "rest", durationMs: 1200 },
+          { name: "set", durationMs: 1600, chars: 0.5, pacing: "ease-in-out" },
+          { name: "to camel", durationMs: 1400, colors: 1, color: "muted", pacing: "ease-out" },
+          { name: "cognac pops", durationMs: 1000, colors: 0.35, color: "accent", pacing: "random" },
+          { name: "to ink", durationMs: 1400, colors: 1, color: "foreground", pacing: "ease-in" },
+          { name: "settle", durationMs: 800 },
         ],
       },
     },
@@ -553,12 +553,12 @@ export default defineConfig({
         weight: 500,
         colors: { background: "#0b0f10", foreground: "#cdd6d3", muted: "#586460", accent: "#6ee7a8" },
         pulses: [
-          { name: "idle", duration: 1.0 },
-          { name: "type", duration: 1.6, chars: 0.5, pacing: "ease-out" },
-          { name: "accent", duration: 1.0, colors: 0.3, color: "accent", pacing: "random" },
-          { name: "type", duration: 1.4, chars: 0.4, pacing: "ease-in" },
-          { name: "dim", duration: 1.2, colors: 0.5, color: "muted", pacing: "ease-in-out" },
-          { name: "rest", duration: 0.8 },
+          { name: "idle", durationMs: 1000 },
+          { name: "type", durationMs: 1600, chars: 0.5, pacing: "ease-out" },
+          { name: "accent", durationMs: 1000, colors: 0.3, color: "accent", pacing: "random" },
+          { name: "type", durationMs: 1400, chars: 0.4, pacing: "ease-in" },
+          { name: "dim", durationMs: 1200, colors: 0.5, color: "muted", pacing: "ease-in-out" },
+          { name: "rest", durationMs: 800 },
         ],
       },
     },

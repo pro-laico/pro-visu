@@ -47,7 +47,7 @@ export default defineConfig({
   assets: [
     // ── scroll-reel: the landing hero — auto-sections (pause on each section, which we WANT), tuned
     //    to kill the stop/start jitter: heavy supersample (dsf 3) so the sub-pixel scroll crawl at each
-    //    stop doesn't step, a gentle easeInOutSine (less time crawling at the stops than the default
+    //    stop doesn't step, a gentle ease-in-out-sine (less time crawling at the stops than the default
     //    cubic), a frozen clock so the page's own animations can't add motion at the boundaries, and
     //    boomerang so the tour loops (down through the sections, then back up) with no restart cut. ──
     {
@@ -57,7 +57,7 @@ export default defineConfig({
         width: 1280,
         height: 800,
         deviceScaleFactor: 3,
-        easing: "easeInOutSine",
+        easing: "ease-in-out-sine",
         loop: "boomerang",
         freezeClock: true,
         autoSections: { durationMs: 22000, holdMs: 1600 },
@@ -97,7 +97,7 @@ export default defineConfig({
         font: "public/fonts/Fraunces.woff2",
         name: "Fraunces",
         template: "demo",
-        durationSeconds: 16,
+        durationMs: 16_000,
       },
     },
 
@@ -109,7 +109,7 @@ export default defineConfig({
       name: "docs-shot-desktop",
       generator: "screenshots",
       options: {
-        breakpoints: [{ name: "desktop", width: 1440, height: 900 }],
+        viewports: [{ name: "desktop", width: 1440, height: 900 }],
         fullPage: true,
         waitForSelector: ".hero-media img",
       },
@@ -120,7 +120,7 @@ export default defineConfig({
       name: "docs-shot-mobile",
       generator: "screenshots",
       options: {
-        breakpoints: [{ name: "mobile", width: 390, height: 844 }],
+        viewports: [{ name: "mobile", width: 390, height: 844 }],
         fullPage: false,
         waitForSelector: ".hero-media img",
       },
@@ -135,7 +135,7 @@ export default defineConfig({
         width: 960,
         height: 540,
         fps: 30,
-        durationSeconds: 8,
+        durationMs: 8000,
         workers: 1,
         background: "#1a1714",
         gap: 4,
@@ -159,7 +159,7 @@ export default defineConfig({
         width: 960,
         height: 540,
         fps: 30,
-        durationSeconds: 8,
+        durationMs: 8000,
         capture: "realtime",
         test: true,
         background: "#1a1714",

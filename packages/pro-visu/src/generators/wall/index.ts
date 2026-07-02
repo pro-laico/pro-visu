@@ -15,7 +15,8 @@ async function run(ctx: PipelineContext, o: ResolvedWallOptions): Promise<{ asse
     background: o.background,
     deviceScaleFactor: o.deviceScaleFactor,
     fps: o.fps,
-    durationSeconds: o.durationSeconds,
+    // The scene wire format keeps seconds internally; the authoring surface is milliseconds.
+    durationSeconds: o.durationMs / 1000,
     capture: o.capture,
     workers: o.workers,
     frameFormat: o.frameFormat,

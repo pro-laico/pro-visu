@@ -15,7 +15,7 @@ gitignored `pro-visu/` folder. Your job with this skill: install pro-visu, write
 | id | output |
 |---|---|
 | `scroll-reel` | mp4 — scroll reels, choreographed tours, scripted interactions, social formats |
-| `screenshots` | png/jpeg full-page + element captures across named breakpoints |
+| `screenshots` | png/jpeg full-page + element captures across named viewports |
 | `wall` | mp4 — a seamless-looping media wall composited from your other assets |
 | `image` | passthrough — registers an existing image file as an asset (e.g. a wall tile) |
 | `specimen` | mp4 — a looping type specimen from a font file |
@@ -32,8 +32,10 @@ For one-offs, skip the install and prefix commands with `npx` (e.g. `npx pro-vis
 pnpm exec pro-visu init          # typed pro-visu.config.ts
 pnpm exec pro-visu init --json   # dependency-free JSON config + JSON Schema (for npx / global use)
 ```
-`init` writes the config, creates + gitignores `pro-visu/`, adds a `pro-visu` npm script, and ensures
-Chromium. Re-running is safe (idempotent).
+`init` detects the package manager, framework, and dev port (Next → 3000, Vite → 5173, …) and
+scaffolds the config to match; when pro-visu isn't a local dependency it falls back to the JSON
+config automatically. It also creates + gitignores `pro-visu/`, adds a `pro-visu` npm script, and
+ensures Chromium. Re-running is safe (idempotent).
 
 ## 3. Configure for THIS project
 Edit `pro-visu.config.ts`. Two decisions:
@@ -60,7 +62,7 @@ export default defineConfig({
       url: "/",
       generator: "screenshots",
       options: {
-        breakpoints: [
+        viewports: [
           { name: "desktop", width: 1440, height: 900 },
           { name: "mobile", width: 390, height: 844 },
         ],
@@ -77,9 +79,11 @@ and https://pro-visu.com/docs/recipes for ready-made configs (social reels, tour
 
 ## 4. Generate
 ```bash
+pnpm exec pro-visu doctor                   # verify config + env + URL reachability first
+pnpm exec pro-visu generate --dry-run       # print the resolved plan without capturing
 pnpm exec pro-visu generate                 # all assets (add --draft while iterating)
 pnpm exec pro-visu generate --asset home-reel   # just one (repeatable)
-pnpm exec pro-visu list                     # show what's in the manifest
+pnpm exec pro-visu list                     # show what's in the manifest (--json for scripts)
 ```
 Assets land in `pro-visu/<generator>/...` with metadata in `pro-visu/manifest.json` (gitignored).
 Re-running replaces an asset's record by `name`.
@@ -96,16 +100,25 @@ Common offenders:
 - **Scroll-snap**, scroll-driven sequences, carousels, typewriters, parallax → caught at the wrong frame.
 
 **Fix at the SITE level: gate every such animation behind a toggle that renders the final/settled
-state, and toggle it OFF for captures.** Recommended mechanism: a query param the components read (e.g.
-`?capture=1` / `?novfx=1`), or a cookie/env, that makes reveals render visible, count-ups show their
-final number, and scroll-snap relax to normal flow. Then point the capture at that flag — give each
-asset's `url` the param (`/shop?capture=1`), or bake it into the managed-server base. Build the toggle
-in from the start on any site you intend to capture; it's far more reliable than trying to out-wait the
-animations from the capture side.
+state, and toggle it OFF for captures.** pro-visu delivers that toggle for you via
+`settings.capture` — it appends a `query` param, sets `cookies`, seeds `localStorage`, and/or runs
+an `initScript` on every URL-based capture (and folds them into the cache key):
+
+```ts
+settings: {
+  capture: { query: { capture: "1" }, cookies: [{ name: "pv_capture", value: "1" }] },
+}
+```
+
+The site must read the signal — make reveals render visible, count-ups show their final number,
+scroll-snap relax to normal flow. Build the toggle in from the start on any site you intend to
+capture; it's far more reliable than trying to out-wait the animations from the capture side. A
+session cookie in `capture.cookies` also gets captures past a login.
 
 ## Notes
 - Needs a **reachable URL or a managed server** — pro-visu won't boot a dev server unless
-  `settings.server` is configured.
+  `settings.server` is configured. With no managed server, `generate` probes the URLs up front and
+  fails fast when nothing responds (and `pro-visu doctor` runs the same check).
 - **JS-driven animations need a site-side off switch** — reveal-on-scroll, count-ups, and scroll-snap
   capture as gaps/zeros; see *Capture-safe animations* above.
 - Node ≥ 18.18 + a package manager. The first generate downloads a managed Chromium (one-time,

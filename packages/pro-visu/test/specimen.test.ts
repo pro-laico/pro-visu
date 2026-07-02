@@ -50,7 +50,7 @@ describe("specimen generator", () => {
     expect(o.characterIntensity).toBe(1);
     expect(o.colorIntensity).toBe(1);
     expect(o.demo).toBe(false);
-    expect(o.durationSeconds).toBeUndefined(); // defaults to (mirrored) sum of pulse durations
+    expect(o.durationMs).toBeUndefined(); // defaults to (mirrored) sum of pulse durations
   });
 
   it("loads a template's options", () => {
@@ -94,8 +94,8 @@ describe("specimen generator", () => {
   });
 
   it("a pulse defaults to an empty hold (no char/color changes)", () => {
-    const o = specimenOptionsSchema.parse({ font: "x.woff2", pulses: [{ duration: 2 }] });
-    expect(o.pulses[0]).toMatchObject({ duration: 2, chars: 0, colors: 0, pacing: "even" });
+    const o = specimenOptionsSchema.parse({ font: "x.woff2", pulses: [{ durationMs: 2000 }] });
+    expect(o.pulses[0]).toMatchObject({ durationMs: 2000, chars: 0, colors: 0, pacing: "even" });
     expect(o.pulses[0]?.color).toBeUndefined(); // no target color → weighted-random recoloring
   });
 
@@ -110,13 +110,13 @@ describe("specimen generator", () => {
   it("accepts a per-pulse target color for an even sweep, and rejects an unknown token", () => {
     const o = specimenOptionsSchema.parse({
       font: "x.woff2",
-      pulses: [{ duration: 4, colors: 1, color: "accent", pacing: "even" }],
+      pulses: [{ durationMs: 4000, colors: 1, color: "accent", pacing: "even" }],
     });
     expect(o.pulses[0]?.color).toBe("accent");
     expect(
       specimenOptionsSchema.safeParse({
         font: "x.woff2",
-        pulses: [{ duration: 4, colors: 1, color: "teal" }],
+        pulses: [{ durationMs: 4000, colors: 1, color: "teal" }],
       }).success,
     ).toBe(false);
   });
@@ -140,7 +140,7 @@ describe("specimen generator", () => {
   it("accepts fractional pulse change-counts", () => {
     const o = specimenOptionsSchema.parse({
       font: "x.woff2",
-      pulses: [{ duration: 2, chars: 0.5, colors: 0.25 }],
+      pulses: [{ durationMs: 2000, chars: 0.5, colors: 0.25 }],
     });
     expect(o.pulses[0]).toMatchObject({ chars: 0.5, colors: 0.25 });
   });

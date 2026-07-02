@@ -25,7 +25,7 @@ describe("wall generator", () => {
     expect(o.pan.loops).toBe(0); // System 1: no pan unless configured
     expect(o.tileAspect).toBeCloseTo(0.75);
     expect(o.capture).toBe("frames");
-    expect(o.durationSeconds).toBe(16);
+    expect(o.durationMs).toBe(16_000);
     expect(o.test).toBe(false); // preview mode off by default
     expect(o.testTiles).toEqual({});
   });
@@ -38,25 +38,25 @@ describe("wall generator", () => {
     expect(getGenerator(WALL_ID)?.deriveInputs?.(o)).toEqual({});
   });
 
-  it("defaults a pulse's easing and requires at/duration/distance", () => {
+  it("defaults a pulse's easing and requires at/span/distance", () => {
     const o = wallOptionsSchema.parse({
-      columns: [{ tiles: ["a"], pulses: [{ at: 0.2, duration: 0.2, distance: 0.5 }] }, { tiles: ["b"] }, { tiles: ["c"] }],
+      columns: [{ tiles: ["a"], pulses: [{ at: 0.2, span: 0.2, distance: 0.5 }] }, { tiles: ["b"] }, { tiles: ["c"] }],
     });
     expect(o.columns[0]?.pulses?.[0]?.easing).toBe("ease-in-out");
     expect(wallOptionsSchema.safeParse({ columns: [{ tiles: ["a"], pulses: [{ at: 0.2 }] }, { tiles: ["b"] }, { tiles: ["c"] }] }).success).toBe(false);
   });
 
-  it("treats pulse `duration` as a 0..1 clip fraction (a late pulse auto-shifts; >1 is rejected)", () => {
-    // at 0.9 + duration 0.2 overruns the clip — but it's accepted and the start auto-shifts (no error).
+  it("treats pulse `span` as a 0..1 clip fraction (a late pulse auto-shifts; >1 is rejected)", () => {
+    // at 0.9 + span 0.2 overruns the clip — but it's accepted and the start auto-shifts (no error).
     expect(
       wallOptionsSchema.safeParse({
-        columns: [{ tiles: ["a"], pulses: [{ at: 0.9, duration: 0.2, distance: 0.5 }] }, { tiles: ["b"] }, { tiles: ["c"] }],
+        columns: [{ tiles: ["a"], pulses: [{ at: 0.9, span: 0.2, distance: 0.5 }] }, { tiles: ["b"] }, { tiles: ["c"] }],
       }).success,
     ).toBe(true);
-    // a duration longer than the whole clip is meaningless → rejected by the schema (max 1).
+    // a span longer than the whole clip is meaningless → rejected by the schema (max 1).
     expect(
       wallOptionsSchema.safeParse({
-        columns: [{ tiles: ["a"], pulses: [{ at: 0.1, duration: 1.5, distance: 0.5 }] }, { tiles: ["b"] }, { tiles: ["c"] }],
+        columns: [{ tiles: ["a"], pulses: [{ at: 0.1, span: 1.5, distance: 0.5 }] }, { tiles: ["b"] }, { tiles: ["c"] }],
       }).success,
     ).toBe(false);
   });

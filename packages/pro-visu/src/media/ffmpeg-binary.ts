@@ -84,11 +84,29 @@ function getFollowing(url: string, redirects = 5): Promise<IncomingMessage> {
   });
 }
 
+/** Connection-level failure codes that mean "offline / blocked", not "bad URL". */
+const NETWORK_CODES = new Set(["ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT"]);
+
+/** Wrap a connection-level failure with an actionable offline/proxy hint. */
+function withNetworkHint(err: Error): Error {
+  const code = (err as NodeJS.ErrnoException).code;
+  if (code && NETWORK_CODES.has(code)) {
+    return new Error(
+      `${err.message} — you appear to be offline or behind a proxy. Set FFMPEG_BINARIES_URL to a ` +
+        `reachable mirror, or FFMPEG_BIN to a local ffmpeg binary.`,
+    );
+  }
+  return err;
+}
+
 /**
  * Download + gunzip the static ffmpeg binary into the shared cache (atomically, via a temp file), and
  * mark it executable. Targets the managed cache path — never an FFMPEG_BIN override. Returns its path.
+ * `onProgress` receives (downloadedBytes, totalBytes|undefined) as the compressed stream arrives.
  */
-export async function downloadFfmpeg(): Promise<string> {
+export async function downloadFfmpeg(
+  onProgress?: (downloaded: number, total: number | undefined) => void,
+): Promise<string> {
   const url = ffmpegDownloadUrl();
   if (!url) {
     throw new Error(
@@ -99,8 +117,21 @@ export async function downloadFfmpeg(): Promise<string> {
   const tmp = `${dest}.download`;
   await mkdir(path.dirname(dest), { recursive: true });
   await rm(tmp, { force: true });
-  const res = await getFollowing(url);
-  await pipeline(res, createGunzip(), createWriteStream(tmp));
+  try {
+    const res = await getFollowing(url);
+    if (onProgress) {
+      const totalHeader = Number(res.headers["content-length"]);
+      const total = Number.isFinite(totalHeader) && totalHeader > 0 ? totalHeader : undefined;
+      let downloaded = 0;
+      res.on("data", (chunk: Buffer) => {
+        downloaded += chunk.length;
+        onProgress(downloaded, total);
+      });
+    }
+    await pipeline(res, createGunzip(), createWriteStream(tmp));
+  } catch (err) {
+    throw withNetworkHint(err as Error);
+  }
   await chmod(tmp, 0o755).catch(() => {}); // no-op / unsupported on Windows
   await rm(dest, { force: true });
   await rename(tmp, dest);

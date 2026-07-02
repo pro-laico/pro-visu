@@ -1,0 +1,82 @@
+---
+title: Troubleshooting
+description: The common first-run failures — unreachable URLs, downloads behind proxies, CI sandboxing, memory — and their fixes.
+---
+
+Start with `pro-visu doctor` — it checks Node, the config (including every asset's options),
+Chromium, ffmpeg, and whether your asset URLs respond, without generating anything.
+
+## "Nothing is responding at http://localhost:…"
+
+The capture URLs must point at something that's actually running. Either:
+
+- **Start your site** on the port the config names (check the `URL` const in the scaffolded
+  config — `init` guesses your dev port, but a custom setup may differ), or
+- **Point at a deployed URL** instead, or
+- **Configure a [managed server](/docs/configuration/managed-server)** so pro-visu builds,
+  starts, captures, and stops the site itself — then you never have to pre-start anything.
+
+## Chromium download fails (offline / corporate proxy)
+
+The managed Chromium comes from Playwright's CDN on first run. Behind a proxy, set `HTTPS_PROXY`;
+on an air-gapped network, point `PLAYWRIGHT_DOWNLOAD_HOST` at an internal mirror, or skip the
+managed browser entirely with `settings.browser.channel: "chrome"` (uses your installed Chrome)
+or `settings.browser.executablePath`.
+
+## ffmpeg download fails
+
+ffmpeg (~80 MB) is fetched once into a shared cache on first `generate`. If the download fails:
+
+- **Proxy/offline:** set `FFMPEG_BINARIES_URL` to a reachable mirror of the
+  [ffmpeg-static release assets](https://github.com/eugeneware/ffmpeg-static/releases), or
+- **Bring your own:** set `FFMPEG_BIN` to any working local ffmpeg binary (it's honored as-is), or
+- **Unsupported platform:** if there's no prebuilt binary for your OS/arch, `FFMPEG_BIN` is the
+  way through.
+
+## Captures fail on CI with a sandbox error
+
+Most Linux CI runners need Chromium's sandbox disabled:
+
+```ts
+settings: {
+  browser: { args: ["--no-sandbox"] },
+}
+```
+
+Pair it with `--skip-server` when capturing an already-deployed URL. See the
+[CI recipe](/docs/recipes#capture-a-deployed-url-in-ci).
+
+## "JavaScript heap out of memory" / run stops with a low-memory warning
+
+Heavy frame-stepped jobs (large walls especially) can exceed Node's default heap. Raise it with
+`settings.maxMemoryMB` (the CLI re-execs itself with a bigger heap) or lower
+`settings.concurrency`. The run watches its own memory and stops gracefully before a crash —
+already-finished assets are kept, and are skipped on the next run when `--cache` is on.
+
+## Capturing pages behind a login
+
+There's no dedicated auth option yet, but `settings.capture.cookies` sets cookies on every
+capture context before navigation — a session cookie carries auth exactly like a logged-in
+browser would:
+
+```ts
+settings: {
+  capture: {
+    cookies: [{ name: "session", value: process.env.CAPTURE_SESSION! }],
+  },
+}
+```
+
+Keep the value out of the config file (an env var, as above). For header-based schemes or SSO
+flows that can't be expressed as a cookie, capture a preview deployment with auth disabled
+instead.
+
+## The live dashboard misbehaves (or you want plain logs)
+
+`--verbose` switches to plain log lines. `PRO_VISU_LIVE=0` forces plain logs without the debug
+noise; `PRO_VISU_LIVE=1` forces the dashboard on a terminal that mis-reports as non-interactive.
+
+## A run was killed hard and left processes behind
+
+`pro-visu reset` tears down orphaned server/browser process trees and temp dirs recorded by the
+interrupted run. Add `--force` if the run still looks active but is actually stuck.

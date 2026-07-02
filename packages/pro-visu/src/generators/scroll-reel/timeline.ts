@@ -256,7 +256,7 @@ export function autoSectionSteps(a: AutoSectionStepsArgs): ResolvedChoreographyS
 
 export interface ScrollTimelineTotalArgs {
   startDelayMs: number;
-  duration: number;
+  durationMs: number;
   endDwellMs: number;
   choreography?: Array<{ durationMs?: number; holdMs?: number }>;
   autoSections?: boolean | AutoSectionsConfig;
@@ -278,7 +278,7 @@ export function scrollTimelineTotalMs(o: ScrollTimelineTotalArgs): number {
   if (o.autoSections) {
     return autoSectionsBudgetMs(o.autoSections);
   }
-  return o.startDelayMs + o.duration + o.endDwellMs;
+  return o.startDelayMs + o.durationMs + o.endDwellMs;
 }
 
 // --- loop / boomerang ---
@@ -286,7 +286,7 @@ export function scrollTimelineTotalMs(o: ScrollTimelineTotalArgs): number {
 /**
  * Pure: mirror a spec so it plays forward then backward within the same total length — a seamless
  * loop (last frame ≈ first). Each segment's fraction is halved; the second half is the segments in
- * reverse with swapped endpoints. Exactly time-symmetric for symmetric easings (linear/easeInOut*);
+ * reverse with swapped endpoints. Exactly time-symmetric for symmetric easings (linear/ease-in-out-*);
  * for asymmetric easings the down/up acceleration differs slightly but the loop is still seamless.
  */
 export function boomerangSpec(spec: TimelineSpec): TimelineSpec {

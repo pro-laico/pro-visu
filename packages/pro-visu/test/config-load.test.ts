@@ -109,6 +109,39 @@ describe("config validation", () => {
       ConfigValidationError,
     );
   });
+
+  it("rejects typo'd keys in settings (strict)", async () => {
+    const dir = await tmp();
+    const cfg = {
+      settings: { concurrancy: 4 },
+      assets: [{ name: "a", url: "https://a.com", generator: "scroll-reel" }],
+    };
+    await writeFile(path.join(dir, "pro-visu.config.json"), JSON.stringify(cfg), "utf8");
+    await expect(loadShowcaseConfig({ cwd: dir })).rejects.toBeInstanceOf(
+      ConfigValidationError,
+    );
+  });
+
+  it("rejects typo'd keys at the config root (strict), but allows $schema", async () => {
+    const dir = await tmp();
+    const bad = {
+      setttings: {},
+      assets: [{ name: "a", url: "https://a.com", generator: "scroll-reel" }],
+    };
+    await writeFile(path.join(dir, "pro-visu.config.json"), JSON.stringify(bad), "utf8");
+    await expect(loadShowcaseConfig({ cwd: dir })).rejects.toBeInstanceOf(
+      ConfigValidationError,
+    );
+
+    const dir2 = await tmp();
+    const good = {
+      $schema: "./pro-visu.schema.json",
+      assets: [{ name: "a", url: "https://a.com", generator: "scroll-reel" }],
+    };
+    await writeFile(path.join(dir2, "pro-visu.config.json"), JSON.stringify(good), "utf8");
+    const { config } = await loadShowcaseConfig({ cwd: dir2 });
+    expect(config.assets).toHaveLength(1);
+  });
 });
 
 describe("option precedence", () => {

@@ -20,7 +20,7 @@ describe("defaultTimelineSpec", () => {
     startDelayMs: 500,
     durationMs: 6000,
     endDwellMs: 800,
-    easing: "easeInOutCubic",
+    easing: "ease-in-out-cubic",
   });
 
   it("produces hold → scroll → hold segments whose fractions sum to 1", () => {
@@ -28,7 +28,7 @@ describe("defaultTimelineSpec", () => {
     const sum = spec.segments.reduce((s, seg) => s + seg.durationFraction, 0);
     expect(sum).toBeCloseTo(1);
     expect(spec.segments[0]).toMatchObject({ fromY: 0, toY: 0 });
-    expect(spec.segments[1]).toMatchObject({ fromY: 0, toY: 1, easing: "easeInOutCubic" });
+    expect(spec.segments[1]).toMatchObject({ fromY: 0, toY: 1, easing: "ease-in-out-cubic" });
     expect(spec.segments[2]).toMatchObject({ fromY: 1, toY: 1 });
   });
 
@@ -60,7 +60,7 @@ describe("normalizedScrollAt", () => {
     startDelayMs: 500,
     durationMs: 6000,
     endDwellMs: 800,
-    easing: "easeInOutCubic",
+    easing: "ease-in-out-cubic",
   });
   const total = 500 + 6000 + 800;
   const startFrac = 500 / total;
@@ -80,7 +80,7 @@ describe("normalizedScrollAt", () => {
 
   it("applies the scroll segment's easing (not linear) within it", () => {
     const quarter = startFrac + scrollFrac * 0.25;
-    expect(normalizedScrollAt(spec, quarter)).toBeCloseTo(EASINGS.easeInOutCubic(0.25));
+    expect(normalizedScrollAt(spec, quarter)).toBeCloseTo(EASINGS["ease-in-out-cubic"](0.25));
     // discriminating: a linear ramp would be 0.25 here, the eased value is much smaller.
     expect(normalizedScrollAt(spec, quarter)).toBeLessThan(0.2);
   });
@@ -133,7 +133,7 @@ describe("resolveTimeline", () => {
           startDelayMs: 100,
           durationMs: 900,
           endDwellMs: 200,
-          easing: "easeOutCubic",
+          easing: "ease-out-cubic",
         }),
         1.2,
       );
@@ -179,13 +179,13 @@ describe("choreographyTimelineSpec", () => {
 
 describe("scrollTimelineTotalMs", () => {
   it("returns startDelay + duration + endDwell without choreography", () => {
-    expect(scrollTimelineTotalMs({ startDelayMs: 500, duration: 6000, endDwellMs: 800 })).toBe(7300);
+    expect(scrollTimelineTotalMs({ startDelayMs: 500, durationMs: 6000, endDwellMs: 800 })).toBe(7300);
   });
 
   it("sums choreography steps applying per-step defaults", () => {
     const total = scrollTimelineTotalMs({
       startDelayMs: 0,
-      duration: 6000, // ignored when choreography is present
+      durationMs: 6000, // ignored when choreography is present
       endDwellMs: 0,
       choreography: [{}, { durationMs: 500, holdMs: 100 }],
     });
@@ -194,11 +194,11 @@ describe("scrollTimelineTotalMs", () => {
   });
 
   it("returns the auto-sections budget when autoSections is set", () => {
-    expect(scrollTimelineTotalMs({ startDelayMs: 9, duration: 9, endDwellMs: 9, autoSections: true })).toBe(
+    expect(scrollTimelineTotalMs({ startDelayMs: 9, durationMs: 9, endDwellMs: 9, autoSections: true })).toBe(
       DEFAULT_AUTO_DURATION_MS,
     );
     expect(
-      scrollTimelineTotalMs({ startDelayMs: 0, duration: 0, endDwellMs: 0, autoSections: { durationMs: 5000 } }),
+      scrollTimelineTotalMs({ startDelayMs: 0, durationMs: 0, endDwellMs: 0, autoSections: { durationMs: 5000 } }),
     ).toBe(5000);
   });
 });
@@ -287,7 +287,7 @@ describe("boomerangSpec", () => {
   });
 
   it("is a seamless loop that reaches the bottom at the midpoint", () => {
-    const base = defaultTimelineSpec({ startDelayMs: 0, durationMs: 1000, endDwellMs: 0, easing: "easeInOutCubic" });
+    const base = defaultTimelineSpec({ startDelayMs: 0, durationMs: 1000, endDwellMs: 0, easing: "ease-in-out-cubic" });
     const tl = resolveTimeline(boomerangSpec(base), 2);
     expect(tl.scrollAt(0)).toBeCloseTo(0);
     expect(tl.scrollAt(2)).toBeCloseTo(0); // ends where it began → seamless
@@ -295,7 +295,7 @@ describe("boomerangSpec", () => {
   });
 
   it("is time-symmetric for symmetric easings", () => {
-    const base = defaultTimelineSpec({ startDelayMs: 0, durationMs: 1000, endDwellMs: 0, easing: "easeInOutSine" });
+    const base = defaultTimelineSpec({ startDelayMs: 0, durationMs: 1000, endDwellMs: 0, easing: "ease-in-out-sine" });
     const tl = resolveTimeline(boomerangSpec(base), 1);
     for (const p of [0.1, 0.25, 0.4]) {
       expect(tl.scrollAt(p)).toBeCloseTo(tl.scrollAt(1 - p));
@@ -322,7 +322,7 @@ describe("kenBurnsScaleAt", () => {
   });
 
   it("is monotonic non-decreasing for a zoom-in", () => {
-    const cfg = { scaleFrom: 1, scaleTo: 1.2, easing: "easeInOutCubic" as const };
+    const cfg = { scaleFrom: 1, scaleTo: 1.2, easing: "ease-in-out-cubic" as const };
     let prev = -Infinity;
     for (let p = 0; p <= 1; p += 0.1) {
       const v = kenBurnsScaleAt(p, cfg);

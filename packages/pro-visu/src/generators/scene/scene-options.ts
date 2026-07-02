@@ -1,5 +1,22 @@
 import { z } from "zod";
-import { pulseSchema } from "@/generators/specimen/options";
+
+/**
+ * The specimen wire pulse — the scene runs on SECONDS internally; the friendly specimen generator
+ * authors in milliseconds (`durationMs`) and converts before serializing.
+ */
+const specimenWirePulseSchema = z
+  .object({
+    name: z.string().default(""),
+    /** Length of this beat, in seconds (wire unit). */
+    duration: z.number().positive(),
+    chars: z.number().nonnegative().default(0),
+    colors: z.number().nonnegative().default(0),
+    color: z.enum(["foreground", "muted", "accent"]).optional(),
+    pacing: z
+      .enum(["even", "linear", "ease-in", "ease-out", "ease-in-out", "random"])
+      .default("even"),
+  })
+  .strict();
 
 /**
  * Per-scene `sceneOptions` schemas — the knobs each built-in scene understands. `renderScene`
@@ -40,7 +57,7 @@ const specimenSceneOptionsSchema = z
       })
       .partial()
       .default({}),
-    pulses: z.array(pulseSchema).default([]),
+    pulses: z.array(specimenWirePulseSchema).default([]),
     mirror: z.boolean().default(true),
     characterIntensity: z.number().nonnegative().default(1),
     colorIntensity: z.number().nonnegative().default(1),
@@ -66,8 +83,8 @@ const wallEasingEnum = z.enum([
 
 /**
  * One "pulse" — the uniform motion primitive shared by columns, the wall-level default, and the pan.
- * It adds `distance` periods of eased travel, starting at `at` and lasting `duration` — both 0..1
- * fractions of the clip. If `at + duration > 1`, the start shifts back so the move ends exactly at the
+ * It adds `distance` periods of eased travel, starting at `at` and lasting `span` — both 0..1
+ * fractions of the clip. If `at + span > 1`, the start shifts back so the move ends exactly at the
  * loop point (a 0.2 pulse at 0.9 starts at 0.8), so a pulse can never overrun the clip.
  */
 export const wallPulseSchema = z
@@ -75,7 +92,7 @@ export const wallPulseSchema = z
     /** When the pulse starts, as a fraction of the clip (0..1). */
     at: z.number().min(0).max(1).describe("When the pulse starts, as a fraction of the clip (0..1)."),
     /** How long the move takes, as a fraction of the clip (0..1). */
-    duration: z
+    span: z
       .number()
       .positive()
       .max(1)
@@ -262,9 +279,9 @@ export type WallEasing = z.infer<typeof wallEasingEnum>;
 export interface WallPulseInput {
   /** When the pulse starts, as a fraction of the clip (0..1). */
   at: number;
-  /** How long the move takes, as a fraction of the clip (0..1). If `at + duration > 1`, the start
+  /** How long the move takes, as a fraction of the clip (0..1). If `at + span > 1`, the start
    *  shifts back so the move ends at the loop point. */
-  duration: number;
+  span: number;
   /** How far it travels, in periods (1 = one full tile-set / one wrap). Usually 0..1. */
   distance: number;
   /** Easing of the move's ramp. Default "ease-in-out". */

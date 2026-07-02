@@ -4,6 +4,82 @@ All notable changes to `pro-visu` are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com), and the project adheres to
 [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### BREAKING
+
+One consistent rule replaces three ad-hoc conventions: **every author-facing time option is
+milliseconds with an `Ms` suffix, every easing name is kebab-case, and a responsive capture list is
+always called `viewports`.** Configs using the old names fail validation with a pointed migration
+message (including the ×1000 unit conversions), so nothing breaks silently.
+
+- **scroll-reel:** `duration` → `durationMs` (already ms — rename only). Easing names are
+  kebab-case: `easeInOutCubic` → `ease-in-out-cubic`, `easeInOutQuad` → `ease-in-out-quad`,
+  `easeOutCubic` → `ease-out-cubic`, `easeInOutSine` → `ease-in-out-sine`,
+  `easeInOutExpo` → `ease-in-out-expo`, `easeOutQuint` → `ease-out-quint` (applies to `easing`,
+  choreography-step `easing`, and `kenBurns.easing`).
+- **screenshots:** `breakpoints` → `viewports` (same shape) — now matching scroll-reel's option,
+  so one shared list can drive both.
+- **wall:** `durationSeconds` → `durationMs`, now in milliseconds (`16` → `16000`). Pulse
+  `duration` → `span` (same 0..1 clip fraction) — `duration` no longer means three different
+  things across the tool.
+- **specimen:** `durationSeconds` → `durationMs` (×1000). Pulse `duration` (was seconds) →
+  `durationMs` in milliseconds (`0.8` → `800`).
+- **palette-reel:** `holdSeconds` → `holdMs` (`2` → `2000`), `transitionSeconds` →
+  `transitionMs` (`0.7` → `700`), `durationSeconds` → `durationMs` (×1000).
+
+Migration: suffix every renamed time value with `Ms` semantics (multiply the seconds-based ones by
+1000), kebab-case any camelCase easing, rename `breakpoints` arrays to `viewports`, and rename wall
+pulse `duration` to `span`. `pro-visu doctor` / `pro-visu generate --dry-run` validate a migrated
+config without capturing anything.
+
+### Added
+
+- **`pro-visu doctor`** — check the whole setup without generating anything: Node version, config
+  discovery + validation (including every asset's generator options and the dependency graph),
+  Chromium, ffmpeg, and whether the asset URLs actually respond. Exits non-zero when something
+  needs fixing, so it doubles as a CI gate.
+- **`generate --dry-run`** — validate the config and print the resolved plan (selected assets,
+  URLs, server decision, quality, concurrency) without capturing anything.
+- **URL pre-flight** — with no managed server configured, `generate` probes the asset URLs before
+  any heavy work; a dev server that isn't running now fails in seconds with one actionable message
+  instead of a per-asset Playwright navigation error.
+- **Project-aware `init`** — detects the package manager, framework, and dev port (Next.js → 3000,
+  Vite → 5173, an explicit `--port` flag in the dev script, …) and scaffolds the config to match.
+  When pro-visu isn't installed as a project dependency (npx/global use), init automatically falls
+  back to the dependency-free JSON config, since the TS template's import wouldn't resolve.
+- **`list --json`** — print the manifest as JSON for scripts and CI.
+- **ffmpeg download progress + offline hints** — the one-time ~80 MB fetch now logs quartile
+  progress instead of sitting silent, and connection-level failures explain the
+  `FFMPEG_BINARIES_URL` / `FFMPEG_BIN` escape hatches (Chromium failures point at
+  `HTTPS_PROXY` / `PLAYWRIGHT_DOWNLOAD_HOST`).
+- **Typo suggestions** — unknown `--asset` names, unknown generator ids, and typo'd
+  `settings.defaults` keys now get a "did you mean …?" hint.
+
+### Changed
+
+- **Options are validated before any heavy work** — every selected asset's generator options are
+  parsed up front (config mistakes fail in seconds, not after a browser install or site build),
+  and option errors are printed as pointed `options.path: message` bullets instead of a raw JSON
+  dump.
+- **Typos in `settings` and at the config root are now rejected** — the settings block and config
+  root are strict, so a misspelled key (e.g. `concurrancy`) errors instead of being silently
+  ignored. `settings.defaults` keys that match no generator are flagged too.
+- **`settings.defaults` merges deeply** — an asset that sets one field of a nested object (e.g.
+  `kenBurns.scaleTo`) now keeps the default's other fields instead of replacing the whole object;
+  arrays and primitives still replace wholesale.
+- **Early errors are visible on interactive terminals** — messages emitted before the live
+  dashboard mounts (missing Chromium/ffmpeg, unknown `--asset`, invalid options) previously
+  vanished on a TTY; they now always print.
+- **Unknown commands fail** — `pro-visu bogus` exits 1 with a pointed message instead of silently
+  printing help; an invalid `--concurrency` value errors instead of being silently ignored.
+- **`PRO_VISU_LIVE`** replaces `SHOWCASE_LIVE` for forcing the live dashboard on/off
+  (`SHOWCASE_LIVE` still works as a legacy alias).
+- Docs: renamed scroll-reel's `capture: "frames" | "realtime"` section to **"Capture strategy"**
+  to stop colliding with `settings.capture` ("capture mode"); new
+  [Troubleshooting](https://pro-visu.com/docs/troubleshooting) page; documented cookie-based auth
+  capture; READMEs no longer claim ffmpeg is bundled (it's fetched on first use since 0.4.0).
+
 ## [0.4.0] - 2026-06-29
 
 ### Added

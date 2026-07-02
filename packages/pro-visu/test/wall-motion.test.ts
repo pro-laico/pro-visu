@@ -6,7 +6,7 @@ const period = 800; // px per tile-set
 
 describe("trackTravel (pulse-sum motion, in periods)", () => {
   it("starts at 0 and ends on a whole number of periods (seamless)", () => {
-    const pulses = [{ at: 0.2, duration: 0.15, distance: 0.5 }];
+    const pulses = [{ at: 0.2, span: 0.15, distance: 0.5 }];
     expect(trackTravel(pulses, 1, 0, D)).toBeCloseTo(0, 6);
     // loops 1 + pulse 0.5 = 1.5 → rounds UP to 2 whole periods at the clip end
     expect(trackTravel(pulses, 1, D, D)).toBeCloseTo(2, 6);
@@ -16,13 +16,13 @@ describe("trackTravel (pulse-sum motion, in periods)", () => {
     expect(trackTravel([], 1, D, D)).toBeCloseTo(1, 6); // loops 1, no pulses → 1
     expect(trackTravel([], 0, D, D)).toBeCloseTo(0, 6); // loops 0, no pulses → frozen
     // loops 0 + one full-clip pulse of one period → 1 (pure pulse, no forced creep)
-    expect(trackTravel([{ at: 0, duration: 1, distance: 1 }], 0, D, D)).toBeCloseTo(1, 6);
+    expect(trackTravel([{ at: 0, span: 1, distance: 1 }], 0, D, D)).toBeCloseTo(1, 6);
     // loops 2 + pulses summing 0.5 → ceil(2.5) = 3
-    expect(trackTravel([{ at: 0.3, duration: 0.15, distance: 0.5 }], 2, D, D)).toBeCloseTo(3, 6);
+    expect(trackTravel([{ at: 0.3, span: 0.15, distance: 0.5 }], 2, D, D)).toBeCloseTo(3, 6);
   });
 
   it("a pulse advances travel monotonically across its window", () => {
-    const pulses = [{ at: 0.25, duration: 0.25, distance: 1 }]; // window u ∈ [0.25, 0.5]
+    const pulses = [{ at: 0.25, span: 0.25, distance: 1 }]; // window u ∈ [0.25, 0.5]
     const start = trackTravel(pulses, 0, D * 0.25, D);
     const mid = trackTravel(pulses, 0, D * 0.375, D);
     const done = trackTravel(pulses, 0, D * 0.5, D);
@@ -34,7 +34,7 @@ describe("trackTravel (pulse-sum motion, in periods)", () => {
 
   it("shifts a late pulse back so it ends at the loop point (never overruns)", () => {
     // at 0.9 + duration 0.2 = 1.1 > 1 → start shifts back to 0.8 (1 − duration)
-    const pulses = [{ at: 0.9, duration: 0.2, distance: 1 }];
+    const pulses = [{ at: 0.9, span: 0.2, distance: 1 }];
     expect(trackTravel(pulses, 0, D * 0.79, D)).toBeCloseTo(0, 6); // hasn't started before u=0.8
     expect(trackTravel(pulses, 0, D * 0.9, D)).toBeGreaterThan(0); // mid-pulse
     expect(trackTravel(pulses, 0, D, D)).toBeCloseTo(1, 6); // completes exactly at the clip end
@@ -44,16 +44,16 @@ describe("trackTravel (pulse-sum motion, in periods)", () => {
 describe("trackOffset (seam: offset(D) ≡ offset(0))", () => {
   const tracks: Track[] = [
     { pulses: [], loops: 1, dir: 1 },
-    { pulses: [{ at: 0.1, duration: 0.15, distance: 0.5 }], loops: 1, dir: -1 },
+    { pulses: [{ at: 0.1, span: 0.15, distance: 0.5 }], loops: 1, dir: -1 },
     {
       pulses: [
-        { at: 0.3, duration: 0.2, distance: 0.25 },
-        { at: 0.7, duration: 0.2, distance: 0.75 },
+        { at: 0.3, span: 0.2, distance: 0.25 },
+        { at: 0.7, span: 0.2, distance: 0.75 },
       ],
       loops: 2,
       dir: 1,
     },
-    { pulses: [{ at: 0, duration: 1, distance: 1, easing: "linear" }], loops: 0, dir: -1 },
+    { pulses: [{ at: 0, span: 1, distance: 1, easing: "linear" }], loops: 0, dir: -1 },
   ];
 
   it("returns to its t=0 offset at t=D for varied loops / pulses / direction", () => {
@@ -81,14 +81,14 @@ describe("trackOffset (seam: offset(D) ≡ offset(0))", () => {
   });
 
   it("direction flips the sign of travel (up = mirror of down)", () => {
-    const pulses = [{ at: 0.2, duration: 0.2, distance: 0.5 }];
+    const pulses = [{ at: 0.2, span: 0.2, distance: 0.5 }];
     const down = trackOffset({ pulses, loops: 1, dir: 1 }, D * 0.5, period, D);
     const up = trackOffset({ pulses, loops: 1, dir: -1 }, D * 0.5, period, D);
     expect((down + up) % period).toBeCloseTo(0, 4); // mod-mirror around the period
   });
 
   it("stagger shifts the start position by a fraction of a period, preserving the seam", () => {
-    const base: Track = { pulses: [{ at: 0.1, duration: 0.15, distance: 0.5 }], loops: 1, dir: 1 };
+    const base: Track = { pulses: [{ at: 0.1, span: 0.15, distance: 0.5 }], loops: 1, dir: 1 };
     const staggered: Track = { ...base, stagger: 0.25 };
     // t=0 starts shifted by 0.25 of a period (instead of 0)
     expect(trackOffset(base, 0, period, D)).toBeCloseTo(0, 6);

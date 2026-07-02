@@ -57,7 +57,17 @@ export async function ensureFfmpeg(opts: EnsureFfmpegOptions): Promise<boolean> 
 
   opts.logger.info("Fetching ffmpeg (one-time, ~80 MB)…");
   try {
-    await downloadFfmpeg();
+    // Log at each quartile so a slow link shows life without spamming the log.
+    let lastQuartile = 0;
+    await downloadFfmpeg((downloaded, total) => {
+      if (!total) return;
+      const quartile = Math.floor((downloaded / total) * 4);
+      if (quartile > lastQuartile && quartile < 4) {
+        lastQuartile = quartile;
+        const mb = (n: number): string => (n / 1024 / 1024).toFixed(0);
+        opts.logger.info(`ffmpeg download: ${quartile * 25}% (${mb(downloaded)}/${mb(total)} MB)`);
+      }
+    });
   } catch (err) {
     opts.logger.error(`ffmpeg download failed: ${(err as Error).message}`);
     return false;

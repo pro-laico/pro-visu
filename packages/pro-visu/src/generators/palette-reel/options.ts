@@ -32,11 +32,11 @@ export interface PaletteReelOptionsInput {
   /** Fields revealed when a color expands (the name is always shown, so it's ignored here). Default hex + oklch + rgb. */
   details?: FieldId[];
 
-  // --- timing (seconds) ---
-  /** How long each color stays fully open before handing off to the next. Default 2. */
-  holdSeconds?: number;
-  /** Crossfade length from one open color to the next. Default 0.7. */
-  transitionSeconds?: number;
+  // --- timing (ms) ---
+  /** How long each color stays fully open before handing off to the next (ms). Default 2000. */
+  holdMs?: number;
+  /** Crossfade length from one open color to the next (ms). Default 700. */
+  transitionMs?: number;
   /**
    * Ping-pong the sweep (down the list then back up) so every handoff is between neighbouring bands —
    * the open band only ever slides by one, avoiding the "pinch" of a last→first jump at the loop seam.
@@ -45,8 +45,8 @@ export interface PaletteReelOptionsInput {
   bounce?: boolean;
   /** Easing applied to the crossfade ramp. Default "ease-in-out". */
   easing?: "linear" | "ease-in" | "ease-out" | "ease-in-out";
-  /** Clip length override (s). Omit to derive (count × (hold + transition)) for a clean loop. */
-  durationSeconds?: number;
+  /** Clip length override (ms). Omit to derive (count × (hold + transition)) for a clean loop. */
+  durationMs?: number;
 
   // --- layout / sizing ---
   /** How many times a sliver's share a fully-open band takes (a collapsed sliver is the baseline). Default 12. */
@@ -125,16 +125,16 @@ const paletteReelObjectSchema = z
         "Fields revealed when a color expands (the name is always shown, so it's ignored here). Default hex + oklch + rgb.",
       ),
 
-    holdSeconds: z
+    holdMs: z
       .number()
       .positive()
-      .default(2)
-      .describe("How long each color stays fully open before handing off to the next (s). Default 2."),
-    transitionSeconds: z
+      .default(2000)
+      .describe("How long each color stays fully open before handing off to the next (ms). Default 2000."),
+    transitionMs: z
       .number()
       .positive()
-      .default(0.7)
-      .describe("Crossfade length from one open color to the next (s). Default 0.7."),
+      .default(700)
+      .describe("Crossfade length from one open color to the next (ms). Default 700."),
     bounce: z
       .boolean()
       .default(true)
@@ -145,11 +145,11 @@ const paletteReelObjectSchema = z
       .enum(["linear", "ease-in", "ease-out", "ease-in-out"])
       .default("ease-in-out")
       .describe('Easing applied to the crossfade ramp. Default "ease-in-out".'),
-    durationSeconds: z
+    durationMs: z
       .number()
       .positive()
       .optional()
-      .describe("Clip length override (s). Omit to derive (count x (hold + transition)) for a clean loop."),
+      .describe("Clip length override (ms). Omit to derive (count x (hold + transition)) for a clean loop."),
 
     grownFlex: z
       .number()

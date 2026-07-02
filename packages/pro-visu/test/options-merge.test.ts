@@ -35,4 +35,20 @@ describe("mergeGeneratorOptions", () => {
     expect(opts.width).toBe(1000);
     expect(opts.fps).toBe(24);
   });
+
+  it("deep-merges nested objects — an asset overriding one field keeps the default's siblings", () => {
+    const merged = mergeGeneratorOptions(
+      { "scroll-reel": { kenBurns: { scaleTo: 1.08, originX: 0.3 } } },
+      spec({ options: { kenBurns: { scaleTo: 1.02 } } }),
+    );
+    expect(merged.kenBurns).toEqual({ scaleTo: 1.02, originX: 0.3 });
+  });
+
+  it("replaces arrays wholesale (no element-wise merge)", () => {
+    const merged = mergeGeneratorOptions(
+      { "scroll-reel": { viewports: [{ name: "desktop", width: 1440, height: 900 }] } },
+      spec({ options: { viewports: [{ name: "mobile", width: 390, height: 844 }] } }),
+    );
+    expect(merged.viewports).toEqual([{ name: "mobile", width: 390, height: 844 }]);
+  });
 });

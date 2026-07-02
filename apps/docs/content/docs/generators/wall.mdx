@@ -24,10 +24,10 @@ assets: [
     name: "lookbook-wall",
     generator: "wall",                 // no `inputs` — derived from the column tiles below
     options: {
-      durationSeconds: 16,
+      durationMs: 16000,
       columns: [
         { tiles: ["img-coat", "clip-cart", "ui-home"], direction: "down",
-          pulses: [{ at: 0.1, duration: 0.15, distance: 0.5, easing: "ease-in-out-strong" }] },
+          pulses: [{ at: 0.1, span: 0.15, distance: 0.5, easing: "ease-in-out-strong" }] },
         { tiles: ["img-crew", "ui-shop"], direction: "up", loops: 1, stagger: 0.4 },
         { tiles: ["img-editorial", "clip-menu", "ui-about"], stagger: 0.15 },
         // …≥3 columns…
@@ -49,7 +49,7 @@ A very simple wall — three columns of photos, each with one gentle drift, loop
   options: {
     width: 960,
     height: 540,
-    durationSeconds: 8,
+    durationMs: 8000,
     background: "#1a1714",
     // one gentle drift over the clip
     loops: 1,
@@ -92,14 +92,14 @@ A very simple wall — three columns of photos, each with one gentle drift, loop
 A track's travel = **`loops`** continuous whole-clip periods **plus** the sum of its **`pulses`**.
 The total is rounded **up** to a whole number of periods (the remainder folds into the continuous
 scroll), so every track lands back on its start at the clip's end — the wall **always loops
-seamlessly**, for any `durationSeconds`.
+seamlessly**, for any `durationMs`.
 
 A **pulse** is one eased move, shared verbatim by columns, the wall-level default, and the `pan`:
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
 | `at` | `number` (0–1) | — | When the move starts, as a fraction of the clip. |
-| `duration` | `number` (0–1) | — | How long the move takes, as a fraction of the clip. If `at + duration > 1`, the start shifts back so it ends exactly at the loop point (a 0.2 pulse at 0.9 starts at 0.8) — a pulse can never overrun the clip. |
+| `span` | `number` (0–1) | — | How long the move takes, as a fraction of the clip. If `at + span > 1`, the start shifts back so it ends exactly at the loop point (a 0.2 pulse at 0.9 starts at 0.8) — a pulse can never overrun the clip. |
 | `distance` | `number` | — | How far it travels, in periods (`1` = one full tile-set). Usually 0–1. |
 | `easing` | `"linear" \| "ease-in" \| "ease-out" \| "ease-in-out" \| "ease-in-out-strong"` | `"ease-in-out"` | Ramp of the move. |
 
@@ -125,7 +125,7 @@ exactly **one loop** — the common case. `loops: 1` plus a 0.5 pulse travels 2 
 | `width` / `height` | `number` | `1920` / `1080` | Output frame size (CSS px). |
 | `deviceScaleFactor` | `number` (≤4) | `2` | Render scale (2 = retina-crisp). |
 | `fps` | `number` (≤120) | `30` | Output frames per second. |
-| `durationSeconds` | `number` | `16` | Clip length — the whole loop. Tile videos should loop within a length that divides this. |
+| `durationMs` | `number` | `16000` | Clip length (ms) — the whole loop. Tile videos should loop within a length that divides this. |
 | `capture` | `"frames" \| "realtime"` | `"frames"` | `frames` is deterministic + parallelisable; `realtime` records the live scene once (faster — handy while iterating). |
 | `workers` | `number` | auto | Parallel frame-render workers. Video-heavy walls can cold-start to black tiles under many workers — set `1` for those. |
 | `frameFormat` | `"jpeg" \| "png"` | `"jpeg"` | Intermediate frame format (frames only). |
@@ -185,7 +185,7 @@ real frame-stepped render:
     capture: "realtime",
     width: 960,
     height: 540,
-    durationSeconds: 8,
+    durationMs: 8000,
     // 9:16, matches phone-clip tiles
     tileAspect: 0.5625,
     loops: 1,

@@ -1,7 +1,17 @@
+import type { ZodError } from "zod";
 import { ConfigNotFoundError, ConfigValidationError } from "@/config/load";
 import type { Logger } from "@/utils/logger";
 import type { AssetOutcome } from "@/pipeline/runner";
 import { renderSummary } from "@/cli/dashboard/Summary";
+
+/** Render a ZodError's issues as pointed `path: message` bullets (shared by config + option errors). */
+export function zodIssueLines(zodError: ZodError, pathPrefix = ""): string[] {
+  return zodError.issues.map((issue) => {
+    const joined = issue.path.join(".");
+    const where = [pathPrefix, joined].filter(Boolean).join(".") || "(root)";
+    return `  • ${where}: ${issue.message}`;
+  });
+}
 
 /** Print a friendly, actionable message for config load/validation errors. */
 export function reportConfigError(logger: Logger, err: unknown): void {
@@ -11,10 +21,7 @@ export function reportConfigError(logger: Logger, err: unknown): void {
   }
   if (err instanceof ConfigValidationError) {
     logger.error(`Invalid config${err.file ? ` (${err.file})` : ""}:`);
-    for (const issue of err.zodError.issues) {
-      const where = issue.path.length ? issue.path.join(".") : "(root)";
-      logger.error(`  • ${where}: ${issue.message}`);
-    }
+    for (const line of zodIssueLines(err.zodError)) logger.error(line);
     return;
   }
   logger.error(err instanceof Error ? err.message : String(err));

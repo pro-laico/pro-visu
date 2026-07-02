@@ -90,9 +90,11 @@ export interface ShowcaseSettingsInput {
   defaults?: {
     "scroll-reel"?: ScrollReelOptions;
     screenshots?: ScreenshotsOptions;
+    wall?: WallOptions;
     specimen?: SpecimenOptions;
     palette?: PaletteOptions;
     "palette-reel"?: PaletteReelOptions;
+    image?: ImageOptions;
   };
 }
 
@@ -107,7 +109,7 @@ export interface AssetBaseInput {
 /**
  * Discriminated by `generator` so each asset gets the right `options` autocomplete. URL-based
  * generators take a `url` — absolute, or a `/path` resolved against the managed server; omit it
- * to capture the managed server's root. A local `scene` composites its `inputs` and needs none.
+ * to capture the managed server's root. Local generators (wall, specimen, palette, image) need none.
  */
 export type AssetSpecInput =
   | (AssetBaseInput & { url?: string; generator: "scroll-reel"; options?: ScrollReelOptions })

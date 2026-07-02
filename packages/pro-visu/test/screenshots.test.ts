@@ -12,8 +12,8 @@ describe("screenshots generator", () => {
 
   it("applies sensible defaults", () => {
     const opts = screenshotsOptionsSchema.parse({});
-    expect(opts.breakpoints.map((b) => b.name)).toEqual(["desktop", "mobile"]);
-    expect(opts.breakpoints[0]!.height).toBe(900); // breakpoint default fills in
+    expect(opts.viewports.map((b) => b.name)).toEqual(["desktop", "mobile"]);
+    expect(opts.viewports[0]!.height).toBe(900); // viewport default fills in
     expect(opts.fullPage).toBe(true);
     expect(opts.format).toBe("png");
     expect(opts.deviceScaleFactor).toBe(2);

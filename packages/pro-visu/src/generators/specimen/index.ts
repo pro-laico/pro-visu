@@ -15,9 +15,10 @@ async function run(
   o: ResolvedSpecimenOptions,
 ): Promise<{ assets: AssetRecord[] }> {
   // Clip length follows the composed pulses (doubled when mirrored for a seamless loop) unless
-  // explicitly overridden.
-  const pulsesTotal = o.pulses.reduce((sum, p) => sum + p.duration, 0);
-  const durationSeconds = o.durationSeconds ?? (o.mirror ? pulsesTotal * 2 : pulsesTotal);
+  // explicitly overridden. The authoring surface is milliseconds; the scene wire format is seconds.
+  const pulsesTotalMs = o.pulses.reduce((sum, p) => sum + p.durationMs, 0);
+  const durationSeconds = (o.durationMs ?? (o.mirror ? pulsesTotalMs * 2 : pulsesTotalMs)) / 1000;
+  const wirePulses = o.pulses.map(({ durationMs, ...p }) => ({ ...p, duration: durationMs / 1000 }));
 
   const sceneOptions: ResolvedSceneOptions = {
     scene: "specimen",
@@ -45,7 +46,7 @@ async function run(
       characterPool: o.characterPool,
       colors: o.colors,
       colorWeights: o.colorWeights,
-      pulses: o.pulses,
+      pulses: wirePulses,
       mirror: o.mirror,
       characterIntensity: o.characterIntensity,
       colorIntensity: o.colorIntensity,

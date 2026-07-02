@@ -156,7 +156,7 @@ async function run(
               ...options,
               choreography: r.choreography,
               autoSections: r.autoSections,
-              duration: r.durationMs ?? options.duration,
+              durationMs: r.durationMs ?? options.durationMs,
             };
       const segPath = path.join(ctx.tmpDir, `${slugify(ctx.target.name)}-route-${i}.mp4`);
       ctx.logger.info(
@@ -218,7 +218,7 @@ async function run(
     }
     const fileName = options.fileName ?? `${slugify(ctx.target.name)}.mp4`;
     const outPath = ctx.resolveOutPath(fileName);
-    const durationSeconds = (options.startDelayMs + options.duration + options.endDwellMs) / 1000;
+    const durationSeconds = (options.startDelayMs + options.durationMs + options.endDwellMs) / 1000;
     ctx.logger.info(`recording ${url} (realtime)`);
     const { webmPath, leadSeconds } = await captureScrollWebm({
       browser: ctx.browser,
@@ -252,7 +252,7 @@ async function run(
       format: "mp4",
       width: options.width,
       height: options.height,
-      durationMs: options.startDelayMs + options.duration + options.endDwellMs,
+      durationMs: options.startDelayMs + options.durationMs + options.endDwellMs,
       bytes: stats.size,
       contentHash,
       createdAt: new Date().toISOString(),

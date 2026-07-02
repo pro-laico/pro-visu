@@ -90,10 +90,11 @@ export class InkReporter implements Reporter {
 
 /**
  * Pick the live dashboard on an interactive TTY (unless --verbose, which wants full logs).
- * `SHOWCASE_LIVE=1` forces it on (e.g. terminals that mis-report TTY); `=0` forces it off.
+ * `PRO_VISU_LIVE=1` forces it on (e.g. terminals that mis-report TTY); `=0` forces it off.
+ * (`SHOWCASE_LIVE` is honored as a legacy alias.)
  */
 export function createReporter(opts: { tty: boolean; verbose: boolean }): Reporter {
-  const forced = process.env.SHOWCASE_LIVE;
+  const forced = process.env.PRO_VISU_LIVE ?? process.env.SHOWCASE_LIVE;
   if (forced === "0") return new NoopReporter();
   if (forced === "1") return new InkReporter();
   return opts.tty && !opts.verbose ? new InkReporter() : new NoopReporter();

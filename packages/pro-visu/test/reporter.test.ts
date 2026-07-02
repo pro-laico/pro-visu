@@ -323,20 +323,33 @@ describe("buildView", () => {
 
 describe("createReporter", () => {
   it("is no-op without a TTY and the live dashboard with one", () => {
+    delete process.env.PRO_VISU_LIVE;
     delete process.env.SHOWCASE_LIVE;
     expect(createReporter({ tty: false, verbose: false })).toBeInstanceOf(NoopReporter);
     expect(createReporter({ tty: true, verbose: false })).toBeInstanceOf(InkReporter);
     expect(createReporter({ tty: true, verbose: true })).toBeInstanceOf(NoopReporter);
   });
 
-  it("respects the SHOWCASE_LIVE override", () => {
+  it("respects the PRO_VISU_LIVE override", () => {
+    try {
+      process.env.PRO_VISU_LIVE = "1";
+      expect(createReporter({ tty: false, verbose: true })).toBeInstanceOf(InkReporter);
+      process.env.PRO_VISU_LIVE = "0";
+      expect(createReporter({ tty: true, verbose: false })).toBeInstanceOf(NoopReporter);
+    } finally {
+      delete process.env.PRO_VISU_LIVE;
+    }
+  });
+
+  it("honors SHOWCASE_LIVE as a legacy alias, with PRO_VISU_LIVE winning", () => {
     try {
       process.env.SHOWCASE_LIVE = "1";
       expect(createReporter({ tty: false, verbose: true })).toBeInstanceOf(InkReporter);
-      process.env.SHOWCASE_LIVE = "0";
-      expect(createReporter({ tty: true, verbose: false })).toBeInstanceOf(NoopReporter);
+      process.env.PRO_VISU_LIVE = "0";
+      expect(createReporter({ tty: false, verbose: true })).toBeInstanceOf(NoopReporter);
     } finally {
       delete process.env.SHOWCASE_LIVE;
+      delete process.env.PRO_VISU_LIVE;
     }
   });
 });

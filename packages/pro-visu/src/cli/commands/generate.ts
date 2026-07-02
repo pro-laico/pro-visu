@@ -18,12 +18,21 @@ import {
   type ServerTasks,
   type TaskHandle,
 } from "@/server/manage-server";
-import { runPipeline, applyDerivedInputs, type AssetOutcome } from "@/pipeline/runner";
+import {
+  runPipeline,
+  applyDerivedInputs,
+  applyQuality,
+  mergeGeneratorOptions,
+  type AssetOutcome,
+} from "@/pipeline/runner";
 import { expandSelection, dependenciesOf } from "@/pipeline/graph";
 import { createReporter } from "@/cli/dashboard";
 import type { Reporter } from "@/pipeline/reporter";
 import { TOOL_VERSION } from "@/version";
 import { reportConfigError, printSummary } from "@/cli/ui";
+import { generatorIds } from "@/generators/registry";
+import { legacyOptionHint } from "@/generators/migration";
+import { didYouMean } from "@/utils/suggest";
 
 export interface GenerateOptions {
   cwd?: string;
@@ -39,6 +48,8 @@ export interface GenerateOptions {
   draft?: boolean;
   /** Skip assets whose inputs+options+tool fingerprint is unchanged. */
   cache?: boolean;
+  /** Validate config + print the resolved plan (assets, URLs, server), then exit without generating. */
+  dryRun?: boolean;
   verbose?: boolean;
 }
 
@@ -63,43 +74,106 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     bootstrapLog.info(`Node heap limit: ${currentHeapLimitMB()} MB (settings.maxMemoryMB=${config.settings.maxMemoryMB})`);
   }
 
-  const level = options.verbose ? "debug" : config.settings.logLevel;
-  // Live job tracker on an interactive TTY; per-asset logs feed each row's current step.
-  const reporter = createReporter({ tty: Boolean(process.stdout.isTTY), verbose: !!options.verbose });
-  const logger = reporter.isLive ? createReportingLogger(level, reporter) : createLogger(level);
+  // NOTE: everything up to the dashboard mounting logs through `bootstrapLog` — the reporting
+  // logger buffers lines into the not-yet-rendered dashboard, which would swallow early errors.
   const outDir = resolveOutDir(cwd, config.settings.outDir);
+
+  // Reject a malformed --concurrency loudly instead of silently falling back to the config value.
+  // (A bare `--concurrency` with no value reaches us as boolean true — also malformed.)
+  let concurrencyOverride: number | undefined;
+  if (options.concurrency != null) {
+    const raw: unknown = options.concurrency;
+    const n = typeof raw === "boolean" ? Number.NaN : Number(raw);
+    if (!Number.isInteger(n) || n < 1) {
+      bootstrapLog.error(`Invalid --concurrency "${options.concurrency}" — expected a positive integer.`);
+      process.exitCode = 1;
+      return;
+    }
+    concurrencyOverride = n;
+  }
 
   const requested = normalizeAssetNames(options.asset);
   if (requested) {
     const known = new Set(config.assets.map((a) => a.name));
     const unknown = requested.filter((name) => !known.has(name));
-    if (unknown.length) logger.warn(`Unknown asset(s): ${unknown.join(", ")}`);
+    for (const name of unknown) bootstrapLog.warn(`Unknown asset "${name}"${didYouMean(name, known)}`);
     if (requested.every((name) => !known.has(name))) {
-      logger.error("No matching assets to generate.");
+      bootstrapLog.error("No matching assets to generate.");
       process.exitCode = 1;
       return;
     }
+  }
+
+  // Resolve the full plan before any heavy work (browser install, ffmpeg fetch, site build):
+  // selection, per-asset option validation, and the managed-server decision. Config mistakes fail
+  // here in seconds — not after a minutes-long setup. Derive option-declared dependencies first
+  // (e.g. a wall's tile producers) so the selection sees them.
+  applyDerivedInputs(config);
+  const selected = expandSelection(config.assets, requested);
+  const quality = options.draft ? "draft" : config.settings.quality;
+  if (!validatePlan(bootstrapLog, config, selected, quality)) {
+    process.exitCode = 1;
+    return;
+  }
+
+  // The managed server only matters to url-based generators (it captures web pages). If nothing in
+  // the selection needs a URL — e.g. only a `test`-mode wall, or other local generators — skip it
+  // automatically so previews don't pay for a site build/boot they never use.
+  const anyNeedsServer = selected.some((s) => Boolean(getGenerator(s.generator)?.requiresUrl));
+  if (config.settings.server && !options.skipServer && !anyNeedsServer) {
+    bootstrapLog.info("No selected asset needs a URL — skipping the managed server.");
+  }
+  const baseServerCfg = options.skipServer || !anyNeedsServer ? undefined : config.settings.server;
+  // --skip-build keeps the managed server but drops its one-shot build (the site is unchanged).
+  const serverCfg =
+    baseServerCfg && options.skipBuild ? { ...baseServerCfg, build: undefined } : baseServerCfg;
+
+  // The managed server's URL is the default base: a url-based asset that omits `url` captures its
+  // root, and relative `url`/`routes` entries resolve against it. (No server → assets as authored.)
+  const serverBase = serverCfg ? resolveServerUrl(serverCfg) : undefined;
+  const resolvedConfig: ResolvedConfig = {
+    ...config,
+    assets: resolveTargets(config.assets, serverBase, (id) =>
+      Boolean(getGenerator(id)?.requiresUrl),
+    ),
+  };
+
+  if (options.dryRun) {
+    printPlan(bootstrapLog, resolvedConfig, selected, serverCfg, quality, concurrencyOverride);
+    return;
+  }
+
+  // No managed server → the asset URLs must already be live. Probe them now so a dead dev server
+  // fails with one actionable message instead of a per-asset Playwright navigation error later.
+  if (!serverCfg && !(await preflightUrls(bootstrapLog, resolvedConfig, selected))) {
+    process.exitCode = 1;
+    return;
   }
 
   // Ensure a managed Chromium unless a system channel/executable is configured, or skipped.
   const usingManaged =
     !config.settings.browser.channel && !config.settings.browser.executablePath;
   if (!options.skipBrowser && usingManaged) {
-    const ready = await ensureChromium({ logger });
+    const ready = await ensureChromium({ logger: bootstrapLog });
     if (!ready) {
-      logger.error("Chromium is required. Run `pro-visu init` or install it manually.");
+      bootstrapLog.error("Chromium is required. Run `pro-visu init` or install it manually.");
       process.exitCode = 1;
       return;
     }
   }
 
-  // Self-heal ffmpeg: the video generators shell out to it, and the bundled binary may be
-  // missing/corrupt when the consumer's package manager skipped build scripts.
-  if (!(await ensureFfmpeg({ logger }))) {
-    logger.error("A working ffmpeg is required for video generators.");
+  // Self-heal ffmpeg: the video generators shell out to it, and the managed binary may be
+  // missing/corrupt when a previous fetch was interrupted.
+  if (!(await ensureFfmpeg({ logger: bootstrapLog }))) {
+    bootstrapLog.error("A working ffmpeg is required for video generators.");
     process.exitCode = 1;
     return;
   }
+
+  const level = options.verbose ? "debug" : config.settings.logLevel;
+  // Live job tracker on an interactive TTY; per-asset logs feed each row's current step.
+  const reporter = createReporter({ tty: Boolean(process.stdout.isTTY), verbose: !!options.verbose });
+  const logger = reporter.isLive ? createReportingLogger(level, reporter) : createLogger(level);
 
   // Track this run on disk so `pro-visu reset` can clean up if it's killed hard, and let Esc /
   // Ctrl+C stop it gracefully (a second press bails immediately; reset mops up any orphans).
@@ -159,33 +233,6 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   }, 1500);
   memTimer.unref?.();
 
-  // The managed server only matters to url-based generators (it captures web pages). If nothing in
-  // the selection needs a URL — e.g. only a `test`-mode wall, or other local generators — skip it
-  // automatically so previews don't pay for a site build/boot they never use. Derive option-declared
-  // dependencies first (e.g. a real wall's tile producers) so the selection — and this check — see
-  // them; a `test`-mode wall declares none, so it collapses to just itself.
-  applyDerivedInputs(config);
-  const selected = expandSelection(config.assets, requested);
-  const anyNeedsServer = selected.some((s) => Boolean(getGenerator(s.generator)?.requiresUrl));
-  if (config.settings.server && !options.skipServer && !anyNeedsServer) {
-    logger.info("No selected asset needs a URL — skipping the managed server.");
-  }
-
-  const baseServerCfg = options.skipServer || !anyNeedsServer ? undefined : config.settings.server;
-  // --skip-build keeps the managed server but drops its one-shot build (the site is unchanged).
-  const serverCfg =
-    baseServerCfg && options.skipBuild ? { ...baseServerCfg, build: undefined } : baseServerCfg;
-
-  // The managed server's URL is the default base: a url-based asset that omits `url` captures its
-  // root, and relative `url`/`routes` entries resolve against it. (No server → assets as authored.)
-  const serverBase = serverCfg ? resolveServerUrl(serverCfg) : undefined;
-  const resolvedConfig: ResolvedConfig = {
-    ...config,
-    assets: resolveTargets(config.assets, serverBase, (id) =>
-      Boolean(getGenerator(id)?.requiresUrl),
-    ),
-  };
-
   const gates: string[] = [];
   const tasks: ServerTasks = {};
   if (reporter.isLive && serverCfg) {
@@ -219,10 +266,7 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
       await updateRunState(outDir, { serverPid: server?.pid });
     }
 
-    const concurrency =
-      options.concurrency != null ? Number(options.concurrency) : undefined;
-    const count = requested ? requested.length : config.assets.length;
-    if (!reporter.isLive) logger.start(`Generating ${count} asset(s)…`);
+    if (!reporter.isLive) logger.start(`Generating ${selected.length} asset(s)…`);
 
     outcomes = await runPipeline({
       config: resolvedConfig,
@@ -230,7 +274,7 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
       logger,
       toolVersion: TOOL_VERSION,
       assetNames: requested,
-      concurrency: Number.isFinite(concurrency) ? concurrency : undefined,
+      concurrency: concurrencyOverride,
       quality: options.draft ? "draft" : undefined,
       cache: options.cache,
       reporter,
@@ -273,6 +317,148 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   printSummary(logger, outcomes, outDir);
   if (outcomes.some((outcome) => outcome.status === "failed")) {
     process.exitCode = 1;
+  }
+}
+
+/**
+ * Validate the run plan up front: every selected asset's generator must exist and its merged
+ * options must parse. Also flags `settings.defaults` keys that match no generator (they would
+ * silently never apply). Returns false — with everything wrong reported — when the plan is bad.
+ */
+export function validatePlan(
+  log: Logger,
+  config: ResolvedConfig,
+  selected: ResolvedConfig["assets"],
+  quality: "draft" | "final",
+): boolean {
+  let ok = true;
+  const ids = generatorIds();
+  const known = new Set(ids);
+  for (const key of Object.keys(config.settings.defaults)) {
+    if (!known.has(key)) {
+      log.warn(`settings.defaults["${key}"] matches no generator${didYouMean(key, ids)} — it will never apply.`);
+    }
+  }
+  for (const spec of selected) {
+    const generator = getGenerator(spec.generator);
+    if (!generator) {
+      log.error(
+        `Asset "${spec.name}": unknown generator "${spec.generator}"${didYouMean(spec.generator, ids)}. ` +
+          `Available: ${ids.join(", ")}.`,
+      );
+      ok = false;
+      continue;
+    }
+    const merged = applyQuality(mergeGeneratorOptions(config.settings.defaults, spec), quality);
+    const parsed = generator.optionsSchema.safeParse(merged);
+    if (!parsed.success) {
+      log.error(`Asset "${spec.name}" has invalid ${spec.generator} options:`);
+      for (const issue of parsed.error.issues) {
+        const where = ["options", ...issue.path].join(".");
+        const hint = legacyOptionHint(spec.generator, issue);
+        log.error(`  • ${where}: ${issue.message}${hint ? ` — ${hint}` : ""}`);
+      }
+      ok = false;
+    }
+  }
+  return ok;
+}
+
+/** Print the resolved --dry-run plan: each selected asset, its target, and the server decision. */
+function printPlan(
+  log: Logger,
+  resolvedConfig: ResolvedConfig,
+  selected: ResolvedConfig["assets"],
+  serverCfg: { command: string } | undefined,
+  quality: "draft" | "final",
+  concurrencyOverride: number | undefined,
+): void {
+  const byName = new Map(resolvedConfig.assets.map((a) => [a.name, a]));
+  const concurrency = concurrencyOverride ?? resolvedConfig.settings.concurrency;
+  log.info(`Plan: ${selected.length} asset(s), quality "${quality}", concurrency ${concurrency}`);
+  for (const s of selected) {
+    const resolved = byName.get(s.name) ?? s;
+    log.log(`  • ${s.name}  [${s.generator}]${resolved.url ? `  ${resolved.url}` : ""}`);
+  }
+  if (serverCfg) log.info(`Managed server: ${serverCfg.command}`);
+  log.info("Dry run — nothing generated.");
+}
+
+/**
+ * With no managed server, every url-based asset must point at something already live. Verify that
+ * up front — one probe per origin — so a dead dev server fails with a single actionable message
+ * instead of a per-asset Playwright navigation error minutes later.
+ */
+export async function preflightUrls(
+  log: Logger,
+  resolvedConfig: ResolvedConfig,
+  selected: ResolvedConfig["assets"],
+): Promise<boolean> {
+  const byName = new Map(resolvedConfig.assets.map((a) => [a.name, a]));
+  const missing: string[] = [];
+  const relative: string[] = [];
+  const urls = new Set<string>();
+  for (const s of selected) {
+    if (!getGenerator(s.generator)?.requiresUrl) continue;
+    const url = byName.get(s.name)?.url;
+    if (!url) missing.push(s.name);
+    else if (url.startsWith("/")) relative.push(`"${s.name}" (${url})`);
+    else urls.add(url);
+  }
+
+  let ok = true;
+  if (missing.length) {
+    log.error(
+      `Asset(s) missing a url: ${missing.join(", ")} — set "url", or configure settings.server ` +
+        `so they capture the managed server's root.`,
+    );
+    ok = false;
+  }
+  if (relative.length) {
+    log.error(
+      `Relative url(s) require the managed server: ${relative.join(", ")} — configure ` +
+        `settings.server, or use absolute URLs.`,
+    );
+    ok = false;
+  }
+
+  // One probe per origin. Any HTTP response — even a 4xx/5xx — proves something is listening;
+  // only connection-level failures (refused, DNS, timeout) count as unreachable.
+  const origins = new Map<string, string>();
+  for (const url of urls) {
+    try {
+      const origin = new URL(url).origin;
+      if (!origins.has(origin)) origins.set(origin, url);
+    } catch {
+      /* shape already vetted by the config schema */
+    }
+  }
+  const probes = await Promise.all(
+    [...origins.values()].map(async (url) => ((await urlResponds(url)) ? null : url)),
+  );
+  const unreachable = probes.filter((url): url is string => url !== null);
+  if (unreachable.length) {
+    for (const url of unreachable) log.error(`Nothing is responding at ${url}.`);
+    log.error(
+      "Start your site (or point the asset urls at a deployed one), or configure settings.server " +
+        "so pro-visu builds and starts it for you.",
+    );
+    ok = false;
+  }
+  return ok;
+}
+
+/** Does anything answer HTTP at this URL? (Any status counts; only connection failures don't.) */
+async function urlResponds(url: string): Promise<boolean> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 10_000);
+  try {
+    await fetch(url, { signal: ctrl.signal, redirect: "manual" });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

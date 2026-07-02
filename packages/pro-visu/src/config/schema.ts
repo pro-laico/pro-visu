@@ -101,9 +101,10 @@ export type ResolvedServerSettings = z.infer<typeof serverSettingsSchema>;
 /**
  * "Capture mode" toggles applied to every URL-based capture, so a site can render a clean, settled
  * snapshot (animations finished, no cookie banner, no chat widget, …) while keeping that behavior
- * for real users. Delivered three ways so a site can read whichever fits its rendering model:
+ * for real users. Delivered four ways so a site can read whichever fits its rendering model:
  * a query param, cookies (SSR-readable + persist across in-app navigation — best for multi-route
- * reels), and an init script / localStorage for client-only reads. All are optional.
+ * reels), and an init script / localStorage for client-only reads. All are optional. A cookie can
+ * also carry a session/auth value, letting captures reach login-gated pages.
  */
 export const captureSettingsSchema = z
   .object({
@@ -186,7 +187,7 @@ export const settingsSchema = z.object({
     .boolean()
     .default(false)
     .describe("Skip assets whose inputs+options+tool fingerprint is unchanged (opt-in; can be stale). Default false."),
-});
+}).strict();
 export type ResolvedSettings = z.infer<typeof settingsSchema>;
 
 /** One thing to generate. Options are validated by the target generator at run time. */
@@ -196,7 +197,7 @@ export const assetSpecSchema = z
     /**
      * Page to capture: an absolute `https://…` URL, or a path like `/shop` resolved against the
      * managed server's URL. Optional — with a managed server, a url-based asset that omits it
-     * captures the server root; local generators (`scene`, `palette`) need no url.
+     * captures the server root; local generators (`specimen`, `palette`, `wall`, …) need no url.
      */
     url: z
       .string()
@@ -220,9 +221,12 @@ export type ResolvedAssetSpec = z.infer<typeof assetSpecSchema>;
 
 export const showcaseConfigSchema = z
   .object({
+    /** JSON configs may carry an editor `$schema` pointer; accepted and ignored at runtime. */
+    $schema: z.string().optional(),
     settings: settingsSchema.default({}),
     assets: z.array(assetSpecSchema).min(1, "Define at least one asset in `assets`."),
   })
+  .strict()
   .superRefine((cfg, ctx) => {
     const seen = new Set<string>();
     for (const [i, asset] of cfg.assets.entries()) {

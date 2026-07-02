@@ -13,8 +13,8 @@ export const pulseSchema = z
       .string()
       .default("")
       .describe('Human label for the beat, e.g. "color sweep" — purely to keep the config readable.'),
-    /** Length of this beat, in seconds. */
-    duration: z.number().positive().describe("Length of this beat, in seconds."),
+    /** Length of this beat (ms). */
+    durationMs: z.number().positive().describe("Length of this beat in ms."),
     /** Fraction of cells whose glyph changes during this beat (0..1; 1 = every cell once). */
     chars: z
       .number()
@@ -55,8 +55,8 @@ export type Pulse = z.infer<typeof pulseSchema>;
 export interface PulseInput {
   /** Human label for the beat, e.g. "color sweep" — purely to keep the config readable. */
   name?: string;
-  /** Length of this beat, in seconds. */
-  duration: number;
+  /** Length of this beat in ms. */
+  durationMs: number;
   /** Fraction of cells whose glyph changes during this beat (0..1; 1 = every cell once; 0 = a hold). */
   chars?: number;
   /** Fraction of cells whose color changes during this beat (0..1; 1 = every cell once). */
@@ -125,8 +125,8 @@ export interface SpecimenOptionsInput {
   demo?: boolean;
   /** Output frames per second. Default 30. */
   fps?: number;
-  /** Clip length in seconds. Defaults to the (mirrored) sum of the pulse durations; set to override. */
-  durationSeconds?: number;
+  /** Clip length in ms. Defaults to the (mirrored) sum of the pulse durations; set to override. */
+  durationMs?: number;
   /** Output frame width in px. Default 1920. */
   width?: number;
   /** Output frame height in px. Default 1080. */
@@ -171,9 +171,9 @@ export interface SpecimenOptionsInput {
   fileName?: string;
 }
 
-const P = (name: string, duration: number, chars = 0, colors = 0): Pulse => ({
+const P = (name: string, durationMs: number, chars = 0, colors = 0): Pulse => ({
   name,
-  duration,
+  durationMs,
   chars,
   colors,
   pacing: "even",
@@ -186,16 +186,16 @@ const P = (name: string, duration: number, chars = 0, colors = 0): Pulse => ({
  * your own.
  */
 const DEFAULT_PULSES: Pulse[] = [
-  P("intro hold", 0.8),
-  P("first letters", 0.8, 0.15, 0),
-  P("settle", 1.5),
-  P("ripple", 1, 0.08, 0.04),
-  P("color sweep", 1.2, 0, 0.13),
-  P("rest", 1.2),
-  P("quick burst", 0.6, 0.18, 0),
-  P("drift", 1.2, 0, 0.08),
-  P("finale", 1.2, 0.18, 0.13),
-  P("outro hold", 0.5),
+  P("intro hold", 800),
+  P("first letters", 800, 0.15, 0),
+  P("settle", 1500),
+  P("ripple", 1000, 0.08, 0.04),
+  P("color sweep", 1200, 0, 0.13),
+  P("rest", 1200),
+  P("quick burst", 600, 0.18, 0),
+  P("drift", 1200, 0, 0.08),
+  P("finale", 1200, 0.18, 0.13),
+  P("outro hold", 500),
 ];
 
 /**
@@ -205,24 +205,24 @@ const DEFAULT_PULSES: Pulse[] = [
  * forward (no mirror) for a focused ~47s walkthrough.
  */
 const DEMO_PULSES: PulseInput[] = [
-  { name: "linear", duration: 5, chars: 0.5, pacing: "linear" },
-  { name: "hold", duration: 2 },
-  { name: "ease-in", duration: 5, chars: 0.5, pacing: "ease-in" },
-  { name: "hold", duration: 2 },
-  { name: "ease-out", duration: 5, chars: 0.5, pacing: "ease-out" },
-  { name: "hold", duration: 2 },
-  { name: "ease-in-out", duration: 5, chars: 0.5, pacing: "ease-in-out" },
-  { name: "hold", duration: 2 },
-  { name: "random", duration: 5, chars: 0.5, pacing: "random" },
-  { name: "hold", duration: 2 },
+  { name: "linear", durationMs: 5000, chars: 0.5, pacing: "linear" },
+  { name: "hold", durationMs: 2000 },
+  { name: "ease-in", durationMs: 5000, chars: 0.5, pacing: "ease-in" },
+  { name: "hold", durationMs: 2000 },
+  { name: "ease-out", durationMs: 5000, chars: 0.5, pacing: "ease-out" },
+  { name: "hold", durationMs: 2000 },
+  { name: "ease-in-out", durationMs: 5000, chars: 0.5, pacing: "ease-in-out" },
+  { name: "hold", durationMs: 2000 },
+  { name: "random", durationMs: 5000, chars: 0.5, pacing: "random" },
+  { name: "hold", durationMs: 2000 },
   // Even, per-character color sweeps: each washes every glyph to one token, evenly across the beat.
-  { name: "sweep → muted", duration: 4, colors: 1, color: "muted", pacing: "even" },
-  { name: "sweep → accent", duration: 4, colors: 1, color: "accent", pacing: "even" },
-  { name: "sweep → foreground", duration: 4, colors: 1, color: "foreground", pacing: "even" },
-  { name: "hold", duration: 2 },
-  { name: "weighted recolor", duration: 5, colors: 0.6 },
-  { name: "hold", duration: 2 },
-  { name: "mingle", duration: 5, chars: 0.3, colors: 0.3 },
+  { name: "sweep → muted", durationMs: 4000, colors: 1, color: "muted", pacing: "even" },
+  { name: "sweep → accent", durationMs: 4000, colors: 1, color: "accent", pacing: "even" },
+  { name: "sweep → foreground", durationMs: 4000, colors: 1, color: "foreground", pacing: "even" },
+  { name: "hold", durationMs: 2000 },
+  { name: "weighted recolor", durationMs: 5000, colors: 0.6 },
+  { name: "hold", durationMs: 2000 },
+  { name: "mingle", durationMs: 5000, chars: 0.3, colors: 0.3 },
 ];
 
 /**
@@ -241,14 +241,14 @@ const SWEEP_COLORS: SpecimenColorsInput = {
 // `colors: 1` per sweep lands on every glyph exactly once (one full, clump-free wash). Outward half
 // sums to ~10.6s → ~21s mirrored loop.
 const SWEEP_PULSES: PulseInput[] = [
-  { name: "hold", duration: 0.8 },
-  { name: "to muted", duration: 2.2, colors: 1, color: "muted", pacing: "ease-in-out" },
-  { name: "settle", duration: 0.6 },
-  { name: "to accent", duration: 2.2, colors: 1, color: "accent", pacing: "ease-in-out" },
-  { name: "settle", duration: 0.6 },
-  { name: "to foreground", duration: 2.2, colors: 1, color: "foreground", pacing: "ease-in-out" },
-  { name: "glyph drift", duration: 1.4, chars: 0.5, pacing: "even" },
-  { name: "hold", duration: 0.6 },
+  { name: "hold", durationMs: 800 },
+  { name: "to muted", durationMs: 2200, colors: 1, color: "muted", pacing: "ease-in-out" },
+  { name: "settle", durationMs: 600 },
+  { name: "to accent", durationMs: 2200, colors: 1, color: "accent", pacing: "ease-in-out" },
+  { name: "settle", durationMs: 600 },
+  { name: "to foreground", durationMs: 2200, colors: 1, color: "foreground", pacing: "ease-in-out" },
+  { name: "glyph drift", durationMs: 1400, chars: 0.5, pacing: "even" },
+  { name: "hold", durationMs: 600 },
 ];
 
 /** Named option presets. Selected via the `template` option; explicit options override them. */
@@ -305,11 +305,11 @@ const specimenObjectSchema = z
       .max(120)
       .default(30)
       .describe("Output frames per second. Default 30."),
-    durationSeconds: z
+    durationMs: z
       .number()
       .positive()
       .optional()
-      .describe("Clip length in seconds. Defaults to the (mirrored) sum of the pulse durations; set to override."),
+      .describe("Clip length in ms. Defaults to the (mirrored) sum of the pulse durations; set to override."),
     width: z
       .number()
       .int()

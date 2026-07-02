@@ -69,8 +69,10 @@ npx pro-visu init
 
 `init` is idempotent and sets up everything needed:
 
-- writes a starter `pro-visu.config.ts` (unless a config already exists) — or, with `--json`, a
-  `pro-visu.config.json` plus a `pro-visu.schema.json` for editor autocomplete,
+- detects your package manager, framework, and dev port (Next.js → 3000, Vite → 5173, …) and
+  writes a starter `pro-visu.config.ts` to match (unless a config already exists) — or a
+  `pro-visu.config.json` plus a `pro-visu.schema.json` when you pass `--json` **or** pro-visu
+  isn't installed as a project dependency (the npx/global path),
 - creates the output directory (`pro-visu/`) and adds it to `.gitignore`,
 - adds a `"pro-visu": "pro-visu generate"` script to `package.json` (skip with `--no-script`),
 - downloads the managed Chromium and ensures ffmpeg (skip with `--skip-browser`).
@@ -79,12 +81,13 @@ The first browser download is one-time, cached, and shared across projects.
 
 ## Configure
 
-Open `pro-visu.config.ts` and point an asset at your site. The starter looks like this:
+Open `pro-visu.config.ts` and point an asset at your site. The starter looks like this (the URL
+matches your detected dev server, or defaults to `http://localhost:3101`):
 
 ```ts
 import { defineConfig } from "pro-visu";
 
-const URL = "http://localhost:3101";
+const URL = "http://localhost:3000";
 
 export default defineConfig({
   settings: {
@@ -115,6 +118,12 @@ Start your site (or use a deployed URL), then:
 ```bash
 npx pro-visu generate
 ```
+
+> **Make the URL match.** The capture URLs must point at something that's actually running — your
+> dev server, a production build, or a deployed site. If the config's port doesn't match your dev
+> server's, edit the `URL` const (or uncomment the managed `server` block so pro-visu starts the
+> site itself). `pro-visu generate` probes the URLs up front and tells you when nothing is
+> listening; `pro-visu doctor` runs the same checks without generating anything.
 
 Each asset is rendered into `outDir` and recorded in `manifest.json`. Review what was
 produced with:

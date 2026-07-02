@@ -15,10 +15,10 @@ export const PALETTE_REEL_ID = "palette-reel";
  * so the last captured frame lands on the loop seam. Every color holds once and hands off once.
  * Mirrors palette-reel-timeline.ts.
  */
-function deriveDuration(o: ResolvedPaletteReelOptions): number {
+function deriveDurationMs(o: ResolvedPaletteReelOptions): number {
   const n = o.colors.length;
   const stops = n <= 1 ? n : o.bounce ? 2 * (n - 1) : n;
-  return stops * (o.holdSeconds + o.transitionSeconds);
+  return stops * (o.holdMs + o.transitionMs);
 }
 
 /** Map the friendly palette-reel options onto the `palette-reel` scene and render it. */
@@ -44,7 +44,8 @@ async function run(
     };
   });
 
-  const durationSeconds = o.durationSeconds ?? deriveDuration(o);
+  // The authoring surface is milliseconds; the scene wire format runs on seconds.
+  const durationSeconds = (o.durationMs ?? deriveDurationMs(o)) / 1000;
 
   const sceneOptions: ResolvedSceneOptions = {
     scene: PALETTE_REEL_ID,
@@ -65,8 +66,8 @@ async function run(
     sceneOptions: {
       items,
       orientation: o.orientation,
-      holdSeconds: o.holdSeconds,
-      transitionSeconds: o.transitionSeconds,
+      holdSeconds: o.holdMs / 1000,
+      transitionSeconds: o.transitionMs / 1000,
       bounce: o.bounce,
       easing: o.easing,
       grownFlex: o.grownFlex,
