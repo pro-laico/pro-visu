@@ -6,79 +6,106 @@ All notable changes to `pro-visu` are documented here. The format is based on
 
 ## [Unreleased]
 
-### BREAKING
+## [0.5.0] - 2026-07-02
 
-One consistent rule replaces three ad-hoc conventions: **every author-facing time option is
-milliseconds with an `Ms` suffix, every easing name is kebab-case, and a responsive capture list is
-always called `viewports`.** Configs using the old names fail validation with a pointed migration
-message (including the ×1000 unit conversions), so nothing breaks silently.
+A usability-focused release built from a CLI audit. Failures now surface early and
+actionably, a new `pro-visu doctor` checks your whole setup before you generate, and `init`
+scaffolds a config that matches your project. It also unifies the option-naming surface behind
+one convention — a breaking change for existing configs, but one that fails loudly with a
+migration hint rather than silently.
 
-- **scroll-reel:** `duration` → `durationMs` (already ms — rename only). Easing names are
-  kebab-case: `easeInOutCubic` → `ease-in-out-cubic`, `easeInOutQuad` → `ease-in-out-quad`,
+### One naming convention (BREAKING)
+
+Three ad-hoc conventions are replaced by one rule: **every author-facing time option is
+milliseconds with an `Ms` suffix, every easing name is kebab-case, and every responsive capture
+list is `viewports`.** Old names fail validation with a pointed migration message (including the
+×1000 unit conversions), so nothing breaks silently — `pro-visu doctor` and
+`pro-visu generate --dry-run` check a migrated config without capturing anything.
+
+- **`scroll-reel`:** `duration` → `durationMs` (already ms — rename only). Easings are kebab-case:
+  `easeInOutCubic` → `ease-in-out-cubic`, `easeInOutQuad` → `ease-in-out-quad`,
   `easeOutCubic` → `ease-out-cubic`, `easeInOutSine` → `ease-in-out-sine`,
-  `easeInOutExpo` → `ease-in-out-expo`, `easeOutQuint` → `ease-out-quint` (applies to `easing`,
+  `easeInOutExpo` → `ease-in-out-expo`, `easeOutQuint` → `ease-out-quint` (covers `easing`,
   choreography-step `easing`, and `kenBurns.easing`).
-- **screenshots:** `breakpoints` → `viewports` (same shape) — now matching scroll-reel's option,
-  so one shared list can drive both.
-- **wall:** `durationSeconds` → `durationMs`, now in milliseconds (`16` → `16000`). Pulse
-  `duration` → `span` (same 0..1 clip fraction) — `duration` no longer means three different
-  things across the tool.
-- **specimen:** `durationSeconds` → `durationMs` (×1000). Pulse `duration` (was seconds) →
+- **`screenshots`:** `breakpoints` → `viewports` (same shape) — now matching `scroll-reel`, so one
+  shared list can drive both.
+- **`wall`:** `durationSeconds` → `durationMs`, now in milliseconds (`16` → `16000`); pulse
+  `duration` → `span` (same 0..1 clip fraction) — `duration` no longer means three different things
+  across the tool.
+- **`specimen`:** `durationSeconds` → `durationMs` (×1000); pulse `duration` (was seconds) →
   `durationMs` in milliseconds (`0.8` → `800`).
-- **palette-reel:** `holdSeconds` → `holdMs` (`2` → `2000`), `transitionSeconds` →
+- **`palette-reel`:** `holdSeconds` → `holdMs` (`2` → `2000`), `transitionSeconds` →
   `transitionMs` (`0.7` → `700`), `durationSeconds` → `durationMs` (×1000).
 
-Migration: suffix every renamed time value with `Ms` semantics (multiply the seconds-based ones by
-1000), kebab-case any camelCase easing, rename `breakpoints` arrays to `viewports`, and rename wall
-pulse `duration` to `span`. `pro-visu doctor` / `pro-visu generate --dry-run` validate a migrated
-config without capturing anything.
+**Migrate by** suffixing every renamed time value with `Ms` (multiplying the seconds-based ones by
+1000), kebab-casing any camelCase easing, renaming `breakpoints` arrays to `viewports`, and
+renaming wall pulse `duration` to `span`. See **Upgrade notes**.
+
+### `pro-visu doctor` and `generate --dry-run`
+
+Two ways to validate before spending time on a capture. **`pro-visu doctor`** checks the whole
+setup without generating anything — Node version, config discovery + validation (every asset's
+generator options and the dependency graph), Chromium, ffmpeg, and whether the asset URLs actually
+respond — and exits non-zero when something needs fixing, so it doubles as a CI gate.
+**`generate --dry-run`** validates the config and prints the resolved plan (selected assets, URLs,
+server decision, quality, concurrency) without capturing.
+
+### Project-aware `init`
+
+`init` now detects the package manager, framework, and dev port (Next.js → 3000, Vite → 5173, an
+explicit `--port` flag in the dev script, …) and scaffolds the config to match, so the first
+`generate` is far more likely to hit a running site. When pro-visu isn't installed as a project
+dependency (npx / global use), `init` automatically falls back to the dependency-free JSON config,
+since the TS template's `import` wouldn't resolve.
 
 ### Added
 
-- **`pro-visu doctor`** — check the whole setup without generating anything: Node version, config
-  discovery + validation (including every asset's generator options and the dependency graph),
-  Chromium, ffmpeg, and whether the asset URLs actually respond. Exits non-zero when something
-  needs fixing, so it doubles as a CI gate.
-- **`generate --dry-run`** — validate the config and print the resolved plan (selected assets,
-  URLs, server decision, quality, concurrency) without capturing anything.
-- **URL pre-flight** — with no managed server configured, `generate` probes the asset URLs before
-  any heavy work; a dev server that isn't running now fails in seconds with one actionable message
-  instead of a per-asset Playwright navigation error.
-- **Project-aware `init`** — detects the package manager, framework, and dev port (Next.js → 3000,
-  Vite → 5173, an explicit `--port` flag in the dev script, …) and scaffolds the config to match.
-  When pro-visu isn't installed as a project dependency (npx/global use), init automatically falls
-  back to the dependency-free JSON config, since the TS template's import wouldn't resolve.
 - **`list --json`** — print the manifest as JSON for scripts and CI.
-- **ffmpeg download progress + offline hints** — the one-time ~80 MB fetch now logs quartile
-  progress instead of sitting silent, and connection-level failures explain the
-  `FFMPEG_BINARIES_URL` / `FFMPEG_BIN` escape hatches (Chromium failures point at
-  `HTTPS_PROXY` / `PLAYWRIGHT_DOWNLOAD_HOST`).
+- **ffmpeg download progress + offline hints** — the one-time ~80 MB fetch logs quartile progress
+  instead of sitting silent, and connection-level failures explain the `FFMPEG_BINARIES_URL` /
+  `FFMPEG_BIN` escape hatches (Chromium failures point at `HTTPS_PROXY` /
+  `PLAYWRIGHT_DOWNLOAD_HOST`).
 - **Typo suggestions** — unknown `--asset` names, unknown generator ids, and typo'd
-  `settings.defaults` keys now get a "did you mean …?" hint.
+  `settings.defaults` keys get a "did you mean …?" hint.
 
 ### Changed
 
-- **Options are validated before any heavy work** — every selected asset's generator options are
-  parsed up front (config mistakes fail in seconds, not after a browser install or site build),
-  and option errors are printed as pointed `options.path: message` bullets instead of a raw JSON
-  dump.
-- **Typos in `settings` and at the config root are now rejected** — the settings block and config
-  root are strict, so a misspelled key (e.g. `concurrancy`) errors instead of being silently
-  ignored. `settings.defaults` keys that match no generator are flagged too.
+- **Options are validated before any heavy work** — every selected asset's options are parsed up
+  front (config mistakes fail in seconds, not after a browser install or site build), and option
+  errors print as pointed `options.path: message` bullets instead of a raw JSON dump.
+- **URL pre-flight** — with no managed server configured, `generate` probes the asset URLs first, so
+  a dev server that isn't running fails with one actionable message instead of a per-asset
+  Playwright navigation error.
+- **Early errors are visible on interactive terminals** — messages emitted before the live dashboard
+  mounts (missing Chromium/ffmpeg, unknown `--asset`, invalid options) previously vanished on a TTY;
+  they now always print.
+- **Strict `settings` and config root** — a misspelled key (e.g. `concurrancy`, `setttings`) is
+  rejected instead of being silently ignored, and `settings.defaults` keys that match no generator
+  are flagged.
 - **`settings.defaults` merges deeply** — an asset that sets one field of a nested object (e.g.
-  `kenBurns.scaleTo`) now keeps the default's other fields instead of replacing the whole object;
-  arrays and primitives still replace wholesale.
-- **Early errors are visible on interactive terminals** — messages emitted before the live
-  dashboard mounts (missing Chromium/ffmpeg, unknown `--asset`, invalid options) previously
-  vanished on a TTY; they now always print.
+  `kenBurns.scaleTo`) keeps the default's other fields instead of replacing the whole object; arrays
+  and primitives still replace wholesale.
 - **Unknown commands fail** — `pro-visu bogus` exits 1 with a pointed message instead of silently
   printing help; an invalid `--concurrency` value errors instead of being silently ignored.
 - **`PRO_VISU_LIVE`** replaces `SHOWCASE_LIVE` for forcing the live dashboard on/off
   (`SHOWCASE_LIVE` still works as a legacy alias).
-- Docs: renamed scroll-reel's `capture: "frames" | "realtime"` section to **"Capture strategy"**
-  to stop colliding with `settings.capture` ("capture mode"); new
-  [Troubleshooting](https://pro-visu.com/docs/troubleshooting) page; documented cookie-based auth
-  capture; READMEs no longer claim ffmpeg is bundled (it's fetched on first use since 0.4.0).
+
+### Docs
+
+- New [Troubleshooting](https://pro-visu.com/docs/troubleshooting) page (unreachable URLs, proxies,
+  CI sandboxing, out-of-memory, cookie-based auth capture).
+- Renamed `scroll-reel`'s `capture: "frames" | "realtime"` docs section to **"Capture strategy"** so
+  it stops colliding with `settings.capture` ("capture mode").
+- Getting-started now calls out that the config URL must match a running site; READMEs no longer
+  claim ffmpeg is bundled (it's fetched on first use since 0.4.0) and the package README documents
+  `settings.capture`.
+
+### Upgrade notes
+
+1. Update your config for the renames above (or run `pro-visu doctor` — it reports each one with the
+   exact fix and unit conversion).
+2. If you scripted around `SHOWCASE_LIVE`, switch to `PRO_VISU_LIVE` (the old name still works).
+3. Nothing to reinstall — Chromium and ffmpeg are unchanged.
 
 ## [0.4.0] - 2026-06-29
 
