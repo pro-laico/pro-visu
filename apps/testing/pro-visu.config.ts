@@ -191,10 +191,8 @@ export default defineConfig({
         // Real render: "frames" is frame-exact and crisp (supersampled). For fast layout/motion
         // iteration, set `test: true` (faux tiles) + "realtime" for a seconds-long preview.
         capture: "frames",
-        // Single worker: tile <video>s stay warm across sequential seeks. Parallel workers each cold-
-        // start their range and capture the seeked frame before it decodes → black tiles at every
-        // worker boundary. (Slower, but correct; revisit a parallel-safe warm-up later.)
-        workers: 1,
+        // Workers auto-pick (cores + free memory). The runtime warms every tile video's decoder
+        // before capture, so parallel workers no longer cold-start to black tiles.
         deviceScaleFactor: 2,
         crf: 18,
         durationMs: 24_000, // a multiple of the 8s and 12s tile clips, so every tile loops cleanly

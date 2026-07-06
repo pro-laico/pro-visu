@@ -127,7 +127,7 @@ exactly **one loop** — the common case. `loops: 1` plus a 0.5 pulse travels 2 
 | `fps` | `number` (≤120) | `30` | Output frames per second. |
 | `durationMs` | `number` | `16000` | Clip length (ms) — the whole loop. Tile videos should loop within a length that divides this. |
 | `capture` | `"frames" \| "realtime"` | `"frames"` | `frames` is deterministic + parallelisable; `realtime` records the live scene once (faster — handy while iterating). |
-| `workers` | `number` | auto | Parallel frame-render workers. Video-heavy walls can cold-start to black tiles under many workers — set `1` for those. |
+| `workers` | `number` | auto | Parallel frame-render workers. Each worker warms every tile video's decoder before capture, so video-heavy walls parallelise safely. Auto-picks from cores + free memory. |
 | `frameFormat` | `"jpeg" \| "png"` | `"jpeg"` | Intermediate frame format (frames only). |
 | `crf` | `number` (0–51) | `18` | x264 quality (lower = better/larger). |
 | `background` | `string` | `"#0b0b0f"` | Backdrop shown in the gutters and behind tiles. |

@@ -85,7 +85,7 @@ the site-side capture-mode toggles.
 | Option | Meaning |
 |---|---|
 | `capture` | `"frames"` (default) deterministic frame-stepping; `"realtime"` records live — a fallback for time-based hero animations or autoplay video. |
-| `workers` | Parallel render contexts for `"frames"` (default ≈ half the cores). |
+| `workers` | Parallel render contexts for `"frames"` (auto-picks from cores + free memory; all captures share a run-wide context budget). |
 | `frameFormat` | Intermediate frame format for `"frames"`: `"jpeg"` (default) or `"png"` (lossless). |
 
 Choreography, auto-sections, variants, cards, annotations, aspect, and extra outputs are

@@ -136,7 +136,6 @@ export default defineConfig({
         height: 540,
         fps: 30,
         durationMs: 8000,
-        workers: 1,
         background: "#1a1714",
         gap: 4,
         cornerRadius: 4,
