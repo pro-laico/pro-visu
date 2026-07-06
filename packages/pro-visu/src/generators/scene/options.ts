@@ -23,7 +23,7 @@ const sceneOptionsSchema = z
     durationSeconds: z.number().positive().default(6),
     /** Capture strategy. "realtime" records live; "frames" steps deterministically. */
     capture: z.enum(["realtime", "frames"]).default("realtime"),
-    /** Parallel frame-render workers (frames capture only). Omit to auto-pick from cores. */
+    /** Parallel frame-render workers (frames capture only). Omit to auto-pick from cores + free memory. */
     workers: z.number().int().positive().optional(),
     /** Intermediate frame format (frames capture only). "jpeg" (default) is fast; "png" is lossless. */
     frameFormat: z.enum(["jpeg", "png"]).default("jpeg"),

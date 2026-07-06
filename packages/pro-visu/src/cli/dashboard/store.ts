@@ -117,7 +117,12 @@ export class DashboardStore {
   progress(id: string, value: number): void {
     const j = this.jobs.get(id);
     if (!j) return;
-    j.progress = Math.max(0, Math.min(1, value));
+    const next = Math.max(0, Math.min(1, value));
+    // Frame captures report per frame across parallel workers — hundreds of updates/sec. Committing
+    // each one rebuilds the snapshot and re-renders Ink for movement no bar can show; only commit
+    // whole-percent changes (or completion), which is the display's own resolution.
+    if (j.progress !== undefined && next < 1 && Math.abs(next - j.progress) < 0.01) return;
+    j.progress = next;
     this.commit();
   }
 

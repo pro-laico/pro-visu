@@ -2,6 +2,7 @@ import os from "node:os";
 import path from "node:path";
 import type { Browser, Page } from "playwright-core";
 import { concatMp4, startFrameEncoder } from "@/media/ffmpeg";
+import { Semaphore } from "@/utils/concurrency";
 import { ensureDir } from "@/utils/fs";
 import type { Logger } from "@/utils/logger";
 
@@ -48,10 +49,43 @@ export interface FrameStepArgs<S = unknown> {
   signal?: AbortSignal;
 }
 
-/** Default parallel workers: about half the cores, capped at 6 (each is a browser context). */
+/**
+ * Rough per-worker memory footprint: a supersampled Chromium context (its renderer + raster
+ * buffers on a warmed page) plus that worker's ffmpeg/x264 encoder. Deliberately conservative —
+ * workers only trade wall-clock speed, while overshooting memory swap-thrashes the whole machine.
+ */
+const WORKER_FOOTPRINT_BYTES = 1.25 * 1024 * 1024 * 1024;
+
+/**
+ * Default parallel workers: about half the cores, capped at 6 (each is a browser context) — and
+ * bounded by what the machine can actually hold RIGHT NOW. Cores alone routinely over-provisions:
+ * a 24-thread machine picks 6 workers even with 3 GB free, and the resulting contexts + encoders
+ * exhaust system memory (Node can't see that in its own heap). Workers only affect speed, never
+ * output, so scaling down under memory pressure is always safe.
+ */
 export function autoWorkers(): number {
   const cores = os.cpus()?.length ?? 2;
-  return Math.max(1, Math.min(6, Math.floor(cores / 2)));
+  const byCores = Math.min(6, Math.floor(cores / 2));
+  const byMemory = Math.floor(os.freemem() / WORKER_FOOTPRINT_BYTES);
+  return Math.max(1, Math.min(byCores, byMemory));
+}
+
+/**
+ * Run-wide budget on concurrent render contexts. `autoWorkers()` sizes ONE capture as if it owned
+ * the machine, but the pipeline runs `settings.concurrency` assets at once — without a shared cap,
+ * two frame-stepped assets each spawn their own full worker set (e.g. 2 × 6 supersampled contexts
+ * plus their encoders), which is what exhausts machine memory in practice. Chunks past the budget
+ * simply queue for a free slot; frame ranges are independent, so waiting is always deadlock-free.
+ * An explicit per-asset `workers` still tiles the frames into that many segments — this only limits
+ * how many render at the same instant, not the output.
+ */
+let contextBudget: Semaphore | null = null;
+function acquireContextSlot(): { wait: Promise<void> | null; release: () => void } {
+  const budget = (contextBudget ??= new Semaphore(autoWorkers()));
+  return {
+    wait: budget.tryAcquire() ? null : budget.acquire(),
+    release: () => budget.release(),
+  };
 }
 
 /**
@@ -81,6 +115,8 @@ interface ChunkArgs<S> {
   preset?: string;
   frameFormat: "jpeg" | "png";
   jpegQuality: number;
+  /** x264 thread cap for THIS chunk's encoder (parallel encoders share the cores). */
+  encoderThreads?: number;
   /** Seconds advanced per frame (duration / totalFrames) — see captureFramedVideo. */
   timeStep: number;
   /** Inclusive start frame, exclusive end frame. */
@@ -97,47 +133,67 @@ interface ChunkArgs<S> {
 
 /** Render a contiguous frame range in its own browser context, encoding to one mp4 segment. */
 async function renderChunk<S>(a: ChunkArgs<S>): Promise<void> {
-  const context = await a.browser.newContext({
-    viewport: { width: a.width, height: a.height },
-    deviceScaleFactor: a.deviceScaleFactor,
-  });
-  const page = await context.newPage();
-  page.on("console", (m) => a.logger.debug(`[capture] ${m.text()}`));
-  page.on("pageerror", (e) => a.logger.debug(`[capture error] ${e.message}`));
-
+  // Respect the run-wide context budget BEFORE creating the (supersampled, warmed) context.
+  const slot = acquireContextSlot();
+  if (slot.wait) {
+    a.logger.debug("waiting for a free render slot (run-wide context budget)");
+    await slot.wait;
+  }
   try {
-    const state = await a.prepare(page, { logger: a.logger });
-    a.signal?.throwIfAborted(); // bail before spawning the encoder if we were cancelled during prepare
+    a.signal?.throwIfAborted(); // the run may have been cancelled while queued for a slot
+    const context = await a.browser.newContext({
+      viewport: { width: a.width, height: a.height },
+      deviceScaleFactor: a.deviceScaleFactor,
+    });
+    const page = await context.newPage();
+    page.on("console", (m) => a.logger.debug(`[capture] ${m.text()}`));
+    page.on("pageerror", (e) => a.logger.debug(`[capture error] ${e.message}`));
 
-    const encoder = startFrameEncoder(
-      {
-        fps: a.fps,
-        width: a.width,
-        height: a.height,
-        crf: a.crf,
-        outPath: a.outPath,
-        preset: a.preset,
-        inputFormat: a.frameFormat,
-      },
-      a.logger,
-      a.signal,
-    );
-    // Playwright rejects `quality` for png screenshots, so only pass it on the jpeg path.
-    const shotOptions =
-      a.frameFormat === "png"
-        ? ({ type: "png" } as const)
-        : ({ type: "jpeg", quality: a.jpegQuality } as const);
-    for (let frame = a.frameStart; frame < a.frameEnd; frame++) {
-      a.signal?.throwIfAborted(); // a cancelled run stops here, not after every frame is rendered
-      const t = frame * a.timeStep;
-      await a.seekToFrame(page, t, state);
-      const buf = await page.screenshot(shotOptions);
-      await encoder.write(buf);
-      a.onFrame?.();
+    try {
+      const state = await a.prepare(page, { logger: a.logger });
+      a.signal?.throwIfAborted(); // bail before spawning the encoder if we were cancelled during prepare
+
+      const encoder = startFrameEncoder(
+        {
+          fps: a.fps,
+          width: a.width,
+          height: a.height,
+          crf: a.crf,
+          outPath: a.outPath,
+          preset: a.preset,
+          inputFormat: a.frameFormat,
+          threads: a.encoderThreads,
+        },
+        a.logger,
+        a.signal,
+      );
+      let finished = false;
+      try {
+        // Playwright rejects `quality` for png screenshots, so only pass it on the jpeg path.
+        const shotOptions =
+          a.frameFormat === "png"
+            ? ({ type: "png" } as const)
+            : ({ type: "jpeg", quality: a.jpegQuality } as const);
+        for (let frame = a.frameStart; frame < a.frameEnd; frame++) {
+          a.signal?.throwIfAborted(); // a cancelled run stops here, not after every frame is rendered
+          const t = frame * a.timeStep;
+          await a.seekToFrame(page, t, state);
+          const buf = await page.screenshot(shotOptions);
+          await encoder.write(buf);
+          a.onFrame?.();
+        }
+        await encoder.done();
+        finished = true;
+      } finally {
+        // A throw mid-loop (nav flake, screenshot timeout) must not leave the encoder blocked on
+        // its stdin pipe forever — the pipeline isolates asset failures, so orphans would pile up.
+        if (!finished) encoder.kill();
+      }
+    } finally {
+      await context.close();
     }
-    await encoder.done();
   } finally {
-    await context.close();
+    slot.release();
   }
 }
 
@@ -157,6 +213,12 @@ export async function captureFramedVideo<S>(args: FrameStepArgs<S>): Promise<voi
   const frameFormat = args.frameFormat ?? "jpeg";
   const jpegQuality = args.jpegQuality ?? 90;
   const ranges = planFrames(totalFrames, Math.max(1, args.workers ?? 1));
+  // Parallel encoders split the cores between them — x264's default (~1.5× cores PER encoder)
+  // would otherwise oversubscribe threads and their per-thread buffers `ranges.length` times over.
+  const encoderThreads =
+    ranges.length > 1
+      ? Math.max(2, Math.floor((os.cpus()?.length ?? 2) / ranges.length))
+      : undefined;
   // Aggregate frame completions across parallel workers into a single 0–1 fraction.
   let completed = 0;
   const onFrame = args.onProgress
@@ -175,6 +237,7 @@ export async function captureFramedVideo<S>(args: FrameStepArgs<S>): Promise<voi
     preset: args.preset,
     frameFormat,
     jpegQuality,
+    encoderThreads,
     timeStep,
     logger: args.logger,
     prepare: args.prepare,
@@ -194,11 +257,33 @@ export async function captureFramedVideo<S>(args: FrameStepArgs<S>): Promise<voi
     seg: path.join(args.tmpDir, `seg-${i}-${path.basename(args.outPath)}`),
   }));
   args.logger.debug(`stepping ${totalFrames} frames across ${segs.length} workers`);
-  await Promise.all(
-    segs.map((r) =>
-      renderChunk({ ...common, frameStart: r.start, frameEnd: r.end, outPath: r.seg }),
-    ),
-  );
+  // One failed chunk fails the whole capture, so stop the sibling chunks at their next frame
+  // boundary instead of letting them render segments that will be thrown away (they'd keep
+  // burning contexts/CPU concurrently with the next scheduled assets). The internal controller
+  // also mirrors the caller's signal so an external cancel still reaches every chunk.
+  const outer = args.signal;
+  const chunkAbort = new AbortController();
+  const onOuterAbort = (): void => chunkAbort.abort(outer?.reason);
+  if (outer?.aborted) chunkAbort.abort(outer.reason);
+  else outer?.addEventListener("abort", onOuterAbort, { once: true });
+  try {
+    await Promise.all(
+      segs.map((r) =>
+        renderChunk({
+          ...common,
+          frameStart: r.start,
+          frameEnd: r.end,
+          outPath: r.seg,
+          signal: chunkAbort.signal,
+        }).catch((err) => {
+          chunkAbort.abort();
+          throw err; // rejects first, so Promise.all surfaces the real error, not a sibling's abort
+        }),
+      ),
+    );
+  } finally {
+    outer?.removeEventListener("abort", onOuterAbort);
+  }
   await concatMp4(
     segs.map((r) => r.seg),
     args.outPath,

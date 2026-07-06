@@ -272,14 +272,14 @@ export const scrollReelOptionsSchema = z
       .describe(
         '"frames" (default) steps a virtual clock per frame — frame-accurate, crisp, reproducible; "realtime" records the live session for time-based hero animation or autoplay video.',
       ),
-    /** Parallel render workers for "frames" (each its own browser context). Omit to auto-pick by cores. */
+    /** Parallel render workers for "frames" (each its own browser context). Omit to auto-pick from cores + free memory. */
     workers: z
       .number()
       .int()
       .positive()
       .optional()
       .describe(
-        'Parallel render workers for "frames" (each its own browser context). Omit to auto-pick by cores.',
+        'Parallel render workers for "frames" (each its own browser context). Omit to auto-pick from cores + free memory.',
       ),
     /** Intermediate frame format for "frames"; "png" is lossless (slower), "jpeg" (default) is faster. */
     frameFormat: z
@@ -831,7 +831,7 @@ export interface ScrollReelOptionsInput {
    * autoplay video. Default "frames".
    */
   capture?: "frames" | "realtime";
-  /** Parallel render workers for "frames" (each its own browser context). Omit to auto-pick by cores. */
+  /** Parallel render workers for "frames" (each its own browser context). Omit to auto-pick from cores + free memory. */
   workers?: number;
   /** Intermediate frame format for "frames". "jpeg" (default) is faster; "png" is lossless. Default "jpeg". */
   frameFormat?: "jpeg" | "png";

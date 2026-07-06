@@ -172,7 +172,7 @@ export interface WallOptionsInput {
   capture?: "frames" | "realtime";
   /**
    * Parallel frame-render workers. Video-heavy walls can cold-start to black tiles under many
-   * workers — set 1 (or omit) for those. Omit to auto-pick from cores.
+   * workers — set 1 (or omit) for those. Omit to auto-pick from cores + free memory.
    */
   workers?: number;
   /** Intermediate frame format (frames capture). "jpeg" (default) is fast; "png" is lossless. */

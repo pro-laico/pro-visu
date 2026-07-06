@@ -1,8 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { Browser } from "playwright-core";
 import { screenshotsOptionsSchema } from "@/generators/screenshots/options";
+import { captureScreenshots } from "@/generators/screenshots/capture";
 import { getGenerator, generatorIds } from "@/generators/registry";
 import { SCREENSHOTS_ID } from "@/generators/screenshots";
 import { mergeGeneratorOptions } from "@/pipeline/runner";
+import { createLogger } from "@/utils/logger";
 
 describe("screenshots generator", () => {
   it("is registered", () => {
@@ -37,5 +40,46 @@ describe("screenshots generator", () => {
     const opts = screenshotsOptionsSchema.parse(merged);
     expect(opts.format).toBe("jpeg");
     expect(opts.quality).toBe(80);
+  });
+
+  it("persists each shot as it is captured (buffers are not held until the end)", async () => {
+    const options = screenshotsOptionsSchema.parse({
+      viewports: [
+        { name: "desktop", width: 1440, height: 900 },
+        { name: "mobile", width: 390, height: 844 },
+      ],
+    });
+    let inFlightAtPersist = -1;
+    let shotsTaken = 0;
+    const page = {
+      goto: async () => {},
+      evaluate: async () => {},
+      screenshot: async () => {
+        shotsTaken += 1;
+        return Buffer.from(`shot-${shotsTaken}`);
+      },
+    };
+    const context = { newPage: async () => page, close: vi.fn(async () => {}) };
+    const browser = { newContext: async () => context } as unknown as Browser;
+
+    const persisted: string[] = [];
+    const records = await captureScreenshots({
+      browser,
+      url: "https://example.com",
+      options,
+      logger: createLogger("silent"),
+      persist: async (key, buffer) => {
+        // Persist runs while capture is still in flight, not after everything is collected.
+        inFlightAtPersist = Math.max(inFlightAtPersist, shotsTaken);
+        persisted.push(key);
+        return { key, bytes: buffer.length };
+      },
+    });
+
+    expect(records).toHaveLength(2); // one page shot per viewport
+    expect(records.map((r) => r.key)).toEqual(["desktop", "mobile"]); // viewport order preserved
+    expect(persisted).toHaveLength(2);
+    expect(inFlightAtPersist).toBeGreaterThan(0); // persist was interleaved with capturing
+    expect(context.close).toHaveBeenCalledTimes(2); // one isolated context per viewport, closed
   });
 });

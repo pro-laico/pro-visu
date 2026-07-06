@@ -261,9 +261,10 @@ export async function captureScrollFrames(a: ScrollFramesArgs): Promise<void> {
         );
       }
       if (a.settlePerFrame) {
-        // Bound the in-page settle Node-side so a stuck decode can't hang the frame.
+        // Bound the in-page settle both in-page (so the losing evaluate still resolves instead of
+        // stacking up pending protocol calls) and Node-side (so the frame never waits past the cap).
         await Promise.race([
-          page.evaluate(settleInView),
+          page.evaluate(settleInView, { maxMs: a.settleMaxMs }),
           new Promise<void>((resolve) => setTimeout(resolve, a.settleMaxMs)),
         ]);
       }

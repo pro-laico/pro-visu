@@ -141,6 +141,12 @@ export interface FramePipeArgs {
   preset?: string;
   /** Piped frame format; "png" is the lossless (slower) path. Default "jpeg". */
   inputFormat?: "jpeg" | "png";
+  /**
+   * Cap the encoder's thread pool. x264 defaults to ~1.5× cores PER PROCESS; with parallel
+   * frame-capture workers each running their own encoder, that multiplies into heavy thread and
+   * per-thread-buffer oversubscription. Omit for ffmpeg's default (single-encoder paths).
+   */
+  threads?: number;
 }
 
 /**
@@ -170,6 +176,7 @@ export function buildFramePipeArgs(a: FramePipeArgs): string[] {
     a.preset ?? "medium",
     "-crf",
     String(a.crf),
+    ...(a.threads && a.threads > 0 ? ["-threads", String(a.threads)] : []),
     "-pix_fmt",
     "yuv420p",
     ...COLOR_TAGS,
@@ -185,7 +192,19 @@ export interface FrameEncoder {
   write(frame: Buffer): Promise<void>;
   /** Flush + wait for ffmpeg to finish writing the mp4. */
   done(): Promise<void>;
+  /**
+   * Tear the encoder down NOW (failure path): destroy stdin (rejecting any pending write) and kill
+   * the child. Without this, a capture that throws mid-loop leaves an ffmpeg blocked on its stdin
+   * pipe for the rest of the run — the pipeline isolates asset failures, so orphans accumulate.
+   */
+  kill(): void;
 }
+
+/**
+ * Long-running encodes emit stderr continuously (per-frame progress); only the tail is ever shown
+ * in errors, so cap the accumulator instead of holding the whole stream in memory.
+ */
+const STDERR_TAIL_CAP = 8192;
 
 /** Spawn an ffmpeg that consumes piped JPEG frames and writes an mp4 — no frames hit disk. */
 export function startFrameEncoder(a: FramePipeArgs, logger?: Logger, signal?: AbortSignal): FrameEncoder {
@@ -196,8 +215,9 @@ export function startFrameEncoder(a: FramePipeArgs, logger?: Logger, signal?: Ab
   let stderr = "";
   let failed: Error | null = null;
   child.stderr.on("data", (d: Buffer) => {
-    stderr += d.toString();
-    logger?.debug(d.toString().trim());
+    const text = d.toString();
+    stderr = (stderr + text).slice(-STDERR_TAIL_CAP);
+    logger?.debug(text.trim());
   });
   child.on("error", (e) => {
     failed = e;
@@ -216,6 +236,7 @@ export function startFrameEncoder(a: FramePipeArgs, logger?: Logger, signal?: Ab
       }),
     done: () =>
       new Promise<void>((resolve, reject) => {
+        if (failed) return reject(failed);
         stdin.end();
         child.on("close", (code) =>
           code === 0
@@ -223,6 +244,14 @@ export function startFrameEncoder(a: FramePipeArgs, logger?: Logger, signal?: Ab
             : reject(new Error(`ffmpeg frame encode failed (${code}):\n${stderr.slice(-2000)}`)),
         );
       }),
+    kill: () => {
+      stdin.destroy(); // rejects any in-flight write via its callback
+      try {
+        child.kill();
+      } catch {
+        /* already gone */
+      }
+    },
   };
 }
 
@@ -271,7 +300,7 @@ export async function runFfmpeg(argv: string[], logger?: Logger, signal?: AbortS
     let stderr = "";
     child.stderr.on("data", (chunk: Buffer) => {
       const text = chunk.toString();
-      stderr += text;
+      stderr = (stderr + text).slice(-STDERR_TAIL_CAP);
       logger?.debug(text.trim());
     });
     child.on("error", reject);

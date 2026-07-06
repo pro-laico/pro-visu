@@ -48,15 +48,15 @@ describe("autoWorkers", () => {
 });
 
 describe("captureFramedVideo cancellation", () => {
-  it("aborts after prepare without spawning the encoder or stepping frames", async () => {
+  it("aborts before creating any context when cancelled up front", async () => {
     const seekToFrame = vi.fn(async () => {});
-    const close = vi.fn(async () => {});
     const page = {
       on: () => {},
       screenshot: async () => Buffer.alloc(0),
     };
-    const context = { newPage: async () => page, close };
-    const browser = { newContext: async () => context } as unknown as Browser;
+    const context = { newPage: async () => page, close: async () => {} };
+    const newContext = vi.fn(async () => context);
+    const browser = { newContext } as unknown as Browser;
 
     const controller = new AbortController();
     controller.abort(); // already cancelled before any frame work
@@ -75,6 +75,43 @@ describe("captureFramedVideo cancellation", () => {
         logger: createLogger("silent"),
         signal: controller.signal,
         prepare: async () => ({}),
+        seekToFrame,
+      }),
+    ).rejects.toThrow();
+
+    expect(newContext).not.toHaveBeenCalled(); // pre-aborted → no context is ever spawned
+    expect(seekToFrame).not.toHaveBeenCalled(); // never reached the frame loop / encoder
+  });
+
+  it("aborts after prepare without spawning the encoder, still closing the context", async () => {
+    const seekToFrame = vi.fn(async () => {});
+    const close = vi.fn(async () => {});
+    const page = {
+      on: () => {},
+      screenshot: async () => Buffer.alloc(0),
+    };
+    const context = { newPage: async () => page, close };
+    const browser = { newContext: async () => context } as unknown as Browser;
+
+    const controller = new AbortController();
+
+    await expect(
+      captureFramedVideo({
+        browser,
+        width: 100,
+        height: 100,
+        deviceScaleFactor: 1,
+        fps: 10,
+        durationSeconds: 1,
+        crf: 30,
+        outPath: "out.mp4",
+        tmpDir: ".",
+        logger: createLogger("silent"),
+        signal: controller.signal,
+        prepare: async () => {
+          controller.abort(); // cancelled while the page was being prepared
+          return {};
+        },
         seekToFrame,
       }),
     ).rejects.toThrow();

@@ -475,14 +475,27 @@ export async function measureTopInset(args: MeasureTopInsetArgs): Promise<number
   }
 }
 
+export interface SettleInViewArgs {
+  /** Cap each awaited readiness signal at this many ms so the evaluate always resolves. */
+  maxMs?: number;
+}
+
 /**
  * Runs INSIDE the page. Waits for the CURRENT scroll position's in-view content to be ready — fonts
- * loaded and visible images decoded — then yields one animation frame. Bounded by the caller (a
- * Node-side timeout) so a stuck decode can't hang a frame. Self-contained (serialized via page.evaluate).
+ * loaded and visible images decoded — then yields one animation frame. Each await is capped IN-PAGE
+ * at `maxMs`: the Node side also races a timeout so a slow settle never delays the screenshot, but
+ * without the in-page cap the losing evaluate would stay pending (a stuck decode never settles),
+ * quietly stacking up open protocol calls for the rest of the segment. Self-contained (serialized
+ * via page.evaluate).
  */
-export async function settleInView(): Promise<void> {
+export async function settleInView(args?: SettleInViewArgs): Promise<void> {
+  const maxMs = args?.maxMs ?? 1000;
+  const sleep = (ms: number): Promise<void> =>
+    new Promise((resolve) => setTimeout(() => resolve(), ms));
+  const withCap = <T>(p: Promise<T> | null): Promise<T | void> =>
+    Promise.race([p ?? Promise.resolve(), sleep(maxMs)]);
   try {
-    await (document.fonts?.ready ?? Promise.resolve());
+    await withCap(document.fonts?.ready ?? null);
   } catch {
     /* no font set */
   }
@@ -498,7 +511,7 @@ export async function settleInView(): Promise<void> {
         return false;
       }
     });
-    await Promise.all(inView.map((im) => (im.decode ? im.decode().catch(() => {}) : null)));
+    await withCap(Promise.all(inView.map((im) => (im.decode ? im.decode().catch(() => {}) : null))));
   } catch {
     /* decode unsupported */
   }

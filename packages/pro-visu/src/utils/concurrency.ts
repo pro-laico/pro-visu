@@ -1,4 +1,37 @@
 /**
+ * A plain counting semaphore: at most `permits` holders at a time, FIFO waiters. Used as the
+ * run-wide budget for memory-heavy resources (e.g. supersampled render contexts), where per-call
+ * limits multiply against pipeline concurrency and blow past what the machine can hold.
+ */
+export class Semaphore {
+  private available: number;
+  private readonly waiters: Array<() => void> = [];
+
+  constructor(permits: number) {
+    this.available = Math.max(1, permits);
+  }
+
+  /** Take a permit immediately if one is free (no queueing). */
+  tryAcquire(): boolean {
+    if (this.available <= 0) return false;
+    this.available -= 1;
+    return true;
+  }
+
+  /** Wait for a permit. Callers MUST pair with release() (use try/finally). */
+  async acquire(): Promise<void> {
+    if (this.tryAcquire()) return;
+    await new Promise<void>((resolve) => this.waiters.push(resolve));
+  }
+
+  release(): void {
+    const next = this.waiters.shift();
+    if (next) next(); // hand the permit straight to the oldest waiter
+    else this.available += 1;
+  }
+}
+
+/**
  * Run `fn` over `items` with at most `limit` in flight, preserving input order in the
  * result. `fn` should not reject — callers handle per-item errors and return a value.
  */

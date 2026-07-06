@@ -18,6 +18,38 @@ All notable changes to `pro-visu` are documented here. The format is based on
 - **`specimen`: the label colour moved** from `colors.label` to `label.color`. The label's colour is
   part of the label, not a glyph token. Move any `colors: { label }` to `label: { color }`.
 
+### Changed
+
+- **Frame-capture workers now share one run-wide budget and size themselves to free memory.**
+  Previously every frame-stepped asset picked its worker count as if it owned the machine, so
+  `settings.concurrency` multiplied it into far more supersampled Chromium contexts + encoders
+  than the machine could hold — the main cause of memory exhaustion on busy machines. The auto
+  worker count is now also bounded by available system memory, and all captures in a run draw
+  from a single context budget (excess chunks queue for a free slot). Output is unchanged; an
+  explicit `workers` still tiles the frames into that many segments.
+- **Parallel frame encoders no longer oversubscribe CPU threads:** each worker's x264 encoder is
+  capped to its share of the cores instead of every encoder spawning ~1.5× cores of threads.
+- **The low-memory watchdog now watches system memory too.** It previously sampled only the Node
+  heap, which cannot see Chromium or ffmpeg — the processes that actually exhaust RAM. The run now
+  also stops gracefully (keeping already-finished assets) when system memory nears exhaustion.
+- **`screenshots` writes each shot to disk as it is captured** instead of holding every viewport's
+  buffers in memory until the end — fullPage PNGs at `deviceScaleFactor: 2` run tens of MB each.
+- Asset content hashes are computed by streaming the file instead of reading it whole into memory.
+
+### Fixed
+
+- **A failed capture no longer leaks its ffmpeg encoder.** A mid-capture error (navigation flake,
+  screenshot timeout) left the encoder blocked on its stdin pipe for the rest of the run, so
+  failures across a long run accumulated orphaned ffmpeg processes. The encoder is now torn down
+  on the failure path.
+- **A failed worker now stops its sibling workers** at the next frame boundary instead of letting
+  them keep rendering segments that would be thrown away.
+- **Per-frame settle waits can no longer pile up in the page.** The in-page settle is now capped
+  in-page at `settleMaxMs` (alongside the existing Node-side cap), so a stuck image decode stops
+  stacking pending protocol calls for the rest of a segment.
+- The live dashboard no longer re-renders on every captured frame — progress commits at
+  whole-percent steps, the display's own resolution.
+
 ## [0.5.0] - 2026-07-02
 
 A usability-focused release built from a CLI audit. Failures now surface early and

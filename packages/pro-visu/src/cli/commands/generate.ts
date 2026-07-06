@@ -7,6 +7,7 @@ import { resolveTargets } from "@/config/resolve-targets";
 import { getGenerator } from "@/generators/registry";
 import { watchForInterrupt } from "@/cli/interrupt";
 import { reexecWithMemory, currentHeapLimitMB } from "@/cli/reexec";
+import os from "node:os";
 import v8 from "node:v8";
 import { startRunState, updateRunState, clearRunState } from "@/cli/run-state";
 import { ensureChromium } from "@/browser-install/ensure-chromium";
@@ -213,22 +214,37 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   // tracker's footer shows the "esc to cancel" hint.
   reporter.begin();
 
-  // Memory watchdog: if the Node heap nears its limit, stop the run gracefully (like Esc) with a clear
-  // message instead of letting V8 hard-crash ("JavaScript heap out of memory"). Fires once; raise
-  // settings.maxMemoryMB (more heap) or lower settings.concurrency to avoid it.
+  // Memory watchdog, two triggers, each stopping the run gracefully (like Esc) with a clear message:
+  //  1. The Node heap nearing its V8 limit — instead of a hard "JavaScript heap out of memory" crash.
+  //     Raise settings.maxMemoryMB (more heap) or lower settings.concurrency.
+  //  2. SYSTEM memory nearly exhausted — the heavy usage lives in Chromium renderers and ffmpeg
+  //     encoders, which the Node heap number cannot see; when the OS runs out, the machine swap-
+  //     thrashes or the browser is OOM-killed mid-capture. Sampled via os.freemem(), and tripped only
+  //     on two consecutive low samples so a transient dip can't cancel a healthy run.
+  const SYSTEM_FREE_FLOOR_BYTES = 512 * 1024 * 1024;
+  let lowFreeSamples = 0;
+  const stopForMemory = (plainMessage: string): void => {
+    lowMemory = true;
+    interrupted = true;
+    abort.abort();
+    if (reporter.isLive) reporter.cancelling("low memory — stopping…");
+    else logger.warn(plainMessage);
+  };
   const memTimer = setInterval(() => {
     if (interrupted) return;
     const limit = v8.getHeapStatistics().heap_size_limit;
     const used = process.memoryUsage().heapUsed;
     if (limit > 0 && used / limit > 0.88) {
-      lowMemory = true;
-      interrupted = true;
-      abort.abort();
-      if (reporter.isLive) reporter.cancelling("low memory — stopping…");
-      else
-        logger.warn(
-          "Low memory — stopping early to avoid a crash (raise settings.maxMemoryMB or lower concurrency).",
-        );
+      stopForMemory(
+        "Low memory — stopping early to avoid a crash (raise settings.maxMemoryMB or lower concurrency).",
+      );
+      return;
+    }
+    lowFreeSamples = os.freemem() < SYSTEM_FREE_FLOOR_BYTES ? lowFreeSamples + 1 : 0;
+    if (lowFreeSamples >= 2) {
+      stopForMemory(
+        "System memory nearly exhausted — stopping early to avoid a crash (lower settings.concurrency or the asset's workers).",
+      );
     }
   }, 1500);
   memTimer.unref?.();

@@ -30,21 +30,14 @@ async function run(
   const url = requireUrl(ctx);
   ctx.logger.info(`capturing ${url}`);
 
-  const shots = await captureScreenshots({
-    browser: ctx.browser,
-    url,
-    options,
-    logger: ctx.logger,
-    capture: ctx.capture,
-  });
-
-  const records: AssetRecord[] = [];
-  for (const shot of shots) {
-    const fileName = `${slugify(ctx.target.name)}-${slugify(shot.key)}.${ext}`;
+  // Each shot is written (and its record built) the moment it's captured, so the buffer is freed
+  // immediately instead of every viewport's shots piling up in memory until the end.
+  const persist = async (key: string, buffer: Buffer): Promise<AssetRecord> => {
+    const fileName = `${slugify(ctx.target.name)}-${slugify(key)}.${ext}`;
     const outPath = ctx.resolveOutPath(fileName);
-    await writeFile(outPath, shot.buffer);
+    await writeFile(outPath, buffer);
 
-    const { width, height } = dimensions(shot.buffer);
+    const { width, height } = dimensions(buffer);
     if (width === 0 || height === 0) {
       ctx.logger.warn(`could not read dimensions for ${fileName} (recording 0×0)`);
     } else {
@@ -56,21 +49,33 @@ async function run(
         );
       }
     }
-    const record: AssetRecord = {
-      id: `${ctx.target.name}-${shot.key}`,
+    return {
+      id: `${ctx.target.name}-${key}`,
       generator: SCREENSHOTS_ID,
       sourceUrl: url,
       file: ctx.toManifestPath(outPath),
       format: ext,
       width,
       height,
-      bytes: shot.buffer.length,
-      contentHash: sha256Buffer(shot.buffer),
+      bytes: buffer.length,
+      contentHash: sha256Buffer(buffer),
       createdAt: new Date().toISOString(),
       toolVersion: ctx.toolVersion,
     };
+  };
+
+  const records = await captureScreenshots({
+    browser: ctx.browser,
+    url,
+    options,
+    logger: ctx.logger,
+    capture: ctx.capture,
+    persist,
+  });
+
+  // Manifest writes + success lines stay in stable (viewport-order) sequence after the fact.
+  for (const record of records) {
     await ctx.writeAsset(record);
-    records.push(record);
     ctx.logger.success(`${record.id} → ${record.file}`);
   }
 

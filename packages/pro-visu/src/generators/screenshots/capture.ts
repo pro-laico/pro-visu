@@ -9,29 +9,29 @@ import type { ResolvedScreenshotsOptions } from "@/generators/screenshots/option
 /** Minimum settle at the bottom for lazy/below-the-fold content (esp. for fullPage shots). */
 const MIN_PREPARE_SETTLE_MS = 600;
 
-export interface Shot {
-  /** Suffix appended to the asset name for the filename + manifest id. */
-  key: string;
-  buffer: Buffer;
-}
-
-export interface CaptureArgs {
+export interface CaptureArgs<T> {
   browser: Browser;
   url: string;
   options: ResolvedScreenshotsOptions;
   logger: Logger;
   capture?: ResolvedCaptureSettings;
+  /**
+   * Called with each shot's buffer AS SOON as it is captured, so the caller writes it to disk and
+   * the buffer is released immediately. Holding every shot until the end multiplies badly: fullPage
+   * PNGs at deviceScaleFactor 2 run tens of MB each, and viewports capture in parallel.
+   */
+  persist: (key: string, buffer: Buffer) => Promise<T>;
 }
 
 type PageShotOptions = NonNullable<Parameters<Page["screenshot"]>[0]>;
 
 /**
- * Capture page (and optional element) screenshots across every configured viewport.
- * Viewports render in parallel (each in its own isolated context, modest cap — full-page
- * buffers are memory-heavy); element shots stay sequential within a viewport. mapLimit
- * preserves input order, so filenames/manifest ids are stable.
+ * Capture page (and optional element) screenshots across every configured viewport, persisting
+ * each buffer the moment it's taken (see `persist`). Viewports render in parallel (each in its own
+ * isolated context, modest cap); element shots stay sequential within a viewport. mapLimit
+ * preserves input order, so the returned records keep a stable order for filenames/manifest ids.
  */
-export async function captureScreenshots(args: CaptureArgs): Promise<Shot[]> {
+export async function captureScreenshots<T>(args: CaptureArgs<T>): Promise<T[]> {
   const { options } = args;
   const perViewport = await mapLimit(
     options.viewports,
@@ -42,12 +42,12 @@ export async function captureScreenshots(args: CaptureArgs): Promise<Shot[]> {
 }
 
 /** One viewport: fresh context → navigate → warm the page → page shot + element shots. */
-async function captureViewport(
-  args: CaptureArgs,
+async function captureViewport<T>(
+  args: CaptureArgs<T>,
   bp: ResolvedScreenshotsOptions["viewports"][number],
-): Promise<Shot[]> {
+): Promise<T[]> {
   const { browser, url, options, logger } = args;
-  const shots: Shot[] = [];
+  const shots: T[] = [];
   {
     const context = await browser.newContext({
       viewport: { width: bp.width, height: bp.height },
@@ -78,7 +78,7 @@ async function captureViewport(
       if (options.format === "jpeg" && options.quality != null) {
         pageShotOptions.quality = options.quality;
       }
-      shots.push({ key: bp.name, buffer: await page.screenshot(pageShotOptions) });
+      shots.push(await args.persist(bp.name, await page.screenshot(pageShotOptions)));
 
       for (const element of options.elements) {
         const locator = page.locator(element.selector).first();
@@ -94,17 +94,17 @@ async function captureViewport(
           elShotOptions.quality = options.quality;
         }
         // A present-but-hidden element (display:none until interaction) makes locator.screenshot
-        // throw; warn + skip it instead of aborting the whole viewport loop.
+        // throw; warn + skip it instead of aborting the whole viewport loop. Only the capture is
+        // guarded — a persist (disk write) failure is a real error and still propagates.
+        let buffer: Buffer | null = null;
         try {
-          shots.push({
-            key: `${bp.name}-${element.name}`,
-            buffer: await locator.screenshot(elShotOptions),
-          });
+          buffer = await locator.screenshot(elShotOptions);
         } catch (err) {
           logger.warn(
             `[${bp.name}] could not capture "${element.selector}": ${(err as Error).message}`,
           );
         }
+        if (buffer) shots.push(await args.persist(`${bp.name}-${element.name}`, buffer));
       }
     } finally {
       await context.close();
