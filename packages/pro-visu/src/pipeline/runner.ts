@@ -2,6 +2,7 @@ import os from "node:os";
 import path from "node:path";
 import { existsSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
+import type { Browser } from "playwright-core";
 import { launchBrowser } from "@/pipeline/browser";
 import { createContext } from "@/pipeline/context";
 import { buildGraph, dependenciesOf, expandSelection } from "@/pipeline/graph";
@@ -93,7 +94,11 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
   await ensureDir(opts.outDir);
   const manifest = await ManifestStore.load(opts.outDir);
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "pro-visu-"));
-  const browser = await launchBrowser(opts.config.settings.browser);
+  // Launch Chromium lazily, on the first asset that actually renders: a fully-cached rerun (the
+  // common iteration loop) then skips browser startup entirely. Shared across concurrent assets.
+  const browserRef: { current: Promise<Browser> | null } = { current: null };
+  const getBrowser = (): Promise<Browser> =>
+    (browserRef.current ??= launchBrowser(opts.config.settings.browser));
   opts.onResources?.({ tmpDir: tmpRoot });
   const concurrency = Math.max(1, opts.concurrency ?? opts.config.settings.concurrency);
   const quality = opts.quality ?? opts.config.settings.quality;
@@ -150,6 +155,7 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
       }
 
       const cacheKey = computeCacheKey({
+        name: spec.name,
         generator: spec.generator,
         url: spec.url,
         options,
@@ -162,19 +168,24 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
       });
 
       if (cacheEnabled) {
-        const existing = manifest.find(spec.name);
+        // Match ALL of the spec's records (primary + suffixed variants) — generators like
+        // `screenshots` emit only suffixed records, so a bare find(spec.name) never hit for them
+        // and they recaptured (and relaunched the browser) on every run.
+        const existing = manifest
+          .recordsFor(spec.name)
+          .filter((record) => record.cacheKey === cacheKey);
         if (
-          existing?.cacheKey === cacheKey &&
-          existsSync(path.resolve(opts.outDir, existing.file))
+          existing.length > 0 &&
+          existing.every((record) => existsSync(path.resolve(opts.outDir, record.file)))
         ) {
           log.info("cached — unchanged, skipped");
           reporter?.status(spec.name, "cached");
-          recordDone(spec.name, existing);
+          recordDone(spec.name, existing[0]);
           return {
             name: spec.name,
             generator: spec.generator,
             status: "ok",
-            records: [existing],
+            records: existing,
             cached: true,
           };
         }
@@ -183,7 +194,7 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
       reporter?.status(spec.name, "running");
 
       const ctx = await createContext({
-        browser,
+        browser: await getBrowser(), // first uncached asset pays the launch; cached runs never do
         generatorId: generator.id,
         target: { name: spec.name, url: spec.url },
         resolvedInputs,
@@ -232,7 +243,13 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
     return specs.map((s) => outcomes.get(s.name)).filter((o): o is AssetOutcome => Boolean(o));
   } finally {
     // The caller owns begin()/stop() (it spans the build/server setup rows too).
-    await browser.close();
+    if (browserRef.current) {
+      try {
+        await (await browserRef.current).close();
+      } catch {
+        /* launch failed (already surfaced per-asset) or browser already gone */
+      }
+    }
     await removeDir(tmpRoot);
   }
 }

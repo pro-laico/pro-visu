@@ -475,66 +475,36 @@ export async function measureTopInset(args: MeasureTopInsetArgs): Promise<number
   }
 }
 
-export interface SettleInViewArgs {
-  /** Cap each awaited readiness signal at this many ms so the evaluate always resolves. */
-  maxMs?: number;
+export interface SeekFrameArgs extends SeekScrollArgs {
+  /**
+   * Annotation runtime state for this frame — applied via the installed `__scAnno` runtime.
+   * Omit when the capture has no annotations.
+   */
+  annotationState?: unknown;
+  /**
+   * Settle the CURRENT viewport's content before returning — wait for fonts and in-view image
+   * decode, each capped IN-PAGE at this many ms so the evaluate always resolves (a stuck decode
+   * must not stack pending protocol calls). Omit to skip settling (draft mode).
+   */
+  settleMaxMs?: number;
 }
 
 /**
- * Runs INSIDE the page. Waits for the CURRENT scroll position's in-view content to be ready — fonts
- * loaded and visible images decoded — then yields one animation frame. Each await is capped IN-PAGE
- * at `maxMs`: the Node side also races a timeout so a slow settle never delays the screenshot, but
- * without the in-page cap the losing evaluate would stay pending (a stuck decode never settles),
- * quietly stacking up open protocol calls for the rest of the segment. Self-contained (serialized
- * via page.evaluate).
+ * Runs INSIDE the page. The per-frame step for frame-stepped site capture, combined into ONE
+ * evaluate: scroll-seek (+ optional Ken Burns scale) → optional annotation update → optional
+ * in-view settle. These used to be up to three separate `page.evaluate` round-trips per frame;
+ * over thousands of frames × parallel workers the protocol overhead was a real slice of capture
+ * time. Must be self-contained (serialized via page.evaluate); helpers are inlined as elsewhere
+ * in this file.
  */
-export async function settleInView(args?: SettleInViewArgs): Promise<void> {
-  const maxMs = args?.maxMs ?? 1000;
-  const sleep = (ms: number): Promise<void> =>
-    new Promise((resolve) => setTimeout(() => resolve(), ms));
-  const withCap = <T>(p: Promise<T> | null): Promise<T | void> =>
-    Promise.race([p ?? Promise.resolve(), sleep(maxMs)]);
-  try {
-    await withCap(document.fonts?.ready ?? null);
-  } catch {
-    /* no font set */
-  }
-  try {
-    const vh = window.innerHeight || document.documentElement.clientHeight || 0;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const imgs = Array.from(document.images ?? []) as any[];
-    const inView = imgs.filter((im) => {
-      try {
-        const r = im.getBoundingClientRect();
-        return r.bottom > 0 && r.top < vh && r.width > 0 && r.height > 0;
-      } catch {
-        return false;
-      }
-    });
-    await withCap(Promise.all(inView.map((im) => (im.decode ? im.decode().catch(() => {}) : null))));
-  } catch {
-    /* decode unsupported */
-  }
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-}
-
-/**
- * Runs INSIDE the page. Jumps the real scroll target to a normalized position (0 = top, 1 = bottom)
- * instantly, then waits TWO animation frames so scroll-linked animations, IntersectionObserver reveals,
- * and `position: sticky` elements recompute and PAINT before the caller screenshots. This is the
- * frame-stepped counterpart to `pageScroll`: the capture layer calls it once per frame with the
- * timeline's position for that frame, so the resulting video is frame-accurate and reproducible. Must be
- * self-contained (serialized via page.evaluate); the scroll helpers are inlined as elsewhere in this file.
- */
-export async function seekScrollTo(args: SeekScrollArgs): Promise<void> {
+export async function seekFrame(args: SeekFrameArgs): Promise<void> {
+  // 1. Scroll-seek (same semantics as seekScrollTo).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const target = findScrollTarget(document, getComputedStyle) as any;
   forceInstant(target);
   const distance = maxScrollOf(target);
   const clamped = args.normalizedY < 0 ? 0 : args.normalizedY > 1 ? 1 : args.normalizedY;
   scrollTargetTo(target, clamped * distance);
-  // Ken Burns: scale the page toward a viewport-anchored origin (computed from the live scroll), so
-  // the zoom centers on what's on screen. Only touched when a scale is supplied.
   if (typeof args.scale === "number") {
     try {
       const vw = window.innerWidth || document.documentElement.clientWidth || 0;
@@ -557,7 +527,51 @@ export async function seekScrollTo(args: SeekScrollArgs): Promise<void> {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
   );
 
-  // --- inlined, self-contained scroll helpers (duplicated in prepareScroll/pageScroll; see note above) ---
+  // 2. Annotation state for this frame (the runtime was installed during prepare).
+  if (args.annotationState !== undefined) {
+    try {
+      await (
+        globalThis as { __scAnno?: { update(s: unknown): Promise<void> } }
+      ).__scAnno?.update(args.annotationState);
+    } catch {
+      /* annotation runtime unavailable */
+    }
+  }
+
+  // 3. Settle in-view content (fonts + visible image decode), each await capped at settleMaxMs.
+  if (args.settleMaxMs != null) {
+    const maxMs = args.settleMaxMs;
+    const sleep = (ms: number): Promise<void> =>
+      new Promise((resolve) => setTimeout(() => resolve(), ms));
+    const withCap = <T>(p: Promise<T> | null): Promise<T | void> =>
+      Promise.race([p ?? Promise.resolve(), sleep(maxMs)]);
+    try {
+      await withCap(document.fonts?.ready ?? null);
+    } catch {
+      /* no font set */
+    }
+    try {
+      const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const imgs = Array.from(document.images ?? []) as any[];
+      const inView = imgs.filter((im) => {
+        try {
+          const r = im.getBoundingClientRect();
+          return r.bottom > 0 && r.top < vh && r.width > 0 && r.height > 0;
+        } catch {
+          return false;
+        }
+      });
+      await withCap(
+        Promise.all(inView.map((im) => (im.decode ? im.decode().catch(() => {}) : null))),
+      );
+    } catch {
+      /* decode unsupported */
+    }
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  }
+
+  // --- inlined, self-contained scroll helpers (duplicated elsewhere in this file; see note above) ---
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function findScrollTarget(doc: any, gcs: (el: any) => { overflowY: string }): unknown {
     const se = doc.scrollingElement || doc.documentElement;

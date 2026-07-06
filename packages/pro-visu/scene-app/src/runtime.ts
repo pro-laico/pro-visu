@@ -65,28 +65,53 @@ function whenLoaded(v: HTMLVideoElement): Promise<void> {
   });
 }
 
+/** Videos that have delivered at least one REAL `requestVideoFrameCallback` presentation. */
+const everPresented = new WeakSet<HTMLVideoElement>();
+/** Videos whose last presentation wait ended on the safety net (they aren't presenting). */
+const netResolved = new WeakSet<HTMLVideoElement>();
+
+/**
+ * Generous budget for a presentation we genuinely expect (a new frame after a seek, or a video's
+ * very first paint). It only ever delays things when presentation truly stalls — when rVFC fires
+ * the promise resolves immediately — so being generous here is free in the common case. The OLD
+ * 250ms net was the black-tile bug: on a cold decoder under parallel-worker CPU load, the first
+ * decode+present takes longer than that, the net fired first, and the screenshot caught a black
+ * tile at every worker's range start.
+ */
+const FIRST_PRESENT_NET_MS = 3000;
+/** Short budget for videos that have shown they don't present (offscreen/broken) — don't stall every frame on them. */
+const NON_PRESENTING_NET_MS = 250;
+
 /**
  * Resolve once the video has actually PRESENTED a frame to the compositor — not merely fired
- * `seeked` (which only means currentTime updated). Without this, a screenshot taken right after a
- * seek on a cold context captures a blank/black tile because the decoded frame hasn't painted yet
- * (every parallel frame-worker's first frame hit this). `requestVideoFrameCallback` fires on the
- * next presented frame; fall back to a rAF + timeout where it's unavailable or doesn't fire.
+ * `seeked` (which only means currentTime updated). `requestVideoFrameCallback` fires on the next
+ * presented frame; the safety-net timeout is adaptive: full budget while the video is presenting
+ * normally, short once a video has demonstrated it doesn't present (so a single offscreen/broken
+ * video can't add seconds to every frame).
  */
-function presented(v: HTMLVideoElement): Promise<void> {
+function presented(v: HTMLVideoElement, expectNewFrame: boolean): Promise<void> {
   const rvfc = (
     v as unknown as { requestVideoFrameCallback?: (cb: () => void) => number }
   ).requestVideoFrameCallback?.bind(v);
   if (!rvfc) return nextFrame();
+  // Steady state, nothing changed (same currentTime, already painted once): no new frame will be
+  // composited, so rVFC would never fire — don't arm it, just yield a paint.
+  if (!expectNewFrame && everPresented.has(v)) return nextFrame();
   return new Promise((resolve) => {
     let done = false;
-    const finish = (): void => {
+    const finish = (real: boolean): void => {
       if (done) return;
       done = true;
+      if (real) {
+        everPresented.add(v);
+        netResolved.delete(v);
+      } else {
+        netResolved.add(v);
+      }
       resolve();
     };
-    rvfc(() => finish());
-    // Safety net: a paused, already-decoded video may not always schedule the callback promptly.
-    setTimeout(finish, 250);
+    rvfc(() => finish(true));
+    setTimeout(() => finish(false), netResolved.has(v) ? NON_PRESENTING_NET_MS : FIRST_PRESENT_NET_MS);
   });
 }
 
@@ -98,12 +123,14 @@ function seekTo(v: HTMLVideoElement, t: number): Promise<void> {
   const target =
     Number.isFinite(dur) && dur > 0 ? Math.min(loopTime(t, dur), dur - 1e-3) : t;
   // Already at the target: still ensure a frame is presented (a cold context may not have painted).
-  if (Math.abs(v.currentTime - target) < 1e-4 && v.readyState >= 2) return presented(v);
+  if (Math.abs(v.currentTime - target) < 1e-4 && v.readyState >= 2) {
+    return presented(v, false);
+  }
   return new Promise((resolve) => {
     const onSeeked = (): void => {
       v.removeEventListener("seeked", onSeeked);
       // Wait for the seeked frame to be presented before resolving, so the screenshot isn't blank.
-      void presented(v).then(resolve);
+      void presented(v, true).then(resolve);
     };
     v.addEventListener("seeked", onSeeked);
     v.currentTime = target;
@@ -134,6 +161,13 @@ export function initRuntime(): void {
       sceneReady = read();
     }
     await Promise.all([fontsReady, sceneReady ?? Promise.resolve(), ...videos.map(whenLoaded)]);
+    // Warm every video's decode pipeline BEFORE capture starts: seek a hair off zero (forcing the
+    // seeked → presented path — a paused, never-painted video may not fire rVFC otherwise) and
+    // wait for a REAL first presentation. `whenLoaded` only guarantees data is buffered — on a
+    // cold context nothing has been decoded+painted yet, so without this the first captured
+    // frames of every parallel worker's range screenshot black tiles. The cost lands in the
+    // (un-recorded) prepare step, once per worker; capture frames then set their own times.
+    await Promise.all(videos.map((v) => seekTo(v, 0.001)));
     await nextFrame(); // ensure a first paint
   })();
   void readyPromise.then(() => {

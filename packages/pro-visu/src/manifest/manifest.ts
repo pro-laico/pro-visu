@@ -111,4 +111,20 @@ export class ManifestStore {
   find(id: string): AssetRecord | undefined {
     return this.manifest.assets.find((a) => a.id === id);
   }
+
+  /**
+   * All records belonging to an asset spec, primary first: the exact-id record (when the
+   * generator emits one, e.g. a reel's mp4) followed by suffixed variants (`name-desktop`,
+   * `name-gif`, …). Generators like `screenshots` emit ONLY suffixed records, so a cache check
+   * that looks up the bare spec name can never hit for them.
+   */
+  recordsFor(name: string): AssetRecord[] {
+    const exact: AssetRecord[] = [];
+    const variants: AssetRecord[] = [];
+    for (const record of this.manifest.assets) {
+      if (record.id === name) exact.push(record);
+      else if (record.id.startsWith(`${name}-`)) variants.push(record);
+    }
+    return [...exact, ...variants];
+  }
 }

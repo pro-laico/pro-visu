@@ -60,14 +60,13 @@ export const wallOptionsSchema = z
       .enum(["frames", "realtime"])
       .default("frames")
       .describe('Capture strategy. "frames" (default) is deterministic + parallelizable; "realtime" records the live session.'),
-    /** Parallel frame-render workers. Video-heavy walls can cold-start black under many workers —
-     *  set 1 (or omit) for those. */
+    /** Parallel frame-render workers. Omit to auto-pick from cores + free memory. */
     workers: z
       .number()
       .int()
       .positive()
       .optional()
-      .describe("Parallel frame-render workers. Video-heavy walls can cold-start to black under many workers — set 1 (or omit). Auto-picks from cores."),
+      .describe("Parallel frame-render workers. Each worker warms every tile video's decoder before capture, so video-heavy walls parallelize safely. Omit to auto-pick from cores + free memory."),
     /** Intermediate frame format (frames capture only). "jpeg" (default) is fast; "png" is lossless. */
     frameFormat: z
       .enum(["jpeg", "png"])
@@ -171,8 +170,8 @@ export interface WallOptionsInput {
    */
   capture?: "frames" | "realtime";
   /**
-   * Parallel frame-render workers. Video-heavy walls can cold-start to black tiles under many
-   * workers — set 1 (or omit) for those. Omit to auto-pick from cores + free memory.
+   * Parallel frame-render workers. Each worker warms every tile video's decoder before capture
+   * starts, so video-heavy walls parallelize safely. Omit to auto-pick from cores + free memory.
    */
   workers?: number;
   /** Intermediate frame format (frames capture). "jpeg" (default) is fast; "png" is lossless. */

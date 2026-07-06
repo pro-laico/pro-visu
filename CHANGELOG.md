@@ -34,10 +34,30 @@ All notable changes to `pro-visu` are documented here. The format is based on
   also stops gracefully (keeping already-finished assets) when system memory nears exhaustion.
 - **`screenshots` writes each shot to disk as it is captured** instead of holding every viewport's
   buffers in memory until the end — fullPage PNGs at `deviceScaleFactor: 2` run tens of MB each.
+- **Parallel workers share one network cache per capture.** Each frame-capture worker runs an
+  isolated browser context, so N workers used to download the whole site N times; now the first
+  request for a URL fetches it once and the other workers replay the recorded response (only GET,
+  never `Range`/event streams; falls back to the network on any miss or error).
+- **Chromium launches lazily**, on the first asset that actually renders — a fully-cached rerun
+  (`--cache`) never pays browser startup.
+- **One in-page call per captured frame:** the scroll seek, annotation update, and content settle
+  used to be up to three `page.evaluate` round-trips per frame; they now ride a single one.
 - Asset content hashes are computed by streaming the file instead of reading it whole into memory.
 
 ### Fixed
 
+- **Walls (and video scenes) can now use parallel workers without black tiles.** Two causes fixed
+  in the scene runtime: readiness never actually decoded a frame (data buffered ≠ painted), and
+  the presentation wait's 250ms safety net fired before a cold decoder's first paint under
+  multi-worker CPU load. Every video now warms its decoder (a real presented frame) before
+  capture starts, and the wait budget is generous for presenting videos while degrading to short
+  for videos that demonstrably don't present. Remove any `workers: 1` workaround from wall
+  configs.
+- **`screenshots` assets now hit the cache.** Their manifest records are all suffixed
+  (`name-desktop`, `name-mobile`), so the cache lookup by bare asset name never matched — every
+  `--cache` run recaptured all screenshots (and launched the browser to do it). The check now
+  matches a spec's full record set. Cache keys also gained the asset name, so this release
+  regenerates everything once.
 - **A failed capture no longer leaks its ffmpeg encoder.** A mid-capture error (navigation flake,
   screenshot timeout) left the encoder blocked on its stdin pipe for the rest of the run, so
   failures across a long run accumulated orphaned ffmpeg processes. The encoder is now torn down

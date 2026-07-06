@@ -1,6 +1,12 @@
 import { createHash } from "node:crypto";
 
 export interface CacheKeyParts {
+  /**
+   * The asset spec's name. Output filenames derive from it, and the cache check matches records
+   * by name prefix — without it in the key, two identically-configured specs whose names prefix
+   * each other (e.g. "home" / "home-2") could serve each other's records.
+   */
+  name?: string;
   generator: string;
   url?: string;
   /** Fully-resolved generator options. */

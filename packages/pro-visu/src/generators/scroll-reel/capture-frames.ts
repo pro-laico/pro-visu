@@ -1,13 +1,13 @@
 import type { Browser, Page } from "playwright-core";
 import { captureFramedVideo } from "@/media/frame-capture";
 import { applyCapture } from "@/pipeline/capture";
+import { createSharedNetworkCache } from "@/pipeline/network-cache";
 import {
   detectSectionOffsets,
   measureNormalizedOffsets,
   measureTopInset,
   prepareScroll,
-  seekScrollTo,
-  settleInView,
+  seekFrame,
 } from "@/generators/scroll-reel/scroll";
 import {
   applyPostNav,
@@ -180,13 +180,17 @@ async function buildScrollTimeline(
  * Deterministic, frame-stepped recording of a real site. Each worker navigates + warms the page once
  * (reusing {@link prepareScroll} to trigger lazy content, fonts and image decode), applies clean-capture
  * suppression, builds the scroll timeline (resolving any choreography selectors against the page), then
- * for every frame sets the scroll position via {@link seekScrollTo}, optionally settles in-view content,
+ * for every frame sets the scroll position via {@link seekFrame} (one evaluate: seek + annotations + settle),
  * and screenshots — piped straight into ffmpeg by the shared {@link captureFramedVideo} harness. No
  * realtime recording, no dropped/jittered frames, no navigation lead to trim.
  */
 export async function captureScrollFrames(a: ScrollFramesArgs): Promise<void> {
   const { options } = a;
   const totalSeconds = scrollTimelineTotalMs(options) / 1000;
+  // With parallel workers, share one response cache across their isolated contexts: the site is
+  // fetched once instead of once per worker (identical bytes in every worker — which the
+  // deterministic capture wants anyway). Single worker keeps the unrouted fast path.
+  const netCache = a.workers > 1 ? createSharedNetworkCache({ logger: a.logger }) : null;
   await captureFramedVideo<ResolvedTimeline>({
     browser: a.browser,
     width: options.width,
@@ -210,6 +214,9 @@ export async function captureScrollFrames(a: ScrollFramesArgs): Promise<void> {
       if (a.colorScheme) await page.emulateMedia({ colorScheme: a.colorScheme });
       // Seed capture-mode cookies / init script on the context before any navigation.
       await applyCapture(page.context(), a.capture, a.url);
+      // Cache BEFORE hygiene: Playwright runs the last-registered route first, so hygiene aborts
+      // trackers and falls back; only requests it lets through reach the shared cache.
+      if (netCache) await netCache.install(page);
       await installNetworkHygiene(page, options);
       // Pre-navigation hooks (e.g. freeze the clock, theme class) must be installed before page scripts.
       await installPreNav(page, options);
@@ -246,28 +253,20 @@ export async function captureScrollFrames(a: ScrollFramesArgs): Promise<void> {
         originX = kb.originX ?? 0.5;
         originY = kb.originY ?? 0.5;
       }
-      await page.evaluate(seekScrollTo, {
+      // ONE evaluate per frame: seek + annotations + settle ride the same protocol round-trip
+      // (they used to be three). The settle is capped in-page at settleMaxMs so the call always
+      // returns — a stuck decode can't stack pending protocol calls.
+      await page.evaluate(seekFrame, {
         normalizedY: timeline.scrollAt(t),
         scale,
         originX,
         originY,
+        annotationState:
+          options.annotations && options.annotations.length > 0
+            ? annotationStateAt(options.annotations, t * 1000, totalSeconds * 1000)
+            : undefined,
+        settleMaxMs: a.settlePerFrame ? a.settleMaxMs : undefined,
       });
-      if (options.annotations && options.annotations.length > 0) {
-        const state = annotationStateAt(options.annotations, t * 1000, totalSeconds * 1000);
-        await page.evaluate(
-          (s) =>
-            (globalThis as { __scAnno?: { update(x: unknown): Promise<void> } }).__scAnno?.update(s),
-          state,
-        );
-      }
-      if (a.settlePerFrame) {
-        // Bound the in-page settle both in-page (so the losing evaluate still resolves instead of
-        // stacking up pending protocol calls) and Node-side (so the frame never waits past the cap).
-        await Promise.race([
-          page.evaluate(settleInView, { maxMs: a.settleMaxMs }),
-          new Promise<void>((resolve) => setTimeout(resolve, a.settleMaxMs)),
-        ]);
-      }
     },
   });
 }

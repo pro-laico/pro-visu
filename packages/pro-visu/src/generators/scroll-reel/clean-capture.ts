@@ -113,7 +113,9 @@ export async function installNetworkHygiene(
     if (shouldBlockRequest(req.url(), { hosts, resourceTypes, resourceType: req.resourceType() })) {
       return route.abort();
     }
-    return route.continue();
+    // fallback (not continue) so earlier-registered handlers — the shared network cache — still
+    // see requests that hygiene lets through. With no other handler it behaves like continue.
+    return route.fallback();
   });
 }
 
