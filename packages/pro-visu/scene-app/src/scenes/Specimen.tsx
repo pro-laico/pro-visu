@@ -77,6 +77,37 @@ function PulseLabel({
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
 /**
+ * Absolute-position style for the name label within the bottom gap area. `anchor` is one of the nine
+ * positions (vertical `top|middle|bottom` × horizontal `left|center|right`); `padding` insets it from
+ * the gap edges (0 = flush to the rendered corner). Center axes use a 50% + translate so the label
+ * stays centered regardless of its own size.
+ */
+function labelAnchorStyle(anchor: string, padding: number): React.CSSProperties {
+  const [v, h] = anchor.split("-");
+  const s: React.CSSProperties = { position: "absolute" };
+  const tx: string[] = [];
+  if (v === "top") s.top = padding;
+  else if (v === "bottom") s.bottom = padding;
+  else {
+    s.top = "50%";
+    tx.push("translateY(-50%)");
+  }
+  if (h === "left") {
+    s.left = padding;
+    s.textAlign = "left";
+  } else if (h === "right") {
+    s.right = padding;
+    s.textAlign = "right";
+  } else {
+    s.left = "50%";
+    s.textAlign = "center";
+    tx.push("translateX(-50%)");
+  }
+  if (tx.length) s.transform = tx.join(" ");
+  return s;
+}
+
+/**
  * A type specimen: `lines` left-aligned rows of glyph cells whose glyphs and colors change over a
  * config-composed sequence of "pulses" (mirrored into a seamless loop by default). Cells set their
  * color statefully via UnoCSS attributify tokens (`text="foreground|muted|accent"`) → `--sp-*` CSS
@@ -93,7 +124,24 @@ export function Specimen({
 }: SceneProps): React.ReactElement {
   const fontUrl = files.oracle ?? Object.values(files)[0] ?? "";
   const weight = typeof options.weight === "number" ? options.weight : 800;
-  const label = typeof options.label === "string" ? options.label : "";
+  // The name label: its text plus placement/styling within the bottom gap area. Older wire payloads
+  // sent `label` as a bare string (the text) — tolerate that so cached scenes keep working.
+  const labelOpt =
+    typeof options.label === "string"
+      ? { text: options.label }
+      : ((options.label ?? {}) as {
+          text?: string;
+          anchor?: string;
+          padding?: number;
+          size?: number;
+          weight?: number;
+          color?: string;
+        });
+  const label = typeof labelOpt.text === "string" ? labelOpt.text : "";
+  const labelAnchor = typeof labelOpt.anchor === "string" ? labelOpt.anchor : "bottom-left";
+  const labelPadding = typeof labelOpt.padding === "number" ? labelOpt.padding : 32;
+  const labelSize = typeof labelOpt.size === "number" ? labelOpt.size : 0.22;
+  const labelWeight = typeof labelOpt.weight === "number" ? labelOpt.weight : 500;
   const demo = options.demo === true;
   const lines = typeof options.lines === "number" ? Math.max(1, Math.round(options.lines)) : DEFAULT_LINES;
   const blacklist = typeof options.blacklist === "string" ? options.blacklist : "";
@@ -123,7 +171,7 @@ export function Specimen({
   const foreground = colors.foreground ?? "#16181d";
   const muted = colors.muted ?? "#a7adb6";
   const accent = colors.accent ?? background; // accent falls back to the backdrop (blends in)
-  const labelColor = colors.label ?? foreground; // font-name label falls back to foreground
+  const labelColor = labelOpt.color ?? foreground; // font-name label falls back to foreground
 
   // The glyph pool (master minus blacklist), measured into widths after the font loads.
   const specKey = `${blacklist}|${characterPool ?? ""}`;
@@ -302,31 +350,46 @@ export function Specimen({
             top: typeArea,
             bottom: 0,
             height: barH,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: `0 ${Math.round(width * 0.018)}px`,
             color: "var(--sp-foreground)",
           }}
         >
           <span
             style={{
-              fontSize: Math.round(barH * 0.22),
-              fontWeight: 500,
+              ...labelAnchorStyle(labelAnchor, labelPadding),
+              fontSize: Math.round(barH * labelSize),
+              fontWeight: labelWeight,
               letterSpacing: "-0.01em",
               color: "var(--sp-label)",
+              whiteSpace: "nowrap",
+              // Trim the line box to the cap height (top) and alphabetic baseline (bottom) so the
+              // font's ascent/descent leading doesn't add phantom space — without this the label's
+              // box extends a descender below the visible text, so `padding` reads larger at the
+              // bottom than at the sides. With the trim, `padding` is uniform on all four edges.
+              display: "inline-block",
+              lineHeight: 1,
+              ...({ textBoxTrim: "trim-both", textBoxEdge: "cap alphabetic" } as React.CSSProperties),
             }}
           >
             {label}
           </span>
+          {/* Demo overlay stays pinned bottom-right of the gap so it doesn't move with the label. */}
           {demo && (
-            <PulseLabel
-              size={Math.round(barH * 0.52)}
-              pulses={pulses}
-              clip={durationSeconds}
-              mirror={mirror}
-              t={clock}
-            />
+            <span
+              style={{
+                position: "absolute",
+                right: Math.round(width * 0.018),
+                top: "50%",
+                transform: "translateY(-50%)",
+              }}
+            >
+              <PulseLabel
+                size={Math.round(barH * 0.52)}
+                pulses={pulses}
+                clip={durationSeconds}
+                mirror={mirror}
+                t={clock}
+              />
+            </span>
           )}
         </div>
         {/* Keep UnoCSS aware of the attributify color tokens (these are never rendered). */}

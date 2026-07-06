@@ -176,9 +176,9 @@ export default defineConfig({
     // THE WALL'S TILE PRODUCERS — 4 full-res photos + 6 mobile interaction clips. The wall derives its
     // dependencies from these by name, so they must sit in `assets` alongside it.
     // ─────────────────────────────────────────────────────────────────────────────────────
-    ...IMAGE_TILES,
-    ...CLIPS,
-    {
+/*     ...IMAGE_TILES,
+    ...CLIPS, */
+ /*    {
       name: "lookbook-wall",
       generator: "wall",
       // No `inputs` map — each column lists the tiles it stacks (by name), so the wall derives its
@@ -220,14 +220,14 @@ export default defineConfig({
         ],
       },
     },
-
+ */
     // ─────────────────────────────────────────────────────────────────────────────────────
     // MOTION — storefront films (scroll-reels over the real pages)
     // ─────────────────────────────────────────────────────────────────────────────────────
 
     // Home film: auto-detected sections + a slow Ken Burns push, branded intro/outro cards,
     // a spotlight on the hero photo, then a highlight ring on the featured product card.
-    {
+ /*    {
       name: "home",
       generator: "scroll-reel",
       options: {
@@ -242,9 +242,9 @@ export default defineConfig({
         ],
       },
     },
-
+ */
     // Social vertical: a punchy 9:16 cut in multiple formats (mp4 for paid, gif + poster for organic).
-    {
+/*     {
       name: "home-vertical",
       generator: "scroll-reel",
       options: {
@@ -257,9 +257,9 @@ export default defineConfig({
         waitForSelector: ".hero-media img",
       },
     },
-
+ */
     // Square 1:1 social cut (Instagram feed) — emitted as mp4 + animated WebP (smaller than gif).
-    {
+/*     {
       name: "home-square",
       generator: "scroll-reel",
       options: {
@@ -272,10 +272,10 @@ export default defineConfig({
         waitForSelector: ".hero-media img",
       },
     },
-
+ */
     // The collection page, captured at two viewports (each emits its own asset) so the
     // responsive product grid of real photography reads on desktop and tablet alike.
-    {
+ /*    {
       name: "shop",
       generator: "scroll-reel",
       url: "/shop",
@@ -288,10 +288,10 @@ export default defineConfig({
         ],
       },
     },
-
+ */
     // Product detail: pan the gallery → details → "you may also like", with a ring drawing the
     // eye to the add-to-bag CTA.
-    {
+/*     {
       name: "product",
       generator: "scroll-reel",
       url: "/products/the-camel-coat",
@@ -301,9 +301,9 @@ export default defineConfig({
         annotations: [{ ring: "#pdp-add", text: "Add to bag", atMs: 2500, untilMs: 5500, position: "bottom" }],
       },
     },
-
+ */
     // A second product film (the silk slip dress) so product coverage isn't only the camel coat.
-    {
+/*     {
       name: "product-slip",
       generator: "scroll-reel",
       url: "/products/silk-slip-dress",
@@ -312,9 +312,9 @@ export default defineConfig({
         autoSections: { durationMs: 10000 },
       },
     },
-
+ */
     // The house / about page, with a gentle zoom over the atelier photography.
-    {
+/*     {
       name: "about",
       generator: "scroll-reel",
       url: "/about",
@@ -324,9 +324,9 @@ export default defineConfig({
         kenBurns: { scaleTo: 1.04 },
       },
     },
-
+ */
     // The lookbook brand board — a page built for capture (every panel carries a stable id).
-    {
+    /* {
       name: "lookbook",
       generator: "scroll-reel",
       url: "/lookbook",
@@ -335,14 +335,14 @@ export default defineConfig({
         autoSections: { durationMs: 11000 },
       },
     },
-
+ */
     // ─────────────────────────────────────────────────────────────────────────────────────
     // LOOP — a seamless hero background clip (boomerang + a held Ken Burns zoom, no visible seam)
     // ─────────────────────────────────────────────────────────────────────────────────────
 
     // Drop-in looping hero video: one choreography beat holds on the hero while a gentle zoom plays
     // out and back (loop: "boomerang"), so the clip loops with no seam — ideal as a web hero bg.
-    {
+   /*  {
       name: "hero-loop",
       generator: "scroll-reel",
       options: {
@@ -355,31 +355,31 @@ export default defineConfig({
         waitForSelector: ".hero-media img",
       },
     },
-
+ */
     // ─────────────────────────────────────────────────────────────────────────────────────
     // FOCUS — element-cropped clips (scroll one component into view, hold, crop to its box)
     // ─────────────────────────────────────────────────────────────────────────────────────
 
     // The hero, cropped to the photo + headline.
-    { name: "hero", generator: "scroll-reel", options: { focus: { selector: "#hero", padding: 0, holdMs: 2500 } } },
-
+   /*  { name: "hero", generator: "scroll-reel", options: { focus: { selector: "#hero", padding: 0, holdMs: 2500 } } },
+ */
     // The home campaign split (real editorial photo + copy).
-    { name: "editorial-card", generator: "scroll-reel", options: { focus: { selector: "#editorial", holdMs: 2500 } } },
-
+  /*   { name: "editorial-card", generator: "scroll-reel", options: { focus: { selector: "#editorial", holdMs: 2500 } } },
+ */
     // The featured product card — trigger its quick-add, then crop to the card.
-    {
+  /*   {
       name: "card",
       generator: "scroll-reel",
       options: {
         focus: { selector: "#feature-card", actions: [{ do: "click", selector: "#feature-card .quick-add" }] },
       },
-    },
+    }, */
 
     // ─────────────────────────────────────────────────────────────────────────────────────
     // LOOKBOOK TILES — focus crops of the /lookbook brand board (each panel is a stable-id 3:4 tile).
     // The page is built for this; these double as standalone editorial tiles and extra wall tiles.
     // ─────────────────────────────────────────────────────────────────────────────────────
-    { name: "lb-wordmark", generator: "scroll-reel", url: "/lookbook", options: { focus: { selector: "#lb-wordmark", padding: 0, holdMs: 2500 } } },
+ /*    { name: "lb-wordmark", generator: "scroll-reel", url: "/lookbook", options: { focus: { selector: "#lb-wordmark", padding: 0, holdMs: 2500 } } },
     {
       name: "lb-editorial",
       generator: "scroll-reel",
@@ -389,13 +389,13 @@ export default defineConfig({
     { name: "lb-spec", generator: "scroll-reel", url: "/lookbook", options: { focus: { selector: "#lb-spec-coat", padding: 0, holdMs: 2500 } } },
     { name: "lb-swatch", generator: "scroll-reel", url: "/lookbook", options: { focus: { selector: "#lb-swatch", padding: 0, holdMs: 2500 } } },
     { name: "lb-quote", generator: "scroll-reel", url: "/lookbook", options: { focus: { selector: "#lb-quote", padding: 0, holdMs: 2500 } } },
-
+ */
     // ─────────────────────────────────────────────────────────────────────────────────────
     // INTERACTION — scripted realtime tours with a synthetic cursor
     // ─────────────────────────────────────────────────────────────────────────────────────
 
     // Open the navigation mega-menu and glide across a category link.
-    {
+    /* {
       name: "menu",
       generator: "scroll-reel",
       options: {
@@ -406,10 +406,10 @@ export default defineConfig({
           { do: "wait", holdMs: 600 },
         ],
       },
-    },
+    }, */
 
     // Add the featured piece to the bag from the home grid, then open the cart drawer.
-    {
+   /*  {
       name: "cart",
       generator: "scroll-reel",
       options: {
@@ -419,10 +419,10 @@ export default defineConfig({
           { do: "click", selector: "#cart-button", holdMs: 1200 },
         ],
       },
-    },
+    }, */
 
     // The buy flow on a product page: choose a size, add to bag, and watch the drawer slide in.
-    {
+    /* {
       name: "buy",
       generator: "scroll-reel",
       url: "/products/the-camel-coat",
@@ -433,12 +433,12 @@ export default defineConfig({
           { do: "click", selector: "#pdp-add", holdMs: 1400 },
         ],
       },
-    },
+    }, */
 
     // ─────────────────────────────────────────────────────────────────────────────────────
     // TOUR — one reel stitched across the whole journey (home → shop → product → about)
     // ─────────────────────────────────────────────────────────────────────────────────────
-    {
+    /* {
       name: "tour",
       generator: "scroll-reel",
       options: {
@@ -451,11 +451,11 @@ export default defineConfig({
         ],
       },
     },
-
+ */
     // ─────────────────────────────────────────────────────────────────────────────────────
     // SCREENSHOTS — responsive stills of the storefront, plus element crops
     // ─────────────────────────────────────────────────────────────────────────────────────
-    {
+    /* {
       name: "shots",
       generator: "screenshots",
       options: {
@@ -469,14 +469,14 @@ export default defineConfig({
           { selector: "#new-arrivals", name: "arrivals" },
         ],
       },
-    },
+    }, */
 
     // ─────────────────────────────────────────────────────────────────────────────────────
     // BRAND — colour + type (no URL needed)
     // ─────────────────────────────────────────────────────────────────────────────────────
 
     // Brand colour palette — still grid.
-    {
+    /* {
       name: "colors",
       generator: "palette",
       options: {
@@ -488,10 +488,10 @@ export default defineConfig({
           { name: "Cognac", hex: "#8a5a3c" },
         ],
       },
-    },
+    }, */
 
     // The same palette as a looping reveal video.
-    {
+    /* {
       name: "colors-reel",
       generator: "palette-reel",
       options: {
@@ -507,11 +507,11 @@ export default defineConfig({
         background: "#1a1714",
         textLight: "#f6f3ed",
       },
-    },
+    }, */
 
     // Type specimens: three width-stable glyph walls across sans / serif / mono.
     // 1) sans — the "sweep" preset: a seamless dark loop of even per-glyph colour sweeps
-    {
+    /* {
       name: "type-sans",
       generator: "specimen",
       options: {
@@ -520,8 +520,9 @@ export default defineConfig({
         template: "sweep",
         lines: 4,
       },
-    },
-    // 2) serif — a custom editorial storyboard on the VESPER paper palette, with the pulse labels on
+    }, */
+    // 2) serif — a custom editorial storyboard on the VESPER paper palette, with the pulse labels on.
+    // The name is tucked hard into the bottom-left corner of the gap (padding: 2) and set in cognac (`label`).
     {
       name: "type-serif",
       generator: "specimen",
@@ -532,6 +533,7 @@ export default defineConfig({
         lines: 3,
         weight: 480,
         colors: { background: "#f6f3ed", foreground: "#1a1714", muted: "#b49a77", accent: "#8a5a3c" },
+        label: { anchor: "bottom-left", padding: 2, size: 0.26, weight: 600, color: "#8a5a3c" },
         pulses: [
           { name: "rest", durationMs: 1200 },
           { name: "set", durationMs: 1600, chars: 0.5, pacing: "ease-in-out" },

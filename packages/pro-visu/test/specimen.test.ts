@@ -41,7 +41,11 @@ describe("specimen generator", () => {
     expect(o.colors.background).toBe("#eceef1");
     expect(o.colors.foreground).toBe("#16181d");
     expect(o.colors.accent).toBeUndefined(); // defaults to background at render
-    expect(o.colors.label).toBeUndefined(); // defaults to foreground at render
+    expect(o.label.anchor).toBe("bottom-left"); // label sits bottom-left of the gap by default
+    expect(o.label.padding).toBe(32);
+    expect(o.label.size).toBe(0.22);
+    expect(o.label.weight).toBe(500);
+    expect(o.label.color).toBeUndefined(); // defaults to foreground at render
     expect(o.pulses.length).toBeGreaterThan(0);
     expect(o.mirror).toBe(true); // seamless loop by default
     expect(o.lines).toBe(3);
@@ -90,7 +94,19 @@ describe("specimen generator", () => {
     expect(o.colors.accent).toBe("#ff6600");
     expect(o.colors.foreground).toBe("#16181d");
     expect(o.colors.background).toBe("#eceef1");
-    expect(o.colors.label).toBeUndefined(); // defaults to foreground at render
+  });
+
+  it("accepts a label block and fills its defaults", () => {
+    const o = specimenOptionsSchema.parse({
+      font: "x.woff2",
+      name: "ABC Oracle",
+      label: { anchor: "top-right", padding: 0, color: "#ff0000" },
+    });
+    expect(o.label.anchor).toBe("top-right");
+    expect(o.label.padding).toBe(0);
+    expect(o.label.size).toBe(0.22); // unset → default
+    expect(o.label.weight).toBe(500); // unset → default
+    expect(o.label.color).toBe("#ff0000");
   });
 
   it("a pulse defaults to an empty hold (no char/color changes)", () => {

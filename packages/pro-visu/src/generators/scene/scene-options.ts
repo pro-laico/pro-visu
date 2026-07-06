@@ -34,7 +34,31 @@ const specimenWirePulseSchema = z
  */
 const specimenSceneOptionsSchema = z
   .object({
-    label: z.string().default(""),
+    // The name label: its text plus placement/styling within the bottom gap area. The specimen
+    // generator folds its friendly `name` + `label` options into this one object.
+    label: z
+      .object({
+        text: z.string().default(""),
+        anchor: z
+          .enum([
+            "top-left",
+            "top-center",
+            "top-right",
+            "middle-left",
+            "middle-center",
+            "middle-right",
+            "bottom-left",
+            "bottom-center",
+            "bottom-right",
+          ])
+          .default("bottom-left"),
+        padding: z.number().nonnegative().default(32),
+        size: z.number().positive().max(1).default(0.22),
+        weight: z.number().int().min(1).max(1000).default(500),
+        color: z.string().optional(),
+      })
+      .partial()
+      .default({}),
     demo: z.boolean().default(false),
     weight: z.number().min(1).max(1000).default(820),
     lines: z.number().int().min(1).max(40).default(3),
@@ -45,7 +69,6 @@ const specimenSceneOptionsSchema = z
         foreground: z.string(),
         muted: z.string(),
         accent: z.string().optional(),
-        label: z.string().optional(),
       })
       .partial()
       .default({}),

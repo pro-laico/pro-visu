@@ -6,6 +6,18 @@ All notable changes to `pro-visu` are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **`specimen`: a `label` block** to place and style the name label within the bottom gap area.
+  `anchor` picks any of nine positions (`top-left` … `bottom-right`), `padding` insets it from the
+  gap edges (`0` = flush to the rendered corner), and `size` / `weight` / `color` style the text.
+  Defaults keep the label bottom-left, so existing specimens read the same.
+
+### Changed (BREAKING)
+
+- **`specimen`: the label colour moved** from `colors.label` to `label.color`. The label's colour is
+  part of the label, not a glyph token. Move any `colors: { label }` to `label: { color }`.
+
 ## [0.5.0] - 2026-07-02
 
 A usability-focused release built from a CLI audit. Failures now surface early and

@@ -97,8 +97,36 @@ export interface SpecimenColorsInput {
   muted?: string;
   /** Accent color for occasional pops; defaults to `background` (accent glyphs blend in) if unset. */
   accent?: string;
-  /** Color of the font-name label (bottom corner); defaults to `foreground` if unset. */
-  label?: string;
+}
+
+/** Where the name label sits within the bottom gap area — one of the nine anchor positions. */
+export type SpecimenLabelAnchor =
+  | "top-left"
+  | "top-center"
+  | "top-right"
+  | "middle-left"
+  | "middle-center"
+  | "middle-right"
+  | "bottom-left"
+  | "bottom-center"
+  | "bottom-right";
+
+/**
+ * How the name label (`name`) is placed and styled within the bottom gap area (the strip of
+ * background beneath the glyph wall). Position is confined to that gap — the label moves around it,
+ * never over the glyphs.
+ */
+export interface SpecimenLabelInput {
+  /** Anchor within the gap area. Default "bottom-left". */
+  anchor?: SpecimenLabelAnchor;
+  /** Inset (px) from the gap-area edges, applied all around. 0 = flush to the rendered corner. Default 32. */
+  padding?: number;
+  /** Text size as a fraction of the gap-area height. Default 0.22. */
+  size?: number;
+  /** Font weight, 1–1000. Default 500. */
+  weight?: number;
+  /** Text color (any CSS color). Defaults to `colors.foreground` if unset. */
+  color?: string;
 }
 
 /** A named option preset. The keys here are the selectable `template` values. */
@@ -119,8 +147,10 @@ export interface SpecimenOptionsInput {
    *   → foreground) on a dark palette chosen so the accent reads.
    */
   template?: SpecimenTemplate;
-  /** Display name shown bottom-left (e.g. "ABC Oracle"). Default none. */
+  /** Display name shown in the bottom gap area (e.g. "ABC Oracle"). Default none. Style/position it via `label`. */
   name?: string;
+  /** Placement + styling of the `name` label within the bottom gap area (anchor, padding, size, weight, color). */
+  label?: SpecimenLabelInput;
   /** Demo mode: overlay the active pulse's name bottom-right, to see which beat is playing. Default false. */
   demo?: boolean;
   /** Output frames per second. Default 30. */
@@ -293,7 +323,48 @@ const specimenObjectSchema = z
     name: z
       .string()
       .default("")
-      .describe('Display name shown bottom-left (e.g. "ABC Oracle"). Default none.'),
+      .describe('Display name shown in the bottom gap area (e.g. "ABC Oracle"). Default none. Style/position via `label`.'),
+    label: z
+      .object({
+        anchor: z
+          .enum([
+            "top-left",
+            "top-center",
+            "top-right",
+            "middle-left",
+            "middle-center",
+            "middle-right",
+            "bottom-left",
+            "bottom-center",
+            "bottom-right",
+          ])
+          .default("bottom-left")
+          .describe("Anchor within the bottom gap area (nine positions). Default bottom-left."),
+        padding: z
+          .number()
+          .nonnegative()
+          .default(32)
+          .describe("Inset (px) from the gap-area edges, applied all around. 0 = flush to the rendered corner. Default 32."),
+        size: z
+          .number()
+          .positive()
+          .max(1)
+          .default(0.22)
+          .describe("Text size as a fraction of the gap-area height. Default 0.22."),
+        weight: z
+          .number()
+          .int()
+          .min(1)
+          .max(1000)
+          .default(500)
+          .describe("Font weight, 1–1000. Default 500."),
+        color: z
+          .string()
+          .optional()
+          .describe("Text color (any CSS color); defaults to `colors.foreground` if unset."), // defaults to `foreground` at render
+      })
+      .default({})
+      .describe("Placement + styling of the `name` label within the bottom gap area (anchor, padding, size, weight, color)."),
     demo: z
       .boolean()
       .default(false)
@@ -379,10 +450,6 @@ const specimenObjectSchema = z
           .string()
           .optional()
           .describe("Accent color for occasional pops; defaults to `background` (accent glyphs blend in) if unset."), // defaults to `background` at render (accent glyphs blend in)
-        label: z
-          .string()
-          .optional()
-          .describe("Color of the font-name label (bottom corner); defaults to `foreground` if unset."), // defaults to `foreground` at render
       })
       .default({})
       .describe("Color tokens the glyphs cycle through (any CSS colors). Override any subset. Default: light-grey palette."),

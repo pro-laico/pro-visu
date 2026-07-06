@@ -99,7 +99,8 @@ options: {
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `font` | `string` | — | **Required.** Font file (relative or absolute). |
-| `name` | `string` | `""` | Display name shown bottom-left. |
+| `name` | `string` | `""` | Display name shown in the bottom gap area. Position/style it via `label`. |
+| `label` | `{ anchor, padding, size, weight, color? }` | see below | Placement + styling of the `name` label. |
 | `template` | `"demo" \| "sweep"` | — | Load a preset (overridable). |
 | `width` / `height` | `number` | `1920` / `1080` | Output frame size. |
 | `fps` | `number` (≤120) | `30` | Frames per second. |
@@ -110,7 +111,7 @@ options: {
 | `leading` | `number` | `0.78` | Line-height of the rows. |
 | `blacklist` | `string` | `""` | Glyphs to exclude (case-insensitive). |
 | `characterPool` | `string` | A–Z 0–9 + symbols | Override the glyph pool (≥2 distinct). |
-| `colors` | `{ background, foreground, muted, accent?, label? }` | see below | Colour tokens the glyphs cycle through (override any subset). |
+| `colors` | `{ background, foreground, muted, accent? }` | see below | Colour tokens the glyphs cycle through (override any subset). |
 | `colorWeights` | `{ foreground, muted, accent }` | `2 / 2 / 1` | Relative likelihood of each token on a random recolour. |
 | `characterIntensity` / `colorIntensity` | `number` | `1` | Multiply every pulse's change fractions. |
 | `maxLineDrift` | `number` (0–0.5) | `0.05` | Max fraction a line's width may drift as glyphs change — keeps the right edge stable. |
@@ -134,7 +135,6 @@ each key falls back independently.
 | `foreground` | `#16181d` | Primary glyph colour — the resting majority. |
 | `muted` | `#a7adb6` | Muted/secondary glyph colour. |
 | `accent` | falls back to `background` | Accent colour for occasional pops. Left unset, accent glyphs blend into the backdrop — so set it (or a `template`) to make accent reads visible. |
-| `label` | falls back to `foreground` | Colour of the font-name label in the bottom corner. |
 
 `colorWeights` sets the relative likelihood of each token on a **random** (non-targeted) recolour
 — defaults `foreground: 2`, `muted: 2`, `accent: 1`, so accent is a rare pop. A weight of `0`
@@ -152,6 +152,41 @@ options: {
     accent: "#b49a77",   // set accent — left unset, accent glyphs blend into the background
   },
   colorWeights: { foreground: 3, muted: 2, accent: 1 }, // keep accent a rare pop
+}
+```
+
+## Label
+
+The top 80% of the frame is the glyph wall; the bottom 20% is a **gap** — plain background. The
+`name` text lives in that gap, and `label` controls where it sits and how it looks. Position is
+confined to the gap (the label moves around it, never over the glyphs).
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `anchor` | 9 positions | `"bottom-left"` | Corner/edge of the gap the label anchors to. |
+| `padding` | `number` (px) | `32` | Inset from the gap edges, all around. `0` = flush to the rendered corner. |
+| `size` | `number` (0–1) | `0.22` | Text size as a fraction of the gap height (scales with `height`). |
+| `weight` | `number` (1–1000) | `500` | Font weight. |
+| `color` | CSS colour | falls back to `foreground` | Label text colour. |
+
+`anchor` is one of: `top-left`, `top-center`, `top-right`, `middle-left`, `middle-center`,
+`middle-right`, `bottom-left`, `bottom-center`, `bottom-right`.
+
+`padding` is measured to the **visible text** (the label's line box is trimmed to its cap height
+and baseline), so the inset reads the same on all four sides — `padding: 0` puts the letters flush
+to the rendered corner, with no phantom gap from the font's ascender/descender leading.
+
+```ts
+options: {
+  font: "public/fonts/YourFont.woff2",
+  name: "Your Font",
+  label: {
+    anchor: "bottom-right", // tuck it into the bottom-right of the gap
+    padding: 8,             // nearly flush to the corner
+    size: 0.28,             // a touch larger
+    weight: 600,
+    color: "#b49a77",
+  },
 }
 ```
 

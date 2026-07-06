@@ -37,7 +37,8 @@ async function run(
     fileName: o.fileName,
     files: { font: o.font },
     sceneOptions: {
-      label: o.name,
+      // The scene receives the label as one object: its text (from `name`) plus placement/styling.
+      label: { text: o.name, ...o.label },
       demo: o.demo,
       weight: o.weight,
       lines: o.lines,
