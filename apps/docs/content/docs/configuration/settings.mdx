@@ -70,11 +70,9 @@ settings: {
 }
 ```
 
-This is the **site-side** counterpart to a `scroll-reel`'s [clean capture](/docs/generators/scroll-reel#clean-capture)
-options: clean-capture hides noise from pro-visu's side (`hideSelectors`, `blockTrackers`), while
-`capture` flips a switch the site itself honours. (It's also distinct from scroll-reel's
-[capture *strategy*](/docs/generators/scroll-reel#capture-strategy) — `"frames"` vs `"realtime"` —
-which controls how frames are recorded, not what the site renders.)
+This is the **site-side** counterpart to scroll-reel's [clean capture](/docs/generators/scroll-reel#clean-capture)
+(pro-visu-side noise hiding), and distinct from its [capture *strategy*](/docs/generators/scroll-reel#capture-strategy)
+(how frames are recorded).
 
 > **Auth:** `cookies` isn't limited to capture-mode signals — a session cookie carries auth, letting
 > captures reach login-gated pages. Keep the value in an env var, not the config; see

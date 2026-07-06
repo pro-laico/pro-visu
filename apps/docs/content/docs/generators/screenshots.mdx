@@ -99,10 +99,9 @@ document to trigger lazy-loaded and intersection-mounted content, lets web fonts
 and waits for images to decode, then returns to the top. Without this, `fullPage` shots tend to
 capture blank or placeholder regions and fallback fonts further down the page.
 
-The warm pass ends with a settle wait of `max(settleMs, 600)` milliseconds — the runtime floors
-it at `MIN_PREPARE_SETTLE_MS` (600ms). So `settleMs: 0` (the default) still waits ~600ms; only
-values above 600 extend it. Raise `settleMs` for pages with slow animations or deferred network
-content that the warm pass alone doesn't catch.
+The warm pass ends with a settle wait of `max(settleMs, 600)` milliseconds. Raise `settleMs`
+above 600 for pages with slow animations or deferred network content the warm pass alone
+doesn't catch.
 
 ## Element-capture resilience
 

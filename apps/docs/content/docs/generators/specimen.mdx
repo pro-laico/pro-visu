@@ -72,8 +72,8 @@ the pulse durations (doubled when `mirror` is on). Compose a sequence to author 
 |---|---|---|
 | `name` | `string` | Human label for the beat (readability only). Default `""`. |
 | `durationMs` | `number` | Length of the beat, in milliseconds. **Required**, must be positive. |
-| `chars` | `number` (0–1) | Fraction of cells whose glyph changes during the beat (`1` = every cell once). Default `0`. |
-| `colors` | `number` (0–1) | Fraction of cells whose colour changes during the beat (`1` = every cell once). Default `0`. |
+| `chars` | `number` (≥0) | Fraction of cells whose glyph changes during the beat (`1` = every cell once; above `1` repeats cells). Default `0`. |
+| `colors` | `number` (≥0) | Fraction of cells whose colour changes during the beat (`1` = every cell once; above `1` repeats cells). Default `0`. |
 | `color` | `"foreground" \| "muted" \| "accent"` | Target every colour change at this token (a deliberate sweep) instead of a weighted-random pick. Omit for the default scattered recolour. |
 | `pacing` | `"even" \| "linear" \| "ease-in" \| "ease-out" \| "ease-in-out" \| "random"` | How changes are distributed in time across the beat. Default `"even"`. `"linear"`/`"even"` are uniform; `"ease-in"` front-loads; `"ease-out"` back-loads; `"ease-in-out"` bunches at both ends; `"random"` scatters. |
 
@@ -192,14 +192,10 @@ options: {
 
 ## Behaviours
 
-- **Width-stable layout.** Glyphs are packed into `lines` left-aligned rows, each filled to a
-  target width using the font's real advance widths (measured in-browser), so every row is about
-  the same length. As glyphs change, swaps are **width-compensated** — adjacent glyphs change as
-  cancelling pairs, and a per-line width budget caps any residual — so each line's total width, and
-  thus its right edge, stays within `maxLineDrift` (default 5%) of its initial. The wall shifts
-  pleasantly without the right edge or the line count ever jumping. (A very small `characterPool`
-  leaves little room to compensate; the layout stays locked but the right edge may breathe a touch
-  more.)
+- **Width-stable layout.** Glyphs pack into `lines` rows using the font's real advance widths, and
+  swaps are width-compensated (cancelling pairs + a per-line budget), so each line's right edge
+  stays within `maxLineDrift` of its start — the wall shifts without the edges or line count ever
+  jumping. A very small `characterPool` leaves less room to compensate.
 - **Even-coverage picker.** Within a pulse, changes are distributed across cells so every glyph is
   touched once before any repeats. To wash the whole specimen to one colour evenly, set a pulse's
   `colors: 1` with `pacing: "even"` (and a `color` target) — that lands exactly one change on each

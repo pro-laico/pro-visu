@@ -120,20 +120,6 @@ options: {
 - **`loop: "none" | "boomerang"`** — boomerang plays forward then back for a seamless loop.
   Default `"none"`.
 
-`autoSections` is the hands-off alternative to `choreography` — it finds the page's sections and
-paces a pan/hold through them inside a fixed time budget:
-
-```ts
-options: {
-  autoSections: {
-    durationMs: 12000,      // total budget — the whole pass fits inside it
-    holdMs: 700,            // dwell on each detected section
-    maxSections: 8,         // cap how many it stops on
-    minHeightFraction: 0.5, // ignore sections shorter than half the viewport
-  },
-}
-```
-
 ## Clean capture
 
 Suppress real-site noise so frames are clean and deterministic:

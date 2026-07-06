@@ -209,12 +209,5 @@ real frame-stepped render:
 }`}
 />
 
-## Capture modes
-
-- **`capture: "frames"`** (default) — steps a virtual clock per frame: frame-accurate, supersampled by
-  `deviceScaleFactor`, parallelised by `workers`, byte-identical run-to-run.
-- **`capture: "realtime"`** — records the live scene once (faster). Best for previews; for the final
-  render, `frames` is crisper and exact.
-
 > **Draft quality** (`quality: "draft"`) swaps the x264 preset to `ultrafast` and, on the frames path,
 > forces low-quality jpeg intermediates for speed; `crf` is honoured in both modes.

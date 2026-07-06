@@ -47,21 +47,19 @@ To add a new example: render the asset, copy the output in, register a clip in
 
 ### Replacing a clip that's already on Mux ⚠️
 
-`next-video sync` keys off the `<name>.mp4.json` sibling and its `status` — it does **not** hash
-the file. So if you overwrite `videos/hero-loop.mp4` with new content while the existing
-`hero-loop.mp4.json` still says `"status":"ready"`, **sync ignores the new file** and the docs
-keep playing the old Mux video. Sync also never deletes Mux assets. To actually replace one:
+`next-video sync` keys off the `<name>.mp4.json` sibling's `status`, not the file's content —
+overwriting an mp4 whose json says `"status":"ready"` is silently ignored, and sync never
+deletes Mux assets. To replace one:
 
 ```bash
-# 1. drop in the new mp4 (e.g. re-run pro-visu), then forget the old Mux mapping:
+# 1. drop in the new mp4, then forget the old Mux mapping:
 rm apps/docs/videos/hero-loop.mp4.json
-# 2. re-sync → uploads the new content, writes a fresh .json with a NEW playback id
+# 2. re-sync → uploads the new content, fresh .json with a NEW playback id:
 pnpm --filter docs sync-videos
-# 3. delete the now-orphaned old asset in the Mux dashboard (next-video won't):
-#    https://dashboard.mux.com → Assets
+# 3. delete the orphaned old asset at https://dashboard.mux.com → Assets
 ```
 
-The `<Example>` picks up the new playback id automatically (it reads the regenerated json).
+`<Example>` picks up the new playback id automatically (it reads the regenerated json).
 
 ## Process to Mux (`next-video sync`)
 

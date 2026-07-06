@@ -45,23 +45,12 @@ Before any heavy work, `generate` validates every selected asset's options and �
 server is configured — probes the asset URLs, so a typo'd option or a dev server that isn't
 running fails in seconds with a pointed message.
 
-On an interactive terminal, a live dashboard groups setup (build/server) and per-asset
-progress, each row with a progress bar, its current step, and elapsed time. Frame-stepped
-video captures show a real percentage and ETA; realtime recordings and stills show an
-indeterminate indicator. A header rollup tracks overall `done/total` (and cached) progress, and
-the layout adapts to the terminal width — when there are more assets than fit, the rows show a
-window around the running ones with `↑ N more` / `↓ N more` markers.
-
-Keys:
-
-- **Esc** / **Ctrl+C** — cancel: in-flight captures are aborted promptly (the frame loop stops and
-  ffmpeg is killed), then the server/browser are torn down; press again to force-quit.
-- **↑ / ↓** (and **PgUp / PgDn**) — scroll the asset window; this pauses auto-follow.
-- **f** — resume following the running rows.
-
-When the run finishes, a summary panel lists each asset's dimensions and size with totals.
-Set `PRO_VISU_LIVE=0` to force plain logs, or `PRO_VISU_LIVE=1` to force the dashboard on a
-terminal that mis-reports as non-interactive. (`SHOWCASE_LIVE` still works as a legacy alias.)
+On an interactive terminal, a live dashboard shows setup (build/server) and per-asset progress —
+bar, current step, ETA where determinate — with a `done/total` header rollup, windowed to the
+terminal height. Keys: **Esc**/**Ctrl+C** cancel (again to force-quit), **↑/↓** scroll,
+**f** resume following the running rows. A summary panel with dimensions/sizes prints at the end.
+Set `PRO_VISU_LIVE=0` to force plain logs or `PRO_VISU_LIVE=1` to force the dashboard
+(`SHOWCASE_LIVE` is a legacy alias).
 
 ## `pro-visu doctor`
 
@@ -105,9 +94,9 @@ version and includes per-generator `options` (the right options autocomplete onc
 ## `pro-visu reset`
 
 Tear down anything a previous `generate` left running if it was killed hard (crash or a
-forced quit): the managed-server and browser process trees, plus the run's temp directories,
-recorded in a run-state file under `outDir`. A clean exit removes that file, so there's
-normally nothing to do.
+forced quit): the managed-server process tree, plus the run's temp directories, recorded in a
+run-state file under `outDir` (the browser is tied to the CLI process and exits on its own).
+A clean exit removes that file, so there's normally nothing to do.
 
 | Flag | Meaning |
 |---|---|
@@ -122,8 +111,11 @@ notice after the command finishes:
 
 ```
 Update available 0.4.0 → 0.5.0
-Run `pnpm add -D pro-visu@latest` to update
+Run npm i pro-visu to update
 ```
+
+(The suggested command adapts to how pro-visu is installed — global vs. local, and your
+package manager.)
 
 The check runs in a detached background process and is fully best-effort — it never blocks, slows,
 or fails a command. It stays quiet automatically in CI, in non-interactive (piped) output, and on

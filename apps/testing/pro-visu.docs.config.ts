@@ -1,25 +1,15 @@
 import { defineConfig, type AssetSpecInput } from "pro-visu";
+import { CURSOR, INK, VESPER } from "./showcase/brand";
 
-// ─────────────────────────────────────────────────────────────────────────────────────────────
-// DOCS EXAMPLE ASSETS — generates the clips/stills embedded in the pro-visu docs (apps/docs) by
-// dogfooding the VESPER storefront. Separate from the main showcase config (pro-visu.config.ts).
+// DOCS EXAMPLE ASSETS — the clips/stills embedded in the pro-visu docs (apps/docs), dogfooding
+// the VESPER storefront. Separate from the main showcase config (pro-visu.config.ts).
 //
 //   pnpm --filter testing exec pro-visu generate --config pro-visu.docs.config.ts
 //
-// Outputs land in public/pro-visu/ (gitignored). Curated files are then copied into:
-//   • apps/docs/videos/         — videos → Mux via next-video (`pnpm --filter docs sync-videos`)
-//   • apps/docs/public/examples/ — stills (png) served by next/image
-// See apps/docs/videos.md for the full workflow. (The hero-loop / type-sans / colors-reel clips
-// already on Mux come from the main config; they're not regenerated here.)
-// ─────────────────────────────────────────────────────────────────────────────────────────────
-
-const VESPER = [
-  { name: "Ink", hex: "#1a1714" },
-  { name: "Paper", hex: "#f6f3ed" },
-  { name: "Camel", hex: "#b49a77" },
-  { name: "Loden", hex: "#5c5e4c" },
-  { name: "Cognac", hex: "#8a5a3c" },
-];
+// Outputs land in public/pro-visu/ (gitignored); curated files are copied into apps/docs/videos/
+// (→ Mux via `pnpm --filter docs sync-videos`) and apps/docs/public/examples/ (stills). See
+// apps/docs/videos.md for the workflow. The hero-loop / type-sans / colors-reel clips already on
+// Mux come from the main config and aren't regenerated here.
 
 // Real photos for the simple wall's tiles (image-passthrough producers).
 const PHOTOS: AssetSpecInput[] = [
@@ -45,11 +35,8 @@ export default defineConfig({
     defaults: { "scroll-reel": { width: 1280, height: 800, fps: 30 } },
   },
   assets: [
-    // ── scroll-reel: the landing hero — auto-sections (pause on each section, which we WANT), tuned
-    //    to kill the stop/start jitter: heavy supersample (dsf 3) so the sub-pixel scroll crawl at each
-    //    stop doesn't step, a gentle ease-in-out-sine (less time crawling at the stops than the default
-    //    cubic), a frozen clock so the page's own animations can't add motion at the boundaries, and
-    //    boomerang so the tour loops (down through the sections, then back up) with no restart cut. ──
+    // The landing hero: auto-sections tuned to kill stop/start jitter (dsf 3 supersample, sine
+    // easing, frozen clock) + boomerang so the tour loops with no restart cut.
     {
       name: "docs-home",
       generator: "scroll-reel",
@@ -64,8 +51,7 @@ export default defineConfig({
         waitForSelector: ".hero-media img",
       },
     },
-
-    // ── scroll-reel: ACTUAL scrolling — a clean auto-sections pan/hold down the home page ──
+    // Actual scrolling: a clean auto-sections pan/hold down the home page.
     {
       name: "docs-scroll",
       generator: "scroll-reel",
@@ -74,8 +60,7 @@ export default defineConfig({
         autoSections: { durationMs: 9000 },
       },
     },
-
-    // ── scroll-reel: UI in a STATE — phone viewport, scripted cursor opens the menu and holds it ──
+    // UI in a state: phone viewport, scripted cursor opens the menu and holds it.
     {
       name: "docs-menu",
       generator: "scroll-reel",
@@ -83,13 +68,11 @@ export default defineConfig({
         width: 390,
         height: 844,
         deviceScaleFactor: 2,
-        cursor: { color: "#8c7355" },
+        cursor: { color: CURSOR },
         actions: [{ do: "click", selector: "#menu-button", holdMs: 2600 }],
       },
     },
-
-    // ── specimen: the "demo" template on a serif (Fraunces) — a different template + font than
-    //    the sweep/Inter example; capped so the labelled walkthrough reads without a 45s clip ──
+    // The "demo" specimen template on a serif — capped so the labelled walkthrough stays short.
     {
       name: "docs-type-demo",
       generator: "specimen",
@@ -100,11 +83,8 @@ export default defineConfig({
         durationMs: 16_000,
       },
     },
-
-    // ── palette: a still colour grid (png) ──
     { name: "docs-palette", generator: "palette", options: { colors: VESPER } },
-
-    // ── screenshots: desktop FULL PAGE — the whole scrollable page, far taller than the viewport ──
+    // Desktop full page — the whole scrollable page, far taller than the viewport.
     {
       name: "docs-shot-desktop",
       generator: "screenshots",
@@ -114,8 +94,7 @@ export default defineConfig({
         waitForSelector: ".hero-media img",
       },
     },
-
-    // ── screenshots: phone, as normally seen (just the viewport, above the fold) ──
+    // Phone, above the fold only.
     {
       name: "docs-shot-mobile",
       generator: "screenshots",
@@ -125,8 +104,7 @@ export default defineConfig({
         waitForSelector: ".hero-media img",
       },
     },
-
-    // ── wall: a very simple REAL wall — 3 columns of photos, one gentle drift, short ──
+    // A very simple real wall: 3 columns of photos, one gentle drift, short.
     ...PHOTOS,
     {
       name: "docs-wall",
@@ -136,7 +114,7 @@ export default defineConfig({
         height: 540,
         fps: 30,
         durationMs: 8000,
-        background: "#1a1714",
+        background: INK,
         gap: 4,
         cornerRadius: 4,
         loops: 1,
@@ -147,10 +125,8 @@ export default defineConfig({
         ],
       },
     },
-
-    // ── wall: TEST MODE — faux labelled boxes, recorded realtime, so it renders in seconds. The
-    //    point of the example: when a wall composes lots of (slow) video tiles, iterate layout +
-    //    motion in test mode first, then drop `test`/`realtime` for the real frame-stepped render ──
+    // Wall TEST MODE: faux labelled boxes recorded realtime — the docs example for iterating
+    // layout + motion in seconds before the real frame-stepped render.
     {
       name: "docs-wall-test",
       generator: "wall",
@@ -161,7 +137,7 @@ export default defineConfig({
         durationMs: 8000,
         capture: "realtime",
         test: true,
-        background: "#1a1714",
+        background: INK,
         gap: 4,
         cornerRadius: 4,
         tileAspect: 0.5625, // 9:16 phone clips

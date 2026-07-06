@@ -5,7 +5,7 @@ capture and the viewer for the results. The site is **VESPER**, a fictional upsc
 house (outerwear, knitwear, tailoring) — a realistic ecommerce surface to exercise every generator.
 
 ```bash
-pnpm --filter testing dev        # run the storefront at http://localhost:4310
+pnpm --filter testing dev        # run the storefront at http://localhost:3400
 pnpm --filter testing generate   # build+start the site, generate assets into public/pro-visu
 pnpm --filter testing check      # assert every generated asset exists with sane metadata
 ```
@@ -20,9 +20,12 @@ Then open `/gallery` (`pnpm --filter testing dev`) to view the generated assets.
 - `app/products/[slug]/page.tsx` — product detail with size selector, add-to-bag, and related items
   (`generateStaticParams` over the catalog).
 - `app/about/page.tsx` — the house / brand story (also the `/about` route the tour visits).
+- `app/lookbook/page.tsx` — a brand board built for capture: stable-id 3:4 panels
+  (`#lb-wordmark`, `#lb-editorial`, `#lb-spec-coat`, `#lb-swatch`, `#lb-quote`) that the focus
+  clips crop into standalone tiles.
 - `app/gallery/page.tsx` — reads `public/pro-visu/manifest.json` to preview generated assets.
 - `app/components/` — shared `Header` (nav mega-menu + slide-in cart drawer), `Footer`,
-  `ProductCard`, `AddToBag`, `Placeholder`, and the `cart` context.
+  `ProductCard`, `AddToBag`, `Placeholder`, the `cart` context, and more.
 - `app/lib/catalog.ts` — products, categories, tones. `app/lib/media.ts` — hero/editorial imagery.
 
 ### Stable hooks for capture
@@ -30,9 +33,12 @@ Then open `/gallery` (`pnpm --filter testing dev`) to view the generated assets.
 The site keeps stable selectors so `pro-visu.config.ts` can choreograph interactions:
 
 - `#menu-button` → opens the nav mega-menu `#menu-panel` (links `#menu-panel a`)
-- `#cart-button` → opens the cart drawer `#cart-drawer`
-- `#feature-card` → the first product card; `#feature-card button` is its **Add to bag**
-- routes `/`, `/shop`, `/products/the-camel-coat`, `/about` for the multi-page tour
+- `#cart-button` → opens the cart drawer `#cart-drawer` (`.drawer-close` closes it)
+- `#feature-card` → the featured product card; `.quick-add` is its quick add-to-bag
+- `#pdp-add` → the PDP add-to-bag; `.size-options button` → the size chips
+- `#shop-grid .product` → shop cards; `.product-media` / `.wishlist` per card
+- `#hero`, `#editorial` → home sections for focus crops; `#lb-*` → lookbook panels
+- routes `/`, `/shop`, `/products/<slug>`, `/about`, `/lookbook`
 
 ### Adding real assets
 
@@ -42,6 +48,9 @@ The storefront uses tonal placeholders until you provide photography — see
 ## Harness
 
 - `pro-visu.config.ts` — a managed-server config exercising the generators/features (scroll reels,
-  screenshots, scene, palette, scripted menu + cart interactions, element focus,
-  multi-page tour); output goes to `public/pro-visu/` (gitignored) so Next serves it.
+  screenshots, media wall, palettes, type specimens, scripted interactions, element focus,
+  multi-page tour); output goes to `public/pro-visu/` (gitignored) so Next serves it. It's split
+  into modules under `showcase/` (brand constants, settings, one file per asset family) — the
+  split-config pattern the docs recommend.
+- `pro-visu.docs.config.ts` — the curated set of example clips/stills embedded in the docs.
 - `scripts/check.mjs` — manifest/output validation.

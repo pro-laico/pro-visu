@@ -8,6 +8,12 @@ All notable changes to `pro-visu` are documented here. The format is based on
 
 ### Added
 
+- **Split your config across files.** Every author-facing type is now exported from `pro-visu` —
+  per-generator option types (`ScrollReelOptions`, `WallOptions`, …) and their fragments
+  (`WallColumnInput`, `ChoreographyStepInput`, `PulseInput`, `PaletteColorInput`,
+  `ScrollReelViewportInput`, and more) — alongside new typed identity helpers `defineSettings`,
+  `defineAsset`, and `defineAssets`. Keep settings in one module and each asset family in its
+  own, and compose them in `pro-visu.config.ts` the way a Payload config imports its collections.
 - **`specimen`: a `label` block** to place and style the name label within the bottom gap area.
   `anchor` picks any of nine positions (`top-left` … `bottom-right`), `padding` insets it from the
   gap edges (`0` = flush to the rendered corner), and `size` / `weight` / `color` style the text.

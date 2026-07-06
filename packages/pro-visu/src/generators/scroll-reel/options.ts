@@ -137,8 +137,8 @@ const cardSchema = z
       .string()
       .optional()
       .describe("Card subtitle (small, under the title). Omit for none."),
-    background: z.string().optional().describe("Card background color. Default black."),
-    color: z.string().optional().describe("Card text color. Default white."),
+    background: z.string().optional().describe('Card background color. Default "#0b0b0f".'),
+    color: z.string().optional().describe('Card text color. Default "#ffffff".'),
     durationMs: z
       .number()
       .int()
@@ -705,9 +705,9 @@ export interface CardInput {
   title?: string;
   /** Card subtitle (small, under the title). Omit for none. */
   subtitle?: string;
-  /** Card background color. Default black. */
+  /** Card background color. Default "#0b0b0f". */
   background?: string;
-  /** Card text color. Default white. */
+  /** Card text color. Default "#ffffff". */
   color?: string;
   /** How long the card holds (ms). Default 1500. */
   durationMs?: number;

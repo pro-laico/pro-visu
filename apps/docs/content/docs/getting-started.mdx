@@ -32,11 +32,9 @@ config:
 | Version | Pinned in your lockfile → you and CI build identical assets | Floating (npx fetches latest; pin with `pro-visu@x.y.z`) |
 | Best for | A repo you own, and CI pipelines | One-off captures, trying it out |
 
-A TS `pro-visu.config.ts` needs the **dev dependency** because it does
-`import { defineConfig } from "pro-visu"`, which has to resolve from your project's
-`node_modules` (both to type-check and to run). A JSON config has no import, so it works in any
-mode — and `pro-visu init --json` generates a `pro-visu.schema.json` that gives editors the same
-autocomplete, validation, and hover docs.
+A TS `pro-visu.config.ts` needs the **dev dependency** — its
+`import { defineConfig } from "pro-visu"` must resolve from `node_modules`, both to type-check
+and to run. A JSON config has no import, so it works in either mode.
 
 **A — As a project dev-dependency (recommended):**
 
@@ -44,18 +42,12 @@ autocomplete, validation, and hover docs.
 pnpm add -D pro-visu
 ```
 
-Gives you the typed `defineConfig` authoring experience and pins the version in your lockfile, so
-you — and CI — generate byte-identical assets.
-
 **B — Without installing (npx or global):**
 
 ```bash
 npx pro-visu init --json     # dependency-free JSON config + JSON Schema
 npx pro-visu generate
 ```
-
-…or install globally (`npm i -g pro-visu`). No project dependency; the generated
-`pro-visu.schema.json` still gives your editor autocomplete + validation on the JSON config.
 
 > **Unreleased builds** (contributing, or pinning `main`): install from GitHub
 > (`pnpm add -D github:pro-laico/pro-visu`), a `pnpm link`, or a `file:` path — see the
@@ -109,7 +101,9 @@ If you scaffolded with `--json`, the equivalent `pro-visu.config.json` carries a
 validation. Refresh that schema after upgrading the tool with `pro-visu schema`.
 
 See [Configuration](/docs/configuration) for the full shape, and
-[Generators](/docs/generators) for every asset type and its options.
+[Generators](/docs/generators) for every asset type and its options. As the config grows, it can
+be [split into modules](/docs/configuration#splitting-the-config) — settings in one file, each
+asset family in its own.
 
 ## Generate
 

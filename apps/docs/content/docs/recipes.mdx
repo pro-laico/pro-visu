@@ -70,10 +70,8 @@ Drive the UI with a synthetic cursor (records realtime):
 
 ## A media wall
 
-Composite several captures into a seamless-looping [wall](/docs/generators/wall). Each column names
-the assets it stacks (they run first — no `inputs` map needed) and carries its own motion. Tiles fit
-the column width and keep their own height (16:9 → short, 9:16 → tall), so the columns read as a
-natural masonry:
+Composite several captures into a seamless-looping [wall](/docs/generators/wall) — each column
+names the assets it stacks (they run first) and carries its own motion:
 
 ```ts
 assets: [
@@ -93,8 +91,7 @@ assets: [
         { tiles: ["shot-shop", "img-hero"], direction: "up", loops: 1, stagger: 0.4 },
         { tiles: ["shot-home", "shot-shop"], stagger: 0.15 },
       ],
-      // While dialing it in: `test: true` (faux labeled boxes, no producers, no server) +
-      // `capture: "realtime"` renders in seconds. Remove both for the real render.
+      // dial it in fast with test: true + capture: "realtime"; remove both for the real render
     },
   },
 ]

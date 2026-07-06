@@ -5,11 +5,10 @@ screenshots, media walls — with more asset types to come) of the websites you 
 into any website repo, point it at a URL, and it writes assets into a gitignored `pro-visu/`
 folder.
 
-> Status: **0.4** (pre-1.0; the option surface may still shift). Generators: `scroll-reel` (deterministic frame-stepped recording → mp4 — scroll
-> reels, choreographed tours, scripted interaction, social formats and more), `screenshots`
-> (responsive full-page + element captures), `wall` (a seamless-looping media wall of your
-> assets), `image` (register a file for reuse), plus `specimen`/`palette`/`palette-reel`. The
-> pipeline is a plugin contract, so new asset types slot in without core changes.
+> Status: **0.5** (pre-1.0; the option surface may still shift). Generators: `scroll-reel`,
+> `screenshots`, `wall`, `image`, `specimen`, `palette`, `palette-reel` — see the
+> [Generators](#generators) table. The pipeline is a plugin contract, so new asset types slot in
+> without core changes.
 
 > Requires Node ≥ 18.18. The first run downloads a managed Chromium and a static ffmpeg (both
 > cached and shared across projects) — no global installs required.
@@ -27,12 +26,8 @@ and author config:
 | Version | Pinned in your lockfile → you and CI build identical assets | Floating (npx fetches latest; pin with `pro-visu@x.y.z`) |
 | Best for | A repo you own, and CI pipelines | One-off captures, trying it out, throwaway scripts |
 
-> **Why a TS config needs the dev-dependency:** `pro-visu.config.ts` does
-> `import { defineConfig } from "pro-visu"`, which must resolve from your project's
-> `node_modules` — both to type-check *and* to run. A JSON config has no import, so it works in every
-> mode, and the generated `pro-visu.schema.json` gives editors the same autocomplete, validation, and
-> hover docs. So: want the typed config and reproducible pins → dev dependency; want zero install →
-> global/npx with a JSON config.
+> A TS config needs the dev-dependency (`import { defineConfig } from "pro-visu"` must resolve
+> from `node_modules`); a JSON config has no import, so it works in every mode.
 
 ### As a dev dependency (recommended)
 
@@ -51,9 +46,7 @@ npx pro-visu init --json     # scaffolds pro-visu.config.json + pro-visu.schema.
 npx pro-visu generate
 ```
 
-…or install once with `npm i -g pro-visu` and drop the `npx`. `init --json` points the config at
-the generated schema (`"$schema": "./pro-visu.schema.json"`), so your editor gives full autocomplete +
-validation with no project dependency — refresh it after upgrading the tool with `pro-visu schema`.
+…or install once with `npm i -g pro-visu` and drop the `npx`.
 
 ## Config
 
@@ -78,6 +71,13 @@ export default defineConfig({
 
 Config is discovered in multiple formats: `pro-visu.config.{ts,js,mjs,cjs,json}`,
 `.pro-visurc`, or a `pro-visu` key in `package.json`. Use `--config <path>` to override.
+
+The config doesn't have to be one file. Every author-facing type is exported (generator option
+types plus their fragments — `WallColumnInput`, `ChoreographyStepInput`, `PaletteColorInput`, …),
+and the typed identity helpers `defineSettings` / `defineAsset` / `defineAssets` mirror
+`defineConfig` — so a growing showcase can keep settings and each asset family in their own
+modules and compose them in `pro-visu.config.ts`. See
+[Splitting the config](https://pro-visu.com/docs/configuration#splitting-the-config).
 
 **Capture mode** (`settings.capture`) lets a site render a clean, settled snapshot for the camera
 only — animations finished, no cookie banner, no chat widget — while keeping the real behaviour
@@ -136,7 +136,7 @@ run-to-run**. Every option below is a `scroll-reel` option.
 | Option | Meaning |
 |---|---|
 | `capture` | `"frames"` (default) deterministic frame-stepping; `"realtime"` records live (fallback for time-based hero animations / autoplay video). |
-| `workers` | Parallel render contexts for `"frames"` (default ≈ half the cores). |
+| `workers` | Parallel render contexts for `"frames"` (auto-picked from cores + free memory). |
 | `frameFormat` | Intermediate frame format for `"frames"`: `"jpeg"` (default) or `"png"` (lossless). |
 
 Choreography, auto-sections, variants, cards, annotations, aspect and extra outputs are
@@ -359,8 +359,8 @@ projects).
 ```bash
 pnpm install            # installs deps; `prepare` builds dist/
 pnpm dev                # tsup --watch
-pnpm build              # tsup -> dist/
-pnpm typecheck          # tsc --noEmit
+pnpm build              # clean + tsup -> dist/ + vite build of the scene app
+pnpm typecheck          # tsc --noEmit (package + scene app)
 pnpm test               # vitest (unit)
 ```
 

@@ -129,3 +129,18 @@ export interface ShowcaseUserConfig {
 export function defineConfig(config: ShowcaseUserConfig): ShowcaseUserConfig {
   return config;
 }
+
+/** Identity helper for a `settings` block kept in its own module. */
+export function defineSettings(settings: ShowcaseSettingsInput): ShowcaseSettingsInput {
+  return settings;
+}
+
+/** Identity helper for a single asset kept in its own module. */
+export function defineAsset(asset: AssetSpecInput): AssetSpecInput {
+  return asset;
+}
+
+/** Identity helper for a group of assets kept in their own module. */
+export function defineAssets(assets: AssetSpecInput[]): AssetSpecInput[] {
+  return assets;
+}

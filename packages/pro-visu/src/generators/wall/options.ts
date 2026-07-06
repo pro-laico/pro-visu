@@ -143,6 +143,7 @@ export const wallOptionsSchema = z
 
 /** Re-exported so configs can type a single column / pulse / pan / faux tile. */
 export type { WallColumnInput, WallPanInput, WallPulseInput, FauxTileInput };
+export type { WallEasing } from "@/generators/scene/scene-options";
 
 /**
  * Author-facing options for the `wall` generator. Each entry in `columns` is a self-contained unit

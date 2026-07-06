@@ -44,7 +44,7 @@ Each entry in `assets` describes one thing to generate.
 |---|---|---|
 | `name` | `string` | **Required.** Unique across the config — used in filenames and the manifest id. |
 | `generator` | `string` | **Required.** One of the [generator ids](/docs/generators). |
-| `url` | `string` | Page to capture. Required by URL-based generators (`scroll-reel`, `screenshots`); omitted for local generators (`wall`, `image`, `palette`, `palette-reel`, `specimen`). |
+| `url` | `string` | Page to capture. Required by URL-based generators (`scroll-reel`, `screenshots`) unless a [managed server](/docs/configuration/managed-server) is configured — then omitting it captures the server root, and a relative `/path` resolves against it. Local generators (`wall`, `image`, `palette`, `palette-reel`, `specimen`) take no url. |
 | `options` | `object` | Generator-specific options. Validated by the target generator. |
 | `inputs` | `object` | Other assets this one consumes, as `{ slot: assetName }`. |
 
@@ -94,6 +94,46 @@ assets: [
 
 This forms a DAG; cycles and references to unknown assets are rejected at load time.
 Selecting an asset with `--asset` automatically pulls in its dependencies.
+
+## Splitting the config
+
+Nothing requires one monolithic file. As a showcase grows, split it into modules — settings in
+one file, each asset family in its own — and compose them in `pro-visu.config.ts`, the way a
+Payload config imports its collections:
+
+```ts title="showcase/settings.ts"
+import { defineSettings } from "pro-visu";
+
+export const settings = defineSettings({
+  outDir: "pro-visu",
+  server: { command: "next start" },
+});
+```
+
+```ts title="showcase/films.ts"
+import { defineAssets } from "pro-visu";
+
+export const films = defineAssets([
+  { name: "home", generator: "scroll-reel", options: { autoSections: { durationMs: 14000 } } },
+  { name: "shop", url: "/shop", generator: "scroll-reel" },
+]);
+```
+
+```ts title="pro-visu.config.ts"
+import { defineConfig } from "pro-visu";
+import { settings } from "./showcase/settings";
+import { films } from "./showcase/films";
+import { stills } from "./showcase/stills";
+
+export default defineConfig({ settings, assets: [...films, ...stills] });
+```
+
+`defineSettings`, `defineAsset`, and `defineAssets` are typed identity helpers like
+`defineConfig` — plain annotations work just as well (`const films: AssetSpecInput[] = [...]`).
+Every author-facing type is exported from `pro-visu`, including per-generator option types
+(`ScrollReelOptions`, `WallOptions`, …) and their fragments (`WallColumnInput`,
+`ChoreographyStepInput`, `PulseInput`, `PaletteColorInput`, …), so shared recipes and helpers
+in those modules can be fully typed.
 
 ## Next
 
