@@ -6,30 +6,34 @@ description: Every field in the settings block — output, concurrency, browser,
 The `settings` block controls repo-level CLI behaviour. Every field has a default, so
 `settings` can be omitted entirely.
 
-| Field | Type | Default | Meaning |
-|---|---|---|---|
-| `outDir` | `string` | `"pro-visu"` | Output directory, relative to the repo root. Holds generated assets + `manifest.json`. |
-| `concurrency` | `number` | `2` | How many assets to generate in parallel (shared browser, separate contexts). Lower to `1` to cap memory on heavy runs. |
-| `maxMemoryMB` | `number` | — | Raise the Node heap to this many MB. Heavy jobs (large frame-stepped walls) can exceed Node's ~4 GB default and crash with "JavaScript heap out of memory"; when set above the current limit the CLI re-execs itself with `--max-old-space-size`. This is the **Node** process heap, not the browser's. |
-| `logLevel` | `"silent" \| "error" \| "warn" \| "info" \| "debug"` | `"info"` | Log verbosity. `--verbose` forces `debug`. |
-| `quality` | `"draft" \| "final"` | `"final"` | `draft` lowers fps/scale and speeds the encoder for fast iteration (same as `--draft`). |
-| `cache` | `boolean` | `false` | Skip assets whose inputs + options + tool fingerprint are unchanged. Opt-in; can be stale. |
-| `browser` | `object` | — | Playwright launch controls (see below). |
-| `capture` | `object` | — | [Capture-mode](#capture) toggles applied to every URL-based asset, so a site can render a clean, settled snapshot for the camera. |
-| `defaults` | `object` | `{}` | Per-generator option defaults, keyed by generator id, merged beneath each asset's `options`. |
-| `server` | `object` | — | Optional [managed server](/docs/configuration/managed-server). |
+export const settingsOptions = [
+  { name: 'outDir', type: 'string', default: '"pro-visu"', description: 'Output directory, relative to the repo root. Holds generated assets + manifest.json.' },
+  { name: 'concurrency', type: 'number', default: '2', description: 'How many assets to generate in parallel (shared browser, separate contexts). Lower to 1 to cap memory on heavy runs.' },
+  { name: 'maxMemoryMB', type: 'number', description: "Raise the Node heap to this many MB. Heavy jobs (large frame-stepped walls) can exceed Node's ~4 GB default and crash with \"JavaScript heap out of memory\"; when set above the current limit the CLI re-execs itself with --max-old-space-size. This is the Node process heap, not the browser's." },
+  { name: 'logLevel', type: '"silent" | "error" | "warn" | "info" | "debug"', default: '"info"', description: 'Log verbosity. --verbose forces "debug".' },
+  { name: 'quality', type: '"draft" | "final"', default: '"final"', description: '"draft" lowers fps/scale and speeds the encoder for fast iteration (same as --draft).' },
+  { name: 'cache', type: 'boolean', default: 'false', description: 'Skip assets whose inputs + options + tool fingerprint are unchanged. Opt-in; can be stale.' },
+  { name: 'browser', type: 'object', description: 'Playwright launch controls (see below).' },
+  { name: 'capture', type: 'object', description: 'Capture-mode (#capture) toggles applied to every URL-based asset, so a site can render a clean, settled snapshot for the camera.' },
+  { name: 'defaults', type: 'object', default: '{}', description: "Per-generator option defaults, keyed by generator id, merged beneath each asset's options." },
+  { name: 'server', type: 'object', description: 'Optional managed server (/docs/configuration/managed-server).' },
+]
+
+<ConfigOptions items={settingsOptions} />
 
 ## `browser`
 
 Controls how Playwright launches the browser used for capture.
 
-| Field | Type | Default | Meaning |
-|---|---|---|---|
-| `headless` | `boolean` | `true` | Run headless. Set `false` to watch captures in a visible window. |
-| `channel` | `string` | — | Use an installed browser channel, e.g. `"chrome"` or `"msedge"`, instead of the managed Chromium. |
-| `executablePath` | `string` | — | Absolute path to a browser executable (overrides `channel` and the managed Chromium). |
-| `args` | `string[]` | `[]` | Extra launch args, e.g. `["--no-sandbox"]` on CI. |
-| `timeout` | `number` | `30000` | Launch timeout in ms. |
+export const browserOptions = [
+  { name: 'headless', type: 'boolean', default: 'true', description: 'Run headless. Set false to watch captures in a visible window.' },
+  { name: 'channel', type: 'string', description: 'Use an installed browser channel, e.g. "chrome" or "msedge", instead of the managed Chromium.' },
+  { name: 'executablePath', type: 'string', description: 'Absolute path to a browser executable (overrides channel and the managed Chromium).' },
+  { name: 'args', type: 'string[]', default: '[]', description: 'Extra launch args, e.g. ["--no-sandbox"] on CI.' },
+  { name: 'timeout', type: 'number', default: '30000', description: 'Launch timeout in ms.' },
+]
+
+<ConfigOptions items={browserOptions} />
 
 ```ts
 settings: {
@@ -53,12 +57,14 @@ every URL-based asset and folded into the cache key, so changing it re-captures.
 These toggles only deliver a signal; the **site has to read it** and render accordingly. They're
 delivered four ways so a site can use whichever fits its rendering model:
 
-| Field | Type | Meaning |
-|---|---|---|
-| `query` | `Record<string, string>` | Query params appended to every URL-based asset, e.g. `{ capture: "1" }` → `?capture=1`. |
-| `cookies` | `{ name, value }[]` | Cookies set on every capture context before navigation (scoped to the asset's origin). SSR-readable and persisted across in-app navigation — the best fit for multi-route reels. |
-| `localStorage` | `Record<string, string>` | Entries seeded per origin before the page's own scripts run. |
-| `initScript` | `string` | JS run in every page before its own scripts, e.g. `window.__PV_CAPTURE__ = true`. |
+export const captureOptions = [
+  { name: 'query', type: 'Record<string, string>', description: 'Query params appended to every URL-based asset, e.g. { capture: "1" } → ?capture=1.' },
+  { name: 'cookies', type: '{ name, value }[]', description: "Cookies set on every capture context before navigation (scoped to the asset's origin). SSR-readable and persisted across in-app navigation — the best fit for multi-route reels." },
+  { name: 'localStorage', type: 'Record<string, string>', description: "Entries seeded per origin before the page's own scripts run." },
+  { name: 'initScript', type: 'string', description: 'JS run in every page before its own scripts, e.g. window.__PV_CAPTURE__ = true.' },
+]
+
+<ConfigOptions items={captureOptions} />
 
 ```ts
 settings: {

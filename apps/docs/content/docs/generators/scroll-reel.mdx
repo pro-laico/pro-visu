@@ -58,35 +58,41 @@ down the whole page within a fixed time budget — a hands-off tour, no choreogr
 
 ## Core sizing
 
-| Option | Meaning |
-|---|---|
-| `width` / `height` | Viewport size in CSS px. Default `1280` × `800`. |
-| `fps` | Output frames per second. Default `30` (max `120`). |
-| `durationMs` | Clip length in ms (when not using `choreography`/`autoSections`/`routes`). Default `6000`. |
-| `deviceScaleFactor` | Render scale — higher captures crisper, then downscales into the video. Default `2` (max `4`). |
-| `easing` | Scroll easing: `linear`, `ease-in-out-cubic` (default), `ease-in-out-quad`, `ease-out-cubic`, `ease-in-out-sine`, `ease-in-out-expo`, `ease-out-quint`. |
-| `crf` | x264 quality, `0`–`51` (lower = better/larger). Default `18`. |
-| `fileName` | Output filename. Defaults to `<slug(asset name)>.mp4`. |
+export const coreSizingOptions = [
+  { name: 'width / height', description: 'Viewport size in CSS px. Default 1280 × 800.' },
+  { name: 'fps', description: 'Output frames per second. Default 30 (max 120).' },
+  { name: 'durationMs', description: 'Clip length in ms (when not using choreography/autoSections/routes). Default 6000.' },
+  { name: 'deviceScaleFactor', description: 'Render scale — higher captures crisper, then downscales into the video. Default 2 (max 4).' },
+  { name: 'easing', description: 'Scroll easing: "linear", "ease-in-out-cubic" (default), "ease-in-out-quad", "ease-out-cubic", "ease-in-out-sine", "ease-in-out-expo", "ease-out-quint".' },
+  { name: 'crf', description: 'x264 quality, 0–51 (lower = better/larger). Default 18.' },
+  { name: 'fileName', description: 'Output filename. Defaults to <slug(asset name)>.mp4.' },
+]
+
+<ConfigOptions items={coreSizingOptions} />
 
 ## Timing & navigation
 
-| Option | Meaning |
-|---|---|
-| `startDelayMs` | Dwell at the top before scrolling (ms). Default `500`. |
-| `endDwellMs` | Dwell at the bottom after scrolling (ms). Default `800`. |
-| `waitUntil` | Navigation wait: `"load"`, `"domcontentloaded"`, `"networkidle"` (default), or `"commit"`. |
-| `waitForSelector` | Optional CSS selector to wait for (visible) before recording — e.g. a hero section. |
+export const timingOptions = [
+  { name: 'startDelayMs', description: 'Dwell at the top before scrolling (ms). Default 500.' },
+  { name: 'endDwellMs', description: 'Dwell at the bottom after scrolling (ms). Default 800.' },
+  { name: 'waitUntil', description: 'Navigation wait: "load", "domcontentloaded", "networkidle" (default), or "commit".' },
+  { name: 'waitForSelector', description: 'Optional CSS selector to wait for (visible) before recording — e.g. a hero section.' },
+]
+
+<ConfigOptions items={timingOptions} />
 
 ## Capture strategy
 
 How frames are recorded — not to be confused with [`settings.capture`](/docs/configuration/settings#capture),
 the site-side capture-mode toggles.
 
-| Option | Meaning |
-|---|---|
-| `capture` | `"frames"` (default) deterministic frame-stepping; `"realtime"` records live — a fallback for time-based hero animations or autoplay video. |
-| `workers` | Parallel render contexts for `"frames"` (auto-picks from cores + free memory; all captures share a run-wide context budget). |
-| `frameFormat` | Intermediate frame format for `"frames"`: `"jpeg"` (default) or `"png"` (lossless). |
+export const captureStrategyOptions = [
+  { name: 'capture', description: '"frames" (default) deterministic frame-stepping; "realtime" records live — a fallback for time-based hero animations or autoplay video.' },
+  { name: 'workers', description: 'Parallel render contexts for "frames" (auto-picks from cores + free memory; all captures share a run-wide context budget).' },
+  { name: 'frameFormat', description: 'Intermediate frame format for "frames": "jpeg" (default) or "png" (lossless).' },
+]
+
+<ConfigOptions items={captureStrategyOptions} />
 
 Choreography, auto-sections, variants, cards, annotations, aspect, and extra outputs are
 **frames-only**; `realtime` ignores them (with a warning). Scripted `actions` and `focus`

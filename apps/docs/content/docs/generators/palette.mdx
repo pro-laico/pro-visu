@@ -46,27 +46,29 @@ is required. No `url`. Output is png.
 
 ## Options
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `colors` | `{ name, hex }[]` | — | **Required.** The colours to show (≥1). `hex` accepts `#rgb` or `#rrggbb`. |
-| `layout` | `"rows" \| "columns" \| "grid"` | `"rows"` | Full-width bands, full-height columns, or an N-wide grid. |
-| `gridColumns` | `number` (1–12) | `3` | Columns when `layout: "grid"`. |
-| `width` / `height` | `number` | `1400` / `1750` | Output size (default is portrait 4:5). |
-| `deviceScaleFactor` | `number` (≤4) | `2` | Render scale. |
-| `background` | `string` | `"#ffffff"` | Page background, shown only in the gaps. |
-| `gap` | `number` | `0` | Gap between swatches (px). |
-| `cornerRadius` | `number` | `0` | Swatch corner radius (px). |
-| `topLeft` / `topRight` / `bottomLeft` / `bottomRight` | `FieldId[]` | TL `["name","hex"]`, TR `["rgb","oklch"]` | Fields shown (stacked) in each corner. |
-| `uppercase` | `boolean` | `false` | Uppercase the colour names. |
-| `rgbStyle` | `"labeled" \| "css" \| "plain"` | `"labeled"` | RGB string style. |
-| `oklchStyle` | `"css" \| "labeled"` | `"css"` | OKLCH string style. |
-| `fontFile` | `string` | system sans fallback | Custom font (`.woff2` / `.woff` / `.ttf` / `.otf`) embedded into the render. Optional — omit to fall back to a system bold sans. |
-| `fontSize` | `number` | derived | Label font size in px. |
-| `fontWeight` | `number` (1–1000) | `700` | Label font weight. |
-| `textLight` / `textDark` | `string` | `#ffffff` / `#141414` | Text colours picked by contrast against each swatch. |
-| `contrastThreshold` | `number` (0–1) | `0.5` | Luminance above which dark text is used. |
-| `padding` | `number` | derived | Inset of labels from swatch edges (px). |
-| `fileName` | `string` | `<name>.png` | Output filename. |
+export const options = [
+  { name: 'colors', type: '{ name, hex }[]', description: 'The colours to show (≥1). hex accepts "#rgb" or "#rrggbb".', required: true },
+  { name: 'layout', type: '"rows" | "columns" | "grid"', default: '"rows"', description: 'Full-width bands, full-height columns, or an N-wide grid.' },
+  { name: 'gridColumns', type: 'number (1–12)', default: '3', description: 'Columns when layout: "grid".' },
+  { name: 'width / height', type: 'number', default: '1400 / 1750', description: 'Output size (default is portrait 4:5).' },
+  { name: 'deviceScaleFactor', type: 'number (≤4)', default: '2', description: 'Render scale.' },
+  { name: 'background', type: 'string', default: '"#ffffff"', description: 'Page background, shown only in the gaps.' },
+  { name: 'gap', type: 'number', default: '0', description: 'Gap between swatches (px).' },
+  { name: 'cornerRadius', type: 'number', default: '0', description: 'Swatch corner radius (px).' },
+  { name: 'topLeft / topRight / bottomLeft / bottomRight', type: 'FieldId[]', default: 'TL ["name","hex"], TR ["rgb","oklch"]', description: 'Fields shown (stacked) in each corner.' },
+  { name: 'uppercase', type: 'boolean', default: 'false', description: 'Uppercase the colour names.' },
+  { name: 'rgbStyle', type: '"labeled" | "css" | "plain"', default: '"labeled"', description: 'RGB string style.' },
+  { name: 'oklchStyle', type: '"css" | "labeled"', default: '"css"', description: 'OKLCH string style.' },
+  { name: 'fontFile', type: 'string', default: 'system sans fallback', description: 'Custom font (.woff2 / .woff / .ttf / .otf) embedded into the render. Optional — omit to fall back to a system bold sans.' },
+  { name: 'fontSize', type: 'number', default: 'derived', description: 'Label font size in px.' },
+  { name: 'fontWeight', type: 'number (1–1000)', default: '700', description: 'Label font weight.' },
+  { name: 'textLight / textDark', type: 'string', default: '#ffffff / #141414', description: 'Text colours picked by contrast against each swatch.' },
+  { name: 'contrastThreshold', type: 'number (0–1)', default: '0.5', description: 'Luminance above which dark text is used.' },
+  { name: 'padding', type: 'number', default: 'derived', description: 'Inset of labels from swatch edges (px).' },
+  { name: 'fileName', type: 'string', default: '<name>.png', description: 'Output filename.' },
+]
+
+<ConfigOptions items={options} />
 
 The available corner field ids are `name`, `hex`, `rgb`, `oklch`, `hsl`, and `cmyk`.
 

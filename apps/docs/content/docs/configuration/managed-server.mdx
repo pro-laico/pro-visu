@@ -31,15 +31,17 @@ resolves against it. Absolute URLs pass through unchanged.
 
 ## Fields
 
-| Field | Type | Default | Meaning |
-|---|---|---|---|
-| `command` | `string` | — | **Required.** Command that starts the server, run via the shell. The tool sets `PORT`/`HOST` in its environment to the readiness port/host, so frameworks that honour `PORT` (Next, Vite, …) bind it automatically — `"next start"` is enough. An explicit flag (e.g. `next start -p 4000`) still wins. |
-| `build` | `string` | — | Optional one-shot build to run first, e.g. `"next build"`. |
-| `url` | `string` | — | Health-check URL polled until it responds. Defaults to `http://127.0.0.1:<port>`. |
-| `port` | `number` | `3101` | Port the readiness check probes (and derives `url` from), also passed to the command as `PORT` so it binds the same port. |
-| `cwd` | `string` | config dir | Working directory for `build` + `command`, relative to the config. |
-| `readyTimeoutMs` | `number` | `120000` | Max time to wait for the server to become reachable. |
-| `reuseExisting` | `boolean` | `true` | If a server is already reachable at the URL, use it as-is (don't start or stop one). |
+export const serverFields = [
+  { name: 'command', type: 'string', required: true, description: 'Command that starts the server, run via the shell. The tool sets PORT/HOST in its environment to the readiness port/host, so frameworks that honour PORT (Next, Vite, …) bind it automatically — "next start" is enough. An explicit flag (e.g. next start -p 4000) still wins.' },
+  { name: 'build', type: 'string', description: 'Optional one-shot build to run first, e.g. "next build".' },
+  { name: 'url', type: 'string', description: 'Health-check URL polled until it responds. Defaults to http://127.0.0.1:<port>.' },
+  { name: 'port', type: 'number', default: '3101', description: 'Port the readiness check probes (and derives url from), also passed to the command as PORT so it binds the same port.' },
+  { name: 'cwd', type: 'string', default: 'config dir', description: 'Working directory for build + command, relative to the config.' },
+  { name: 'readyTimeoutMs', type: 'number', default: '120000', description: 'Max time to wait for the server to become reachable.' },
+  { name: 'reuseExisting', type: 'boolean', default: 'true', description: "If a server is already reachable at the URL, use it as-is (don't start or stop one)." },
+]
+
+<ConfigOptions items={serverFields} />
 
 > Set a custom `port` (or `url`) only if your server can't read `PORT` from the environment, or
 > you need a non-default port. Otherwise leave both off — the tool keeps the command, the

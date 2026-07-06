@@ -73,18 +73,20 @@ And the same site on a phone, just the viewport — as a visitor first sees it:
 
 ## Options
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `viewports` | `{ name, width, height?, deviceScaleFactor? }[]` | desktop 1440×900 + mobile 390×844 | Viewports to capture at. `height` defaults to `900`; `deviceScaleFactor` is positive, max `4`. |
-| `fullPage` | `boolean` | `true` | Capture the entire scrollable page vs. just the viewport. |
-| `format` | `"png" \| "jpeg"` | `"png"` | Output format. |
-| `quality` | `number` (1–100) | — | jpeg only. Rejected with `format: "png"`. |
-| `deviceScaleFactor` | `number` (>0, ≤4) | `2` | Render scale; a viewport can override it. |
-| `waitUntil` | `"load" \| "domcontentloaded" \| "networkidle" \| "commit"` | `"networkidle"` | Navigation wait condition. |
-| `waitForSelector` | `string` | — | Wait for this selector (state `visible`) before capturing. |
-| `elements` | `{ selector, name }[]` | `[]` | Element captures taken at every viewport. |
-| `omitBackground` | `boolean` | `false` | png only — capture with a transparent background. |
-| `settleMs` | `number` | `0` | Extra settle time before capturing. Floored at 600ms — see [Page warm-up](#page-warm-up). |
+export const options = [
+  { name: 'viewports', type: '{ name, width, height?, deviceScaleFactor? }[]', default: 'desktop 1440×900 + mobile 390×844', description: 'Viewports to capture at. height defaults to 900; deviceScaleFactor is positive, max 4.' },
+  { name: 'fullPage', type: 'boolean', default: 'true', description: 'Capture the entire scrollable page vs. just the viewport.' },
+  { name: 'format', type: '"png" | "jpeg"', default: '"png"', description: 'Output format.' },
+  { name: 'quality', type: 'number (1–100)', description: 'jpeg only. Rejected with format: "png".' },
+  { name: 'deviceScaleFactor', type: 'number (>0, ≤4)', default: '2', description: 'Render scale; a viewport can override it.' },
+  { name: 'waitUntil', type: '"load" | "domcontentloaded" | "networkidle" | "commit"', default: '"networkidle"', description: 'Navigation wait condition.' },
+  { name: 'waitForSelector', type: 'string', description: 'Wait for this selector (state visible) before capturing.' },
+  { name: 'elements', type: '{ selector, name }[]', default: '[]', description: 'Element captures taken at every viewport.' },
+  { name: 'omitBackground', type: 'boolean', default: 'false', description: 'png only — capture with a transparent background.' },
+  { name: 'settleMs', type: 'number', default: '0', description: 'Extra settle time before capturing. Floored at 600ms — see Page warm-up (#page-warm-up).' },
+]
+
+<ConfigOptions items={options} />
 
 > `height` is ignored for `fullPage` shots (Playwright resizes to the page height); it only
 > affects viewport and element captures.

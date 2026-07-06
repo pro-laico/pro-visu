@@ -68,14 +68,16 @@ A **pulse** is one beat of the animation: a named span of time during which some
 glyph cells change letter and/or colour. An empty pulse is a hold. The clip length is the sum of
 the pulse durations (doubled when `mirror` is on). Compose a sequence to author the whole clip.
 
-| Pulse field | Type | Meaning |
-|---|---|---|
-| `name` | `string` | Human label for the beat (readability only). Default `""`. |
-| `durationMs` | `number` | Length of the beat, in milliseconds. **Required**, must be positive. |
-| `chars` | `number` (≥0) | Fraction of cells whose glyph changes during the beat (`1` = every cell once; above `1` repeats cells). Default `0`. |
-| `colors` | `number` (≥0) | Fraction of cells whose colour changes during the beat (`1` = every cell once; above `1` repeats cells). Default `0`. |
-| `color` | `"foreground" \| "muted" \| "accent"` | Target every colour change at this token (a deliberate sweep) instead of a weighted-random pick. Omit for the default scattered recolour. |
-| `pacing` | `"even" \| "linear" \| "ease-in" \| "ease-out" \| "ease-in-out" \| "random"` | How changes are distributed in time across the beat. Default `"even"`. `"linear"`/`"even"` are uniform; `"ease-in"` front-loads; `"ease-out"` back-loads; `"ease-in-out"` bunches at both ends; `"random"` scatters. |
+export const pulseOptions = [
+  { name: 'name', type: 'string', description: 'Human label for the beat (readability only). Default "".' },
+  { name: 'durationMs', type: 'number', required: true, description: 'Length of the beat, in milliseconds. Required, must be positive.' },
+  { name: 'chars', type: 'number (≥0)', description: 'Fraction of cells whose glyph changes during the beat (1 = every cell once; above 1 repeats cells). Default 0.' },
+  { name: 'colors', type: 'number (≥0)', description: 'Fraction of cells whose colour changes during the beat (1 = every cell once; above 1 repeats cells). Default 0.' },
+  { name: 'color', type: '"foreground" | "muted" | "accent"', description: 'Target every colour change at this token (a deliberate sweep) instead of a weighted-random pick. Omit for the default scattered recolour.' },
+  { name: 'pacing', type: '"even" | "linear" | "ease-in" | "ease-out" | "ease-in-out" | "random"', description: 'How changes are distributed in time across the beat. Default "even". "linear"/"even" are uniform; "ease-in" front-loads; "ease-out" back-loads; "ease-in-out" bunches at both ends; "random" scatters.' },
+]
+
+<ConfigOptions items={pulseOptions} />
 
 `pulses` must contain at least one beat. Omit it entirely and a built-in default storyboard
 (`DEFAULT_PULSES` — a lively ~10-second outward half: intro hold → first letters → settle →
@@ -96,30 +98,32 @@ options: {
 
 ## Key options
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `font` | `string` | — | **Required.** Font file (relative or absolute). |
-| `name` | `string` | `""` | Display name shown in the bottom gap area. Position/style it via `label`. |
-| `label` | `{ anchor, padding, size, weight, color? }` | see below | Placement + styling of the `name` label. |
-| `template` | `"demo" \| "sweep"` | — | Load a preset (overridable). |
-| `width` / `height` | `number` | `1920` / `1080` | Output frame size. |
-| `fps` | `number` (≤120) | `30` | Frames per second. |
-| `durationMs` | `number` | derived | Override the (mirrored) sum of pulse durations (ms). |
-| `deviceScaleFactor` | `number` (≤4) | `1` | Render scale. |
-| `weight` | `number` (1–1000) | `820` | Glyph weight on the variable-font axis. |
-| `lines` | `number` (1–40) | `3` | Number of glyph rows. The glyph size is derived so the rows fill the top 80% of the frame. |
-| `leading` | `number` | `0.78` | Line-height of the rows. |
-| `blacklist` | `string` | `""` | Glyphs to exclude (case-insensitive). |
-| `characterPool` | `string` | A–Z 0–9 + symbols | Override the glyph pool (≥2 distinct). |
-| `colors` | `{ background, foreground, muted, accent? }` | see below | Colour tokens the glyphs cycle through (override any subset). |
-| `colorWeights` | `{ foreground, muted, accent }` | `2 / 2 / 1` | Relative likelihood of each token on a random recolour. |
-| `characterIntensity` / `colorIntensity` | `number` | `1` | Multiply every pulse's change fractions. |
-| `maxLineDrift` | `number` (0–0.5) | `0.05` | Max fraction a line's width may drift as glyphs change — keeps the right edge stable. |
-| `mirror` | `boolean` | `true` | Play the pulses out and back for a seamless loop. |
-| `demo` | `boolean` | `false` | Overlay the active pulse's name (to see which beat is playing). |
-| `seed` | `number` | `1` | Schedule seed — same seed ⇒ identical animation. |
-| `crf` | `number` (0–51) | `18` | x264 quality (lower = better/larger). |
-| `fileName` | `string` | `<name>.mp4` | Output filename. |
+export const options = [
+  { name: 'font', type: 'string', required: true, description: 'Required. Font file (relative or absolute).' },
+  { name: 'name', type: 'string', default: '""', description: 'Display name shown in the bottom gap area. Position/style it via label.' },
+  { name: 'label', type: '{ anchor, padding, size, weight, color? }', default: 'see below', description: 'Placement + styling of the name label.' },
+  { name: 'template', type: '"demo" | "sweep"', description: 'Load a preset (overridable).' },
+  { name: 'width / height', type: 'number', default: '1920 / 1080', description: 'Output frame size.' },
+  { name: 'fps', type: 'number (≤120)', default: '30', description: 'Frames per second.' },
+  { name: 'durationMs', type: 'number', default: 'derived', description: 'Override the (mirrored) sum of pulse durations (ms).' },
+  { name: 'deviceScaleFactor', type: 'number (≤4)', default: '1', description: 'Render scale.' },
+  { name: 'weight', type: 'number (1–1000)', default: '820', description: 'Glyph weight on the variable-font axis.' },
+  { name: 'lines', type: 'number (1–40)', default: '3', description: 'Number of glyph rows. The glyph size is derived so the rows fill the top 80% of the frame.' },
+  { name: 'leading', type: 'number', default: '0.78', description: 'Line-height of the rows.' },
+  { name: 'blacklist', type: 'string', default: '""', description: 'Glyphs to exclude (case-insensitive).' },
+  { name: 'characterPool', type: 'string', default: 'A–Z 0–9 + symbols', description: 'Override the glyph pool (≥2 distinct).' },
+  { name: 'colors', type: '{ background, foreground, muted, accent? }', default: 'see below', description: 'Colour tokens the glyphs cycle through (override any subset).' },
+  { name: 'colorWeights', type: '{ foreground, muted, accent }', default: '2 / 2 / 1', description: 'Relative likelihood of each token on a random recolour.' },
+  { name: 'characterIntensity / colorIntensity', type: 'number', default: '1', description: "Multiply every pulse's change fractions." },
+  { name: 'maxLineDrift', type: 'number (0–0.5)', default: '0.05', description: "Max fraction a line's width may drift as glyphs change — keeps the right edge stable." },
+  { name: 'mirror', type: 'boolean', default: 'true', description: 'Play the pulses out and back for a seamless loop.' },
+  { name: 'demo', type: 'boolean', default: 'false', description: "Overlay the active pulse's name (to see which beat is playing)." },
+  { name: 'seed', type: 'number', default: '1', description: 'Schedule seed — same seed ⇒ identical animation.' },
+  { name: 'crf', type: 'number (0–51)', default: '18', description: 'x264 quality (lower = better/larger).' },
+  { name: 'fileName', type: 'string', default: '<name>.mp4', description: 'Output filename.' },
+]
+
+<ConfigOptions items={options} />
 
 > `seed` makes the otherwise-scattered animation deterministic: the same seed always produces
 > the same take. Change it for a different (still reproducible) result.
@@ -129,12 +133,14 @@ options: {
 `colors` is the palette the glyphs cycle through (any CSS colour strings). Override any subset;
 each key falls back independently.
 
-| Key | Default | Meaning |
-|---|---|---|
-| `background` | `#eceef1` | Backdrop behind the glyphs (and the bottom 20% band). |
-| `foreground` | `#16181d` | Primary glyph colour — the resting majority. |
-| `muted` | `#a7adb6` | Muted/secondary glyph colour. |
-| `accent` | falls back to `background` | Accent colour for occasional pops. Left unset, accent glyphs blend into the backdrop — so set it (or a `template`) to make accent reads visible. |
+export const colorOptions = [
+  { name: 'background', default: '#eceef1', description: 'Backdrop behind the glyphs (and the bottom 20% band).' },
+  { name: 'foreground', default: '#16181d', description: 'Primary glyph colour — the resting majority.' },
+  { name: 'muted', default: '#a7adb6', description: 'Muted/secondary glyph colour.' },
+  { name: 'accent', default: 'falls back to background', description: 'Accent colour for occasional pops. Left unset, accent glyphs blend into the backdrop — so set it (or a template) to make accent reads visible.' },
+]
+
+<ConfigOptions items={colorOptions} />
 
 `colorWeights` sets the relative likelihood of each token on a **random** (non-targeted) recolour
 — defaults `foreground: 2`, `muted: 2`, `accent: 1`, so accent is a rare pop. A weight of `0`
@@ -161,13 +167,15 @@ The top 80% of the frame is the glyph wall; the bottom 20% is a **gap** — plai
 `name` text lives in that gap, and `label` controls where it sits and how it looks. Position is
 confined to the gap (the label moves around it, never over the glyphs).
 
-| Key | Type | Default | Meaning |
-|---|---|---|---|
-| `anchor` | 9 positions | `"bottom-left"` | Corner/edge of the gap the label anchors to. |
-| `padding` | `number` (px) | `32` | Inset from the gap edges, all around. `0` = flush to the rendered corner. |
-| `size` | `number` (0–1) | `0.22` | Text size as a fraction of the gap height (scales with `height`). |
-| `weight` | `number` (1–1000) | `500` | Font weight. |
-| `color` | CSS colour | falls back to `foreground` | Label text colour. |
+export const labelOptions = [
+  { name: 'anchor', type: '9 positions', default: '"bottom-left"', description: 'Corner/edge of the gap the label anchors to.' },
+  { name: 'padding', type: 'number (px)', default: '32', description: 'Inset from the gap edges, all around. 0 = flush to the rendered corner.' },
+  { name: 'size', type: 'number (0–1)', default: '0.22', description: 'Text size as a fraction of the gap height (scales with height).' },
+  { name: 'weight', type: 'number (1–1000)', default: '500', description: 'Font weight.' },
+  { name: 'color', type: 'CSS colour', default: 'falls back to foreground', description: 'Label text colour.' },
+]
+
+<ConfigOptions items={labelOptions} />
 
 `anchor` is one of: `top-left`, `top-center`, `top-right`, `middle-left`, `middle-center`,
 `middle-right`, `bottom-left`, `bottom-center`, `bottom-right`.

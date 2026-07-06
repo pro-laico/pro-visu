@@ -50,50 +50,58 @@ Output is mp4.
 
 ### Colours & reveal
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `colors` | `{ name, hex }[]` | — | **Required.** The colours to reveal (≥1). |
-| `orientation` | `"rows" \| "columns"` | `"rows"` | Horizontal bands or full-height vertical strips. |
-| `details` | `FieldId[]` | `["hex","oklch","rgb"]` | Fields revealed when a colour expands (name is always shown). |
+export const coloursAndReveal = [
+  { name: 'colors', type: '{ name, hex }[]', required: true, description: 'The colours to reveal (≥1).' },
+  { name: 'orientation', type: '"rows" | "columns"', default: '"rows"', description: 'Horizontal bands or full-height vertical strips.' },
+  { name: 'details', type: 'FieldId[]', default: '["hex","oklch","rgb"]', description: 'Fields revealed when a colour expands (name is always shown).' },
+]
+
+<ConfigOptions items={coloursAndReveal} />
 
 ### Timing (milliseconds)
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `holdMs` | `number` | `2000` | How long each colour stays fully open (ms). |
-| `transitionMs` | `number` | `700` | Crossfade length between colours (ms). |
-| `bounce` | `boolean` | `true` | Ping-pong the sweep so every handoff is between neighbours (avoids a last→first pinch at the loop seam). When `false`, the reel wraps directly from the last item to the first — shorter, but crossfades non-adjacent bands at the seam. |
-| `easing` | `"linear" \| "ease-in" \| "ease-out" \| "ease-in-out"` | `"ease-in-out"` | Easing for the crossfade ramp. |
-| `durationMs` | `number` | derived | Override the derived clean-loop length (ms). |
+export const timing = [
+  { name: 'holdMs', type: 'number', default: '2000', description: 'How long each colour stays fully open (ms).' },
+  { name: 'transitionMs', type: 'number', default: '700', description: 'Crossfade length between colours (ms).' },
+  { name: 'bounce', type: 'boolean', default: 'true', description: 'Ping-pong the sweep so every handoff is between neighbours (avoids a last→first pinch at the loop seam). When "false", the reel wraps directly from the last item to the first — shorter, but crossfades non-adjacent bands at the seam.' },
+  { name: 'easing', type: '"linear" | "ease-in" | "ease-out" | "ease-in-out"', default: '"ease-in-out"', description: 'Easing for the crossfade ramp.' },
+  { name: 'durationMs', type: 'number', default: 'derived', description: 'Override the derived clean-loop length (ms).' },
+]
+
+<ConfigOptions items={timing} />
 
 ### Layout & styling
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `grownFlex` | `number` (≥1) | `12` | How many times a sliver's share a fully-open band takes. |
-| `minCrossPx` | `number` | `0` | Minimum sliver cross-size (px) so names stay legible. |
-| `nameAlwaysVisible` | `boolean` | `true` | Keep the name visible even in a collapsed sliver. |
-| `uppercase` | `boolean` | `false` | Uppercase the colour names. |
-| `rgbStyle` | `"labeled" \| "css" \| "plain"` | `"labeled"` | RGB string style. |
-| `oklchStyle` | `"css" \| "labeled"` | `"css"` | OKLCH string style. |
-| `textLight` / `textDark` | `string` | `#ffffff` / `#141414` | Contrast-picked text colours. |
-| `contrastThreshold` | `number` (0–1) | `0.5` | Luminance above which dark text is used. |
-| `fontFile` | `string` | system bold sans | Custom font (`woff2` / `woff` / `ttf` / `otf`) served into the render. Unset falls back to a system bold sans. |
-| `fontWeight` | `number` (1–1000) | `700` | Label font weight. |
-| `fontSize` | `number` | derived | Name font size in px. |
-| `detailFontScale` | `number` | `0.62` | Detail-line size as a fraction of the name size. |
-| `background` | `string` | `"#ffffff"` | Backdrop behind the bands (shown in `gap`). |
-| `gap` | `number` | `0` | Gap between bands (px). |
-| `cornerRadius` | `number` | `0` | Band corner radius (px). |
+export const layoutAndStyling = [
+  { name: 'grownFlex', type: 'number (≥1)', default: '12', description: "How many times a sliver's share a fully-open band takes." },
+  { name: 'minCrossPx', type: 'number', default: '0', description: 'Minimum sliver cross-size (px) so names stay legible.' },
+  { name: 'nameAlwaysVisible', type: 'boolean', default: 'true', description: 'Keep the name visible even in a collapsed sliver.' },
+  { name: 'uppercase', type: 'boolean', default: 'false', description: 'Uppercase the colour names.' },
+  { name: 'rgbStyle', type: '"labeled" | "css" | "plain"', default: '"labeled"', description: 'RGB string style.' },
+  { name: 'oklchStyle', type: '"css" | "labeled"', default: '"css"', description: 'OKLCH string style.' },
+  { name: 'textLight / textDark', type: 'string', default: '#ffffff / #141414', description: 'Contrast-picked text colours.' },
+  { name: 'contrastThreshold', type: 'number (0–1)', default: '0.5', description: 'Luminance above which dark text is used.' },
+  { name: 'fontFile', type: 'string', default: 'system bold sans', description: 'Custom font (woff2 / woff / ttf / otf) served into the render. Unset falls back to a system bold sans.' },
+  { name: 'fontWeight', type: 'number (1–1000)', default: '700', description: 'Label font weight.' },
+  { name: 'fontSize', type: 'number', default: 'derived', description: 'Name font size in px.' },
+  { name: 'detailFontScale', type: 'number', default: '0.62', description: 'Detail-line size as a fraction of the name size.' },
+  { name: 'background', type: 'string', default: '"#ffffff"', description: 'Backdrop behind the bands (shown in "gap").' },
+  { name: 'gap', type: 'number', default: '0', description: 'Gap between bands (px).' },
+  { name: 'cornerRadius', type: 'number', default: '0', description: 'Band corner radius (px).' },
+]
+
+<ConfigOptions items={layoutAndStyling} />
 
 ### Output
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `width` / `height` | `number` | `1920` / `1080` | Output frame size. |
-| `deviceScaleFactor` | `number` (≤4) | `1` | Render scale. |
-| `fps` | `number` (≤120) | `30` | Frames per second. |
-| `crf` | `number` (0–51) | `18` | x264 quality (lower = better/larger). |
-| `fileName` | `string` | `<name>.mp4` | Output filename. |
+export const output = [
+  { name: 'width / height', type: 'number', default: '1920 / 1080', description: 'Output frame size.' },
+  { name: 'deviceScaleFactor', type: 'number (≤4)', default: '1', description: 'Render scale.' },
+  { name: 'fps', type: 'number (≤120)', default: '30', description: 'Frames per second.' },
+  { name: 'crf', type: 'number (0–51)', default: '18', description: 'x264 quality (lower = better/larger).' },
+  { name: 'fileName', type: 'string', default: '<name>.mp4', description: 'Output filename.' },
+]
+
+<ConfigOptions items={output} />
 
 The available `details` field ids are `name`, `hex`, `rgb`, `oklch`, `hsl`, and `cmyk`.

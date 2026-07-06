@@ -14,6 +14,7 @@
   "dependencies": {
     "fumadocs-core": "^16.10.2",
     "fumadocs-ui": "^16.10.2",
+    "lucide-react": "^1.21.0",
     "next": "^16.2.9",
     "next-video": "^2.8.1",
     "react": "^19.2.0",
@@ -26,7 +27,12 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "fumadocs-mdx": "^15.0.12",
+    "remark-gfm": "4.0.1",
+    "remark-mdx": "3.1.1",
+    "remark-parse": "11.0.0",
+    "remark-stringify": "11.0.0",
     "tailwindcss": "^4.3.1",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "unified": "11.0.5"
   }
 }

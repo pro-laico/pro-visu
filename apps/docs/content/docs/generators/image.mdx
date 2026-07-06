@@ -35,9 +35,11 @@ and ready to drop into a [`wall`](/docs/generators/wall) (or any consumer) by na
 
 ## Options
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `src` | `string` | — | **Required.** Path to the source image (relative to the cwd, or absolute). |
-| `fileName` | `string` | `<slug(name)><ext of src>` | Output filename. |
+export const options = [
+  { name: 'src', type: 'string', required: true, description: 'Path to the source image (relative to the cwd, or absolute).' },
+  { name: 'fileName', type: 'string', default: '<slug(name)><ext of src>', description: 'Output filename.' },
+]
+
+<ConfigOptions items={options} />
 
 The schema is **strict** — unknown keys are rejected.
