@@ -330,6 +330,9 @@ export function Specimen({
                 color: "var(--sp-foreground)",
                 fontKerning: "none",
                 fontVariantLigatures: "none",
+                // Force lining figures: old-style (text) figures descend up to ~0.28em below the
+                // baseline, which the tight `leading` line box clips off the bottom of the row.
+                fontVariantNumeric: "lining-nums",
                 letterSpacing: 0,
                 overflow: "hidden",
               }}

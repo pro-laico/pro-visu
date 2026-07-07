@@ -210,7 +210,10 @@ options: {
   glyph. A fraction below `1` touches that fraction of the cells.
 - **Default glyph pool.** The specimen draws from
   `ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$%&@#*+=` (uppercase A–Z, digits 0–9, and the symbols
-  `$ % & @ # * + =`). Override it with `characterPool` (needs ≥2 distinct characters).
+  `$ % & @ # * + =`). Override it with `characterPool` (needs ≥2 distinct characters). The tight
+  default `leading` (0.78) clips below the baseline, so lowercase descenders (g j p q y) in a
+  custom pool get cut off — raise `leading` to ~1 if you include them. Digits always render as
+  lining figures (sitting on the baseline), even in fonts whose default figures are old-style.
 - **Blacklist.** `blacklist` removes glyphs from the pool case-insensitively (e.g. `"qxz"` and
   `"QXZ"` both drop Q, X, Z). A blacklist that would remove every glyph is ignored — the pool is
   never left empty.

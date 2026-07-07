@@ -171,7 +171,11 @@ export interface SpecimenOptionsInput {
   leading?: number;
   /** Glyphs to exclude from the showcase, e.g. "QXZ" (case-insensitive). Default none. */
   blacklist?: string;
-  /** Override the glyph pool the specimen draws from (≥2 distinct characters). Default A–Z 0–9 + symbols. */
+  /**
+   * Override the glyph pool the specimen draws from (≥2 distinct characters). Default A–Z 0–9 +
+   * symbols. The tight default `leading` clips below the baseline, so lowercase descenders
+   * (g j p q y) get cut off — raise `leading` to ~1 if the pool includes them.
+   */
   characterPool?: string;
   /** Schedule seed — same seed ⇒ identical animation. Change for a different (still deterministic) take. Default 1. */
   seed?: number;
@@ -426,7 +430,7 @@ const specimenObjectSchema = z
       .string()
       .refine((s) => new Set([...s.trim()]).size >= 2, "characterPool needs ≥2 distinct characters")
       .optional()
-      .describe("Override the glyph pool the specimen draws from (≥2 distinct characters). Default A–Z 0–9 + symbols."),
+      .describe("Override the glyph pool the specimen draws from (≥2 distinct characters). Default A–Z 0–9 + symbols. The tight default `leading` clips lowercase descenders (g j p q y) — raise `leading` to ~1 if the pool includes them."),
     seed: z
       .number()
       .int()

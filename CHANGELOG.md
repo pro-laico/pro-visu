@@ -153,6 +153,12 @@ fails loudly with a pointed migration hint, never silently.
   stacking pending protocol calls for the rest of a segment.
 - The live dashboard no longer re-renders on every captured frame — progress commits at
   whole-percent steps, the display's own resolution.
+- **`specimen` digits no longer get clipped at the bottom in old-style-figure fonts.** Fonts whose
+  default figures are old-style (e.g. Cormorant Garamond, where 3/4/5/7/9 descend ~0.28em below
+  the baseline) had those descenders cut off by the tight cap-height line box. Glyph rows now
+  force lining figures (`font-variant-numeric: lining-nums`), so digits sit on the baseline in
+  every font. Relatedly documented: a custom `characterPool` with lowercase needs `leading` raised
+  to ~1, or its descenders (g j p q y) are clipped by the default `0.78`.
 
 ## [0.5.0] - 2026-07-02
 
