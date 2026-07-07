@@ -221,16 +221,62 @@ drift, looping seamlessly.
 }`}
 />
 
+### Screens + stills (producer tiles)
+
+The full pattern: phone-sized `interaction` clips referenced **by name** (the wall runs those
+producers first) mixed with full-res photos via `{ src }`. Clip lengths (8s / 12s) divide the 24s
+wall, so every tile loops cleanly inside the seamless loop.
+
+<Example
+  clip="lookbook-wall"
+  caption="Five columns of phone clips (producer assets, by name) and campaign stills ({ src }) — one gentle drift each, looping seamlessly."
+  code={`{
+  name: "lookbook-wall",
+  generator: "wall",
+  options: {
+    layout: { background: "#1a1714", gap: 2, cornerRadius: 0 },
+    // one drift per column; 24s divides the 8s/12s tile clips
+    motion: { durationMs: 24000, loops: 1 },
+    columns: [
+      {
+        tiles: ["clip-cart", { src: "img/hero.jpg" }],
+        direction: "down",
+      },
+      {
+        tiles: ["clip-menu", { src: "img/editorial.jpg" }],
+        direction: "up",
+        stagger: 0.42,
+      },
+      {
+        tiles: ["clip-wishlist", { src: "img/atelier.jpg" }],
+        direction: "down",
+        stagger: 0.68,
+      },
+      {
+        tiles: ["clip-size", { src: "img/tote.jpg" }],
+        direction: "up",
+        stagger: 0.18,
+      },
+      {
+        tiles: ["clip-cart-trouser", "clip-wishlist-slip"],
+        direction: "down",
+        stagger: 0.54,
+      },
+    ],
+  },
+}`}
+/>
+
 ### Test mode (fast preview)
 
 Dialing in columns, motion, and stagger against real assets is slow — every tile has to be generated
-first. Flip **`test: true`** (and `capture: "realtime"` to record the scene once) and the wall renders
-every tile as a flat labelled colour box, no producers, in **seconds**. Dial in the layout and motion
-here, then drop `test`/`realtime` for the real frame-stepped render.
+first. Flip **`preview: { enabled: true }`** (and `capture: "realtime"` to record the scene once) and
+the wall renders every tile as a flat labelled colour box, no producers, in **seconds**. Dial in the
+layout and motion here, then drop `preview`/`realtime` for the real frame-stepped render.
 
 <Example
   clip="docs-wall-test"
-  caption="test: true + capture: realtime — faux boxes labelled with their tile names, no producers, rendered in seconds."
+  caption="preview + capture: realtime — faux boxes labelled with their tile names, no producers, rendered in seconds."
   code={`{
   name: "lookbook-wall",
   generator: "wall",

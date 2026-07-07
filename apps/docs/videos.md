@@ -19,12 +19,13 @@ From the repo root, render the curated subset and copy it in:
 
 ```bash
 # 1. generate (builds + serves apps/testing, captures with pro-visu)
-pnpm --filter testing generate --asset hero-loop --asset type-sans --asset colors-reel
+pnpm --filter testing generate --asset type-sans --asset colors-reel --asset lookbook-wall --asset home-vertical
 
 # 2. copy the curated outputs into videos/ (flat names)
-cp apps/testing/public/pro-visu/scroll-reel/hero-loop.mp4    apps/docs/videos/hero-loop.mp4
-cp apps/testing/public/pro-visu/specimen/type-sans.mp4       apps/docs/videos/type-sans.mp4
-cp apps/testing/public/pro-visu/palette-reel/colors-reel.mp4 apps/docs/videos/colors-reel.mp4
+cp apps/testing/public/pro-visu/specimen/type-sans.mp4         apps/docs/videos/type-sans.mp4
+cp apps/testing/public/pro-visu/palette-reel/colors-reel.mp4   apps/docs/videos/colors-reel.mp4
+cp apps/testing/public/pro-visu/wall/lookbook-wall.mp4         apps/docs/videos/lookbook-wall.mp4
+cp apps/testing/public/pro-visu/scroll-reel/home-vertical.mp4  apps/docs/videos/docs-vertical.mp4
 ```
 
 The fuller set of examples — the `docs-*` clips and the `public/examples/` stills — is generated

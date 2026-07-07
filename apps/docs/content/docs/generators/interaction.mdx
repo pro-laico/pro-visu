@@ -128,23 +128,40 @@ interactive view; **TypeScript** is the same shape in code, every option at its 
 ### Scripted tour
 
 `actions` scripts a live click-through with a visible cursor — UI in a state you could never
-screenshot from a static page.
+screenshot from a static page. Here an eased `scrollTo` frames a shop-the-edit module, then each
+tap swaps the featured piece.
 
 <Example
-  clip="docs-menu"
+  clip="docs-browse"
   portrait
-  caption="A phone-sized interaction: the cursor opens the mega-menu and holds it — UI in a state you could never screenshot from a static page."
+  caption="A phone-sized tour: scroll to the module, then browse the pieces — every tap crossfades the visual above."
   code={`{
-  name: "menu-demo",
-  url: "https://your-site.com",
+  name: "browse-demo",
+  url: "https://your-site.com/shop",
   generator: "interaction",
   options: {
     output: { width: 390, height: 844 },
     actions: [
       {
+        do: "scrollTo",
+        to: "#edit",
+        durationMs: 1200,
+        holdMs: 800,
+      },
+      {
         do: "click",
-        selector: "#menu-button",
-        holdMs: 2600,
+        selector: ".edit-thumb:nth-child(2)",
+        holdMs: 1600,
+      },
+      {
+        do: "click",
+        selector: ".edit-thumb:nth-child(3)",
+        holdMs: 1600,
+      },
+      {
+        do: "click",
+        selector: ".edit-thumb:nth-child(4)",
+        holdMs: 2000,
       },
     ],
   },
@@ -156,13 +173,25 @@ screenshot from a static page.
 `focus` scrolls one component into view, optionally triggers it, holds, and crops the output to its
 box — the crop is measured after the trigger actions, so an expanded state stays in frame.
 
-```ts
-options: {
-  focus: {
-    selector: "#pricing-card",
-    padding: 32,
-    actions: [{ do: "click", selector: "#billing-annual" }],
-    holdMs: 2500,
+<Example
+  clip="docs-focus"
+  caption="Cropped to the buy box: the cursor picks a size and the clip holds on the selected state — one component, no page chrome."
+  code={`{
+  name: "size-picker",
+  url: "https://your-site.com/products/coat",
+  generator: "interaction",
+  options: {
+    focus: {
+      selector: ".addbag",
+      padding: 32,
+      actions: [
+        {
+          do: "click",
+          selector: ".size-options button:nth-of-type(4)",
+        },
+      ],
+      holdMs: 2500,
+    },
   },
-}
-```
+}`}
+/>

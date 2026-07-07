@@ -183,8 +183,13 @@ Pass `colors` and nothing else — full-width bands, each labelled with auto-con
 
 Switch to a `grid` and choose exactly which field lands in each corner, then embed a brand font.
 
-```ts
-{
+<ImageExample
+  src="/examples/docs-palette-grid.png"
+  width={2800}
+  height={3500}
+  alt="Four VESPER colours in a 2×2 grid, each swatch labelled with its name, hex, rgb, and oklch in a placed corner."
+  caption="A 2×2 grid with a field in each corner — name / hex on top, rgb / oklch below — set in an embedded brand font."
+  code={`{
   name: "brand-colors",
   generator: "palette",
   options: {
@@ -194,7 +199,10 @@ Switch to a `grid` and choose exactly which field lands in each corner, then emb
       { name: "Paper", hex: "#f6f3ed" },
       { name: "Loden", hex: "#5c5e4c" },
     ],
-    layout: { layout: "grid", gridColumns: 2 },
+    layout: {
+      layout: "grid",
+      gridColumns: 2,
+    },
     fields: {
       topLeft: ["name"],
       topRight: ["hex"],
@@ -202,12 +210,14 @@ Switch to a `grid` and choose exactly which field lands in each corner, then emb
       bottomRight: ["oklch"],
     },
     text: {
-      rgbStyle: "css",                      // rgb(26, 23, 20)
-      fontFile: "public/fonts/Inter.woff2", // optional — embeds your brand font
+      // rgb(26, 23, 20)
+      rgbStyle: "css",
+      // embeds your brand font
+      fontFile: "public/fonts/Inter.woff2",
       uppercase: true,
     },
   },
-}
-```
+}`}
+/>
 
 For a moving version, see [`palette-reel`](/docs/generators/palette-reel).

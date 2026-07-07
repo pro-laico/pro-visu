@@ -1,4 +1,5 @@
 import { ProductCard } from "@/app/components/ProductCard";
+import { TheEdit } from "@/app/components/TheEdit";
 import { CATEGORIES, PRODUCTS } from "@/app/lib/catalog";
 
 export const metadata = {
@@ -38,6 +39,8 @@ export default function Shop() {
           ))}
         </div>
       </section>
+
+      <TheEdit />
     </main>
   );
 }

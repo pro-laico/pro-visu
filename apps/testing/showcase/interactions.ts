@@ -27,6 +27,21 @@ export const interactions = [
     },
   },
   {
+    name: "browse", // shop: eased scroll to "The Edit", then tap through the pieces (phone-sized)
+    generator: "interaction",
+    url: "/shop",
+    options: {
+      output: { width: 390, height: 844, deviceScaleFactor: 2 },
+      cursor: { color: CURSOR },
+      page: { waitForSelector: "#edit-stage img" },
+      actions: [
+        { do: "scrollTo", to: "#edit", durationMs: 1200, holdMs: 800 },
+        { do: "click", selector: ".edit-thumb:nth-child(2)", holdMs: 1400 },
+        { do: "click", selector: ".edit-thumb:nth-child(4)", holdMs: 1600 },
+      ],
+    },
+  },
+  {
     name: "buy", // PDP buy flow: choose a size, add to bag, drawer slides in
     generator: "interaction",
     url: "/products/the-camel-coat",

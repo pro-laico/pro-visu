@@ -27,6 +27,11 @@ export interface MeasureOffsetsArgs {
 export interface MeasureTopInsetArgs {
   /** Don't count a top element taller than this fraction of the viewport (skips full-screen overlays). */
   maxFraction?: number;
+  /**
+   * Explicit sticky-header selector: measure THIS element's bottom edge (while pinned) instead of
+   * running the fixed/sticky heuristic. For pages where the heuristic picks the wrong element.
+   */
+  selector?: string;
 }
 
 export interface DetectSectionsArgs {
@@ -373,38 +378,52 @@ export async function measureTopInset(args: MeasureTopInsetArgs): Promise<number
   scrollTargetTo(target, Math.min(cur + vh, distance));
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   let inset = 0;
-  try {
-    const all = document.querySelectorAll("body *");
-    for (let i = 0; i < all.length; i++) {
-      const el = all[i];
-      let position = "";
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        position = (getComputedStyle(el) as any).position;
-      } catch {
-        continue;
+  if (args.selector) {
+    // Explicit override: measure this element's bottom edge (while pinned), skip the heuristic.
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const el = (document as any).querySelector(args.selector);
+      if (el) {
+        const r = el.getBoundingClientRect();
+        if (r.height > 0) inset = Math.max(0, r.bottom);
       }
-      if (position !== "fixed" && position !== "sticky") continue;
-      let r: { top: number; bottom: number; width: number; height: number };
-      try {
-        r = el.getBoundingClientRect();
-      } catch {
-        continue;
-      }
-      // A header pinned to the top: starts at the very top, spans most of the width, isn't a
-      // full-screen overlay, and reaches lower than anything found so far.
-      if (
-        r.top <= 2 &&
-        r.width >= vw * 0.6 &&
-        r.height > 0 &&
-        r.bottom > inset &&
-        r.bottom <= vh * maxFraction
-      ) {
-        inset = r.bottom;
-      }
+    } catch {
+      /* ignore — falls back to 0 */
     }
-  } catch {
-    /* ignore */
+  } else {
+    try {
+      const all = document.querySelectorAll("body *");
+      for (let i = 0; i < all.length; i++) {
+        const el = all[i];
+        let position = "";
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          position = (getComputedStyle(el) as any).position;
+        } catch {
+          continue;
+        }
+        if (position !== "fixed" && position !== "sticky") continue;
+        let r: { top: number; bottom: number; width: number; height: number };
+        try {
+          r = el.getBoundingClientRect();
+        } catch {
+          continue;
+        }
+        // A header pinned to the top: starts at the very top, spans most of the width, isn't a
+        // full-screen overlay, and reaches lower than anything found so far.
+        if (
+          r.top <= 2 &&
+          r.width >= vw * 0.6 &&
+          r.height > 0 &&
+          r.bottom > inset &&
+          r.bottom <= vh * maxFraction
+        ) {
+          inset = r.bottom;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
   }
   scrollTargetTo(target, cur); // restore the original scroll
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));

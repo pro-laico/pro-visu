@@ -63,6 +63,8 @@ export const options = [
     { name: 'autoSections', type: 'boolean | AutoSections', description: `Auto-choreograph: detect the page's sections and pan/hold through them within a fixed budget. true for defaults, or an object to tune. Ignored if choreography is set.`, options: [
       { name: 'minHeightFraction', type: 'number', default: '0.5', description: `Min element height (as a fraction of the viewport, max 2) to count as a section.` },
       { name: 'selector', type: 'string', description: `Explicit section selector; overrides the heuristic. Omit to auto-detect.` },
+      { name: 'headerSelector', type: 'string', description: `Sticky-header selector to measure the top inset from, for pages where the auto-detect picks the wrong element (e.g. a JS-fixed header). Sections land just below it. Omit to auto-detect; overridden by headerHeight.` },
+      { name: 'headerHeight', type: 'number', description: `Sticky-header height in px, used verbatim as the top inset. Overrides the auto-detect and headerSelector. Omit to auto-detect.` },
       { name: 'holdMs', type: 'number', default: '700', description: `Hold at each detected section (ms).` },
       { name: 'durationMs', type: 'number', default: '12000', description: `Total clip length (ms) split across detected sections.` },
       { name: 'maxSections', type: 'number', default: '8', description: `Cap on the number of sections.` },
@@ -210,6 +212,29 @@ time budget — hands-off, no choreography to author.
       autoSections: {
         durationMs: 22000,
         holdMs: 1600,
+      },
+    },
+  },
+}`}
+/>
+
+### Straight loop
+
+`loop: "straight"` runs the motion once, then glides straight back to the top — no retraced
+stops — so the clip's last frame lands where the first started and the output loops.
+
+<Example
+  clip="docs-straight"
+  caption="One auto-sections pass down the page, then a single glide home — a lighter-touch loop than boomerang."
+  code={`{
+  name: "home",
+  url: "https://your-site.com",
+  generator: "scroll-reel",
+  options: {
+    motion: {
+      loop: "straight",
+      autoSections: {
+        durationMs: 14000,
       },
     },
   },

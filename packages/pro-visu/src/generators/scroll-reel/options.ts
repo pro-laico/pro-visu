@@ -46,6 +46,21 @@ const autoSectionsSchema = z
       .string()
       .optional()
       .describe("Explicit section selector; overrides the heuristic. Omit to auto-detect."),
+    /** Explicit sticky-header selector to measure the top inset from; overrides the heuristic that auto-detects it. */
+    headerSelector: z
+      .string()
+      .optional()
+      .describe(
+        "Sticky-header selector to measure the top inset from, when the auto-detect picks the wrong element (e.g. a JS-fixed header). Omit to auto-detect. Overridden by headerHeight.",
+      ),
+    /** Explicit sticky-header height (px); overrides both the heuristic and headerSelector. */
+    headerHeight: z
+      .number()
+      .nonnegative()
+      .optional()
+      .describe(
+        "Sticky-header height in px, used verbatim as the top inset (sections land just below it). Overrides the auto-detect and headerSelector. Omit to auto-detect.",
+      ),
     /** Hold at each detected section (ms). Default 700. */
     holdMs: z
       .number()
@@ -302,6 +317,16 @@ export interface AutoSectionsInput {
   minHeightFraction?: number;
   /** Explicit section selector; overrides the heuristic. Omit to auto-detect. */
   selector?: string;
+  /**
+   * Sticky-header selector to measure the top inset from, when the auto-detect picks the wrong
+   * element (e.g. a JS-fixed header). Omit to auto-detect. Overridden by headerHeight.
+   */
+  headerSelector?: string;
+  /**
+   * Sticky-header height in px, used verbatim as the top inset (sections land just below it).
+   * Overrides the auto-detect and headerSelector. Omit to auto-detect.
+   */
+  headerHeight?: number;
   /** Hold at each detected section (ms). Default 700. */
   holdMs?: number;
   /** Total clip length (ms) split across detected sections. Default 12000. */

@@ -26,6 +26,7 @@ import {
   DEFAULT_AUTO_MIN_HEIGHT_FRACTION,
   DEFAULT_STEP_DURATION_MS,
   DEFAULT_STEP_HOLD_MS,
+  HEADER_SEAM_BIAS_PX,
   type ResolvedChoreographyStep,
   type ResolvedTimeline,
   type TimelineSpec,
@@ -63,6 +64,24 @@ export interface ScrollFramesArgs {
 }
 
 /**
+ * Resolve the sticky-header top inset for landing sections/selectors below it. Order: an explicit
+ * `height` wins; else measure an explicit `selector`; else the fixed/sticky heuristic. The measured
+ * value is then biased UP by {@link HEADER_SEAM_BIAS_PX} so sections land a hair under the header
+ * instead of exactly flush — otherwise a sub-pixel boundary seam of the previous section peeks out.
+ * Returns 0 (no header, no bias) when nothing is detected.
+ */
+async function resolveHeaderInset(
+  page: Page,
+  override?: { selector?: string; height?: number },
+): Promise<number> {
+  const measured =
+    override?.height != null
+      ? override.height
+      : await page.evaluate(measureTopInset, { selector: override?.selector });
+  return measured > 0 ? Math.max(0, measured - HEADER_SEAM_BIAS_PX) : 0;
+}
+
+/**
  * Build the resolved scroll timeline for this capture. The default (no `choreography`) is a pure Node
  * computation; with choreography, selector targets are measured against the (warmed-up) page so the
  * positions are real and stable. Run once per worker inside `prepare`; since the measurements are
@@ -91,7 +110,7 @@ async function buildScrollTimeline(
     const selectors = steps
       .map((s) => s.to)
       .filter((to): to is string => typeof to === "string" && !to.trim().endsWith("%"));
-    const headerInsetPx = selectors.length > 0 ? await page.evaluate(measureTopInset, {}) : 0;
+    const headerInsetPx = selectors.length > 0 ? await resolveHeaderInset(page) : 0;
     const measured =
       selectors.length > 0
         ? await page.evaluate(measureNormalizedOffsets, { selectors, headerInsetPx })
@@ -135,7 +154,10 @@ async function buildScrollTimeline(
   // 2. Auto-sections: detect the page's sections and pan/hold through them within a fixed budget.
   if (options.motion.autoSections) {
     const cfg = options.motion.autoSections === true ? {} : options.motion.autoSections;
-    const headerInsetPx = await page.evaluate(measureTopInset, {});
+    const headerInsetPx = await resolveHeaderInset(page, {
+      selector: cfg.headerSelector,
+      height: cfg.headerHeight,
+    });
     const offsets = await page.evaluate(detectSectionOffsets, {
       minHeightFraction: cfg.minHeightFraction ?? DEFAULT_AUTO_MIN_HEIGHT_FRACTION,
       selector: cfg.selector ?? null,

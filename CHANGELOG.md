@@ -140,6 +140,25 @@ fails loudly with a pointed migration hint, never silently.
 
 ### Fixed
 
+- **`scroll-reel` auto-sections no longer leave a hairline of the previous section under a sticky
+  header.** Sections were landed exactly flush with the measured header bottom, so sub-pixel
+  rounding left a ~½px seam where the previous section's edge peeked out between the header and the
+  section beneath it. Sections now land ~2px *under* the header, tucking that boundary behind it —
+  the header height is still auto-measured; this only biases the landing. Applies to `autoSections`
+  and choreography selector targets.
+- **`scroll-reel autoSections`: `headerSelector` / `headerHeight`** — an escape hatch for pages where
+  the auto-detect picks the wrong sticky header (e.g. a header that only goes `fixed` via JS on
+  scroll, or a sticky promo bar that shouldn't count). `headerSelector` measures that element's
+  bottom; `headerHeight` sets the inset in px directly (and wins over both the heuristic and
+  `headerSelector`). Omit both to keep auto-detecting.
+- **`interaction` clicks no longer scroll-jump to targets already on screen.** Every click /
+  hover / type step used to instantly recentre its target with `scrollIntoView`, so a scripted
+  tour stuttered with a hard cut on each step even when the element was fully visible. The
+  cursor now only scrolls when the target is actually out of view — frame your scene once
+  (e.g. an eased `scrollTo`) and the taps play out on a stable page.
+- **`interaction` `scrollTo` a selector honors `scroll-margin-top`** — parity with native
+  `scrollIntoView`, so a page with a sticky header (declared via CSS `scroll-margin-top`) keeps
+  the scrolled-to element's top visible instead of hiding it under the header.
 - **Walls (and video scenes) can now use parallel workers without black tiles.** Two causes fixed
   in the scene runtime: readiness never actually decoded a frame (data buffered ≠ painted), and
   the presentation wait's 250ms safety net fired before a cold decoder's first paint under

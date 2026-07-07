@@ -136,16 +136,23 @@ function installCursorRuntime(opts: { show: boolean; size: number; color: string
     moveToSelector: async (sel: string, ms: number): Promise<void> => {
       const el = doc.querySelector(sel);
       if (!el) return;
-      try {
-        el.scrollIntoView({ behavior: "instant", block: "center" });
-      } catch {
+      // Only scroll when the target isn't fully in view — an instant recentre on an
+      // already-visible element reads as a glitch cut in the recording.
+      const r0 = el.getBoundingClientRect();
+      const fullyVisible =
+        r0.top >= 0 && r0.left >= 0 && r0.bottom <= (g.innerHeight || 0) && r0.right <= (g.innerWidth || 0);
+      if (!fullyVisible) {
         try {
-          el.scrollIntoView();
+          el.scrollIntoView({ behavior: "instant", block: "center" });
         } catch {
-          /* ignore */
+          try {
+            el.scrollIntoView();
+          } catch {
+            /* ignore */
+          }
         }
+        await new Promise<void>((r) => g.requestAnimationFrame(() => g.requestAnimationFrame(() => r())));
       }
-      await new Promise<void>((r) => g.requestAnimationFrame(() => g.requestAnimationFrame(() => r())));
       const rect = el.getBoundingClientRect();
       await tween(rect.left + rect.width / 2, rect.top + rect.height / 2, ms);
     },
@@ -157,7 +164,17 @@ function installCursorRuntime(opts: { show: boolean; size: number; color: string
       else if (typeof to === "string" && to.trim().endsWith("%")) target = (parseFloat(to) / 100) * max;
       else if (typeof to === "string") {
         const el = doc.querySelector(to);
-        if (el) target = Math.max(0, Math.min(max, el.getBoundingClientRect().top + (g.pageYOffset || 0)));
+        if (el) {
+          // Honor scroll-margin-top (like native scrollIntoView) so a sticky header
+          // declared via CSS doesn't swallow the top of the scrolled-to element.
+          let margin = 0;
+          try {
+            margin = parseFloat(g.getComputedStyle(el).scrollMarginTop) || 0;
+          } catch {
+            /* ignore */
+          }
+          target = Math.max(0, Math.min(max, el.getBoundingClientRect().top + (g.pageYOffset || 0) - margin));
+        }
       }
       const from = g.pageYOffset || se.scrollTop || 0;
       if (ms <= 0) {

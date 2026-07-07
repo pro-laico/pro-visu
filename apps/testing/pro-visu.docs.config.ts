@@ -1,5 +1,5 @@
 import { defineConfig } from "pro-visu";
-import { CURSOR, INK, VESPER } from "./showcase/brand";
+import { CAMEL, CURSOR, INK, LODEN, PAPER, VESPER } from "./showcase/brand";
 
 // DOCS EXAMPLE ASSETS — the clips/stills embedded in the pro-visu docs (apps/docs), dogfooding
 // the VESPER storefront. Separate from the main showcase config (pro-visu.config.ts).
@@ -46,14 +46,48 @@ export default defineConfig({
         motion: { autoSections: { durationMs: 9000 } },
       },
     },
-    // UI in a state: phone viewport, scripted cursor opens the menu and holds it.
+    // Straight loop: one auto-sections pass, then a glide back to the top so the clip loops.
     {
-      name: "docs-menu",
+      name: "docs-straight",
+      generator: "scroll-reel",
+      options: {
+        page: { waitForSelector: ".hero-media img" },
+        motion: { loop: "straight", autoSections: { durationMs: 14000 } },
+      },
+    },
+    // Scripted tour: phone viewport, eased scroll to "The Edit" module, then taps browse the
+    // pieces — each tap crossfades the stage visual. Thumbs share a row, so no scroll between taps.
+    {
+      name: "docs-browse",
       generator: "interaction",
+      url: "/shop",
       options: {
         output: { width: 390, height: 844, deviceScaleFactor: 2 },
         cursor: { color: CURSOR },
-        actions: [{ do: "click", selector: "#menu-button", holdMs: 2600 }],
+        page: { waitForSelector: "#edit-stage img" },
+        actions: [
+          { do: "scrollTo", to: "#edit", durationMs: 1200, holdMs: 800 },
+          { do: "click", selector: ".edit-thumb:nth-child(2)", holdMs: 1600 },
+          { do: "click", selector: ".edit-thumb:nth-child(3)", holdMs: 1600 },
+          { do: "click", selector: ".edit-thumb:nth-child(4)", holdMs: 2000 },
+        ],
+      },
+    },
+    // Element focus: crop to the PDP buy box, trigger a size pick, hold — the crop is measured
+    // after the trigger so the selected state stays in frame.
+    {
+      name: "docs-focus",
+      generator: "interaction",
+      url: "/products/the-camel-coat",
+      options: {
+        cursor: { color: CURSOR },
+        page: { waitForSelector: ".mini-gallery img" },
+        focus: {
+          selector: ".addbag",
+          padding: 32,
+          actions: [{ do: "click", selector: ".size-options button:nth-of-type(4)" }],
+          holdMs: 2500,
+        },
       },
     },
     // The "demo" specimen template on a serif — capped so the labelled walkthrough stays short.
@@ -68,6 +102,27 @@ export default defineConfig({
       },
     },
     { name: "docs-palette", generator: "palette", options: { colors: VESPER } },
+    // Grid layout with per-corner fields and an embedded brand font.
+    {
+      name: "docs-palette-grid",
+      generator: "palette",
+      options: {
+        colors: [
+          { name: "Ink", hex: INK },
+          { name: "Camel", hex: CAMEL },
+          { name: "Paper", hex: PAPER },
+          { name: "Loden", hex: LODEN },
+        ],
+        layout: { layout: "grid", gridColumns: 2 },
+        fields: {
+          topLeft: ["name"],
+          topRight: ["hex"],
+          bottomLeft: ["rgb"],
+          bottomRight: ["oklch"],
+        },
+        text: { rgbStyle: "css", fontFile: "public/fonts/InterVariable.woff2", uppercase: true },
+      },
+    },
     // Desktop full page — the whole scrollable page, far taller than the viewport.
     {
       name: "docs-shot-desktop",
@@ -86,6 +141,18 @@ export default defineConfig({
         viewports: [{ name: "mobile", width: 390, height: 844 }],
         fullPage: false,
         page: { waitForSelector: ".hero-media img" },
+      },
+    },
+    // Element crop: the featured product card, shot at the desktop viewport.
+    {
+      name: "docs-shot",
+      generator: "screenshots",
+      url: "/shop",
+      options: {
+        viewports: [{ name: "desktop", width: 1440, height: 900 }],
+        fullPage: false,
+        elements: [{ selector: "#feature-card", name: "card" }],
+        page: { waitForSelector: "#shop-grid .product img" },
       },
     },
     // A very simple real wall: 3 columns of photos as direct `{ src }` tiles (no producer

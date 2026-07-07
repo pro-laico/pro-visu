@@ -37,6 +37,9 @@ The site keeps stable selectors so `pro-visu.config.ts` can choreograph interact
 - `#feature-card` → the featured product card; `.quick-add` is its quick add-to-bag
 - `#pdp-add` → the PDP add-to-bag; `.size-options button` → the size chips
 - `#shop-grid .product` → shop cards; `.product-media` / `.wishlist` per card
+- `#edit` → the shop page's tap-to-browse "The Edit" module; `.edit-thumb` buttons swap the
+  `#edit-stage` visual (the docs' interaction examples). The thumbs sit on one row so scripted
+  taps never scroll-jump between options.
 - `#hero`, `#editorial` → home sections for focus crops; `#lb-*` → lookbook panels
 - routes `/`, `/shop`, `/products/<slug>`, `/about`, `/lookbook`
 

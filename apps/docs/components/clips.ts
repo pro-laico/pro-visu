@@ -1,16 +1,18 @@
 // Imported via the `@videos/*` tsconfig alias (→ ./videos/*) because Turbopack —
 // Next 16's default bundler — doesn't resolve bare `/videos/*` specifiers. The
 // `withNextVideo` turbopack rule then rewrites each `.mp4` into a Mux-backed asset.
-import heroLoop from "@videos/hero-loop.mp4";
 import typeSans from "@videos/type-sans.mp4";
 import colorsReel from "@videos/colors-reel.mp4";
+import docsFocus from "@videos/docs-focus.mp4";
 import docsScroll from "@videos/docs-scroll.mp4";
-import docsMenu from "@videos/docs-menu.mp4";
+import docsBrowse from "@videos/docs-browse.mp4";
 import docsTypeDemo from "@videos/docs-type-demo.mp4";
 import docsWall from "@videos/docs-wall.mp4";
 import docsWallTest from "@videos/docs-wall-test.mp4";
 import docsHome from "@videos/docs-home.mp4";
 import docsVertical from "@videos/docs-vertical.mp4";
+import docsStraight from "@videos/docs-straight.mp4";
+import lookbookWall from "@videos/lookbook-wall.mp4";
 
 /**
  * The example clips shown in the docs, keyed by a stable slug. Every clip is
@@ -20,16 +22,18 @@ import docsVertical from "@videos/docs-vertical.mp4";
  * imports into Mux-backed assets and MDX pages stay import-free.
  */
 export const clips = {
-  "hero-loop": heroLoop,
   "type-sans": typeSans,
+  "docs-wall": docsWall,
+  "docs-home": docsHome,
+  "docs-focus": docsFocus,
   "colors-reel": colorsReel,
   "docs-scroll": docsScroll,
-  "docs-menu": docsMenu,
-  "docs-type-demo": docsTypeDemo,
-  "docs-wall": docsWall,
-  "docs-wall-test": docsWallTest,
-  "docs-home": docsHome,
+  "docs-browse": docsBrowse,
+  "lookbook-wall": lookbookWall,
+  "docs-straight": docsStraight,
   "docs-vertical": docsVertical,
+  "docs-wall-test": docsWallTest,
+  "docs-type-demo": docsTypeDemo,
 } as const;
 
 export type ClipName = keyof typeof clips;

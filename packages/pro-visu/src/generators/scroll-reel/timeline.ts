@@ -182,10 +182,20 @@ export const DEFAULT_AUTO_HOLD_MS = 700;
 export const DEFAULT_AUTO_MIN_HEIGHT_FRACTION = 0.5;
 /** Default cap on the number of detected sections (keeps clips a reasonable length). */
 export const DEFAULT_AUTO_MAX_SECTIONS = 8;
+/**
+ * Land each section this many px UNDER the sticky header rather than exactly flush. Flush landing
+ * leaves a sub-pixel seam where the section boundary meets the header, so a hairline of the previous
+ * section peeks out — biasing a couple px tucks that boundary behind the (opaque) header.
+ */
+export const HEADER_SEAM_BIAS_PX = 2;
 
 export interface AutoSectionsConfig {
   minHeightFraction?: number;
   selector?: string;
+  /** Explicit sticky-header selector to measure the top inset from; overrides the heuristic. */
+  headerSelector?: string;
+  /** Explicit sticky-header height (px); overrides the heuristic and headerSelector. */
+  headerHeight?: number;
   holdMs?: number;
   /** Total clip length in ms (the budget split across detected sections). */
   durationMs?: number;

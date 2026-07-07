@@ -131,7 +131,7 @@ panel):
   tall
   src="/examples/docs-shot-desktop.jpg"
   width={2880}
-  height={10090}
+  height={10088}
   alt="A full-page desktop screenshot of the VESPER storefront, captured well beyond the viewport height."
   caption="fullPage: true — Playwright resizes to the document height, so the whole page is in one shot."
   code={`{
@@ -172,6 +172,40 @@ The same site on a phone with `fullPage: false` — just the viewport, as a visi
       },
     ],
     fullPage: false,
+  },
+}`}
+/>
+
+### Element crop
+
+`elements` crops specific components (at every viewport) in addition to the page — here the
+featured product card, shot on its own as `<asset>-desktop-card.png`:
+
+<ImageExample
+  src="/examples/docs-shot-card.png"
+  width={548}
+  height={912}
+  alt="The featured VESPER product card cropped out of the shop page — photo, name, colorway, and price."
+  caption='elements: one crisp crop per entry per viewport — a miss is warned and skipped, never fatal.'
+  code={`{
+  name: "shop-shots",
+  url: "https://your-site.com/shop",
+  generator: "screenshots",
+  options: {
+    viewports: [
+      {
+        name: "desktop",
+        width: 1440,
+        height: 900,
+      },
+    ],
+    fullPage: false,
+    elements: [
+      {
+        selector: "#feature-card",
+        name: "card",
+      },
+    ],
   },
 }`}
 />
