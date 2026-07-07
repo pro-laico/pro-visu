@@ -203,9 +203,6 @@ export function autoSectionsBudgetMs(cfg: boolean | AutoSectionsConfig): number 
   return c.durationMs ?? DEFAULT_AUTO_DURATION_MS;
 }
 
-/** Travel time (ms) for the optional glide back to the top, capped at a quarter of the free budget. */
-export const RETURN_TO_TOP_MS = 1000;
-
 export interface AutoSectionStepsArgs {
   /** Detected section positions, normalized 0..1, sorted ascending. */
   offsets: number[];
@@ -216,8 +213,6 @@ export interface AutoSectionStepsArgs {
   holdMs: number;
   /** Distribute travel time by distance so scroll speed is uniform. */
   constantVelocity: boolean;
-  /** Append a final glide back to the top (the end dwell then holds at the top). */
-  returnToTop: boolean;
   easing: EasingName;
 }
 
@@ -225,18 +220,13 @@ export interface AutoSectionStepsArgs {
  * Pure: turn detected section offsets into choreography steps that fit exactly into `budgetMs`. The
  * start delay and end dwell are reserved; the remainder is split into a hold at each section plus travel
  * between them. With `constantVelocity`, travel time is proportional to the distance covered (uniform
- * scroll speed); otherwise it's split evenly. Holds are capped so travel always has time. With
- * `returnToTop`, a final swift glide to the top is carved out of the same budget, so the end dwell holds
- * at the top — a natural resting ending. Returns [] when there are no offsets (the caller falls back to
- * a default sweep).
+ * scroll speed); otherwise it's split evenly. Holds are capped so travel always has time. Returns []
+ * when there are no offsets (the caller falls back to a default sweep).
  */
 export function autoSectionSteps(a: AutoSectionStepsArgs): ResolvedChoreographyStep[] {
   const n = a.offsets.length;
   if (n === 0) return [];
-  let remaining = Math.max(0, a.budgetMs - a.startDelayMs - a.endDwellMs);
-  // Reserve the return-to-top glide out of the same budget so the total clip length is unchanged.
-  const returnMs = a.returnToTop ? Math.min(RETURN_TO_TOP_MS, remaining * 0.25) : 0;
-  remaining -= returnMs;
+  const remaining = Math.max(0, a.budgetMs - a.startDelayMs - a.endDwellMs);
   let holdEach = a.holdMs;
   if (holdEach * n > remaining * 0.7) holdEach = (remaining * 0.7) / n;
   const travelTotal = Math.max(0, remaining - holdEach * n);
@@ -264,9 +254,6 @@ export function autoSectionSteps(a: AutoSectionStepsArgs): ResolvedChoreographyS
       holdMs: holdEach,
       easing: a.easing,
     });
-  }
-  if (returnMs > 0) {
-    steps.push({ toY: 0, durationMs: returnMs, holdMs: 0, easing: a.easing });
   }
   return steps;
 }
@@ -298,7 +285,37 @@ export function scrollTimelineTotalMs(o: ScrollTimelineTotalArgs): number {
   return o.startDelayMs + o.durationMs + o.endDwellMs;
 }
 
-// --- loop / boomerang ---
+// --- loops (boomerang / straight) ---
+
+/** Travel time (ms) for the "straight" loop's glide back to the top, capped at a quarter of the clip. */
+export const STRAIGHT_RETURN_MS = 1000;
+
+/**
+ * Pure: append a single glide from wherever the spec ends straight back to the top, compressing the
+ * existing segments to make room — the clip's total length is unchanged, and the last frame lands at
+ * the top where the first frame started, so the output loops. Unlike {@link boomerangSpec} it does NOT
+ * retrace the section stops; it's one swift return. `returnFraction` is the share of the clip the
+ * return glide occupies (clamped to 0..0.5); pass `straightReturnFraction` to derive it from
+ * {@link STRAIGHT_RETURN_MS}.
+ */
+export function straightLoopSpec(
+  spec: TimelineSpec,
+  returnFraction: number,
+  easing: EasingName,
+): TimelineSpec {
+  const f = Math.min(Math.max(returnFraction, 0), 0.5);
+  if (f === 0) return spec;
+  const scaled = spec.segments.map((s) => ({ ...s, durationFraction: s.durationFraction * (1 - f) }));
+  const last = spec.segments[spec.segments.length - 1];
+  const fromY = last ? last.toY : 0;
+  return { segments: [...scaled, { fromY, toY: 0, durationFraction: f, easing }] };
+}
+
+/** The share of a `totalSeconds`-long clip the straight loop's return glide should occupy. */
+export function straightReturnFraction(totalSeconds: number): number {
+  if (totalSeconds <= 0) return 0;
+  return Math.min(STRAIGHT_RETURN_MS / 1000 / totalSeconds, 0.25);
+}
 
 /**
  * Pure: mirror a spec so it plays forward then backward within the same total length — a seamless

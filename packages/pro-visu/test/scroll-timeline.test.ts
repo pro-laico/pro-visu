@@ -9,6 +9,8 @@ import {
   normalizedScrollAt,
   resolveTimeline,
   scrollTimelineTotalMs,
+  straightLoopSpec,
+  straightReturnFraction,
   DEFAULT_AUTO_DURATION_MS,
   type TimelineSpec,
 } from "@/generators/scroll-reel/timeline";
@@ -220,7 +222,6 @@ describe("autoSectionSteps", () => {
         endDwellMs: 0,
         holdMs: 1000,
         constantVelocity: true,
-        returnToTop: false,
         easing: "linear",
       }),
     ).toEqual([]);
@@ -234,7 +235,6 @@ describe("autoSectionSteps", () => {
       endDwellMs: 0,
       holdMs: 1000,
       constantVelocity: true,
-      returnToTop: false,
       easing: "linear",
     });
     expect(steps).toHaveLength(3);
@@ -255,7 +255,6 @@ describe("autoSectionSteps", () => {
       endDwellMs: 500,
       holdMs: 500,
       constantVelocity: false,
-      returnToTop: false,
       easing: "linear",
     });
     const total = steps.reduce((s, st) => s + st.durationMs + st.holdMs, 0);
@@ -270,7 +269,6 @@ describe("autoSectionSteps", () => {
       endDwellMs: 0,
       holdMs: 1000,
       constantVelocity: true,
-      returnToTop: false,
       easing: "linear",
     });
     const totalHold = steps.reduce((s, st) => s + st.holdMs, 0);
@@ -279,44 +277,46 @@ describe("autoSectionSteps", () => {
     expect(totalTravel).toBeCloseTo(300);
   });
 
-  it("returnToTop appends a final glide to 0 carved out of the same budget", () => {
-    const steps = autoSectionSteps({
-      offsets: [0.25, 0.5, 1],
-      budgetMs: 10000,
-      startDelayMs: 0,
-      endDwellMs: 0,
-      holdMs: 1000,
-      constantVelocity: true,
-      returnToTop: true,
-      easing: "linear",
-    });
-    expect(steps).toHaveLength(4);
-    const last = steps[steps.length - 1]!;
-    expect(last.toY).toBe(0);
-    expect(last.holdMs).toBe(0);
-    expect(last.durationMs).toBe(1000); // RETURN_TO_TOP_MS fits within 25% of the free budget
-    // The section stops are untouched and the whole clip still fits the budget exactly.
-    expect(steps.slice(0, 3).map((s) => s.toY)).toEqual([0.25, 0.5, 1]);
-    const total = steps.reduce((s, st) => s + st.durationMs + st.holdMs, 0);
-    expect(total).toBeCloseTo(10000);
+});
+
+describe("straightLoopSpec", () => {
+  const base = choreographyTimelineSpec({
+    startDelayMs: 500,
+    endDwellMs: 500,
+    steps: [
+      { toY: 0.5, durationMs: 1000, holdMs: 1000, easing: "linear" },
+      { toY: 1, durationMs: 1000, holdMs: 0, easing: "linear" },
+    ],
   });
 
-  it("returnToTop's glide is capped at a quarter of a tight budget", () => {
-    const steps = autoSectionSteps({
-      offsets: [1],
-      budgetMs: 2000,
-      startDelayMs: 0,
-      endDwellMs: 0,
-      holdMs: 0,
-      constantVelocity: false,
-      returnToTop: true,
-      easing: "linear",
-    });
-    const last = steps[steps.length - 1]!;
-    expect(last.toY).toBe(0);
-    expect(last.durationMs).toBeCloseTo(500); // 25% of 2000ms < RETURN_TO_TOP_MS
-    const total = steps.reduce((s, st) => s + st.durationMs + st.holdMs, 0);
-    expect(total).toBeCloseTo(2000);
+  it("appends one glide back to 0 and keeps fractions summing to 1", () => {
+    const s = straightLoopSpec(base, 0.2, "ease-in-out");
+    expect(s.segments).toHaveLength(base.segments.length + 1);
+    expect(s.segments.reduce((sum, seg) => sum + seg.durationFraction, 0)).toBeCloseTo(1);
+    const last = s.segments[s.segments.length - 1]!;
+    expect(last).toMatchObject({ fromY: 1, toY: 0, durationFraction: 0.2, easing: "ease-in-out" });
+  });
+
+  it("loops: ends at the top where the clip started, without retracing the stops", () => {
+    const tl = resolveTimeline(straightLoopSpec(base, 0.2, "linear"), 5);
+    expect(tl.scrollAt(0)).toBeCloseTo(0);
+    expect(tl.scrollAt(4)).toBeCloseTo(1); // still at the bottom when the return glide starts
+    expect(tl.scrollAt(4.5)).toBeCloseTo(0.5); // one straight ramp home — no section holds
+    expect(tl.scrollAt(5)).toBeCloseTo(0); // last frame ≈ first frame → seamless loop
+  });
+
+  it("clamps the return fraction and is a no-op at 0", () => {
+    expect(straightLoopSpec(base, 0, "linear")).toBe(base);
+    const s = straightLoopSpec(base, 0.9, "linear");
+    expect(s.segments[s.segments.length - 1]!.durationFraction).toBeCloseTo(0.5);
+  });
+});
+
+describe("straightReturnFraction", () => {
+  it("gives the 1s glide its share of the clip, capped at a quarter", () => {
+    expect(straightReturnFraction(10)).toBeCloseTo(0.1); // 1s of a 10s clip
+    expect(straightReturnFraction(2)).toBeCloseTo(0.25); // capped for short clips
+    expect(straightReturnFraction(0)).toBe(0);
   });
 });
 

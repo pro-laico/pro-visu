@@ -53,7 +53,7 @@ export const options = [
   { name: 'motion', type: 'object', description: `How the scroll moves: duration/easing, loop, and choreography.`, options: [
     { name: 'durationMs', type: 'number', default: '6000', description: `Time to scroll from top to bottom (ms). Ignored when choreography / autoSections drives the length.` },
     { name: 'easing', type: "'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'ease-out-strong' | 'ease-in-out-strong'", default: "'ease-in-out'", description: `Easing for the default top→bottom scroll.` },
-    { name: 'loop', type: "'none' | 'boomerang'", default: "'none'", description: `Loop style. "boomerang" plays the scroll forward then back for a seamless loop.` },
+    { name: 'loop', type: "'none' | 'boomerang' | 'straight'", default: "'none'", description: `Loop style — works with the default sweep, choreography, and autoSections. "boomerang" plays the motion forward then back, retracing every stop; "straight" runs it once then glides straight back to the top so the clip loops.` },
     { name: 'choreography', type: 'ChoreographyStep[]', description: `Choreographed scroll: an ordered list of steps instead of one top→bottom sweep. Omit for the default single eased sweep. Clip length becomes startDelayMs + Σ(step travel + hold) + endDwellMs.`, options: [
       { name: 'to', type: 'number | string', required: true, description: `Target: a 0..1 number, an "NN%" string, or a CSS selector to bring into view.` },
       { name: 'durationMs', type: 'number', default: '1200', description: `Travel time to this target (ms).` },
@@ -68,7 +68,6 @@ export const options = [
       { name: 'maxSections', type: 'number', default: '8', description: `Cap on the number of sections.` },
       { name: 'constantVelocity', type: 'boolean', default: 'true', description: `Distribute travel time by distance for uniform scroll speed.` },
       { name: 'includeFooter', type: 'boolean', default: 'false', description: `Scroll all the way to the page bottom (footer included). Off by default: footers aren't counted as sections and the reel ends at the last content section.` },
-      { name: 'returnToTop', type: 'boolean', default: 'false', description: `Glide back to the top at the end of the reel — the end dwell then holds at the top. Carved out of the same durationMs budget.` },
     ] },
   ] },
   { name: 'variants', type: 'object', description: `Variant matrix: each cell (color scheme × viewport) is emitted as its own asset.`, options: [
@@ -141,7 +140,7 @@ in code, every option at its default.
       easing: "ease-in-out",
       loop: "none",
       // choreography: [{ to: "#hero", holdMs: 1200 }, { to: "100%", durationMs: 1000 }],
-      // autoSections: { minHeightFraction: 0.5, holdMs: 700, durationMs: 12000, maxSections: 8, constantVelocity: true, includeFooter: false, returnToTop: false },
+      // autoSections: { minHeightFraction: 0.5, holdMs: 700, durationMs: 12000, maxSections: 8, constantVelocity: true, includeFooter: false },
     },
 
     // --- variants (each emitted as its own asset) ---

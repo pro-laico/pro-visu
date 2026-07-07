@@ -79,13 +79,6 @@ const autoSectionsSchema = z
       .describe(
         "Scroll all the way to the page bottom (footer included). Default false: footers aren't counted as sections and the reel ends at the last content section.",
       ),
-    /** Glide back to the top at the end of the reel (the end dwell then holds at the top). Default false. */
-    returnToTop: z
-      .boolean()
-      .optional()
-      .describe(
-        "Glide back to the top at the end of the reel (the end dwell then holds at the top). Default false.",
-      ),
   })
   .strict();
 
@@ -177,12 +170,17 @@ const motionGroupSchema = z
     easing: easingSchema
       .default("ease-in-out")
       .describe('Easing for the default top→bottom scroll. Default "ease-in-out".'),
-    /** Loop style. "boomerang" plays the scroll forward then back within the clip for a seamless loop. */
+    /**
+     * Loop style — applies to whichever motion drives the reel (the default sweep, `choreography`, or
+     * `autoSections`). "boomerang" plays the motion forward then back within the clip, retracing every
+     * stop. "straight" runs the motion once, then glides straight back to the top (no section stops) so
+     * the clip loops.
+     */
     loop: z
-      .enum(["none", "boomerang"])
+      .enum(["none", "boomerang", "straight"])
       .default("none")
       .describe(
-        'Loop style. "boomerang" plays the scroll forward then back for a seamless loop. Default "none".',
+        'Loop style — works with the default sweep, choreography, and autoSections. "boomerang" plays the motion forward then back, retracing every stop; "straight" runs it once then glides straight back to the top so the clip loops. Default "none".',
       ),
     /**
      * Choreographed scroll: an ordered list of steps instead of one top→bottom sweep. Each step scrolls
@@ -317,8 +315,6 @@ export interface AutoSectionsInput {
    * as sections and the reel ends at the last content section.
    */
   includeFooter?: boolean;
-  /** Glide back to the top at the end of the reel (the end dwell then holds at the top). Default false. */
-  returnToTop?: boolean;
 }
 
 /** Target output aspect: a preset, or an explicit pixel box. */
@@ -374,8 +370,12 @@ export interface ScrollReelMotionInput {
   durationMs?: number;
   /** Easing for the default top→bottom scroll. Default "ease-in-out". */
   easing?: Easing;
-  /** Loop style. "boomerang" plays the scroll forward then back for a seamless loop. Default "none". */
-  loop?: "none" | "boomerang";
+  /**
+   * Loop style — works with the default sweep, `choreography`, and `autoSections`. "boomerang" plays
+   * the motion forward then back, retracing every stop; "straight" runs it once then glides straight
+   * back to the top so the clip loops. Default "none".
+   */
+  loop?: "none" | "boomerang" | "straight";
   /**
    * Choreographed scroll: an ordered list of steps instead of one top→bottom sweep. Omit for the
    * default single eased sweep.

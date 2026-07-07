@@ -30,9 +30,10 @@ fails loudly with a pointed migration hint, never silently.
   `anchor` picks any of nine positions (`top-left` … `bottom-right`), `padding` insets it from the
   gap edges (`0` = flush to the rendered corner), and `size` / `weight` / `color` style the text.
   Defaults keep the label bottom-left, so existing specimens read the same.
-- **`scroll-reel`: `autoSections.returnToTop`** — end the reel with a swift glide back to the top,
-  so the end dwell holds on the hero instead of the last section. Carved out of the same
-  `durationMs` budget, so clip length is unchanged. Default off.
+- **`scroll-reel`: `loop: "straight"`** — a second loop style alongside `"boomerang"`: run the
+  motion once, then glide straight back to the top (no retraced stops) so the clip's last frame
+  lands where the first started and the output loops. Works with the default sweep,
+  `choreography`, and `autoSections`; the return glide is carved out of the same clip length.
 
 ### Changed (BREAKING)
 

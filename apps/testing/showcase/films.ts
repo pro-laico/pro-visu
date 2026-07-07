@@ -3,11 +3,11 @@ import type { AssetSpecInput } from "pro-visu";
 // Storefront films: scroll-reels over the real pages.
 export const films = [
   {
-    name: "home", // auto-sections down the home page, gliding back to the top at the end
+    name: "home", // auto-sections down the home page; straight loop glides back to the top at the end
     generator: "scroll-reel",
     options: {
       page: { waitForSelector: ".hero-media img" },
-      motion: { autoSections: { durationMs: 14000, returnToTop: true } },
+      motion: { loop: "straight", autoSections: { durationMs: 14000 } },
     },
   },
   {

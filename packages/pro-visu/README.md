@@ -186,11 +186,12 @@ options: {
   `ease-out-strong`, `ease-in-out-strong`.
 - `motion.choreography: [{ to, durationMs?, holdMs?, easing? }]` — replaces the single sweep with an
   authored sequence (`to` = a `0..1` number, an `"NN%"` string, or a CSS selector to bring into view).
-- `motion.autoSections: true | { minHeightFraction?, selector?, holdMs?, durationMs?, maxSections?, constantVelocity?, includeFooter?, returnToTop? }`
+- `motion.autoSections: true | { minHeightFraction?, selector?, holdMs?, durationMs?, maxSections?, constantVelocity?, includeFooter? }`
   — auto-detect the page's sections and pan/hold through them within a fixed `durationMs` budget.
-  The footer is skipped by default (`includeFooter: true` to scroll all the way down);
-  `returnToTop: true` glides back to the top at the end.
-- `motion.loop: "none" | "boomerang"`.
+  The footer is skipped by default (`includeFooter: true` to scroll all the way down).
+- `motion.loop: "none" | "boomerang" | "straight"` — applies to whichever motion drives the reel
+  (sweep, choreography, or auto-sections). `"boomerang"` plays it forward then back, retracing
+  every stop; `"straight"` runs it once then glides straight back to the top so the clip loops.
 - Per-frame settling: `render.settlePerFrame` (default on; off in `--draft`) waits for fonts + in-view
   images each frame; bounded by `render.settleMaxMs`.
 

@@ -19,6 +19,8 @@ import {
   defaultTimelineSpec,
   resolveTimeline,
   scrollTimelineTotalMs,
+  straightLoopSpec,
+  straightReturnFraction,
   DEFAULT_AUTO_HOLD_MS,
   DEFAULT_AUTO_MAX_SECTIONS,
   DEFAULT_AUTO_MIN_HEIGHT_FRACTION,
@@ -73,9 +75,16 @@ async function buildScrollTimeline(
   logger: Logger,
 ): Promise<ResolvedTimeline> {
   const steps = options.motion.choreography;
-  // Apply the loop transform (boomerang mirrors the spec) before binding to wall-clock time.
-  const finalize = (spec: TimelineSpec): ResolvedTimeline =>
-    resolveTimeline(options.motion.loop === "boomerang" ? boomerangSpec(spec) : spec, totalSeconds);
+  // Apply the loop transform before binding to wall-clock time: boomerang mirrors the spec;
+  // straight appends one swift glide back to the top so the clip loops without retracing stops.
+  const finalize = (spec: TimelineSpec): ResolvedTimeline => {
+    let looped = spec;
+    if (options.motion.loop === "boomerang") looped = boomerangSpec(spec);
+    else if (options.motion.loop === "straight") {
+      looped = straightLoopSpec(spec, straightReturnFraction(totalSeconds), options.motion.easing);
+    }
+    return resolveTimeline(looped, totalSeconds);
+  };
 
   // 1. Explicit choreography wins: resolve selector targets in one in-page pass (numbers/% in Node).
   if (steps && steps.length > 0) {
@@ -141,7 +150,6 @@ async function buildScrollTimeline(
       endDwellMs: options.page.endDwellMs,
       holdMs: cfg.holdMs ?? DEFAULT_AUTO_HOLD_MS,
       constantVelocity: cfg.constantVelocity ?? true,
-      returnToTop: cfg.returnToTop ?? false,
       easing: options.motion.easing,
     });
     if (autoSteps.length > 0) {
