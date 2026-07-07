@@ -30,8 +30,17 @@ fails loudly with a pointed migration hint, never silently.
   `anchor` picks any of nine positions (`top-left` … `bottom-right`), `padding` insets it from the
   gap edges (`0` = flush to the rendered corner), and `size` / `weight` / `color` style the text.
   Defaults keep the label bottom-left, so existing specimens read the same.
+- **`scroll-reel`: `autoSections.returnToTop`** — end the reel with a swift glide back to the top,
+  so the end dwell holds on the hero instead of the last section. Carved out of the same
+  `durationMs` budget, so clip length is unchanged. Default off.
 
 ### Changed (BREAKING)
+
+- **`scroll-reel` auto-sections skip the footer by default.** `autoSections` reels no longer force
+  a final scroll to the absolute bottom, and footer elements (`<footer>`, `[role="contentinfo"]`)
+  no longer count as sections — the reel ends holding on the last *content* section, since a
+  footer-heavy ending is rarely the shot you want. Restore the old ending with
+  `autoSections: { includeFooter: true }`.
 
 - **Site cleanup moved to `settings.capture`** — `hideSelectors`, `injectCss`, `clickSelectors`,
   `hideScrollbars`, `pauseAnimations`, `freezeClock`, `blockTrackers`, `blockHosts`, and

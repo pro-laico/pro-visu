@@ -131,6 +131,7 @@ async function buildScrollTimeline(
       minHeightFraction: cfg.minHeightFraction ?? DEFAULT_AUTO_MIN_HEIGHT_FRACTION,
       selector: cfg.selector ?? null,
       maxSections: cfg.maxSections ?? DEFAULT_AUTO_MAX_SECTIONS,
+      includeFooter: cfg.includeFooter ?? false,
       headerInsetPx,
     });
     const autoSteps = autoSectionSteps({
@@ -140,6 +141,7 @@ async function buildScrollTimeline(
       endDwellMs: options.page.endDwellMs,
       holdMs: cfg.holdMs ?? DEFAULT_AUTO_HOLD_MS,
       constantVelocity: cfg.constantVelocity ?? true,
+      returnToTop: cfg.returnToTop ?? false,
       easing: options.motion.easing,
     });
     if (autoSteps.length > 0) {

@@ -191,6 +191,10 @@ export interface AutoSectionsConfig {
   durationMs?: number;
   maxSections?: number;
   constantVelocity?: boolean;
+  /** Scroll all the way to the page bottom (footer included). Default false. */
+  includeFooter?: boolean;
+  /** Glide back to the top at the end of the reel. Default false. */
+  returnToTop?: boolean;
 }
 
 /** The total clip length (ms) for an auto-section config — a fixed, page-independent budget. */
@@ -198,6 +202,9 @@ export function autoSectionsBudgetMs(cfg: boolean | AutoSectionsConfig): number 
   const c = typeof cfg === "object" ? cfg : {};
   return c.durationMs ?? DEFAULT_AUTO_DURATION_MS;
 }
+
+/** Travel time (ms) for the optional glide back to the top, capped at a quarter of the free budget. */
+export const RETURN_TO_TOP_MS = 1000;
 
 export interface AutoSectionStepsArgs {
   /** Detected section positions, normalized 0..1, sorted ascending. */
@@ -209,6 +216,8 @@ export interface AutoSectionStepsArgs {
   holdMs: number;
   /** Distribute travel time by distance so scroll speed is uniform. */
   constantVelocity: boolean;
+  /** Append a final glide back to the top (the end dwell then holds at the top). */
+  returnToTop: boolean;
   easing: EasingName;
 }
 
@@ -216,13 +225,18 @@ export interface AutoSectionStepsArgs {
  * Pure: turn detected section offsets into choreography steps that fit exactly into `budgetMs`. The
  * start delay and end dwell are reserved; the remainder is split into a hold at each section plus travel
  * between them. With `constantVelocity`, travel time is proportional to the distance covered (uniform
- * scroll speed); otherwise it's split evenly. Holds are capped so travel always has time. Returns []
- * when there are no offsets (the caller falls back to a default sweep).
+ * scroll speed); otherwise it's split evenly. Holds are capped so travel always has time. With
+ * `returnToTop`, a final swift glide to the top is carved out of the same budget, so the end dwell holds
+ * at the top — a natural resting ending. Returns [] when there are no offsets (the caller falls back to
+ * a default sweep).
  */
 export function autoSectionSteps(a: AutoSectionStepsArgs): ResolvedChoreographyStep[] {
   const n = a.offsets.length;
   if (n === 0) return [];
-  const remaining = Math.max(0, a.budgetMs - a.startDelayMs - a.endDwellMs);
+  let remaining = Math.max(0, a.budgetMs - a.startDelayMs - a.endDwellMs);
+  // Reserve the return-to-top glide out of the same budget so the total clip length is unchanged.
+  const returnMs = a.returnToTop ? Math.min(RETURN_TO_TOP_MS, remaining * 0.25) : 0;
+  remaining -= returnMs;
   let holdEach = a.holdMs;
   if (holdEach * n > remaining * 0.7) holdEach = (remaining * 0.7) / n;
   const travelTotal = Math.max(0, remaining - holdEach * n);
@@ -250,6 +264,9 @@ export function autoSectionSteps(a: AutoSectionStepsArgs): ResolvedChoreographyS
       holdMs: holdEach,
       easing: a.easing,
     });
+  }
+  if (returnMs > 0) {
+    steps.push({ toY: 0, durationMs: returnMs, holdMs: 0, easing: a.easing });
   }
   return steps;
 }

@@ -220,6 +220,7 @@ describe("autoSectionSteps", () => {
         endDwellMs: 0,
         holdMs: 1000,
         constantVelocity: true,
+        returnToTop: false,
         easing: "linear",
       }),
     ).toEqual([]);
@@ -233,6 +234,7 @@ describe("autoSectionSteps", () => {
       endDwellMs: 0,
       holdMs: 1000,
       constantVelocity: true,
+      returnToTop: false,
       easing: "linear",
     });
     expect(steps).toHaveLength(3);
@@ -253,6 +255,7 @@ describe("autoSectionSteps", () => {
       endDwellMs: 500,
       holdMs: 500,
       constantVelocity: false,
+      returnToTop: false,
       easing: "linear",
     });
     const total = steps.reduce((s, st) => s + st.durationMs + st.holdMs, 0);
@@ -267,12 +270,53 @@ describe("autoSectionSteps", () => {
       endDwellMs: 0,
       holdMs: 1000,
       constantVelocity: true,
+      returnToTop: false,
       easing: "linear",
     });
     const totalHold = steps.reduce((s, st) => s + st.holdMs, 0);
     const totalTravel = steps.reduce((s, st) => s + st.durationMs, 0);
     expect(totalHold).toBeCloseTo(700); // capped at 70% of the 1000ms budget
     expect(totalTravel).toBeCloseTo(300);
+  });
+
+  it("returnToTop appends a final glide to 0 carved out of the same budget", () => {
+    const steps = autoSectionSteps({
+      offsets: [0.25, 0.5, 1],
+      budgetMs: 10000,
+      startDelayMs: 0,
+      endDwellMs: 0,
+      holdMs: 1000,
+      constantVelocity: true,
+      returnToTop: true,
+      easing: "linear",
+    });
+    expect(steps).toHaveLength(4);
+    const last = steps[steps.length - 1]!;
+    expect(last.toY).toBe(0);
+    expect(last.holdMs).toBe(0);
+    expect(last.durationMs).toBe(1000); // RETURN_TO_TOP_MS fits within 25% of the free budget
+    // The section stops are untouched and the whole clip still fits the budget exactly.
+    expect(steps.slice(0, 3).map((s) => s.toY)).toEqual([0.25, 0.5, 1]);
+    const total = steps.reduce((s, st) => s + st.durationMs + st.holdMs, 0);
+    expect(total).toBeCloseTo(10000);
+  });
+
+  it("returnToTop's glide is capped at a quarter of a tight budget", () => {
+    const steps = autoSectionSteps({
+      offsets: [1],
+      budgetMs: 2000,
+      startDelayMs: 0,
+      endDwellMs: 0,
+      holdMs: 0,
+      constantVelocity: false,
+      returnToTop: true,
+      easing: "linear",
+    });
+    const last = steps[steps.length - 1]!;
+    expect(last.toY).toBe(0);
+    expect(last.durationMs).toBeCloseTo(500); // 25% of 2000ms < RETURN_TO_TOP_MS
+    const total = steps.reduce((s, st) => s + st.durationMs + st.holdMs, 0);
+    expect(total).toBeCloseTo(2000);
   });
 });
 

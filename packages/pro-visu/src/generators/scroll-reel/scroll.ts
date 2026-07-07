@@ -37,6 +37,12 @@ export interface DetectSectionsArgs {
   /** Cap on the number of returned sections. */
   maxSections: number;
   /**
+   * Scroll all the way to the page bottom (footer included). When false (the default), footer
+   * elements are excluded from the heuristic and the forced final scroll-to-bottom stop is skipped,
+   * so the reel ends at the last content section instead of the footer.
+   */
+  includeFooter: boolean;
+  /**
    * Pixels a sticky/fixed header intrudes from the top of the viewport. Each section target is pulled
    * UP by this, so a scrolled-to section sits just below the header instead of being clipped by it.
    * Measured once by {@link measureTopInset}; defaults to 0 (no header).
@@ -166,10 +172,11 @@ export async function prepareScroll(args: PrepareScrollArgs): Promise<void> {
 
 /**
  * Runs INSIDE the page. Auto-detects the page's section boundaries as normalized scroll positions
- * (0..1), sorted ascending and deduped, with the bottom (1) always included. Uses an explicit selector
- * when given, else a heuristic (<section>, direct children of <main>, [data-section]) filtered to
- * elements at least `minHeightFraction` of the viewport tall. Returns [] for a non-scrollable page.
- * Self-contained (serialized via page.evaluate).
+ * (0..1), sorted ascending and deduped. With `includeFooter` the bottom (1) is always the final stop;
+ * without it (the default) footer elements are excluded and the reel ends at the last content section.
+ * Uses an explicit selector when given, else a heuristic (<section>, direct children of <main>,
+ * [data-section]) filtered to elements at least `minHeightFraction` of the viewport tall. Returns []
+ * for a non-scrollable page. Self-contained (serialized via page.evaluate).
  */
 export async function detectSectionOffsets(args: DetectSectionsArgs): Promise<number[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -203,6 +210,14 @@ export async function detectSectionOffsets(args: DetectSectionsArgs): Promise<nu
     }
     // Apply the height filter only to the heuristic; trust an explicit selector verbatim.
     if (!args.selector && rect.height < minH) continue;
+    // Unless the footer is wanted, don't let footer elements count as sections (heuristic only).
+    if (!args.includeFooter && !args.selector) {
+      try {
+        if (el.closest && el.closest('footer, [role="contentinfo"]')) continue;
+      } catch {
+        /* ignore */
+      }
+    }
     const rawTop = docTarget ? rect.top + curScroll : rect.top - containerTop + curScroll;
     // Pull the target up by the sticky/fixed header height so the section isn't clipped under it.
     const top = rawTop - (args.headerInsetPx ?? 0);
@@ -214,8 +229,12 @@ export async function detectSectionOffsets(args: DetectSectionsArgs): Promise<nu
   for (const o of offsets) {
     if (deduped.length === 0 || o - deduped[deduped.length - 1]! > 0.01) deduped.push(o);
   }
-  // Always end the reel at the bottom.
-  if (deduped.length === 0 || deduped[deduped.length - 1]! < 0.99) deduped.push(1);
+  // With includeFooter the reel always ends at the very bottom; without it, the last detected
+  // content section is the final stop. An empty detection still falls back to a single
+  // scroll-to-bottom stop so the reel covers the page.
+  if (deduped.length === 0 || (args.includeFooter && deduped[deduped.length - 1]! < 0.99)) {
+    deduped.push(1);
+  }
   return deduped.slice(0, args.maxSections);
 
   // --- inlined, self-contained scroll helpers (duplicated elsewhere in this file; see note above) ---

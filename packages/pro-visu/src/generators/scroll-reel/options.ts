@@ -72,6 +72,20 @@ const autoSectionsSchema = z
       .boolean()
       .optional()
       .describe("Distribute travel time by distance for uniform scroll speed. Default true."),
+    /** Scroll all the way to the page bottom (footer included). Default false: stop at the last content section. */
+    includeFooter: z
+      .boolean()
+      .optional()
+      .describe(
+        "Scroll all the way to the page bottom (footer included). Default false: footers aren't counted as sections and the reel ends at the last content section.",
+      ),
+    /** Glide back to the top at the end of the reel (the end dwell then holds at the top). Default false. */
+    returnToTop: z
+      .boolean()
+      .optional()
+      .describe(
+        "Glide back to the top at the end of the reel (the end dwell then holds at the top). Default false.",
+      ),
   })
   .strict();
 
@@ -298,6 +312,13 @@ export interface AutoSectionsInput {
   maxSections?: number;
   /** Distribute travel time by distance for uniform scroll speed. Default true. */
   constantVelocity?: boolean;
+  /**
+   * Scroll all the way to the page bottom (footer included). Default false: footers aren't counted
+   * as sections and the reel ends at the last content section.
+   */
+  includeFooter?: boolean;
+  /** Glide back to the top at the end of the reel (the end dwell then holds at the top). Default false. */
+  returnToTop?: boolean;
 }
 
 /** Target output aspect: a preset, or an explicit pixel box. */
