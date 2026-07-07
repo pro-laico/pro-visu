@@ -15,9 +15,19 @@ dependencies from them, so those producers run first) and/or local files directl
   generator: "wall",
   options: {
     columns: [
-      { tiles: [{ src: "img/coat.jpg" }, "ui-home"], direction: "down" },
-      { tiles: [{ src: "img/crew.jpg" }, "ui-shop"], direction: "up", stagger: 0.4 },
-      { tiles: [{ src: "img/editorial.jpg" }, "ui-about"], stagger: 0.15 },
+      {
+        tiles: [{ src: "img/coat.jpg" }, "ui-home"],
+        direction: "down",
+      },
+      {
+        tiles: [{ src: "img/crew.jpg" }, "ui-shop"],
+        direction: "up",
+        stagger: 0.4,
+      },
+      {
+        tiles: [{ src: "img/editorial.jpg" }, "ui-about"],
+        stagger: 0.15,
+      },
     ],
   },
 }
@@ -108,9 +118,19 @@ in code, every option at its default.
   options: {
     // --- columns (≥3): each its own tiles + motion ---
     columns: [
-      { tiles: [{ src: "img/coat.jpg" }, "ui-home"], direction: "down" },
-      { tiles: [{ src: "img/crew.jpg" }, "ui-shop"], direction: "up", stagger: 0.4 },
-      { tiles: [{ src: "img/editorial.jpg" }, "ui-about"], stagger: 0.15 },
+      {
+        tiles: [{ src: "img/coat.jpg" }, "ui-home"],
+        direction: "down",
+      },
+      {
+        tiles: [{ src: "img/crew.jpg" }, "ui-shop"],
+        direction: "up",
+        stagger: 0.4,
+      },
+      {
+        tiles: [{ src: "img/editorial.jpg" }, "ui-about"],
+        stagger: 0.15,
+      },
       // per-column overrides: loops, pulses: [{ at, span, distance, easing }]
     ],
 

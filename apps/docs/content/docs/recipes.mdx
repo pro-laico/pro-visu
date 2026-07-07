@@ -15,7 +15,12 @@ A `9:16` clip with multiple output formats:
   url: "https://your-site.com",
   generator: "scroll-reel",
   options: {
-    output: { width: 430, height: 932, deviceScaleFactor: 2, outputs: ["mp4", "gif", "poster"] },
+    output: {
+      width: 430,
+      height: 932,
+      deviceScaleFactor: 2,
+      outputs: ["mp4", "gif", "poster"],
+    },
     motion: { durationMs: 5000 },
     reframe: { aspect: "9:16" },
   },
@@ -56,9 +61,19 @@ Drive the UI with a synthetic cursor (the `interaction` generator; records realt
   options: {
     cursor: { color: "#e91e63" },
     actions: [
-      { do: "click", selector: "#search" },
-      { do: "type", selector: "#search input", text: "leather tote" },
-      { do: "hover", selector: ".results a:first-child" },
+      {
+        do: "click",
+        selector: "#search",
+      },
+      {
+        do: "type",
+        selector: "#search input",
+        text: "leather tote",
+      },
+      {
+        do: "hover",
+        selector: ".results a:first-child",
+      },
     ],
   },
 }
@@ -72,8 +87,18 @@ carries its own motion:
 
 ```ts
 assets: [
-  { name: "shot-home", url: "/", generator: "screenshots", options: { fullPage: false } },
-  { name: "shot-shop", url: "/shop", generator: "screenshots", options: { fullPage: false } },
+  {
+    name: "shot-home",
+    url: "/",
+    generator: "screenshots",
+    options: { fullPage: false },
+  },
+  {
+    name: "shot-shop",
+    url: "/shop",
+    generator: "screenshots",
+    options: { fullPage: false },
+  },
   {
     name: "wall",
     generator: "wall",
@@ -83,10 +108,27 @@ assets: [
         pan: { direction: "left", loops: 1 },
       },
       columns: [
-        { tiles: [{ src: "public/img/hero.jpg" }, "shot-home"], direction: "down",
-          pulses: [{ at: 0.1, span: 0.15, distance: 0.5 }] },
-        { tiles: ["shot-shop", { src: "public/img/hero.jpg" }], direction: "up", loops: 1, stagger: 0.4 },
-        { tiles: ["shot-home", "shot-shop"], stagger: 0.15 },
+        {
+          tiles: [{ src: "public/img/hero.jpg" }, "shot-home"],
+          direction: "down",
+          pulses: [
+            {
+              at: 0.1,
+              span: 0.15,
+              distance: 0.5,
+            },
+          ],
+        },
+        {
+          tiles: ["shot-shop", { src: "public/img/hero.jpg" }],
+          direction: "up",
+          loops: 1,
+          stagger: 0.4,
+        },
+        {
+          tiles: ["shot-home", "shot-shop"],
+          stagger: 0.15,
+        },
       ],
       // dial it in fast with preview: { enabled: true } + render: { capture: "realtime" }; remove both for the real render
     },

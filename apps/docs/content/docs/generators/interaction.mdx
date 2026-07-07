@@ -9,7 +9,12 @@ from config. It always records realtime (interactions and their animations are i
 time-based) and always emits a single asset.
 
 ```ts
-{ name: "menu-demo", url: "https://your-site.com", generator: "interaction", options: { actions: [{ do: "click", selector: "#menu-button" }] } }
+{
+  name: "menu-demo",
+  url: "https://your-site.com",
+  generator: "interaction",
+  options: { actions: [{ do: "click", selector: "#menu-button" }] },
+}
 ```
 
 Give it `actions` (a scripted tour), `focus` (a clip cropped to one component), or both — one of the
@@ -136,7 +141,11 @@ screenshot from a static page.
   options: {
     output: { width: 390, height: 844 },
     actions: [
-      { do: "click", selector: "#menu-button", holdMs: 2600 },
+      {
+        do: "click",
+        selector: "#menu-button",
+        holdMs: 2600,
+      },
     ],
   },
 }`}

@@ -9,7 +9,11 @@ to ffmpeg — so output is frame-accurate, crisp (supersampled by `deviceScaleFa
 across `workers`, and **byte-identical run-to-run**.
 
 ```ts
-{ name: "home", url: "https://your-site.com", generator: "scroll-reel" }
+{
+  name: "home",
+  url: "https://your-site.com",
+  generator: "scroll-reel",
+}
 ```
 
 By default it eases a single top→bottom sweep. The options switch it into choreographed or

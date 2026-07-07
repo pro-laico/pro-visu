@@ -9,7 +9,11 @@ is warmed first (scroll the whole document, let fonts load, decode images) so `f
 aren't blank or fallback-font further down. Output is png or jpeg.
 
 ```ts
-{ name: "home-shots", url: "https://your-site.com", generator: "screenshots" }
+{
+  name: "home-shots",
+  url: "https://your-site.com",
+  generator: "screenshots",
+}
 ```
 
 By default it emits a full-page desktop (1440×900) and mobile (390×844) shot. The options add more
@@ -18,8 +22,8 @@ timing. Site cleanup (hide the cookie banner, block trackers, freeze the clock) 
 [`settings.capture`](/docs/configuration/settings#capture) and applies to every URL capture.
 
 > Want to showcase the UI in a *state* — a menu open, a tab switched, a form filled? `screenshots`
-> can't click. Drive it with the [`interaction`](/docs/generators/interaction) generator and use
-> that clip (see the last example below).
+> can't click, and it only makes stills. Drive the page with the
+> [`interaction`](/docs/generators/interaction) generator instead (it records an mp4).
 
 ## Config options
 
@@ -69,8 +73,16 @@ code, every option at its default.
   options: {
     // --- viewports (each emitted as its own asset) ---
     viewports: [
-      { name: "desktop", width: 1440, height: 900 },
-      { name: "mobile", width: 390, height: 844 },
+      {
+        name: "desktop",
+        width: 1440,
+        height: 900,
+      },
+      {
+        name: "mobile",
+        width: 390,
+        height: 844,
+      },
     ],
 
     // --- what to capture ---
@@ -160,34 +172,6 @@ The same site on a phone with `fullPage: false` — just the viewport, as a visi
       },
     ],
     fullPage: false,
-  },
-}`}
-/>
-
-### Stateful shots via `interaction`
-
-To capture a *state* (a menu open, a tab switched), `screenshots` can't help — drive it with
-[`interaction`](/docs/generators/interaction) instead. Here a scripted tap opens the mobile menu
-and holds it open:
-
-<Example
-  clip="docs-menu"
-  caption="A phone-viewport interaction standing in for a 'stateful screenshot' — the mobile menu open, captured."
-  code={`{
-  name: "menu-open",
-  url: "https://your-site.com",
-  generator: "interaction",
-  options: {
-    width: 390,
-    height: 844,
-    cursor: { color: "#8c7355" },
-    actions: [
-      {
-        do: "click",
-        selector: "#menu-button",
-        holdMs: 2600,
-      },
-    ],
   },
 }`}
 />

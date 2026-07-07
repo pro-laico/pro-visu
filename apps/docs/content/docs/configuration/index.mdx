@@ -14,10 +14,22 @@ export default defineConfig({
     outDir: "pro-visu",
     concurrency: 2,
     browser: { headless: true },
-    defaults: { "scroll-reel": { output: { width: 1440, height: 900, fps: 30 } } },
+    defaults: {
+      "scroll-reel": {
+        output: {
+          width: 1440,
+          height: 900,
+          fps: 30,
+        },
+      },
+    },
   },
   assets: [
-    { name: "home-reel", url: "https://your-site.com", generator: "scroll-reel" },
+    {
+      name: "home-reel",
+      url: "https://your-site.com",
+      generator: "scroll-reel",
+    },
   ],
 });
 ```
@@ -57,8 +69,16 @@ assets: [
     generator: "screenshots",
     options: {
       viewports: [
-        { name: "desktop", width: 1440, height: 900 },
-        { name: "mobile", width: 390, height: 844 },
+        {
+          name: "desktop",
+          width: 1440,
+          height: 900,
+        },
+        {
+          name: "mobile",
+          width: 390,
+          height: 844,
+        },
       ],
       elements: [{ selector: "header", name: "nav" }],
     },
@@ -85,10 +105,18 @@ each asset name in its columns as a producer that must run first (and local file
 
 ```ts
 assets: [
-  { name: "hero-shot", url: "/", generator: "screenshots", options: { fullPage: false } },
-  { name: "wall", generator: "wall",
+  {
+    name: "hero-shot",
+    url: "/",
+    generator: "screenshots",
+    options: { fullPage: false },
+  },
+  {
+    name: "wall",
+    generator: "wall",
     // hero-shot runs first (named as a tile); the photo is used directly from disk
-    options: { columns: [{ tiles: ["hero-shot", { src: "public/img/coat.jpg" }] }, /* …≥3… */] } },
+    options: { columns: [{ tiles: ["hero-shot", { src: "public/img/coat.jpg" }] }, /* …≥3… */] },
+  },
 ]
 ```
 
@@ -114,8 +142,16 @@ export const settings = {
 import type { AssetSpecInput } from "pro-visu";
 
 export const films = [
-  { name: "home", generator: "scroll-reel", options: { motion: { autoSections: { durationMs: 14000 } } } },
-  { name: "shop", url: "/shop", generator: "scroll-reel" },
+  {
+    name: "home",
+    generator: "scroll-reel",
+    options: { motion: { autoSections: { durationMs: 14000 } } },
+  },
+  {
+    name: "shop",
+    url: "/shop",
+    generator: "scroll-reel",
+  },
 ] satisfies AssetSpecInput[];
 ```
 

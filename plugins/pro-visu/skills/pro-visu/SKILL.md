@@ -53,18 +53,38 @@ export default defineConfig({
   settings: {
     outDir: "pro-visu",
     // server: { build: "npm run build", command: "npm start", port: 3101 },
-    defaults: { "scroll-reel": { output: { width: 1440, height: 900, fps: 30 } } },
+    defaults: {
+      "scroll-reel": {
+        output: {
+          width: 1440,
+          height: 900,
+          fps: 30,
+        },
+      },
+    },
   },
   assets: [
-    { name: "home-reel", url: "/", generator: "scroll-reel" },
+    {
+      name: "home-reel",
+      url: "/",
+      generator: "scroll-reel",
+    },
     {
       name: "home-shots",
       url: "/",
       generator: "screenshots",
       options: {
         viewports: [
-          { name: "desktop", width: 1440, height: 900 },
-          { name: "mobile", width: 390, height: 844 },
+          {
+            name: "desktop",
+            width: 1440,
+            height: 900,
+          },
+          {
+            name: "mobile",
+            width: 390,
+            height: 844,
+          },
         ],
       },
     },

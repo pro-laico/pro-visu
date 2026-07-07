@@ -87,11 +87,21 @@ export default defineConfig({
     concurrency: 2,
     browser: { headless: true },
     defaults: {
-      "scroll-reel": { output: { width: 1440, height: 900, fps: 30 } },
+      "scroll-reel": {
+        output: {
+          width: 1440,
+          height: 900,
+          fps: 30,
+        },
+      },
     },
   },
   assets: [
-    { name: "home-reel", url: URL, generator: "scroll-reel" },
+    {
+      name: "home-reel",
+      url: URL,
+      generator: "scroll-reel",
+    },
   ],
 });
 ```

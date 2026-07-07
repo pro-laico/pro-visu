@@ -61,10 +61,22 @@ export default defineConfig({
     outDir: "pro-visu",
     concurrency: 2,
     browser: { headless: true },
-    defaults: { "scroll-reel": { output: { width: 1440, height: 900, fps: 30 } } },
+    defaults: {
+      "scroll-reel": {
+        output: {
+          width: 1440,
+          height: 900,
+          fps: 30,
+        },
+      },
+    },
   },
   assets: [
-    { name: "home-reel", url: "https://your-site.com", generator: "scroll-reel" },
+    {
+      name: "home-reel",
+      url: "https://your-site.com",
+      generator: "scroll-reel",
+    },
   ],
 });
 ```
@@ -105,15 +117,27 @@ and are merged beneath each asset's own `options`.
 
 ```ts
 assets: [
-  { name: "home-reel", url: "https://your-site.com", generator: "scroll-reel" },
+  {
+    name: "home-reel",
+    url: "https://your-site.com",
+    generator: "scroll-reel",
+  },
   {
     name: "home-shots",
     url: "https://your-site.com",
     generator: "screenshots",
     options: {
       viewports: [
-        { name: "desktop", width: 1440, height: 900 },
-        { name: "mobile", width: 390, height: 844 },
+        {
+          name: "desktop",
+          width: 1440,
+          height: 900,
+        },
+        {
+          name: "mobile",
+          width: 390,
+          height: 844,
+        },
       ],
       elements: [{ selector: "header", name: "nav" }],
     },
@@ -175,8 +199,17 @@ options: {
   variants: {
     colorScheme: "both",                            // → <name>-light and <name>-dark
     viewports: [
-      { name: "desktop", width: 1440, height: 900 },
-      { name: "mobile", width: 390, height: 844, deviceScaleFactor: 3 },
+      {
+        name: "desktop",
+        width: 1440,
+        height: 900,
+      },
+      {
+        name: "mobile",
+        width: 390,
+        height: 844,
+        deviceScaleFactor: 3,
+      },
     ],                                               // → <name>-desktop, <name>-mobile (× schemes)
   },
 }
@@ -201,9 +234,19 @@ The viewport × color-scheme matrix is emitted as separate assets (`<name>-<suff
   options: {
     cursor: { color: "#e91e63" },
     actions: [
-      { do: "click", selector: "#menu-button" },
-      { do: "hover", selector: ".dropdown a:first-child" },
-      { do: "type", selector: "input[type=search]", text: "shoes" },
+      {
+        do: "click",
+        selector: "#menu-button",
+      },
+      {
+        do: "hover",
+        selector: ".dropdown a:first-child",
+      },
+      {
+        do: "type",
+        selector: "input[type=search]",
+        text: "shoes",
+      },
     ],
   },
 }
@@ -226,7 +269,12 @@ Every tile fills its column's **width** and takes its **own height** from its me
 
 ```ts
 assets: [
-  { name: "ui-home", url: "/", generator: "screenshots", options: { fullPage: false } },
+  {
+    name: "ui-home",
+    url: "/",
+    generator: "screenshots",
+    options: { fullPage: false },
+  },
   // …enough to fill the columns…
   {
     name: "wall",
@@ -237,10 +285,27 @@ assets: [
         pan: { direction: "left", loops: 1 },
       },
       columns: [
-        { tiles: [{ src: "public/img/coat.jpg" }, "ui-home"], direction: "down",
-          pulses: [{ at: 0.1, span: 0.15, distance: 0.5 }] },
-        { tiles: ["ui-home", { src: "public/img/coat.jpg" }], direction: "up", loops: 1, stagger: 0.4 },
-        { tiles: [{ src: "public/img/coat.jpg" }, "ui-home"], stagger: 0.15 },
+        {
+          tiles: [{ src: "public/img/coat.jpg" }, "ui-home"],
+          direction: "down",
+          pulses: [
+            {
+              at: 0.1,
+              span: 0.15,
+              distance: 0.5,
+            },
+          ],
+        },
+        {
+          tiles: ["ui-home", { src: "public/img/coat.jpg" }],
+          direction: "up",
+          loops: 1,
+          stagger: 0.4,
+        },
+        {
+          tiles: [{ src: "public/img/coat.jpg" }, "ui-home"],
+          stagger: 0.15,
+        },
       ],
     },
   },
