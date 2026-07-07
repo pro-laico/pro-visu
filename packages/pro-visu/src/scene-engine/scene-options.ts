@@ -61,8 +61,10 @@ const specimenSceneOptionsSchema = z
       .partial()
       .default({}),
     demo: z.boolean().default(false),
-    weight: z.number().min(1).max(1000).default(820),
+    weight: z.number().min(1).max(1000).default(400),
     lines: z.number().int().min(1).max(40).default(3),
+    /** Fraction of the frame height the glyph rows fill (bottom strip = label gap area). */
+    fill: z.number().positive().max(1).default(0.8),
     blacklist: z.string().default(""),
     colors: z
       .object({

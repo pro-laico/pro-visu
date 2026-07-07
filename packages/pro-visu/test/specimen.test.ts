@@ -11,33 +11,34 @@ describe("specimen generator", () => {
 
   it("exposes frame size, leading, pool, and seed knobs with defaults", () => {
     const o = specimenOptionsSchema.parse({ font: "x.woff2" });
-    expect(o.width).toBe(1920);
-    expect(o.height).toBe(1080);
-    expect(o.leading).toBe(0.78);
-    expect(o.seed).toBe(1);
-    expect(o.characterPool).toBeUndefined(); // falls back to the master pool at render
+    expect(o.output.width).toBe(1920);
+    expect(o.output.height).toBe(1080);
+    expect(o.type.leading).toBe(0.78);
+    expect(o.animation.seed).toBe(1);
+    expect(o.type.characterPool).toBeUndefined(); // falls back to the master pool at render
 
     const custom = specimenOptionsSchema.parse({
       font: "x.woff2",
-      width: 1080,
-      height: 1350,
-      leading: 0.9,
-      seed: 99,
-      characterPool: "ABCDEF",
+      output: { width: 1080, height: 1350 },
+      type: { leading: 0.9, characterPool: "ABCDEF" },
+      animation: { seed: 99 },
     });
-    expect([custom.width, custom.height, custom.leading, custom.seed]).toEqual([1080, 1350, 0.9, 99]);
-    expect(custom.characterPool).toBe("ABCDEF");
+    expect([custom.output.width, custom.output.height, custom.type.leading, custom.animation.seed]).toEqual([
+      1080, 1350, 0.9, 99,
+    ]);
+    expect(custom.type.characterPool).toBe("ABCDEF");
   });
 
   it("rejects a characterPool with fewer than 2 distinct glyphs", () => {
-    expect(specimenOptionsSchema.safeParse({ font: "x.woff2", characterPool: "AAAA" }).success).toBe(
-      false,
-    );
+    expect(
+      specimenOptionsSchema.safeParse({ font: "x.woff2", type: { characterPool: "AAAA" } }).success,
+    ).toBe(false);
   });
 
   it("needs only a font, with defaults filled in", () => {
     const o = specimenOptionsSchema.parse({ font: "fonts/X.woff2" });
-    expect(o.weight).toBe(820);
+    expect(o.type.weight).toBe(400);
+    expect(o.type.fill).toBe(0.8);
     expect(o.colors.background).toBe("#eceef1");
     expect(o.colors.foreground).toBe("#16181d");
     expect(o.colors.accent).toBeUndefined(); // defaults to background at render
@@ -47,21 +48,21 @@ describe("specimen generator", () => {
     expect(o.label.weight).toBe(500);
     expect(o.label.color).toBeUndefined(); // defaults to foreground at render
     expect(o.pulses.length).toBeGreaterThan(0);
-    expect(o.mirror).toBe(true); // seamless loop by default
-    expect(o.lines).toBe(3);
-    expect(o.maxLineDrift).toBe(0.05);
-    expect(o.blacklist).toBe("");
-    expect(o.characterIntensity).toBe(1);
-    expect(o.colorIntensity).toBe(1);
-    expect(o.demo).toBe(false);
-    expect(o.durationMs).toBeUndefined(); // defaults to (mirrored) sum of pulse durations
+    expect(o.animation.mirror).toBe(true); // seamless loop by default
+    expect(o.type.lines).toBe(3);
+    expect(o.animation.maxLineDrift).toBe(0.05);
+    expect(o.type.blacklist).toBe("");
+    expect(o.animation.characterIntensity).toBe(1);
+    expect(o.animation.colorIntensity).toBe(1);
+    expect(o.animation.demo).toBe(false);
+    expect(o.animation.durationMs).toBeUndefined(); // defaults to (mirrored) sum of pulse durations
   });
 
   it("loads a template's options", () => {
     const o = specimenOptionsSchema.parse({ font: "x.woff2", template: "demo" });
-    expect(o.demo).toBe(true); // the demo template turns on demo mode
-    expect(o.mirror).toBe(false); // a focused one-way walkthrough
-    expect(o.lines).toBe(4); // the template sets a fuller wall
+    expect(o.animation.demo).toBe(true); // the demo template turns on demo mode
+    expect(o.animation.mirror).toBe(false); // a focused one-way walkthrough
+    expect(o.type.lines).toBe(4); // the template sets a fuller wall
     expect(o.pulses.some((p) => p.name === "ease-in")).toBe(true); // and loads the showcase pulses
     // Its even sweeps cover every glyph once: colors is the fraction 1.
     expect(o.pulses.find((p) => p.color === "muted")?.colors).toBe(1);
@@ -69,8 +70,8 @@ describe("specimen generator", () => {
 
   it("loads the sweep template: a mirrored loop of even, targeted color sweeps", () => {
     const o = specimenOptionsSchema.parse({ font: "x.woff2", template: "sweep" });
-    expect(o.mirror).toBe(true); // seamless loop
-    expect(o.demo).toBe(false); // a clean showcase, not a labeled walkthrough
+    expect(o.animation.mirror).toBe(true); // seamless loop
+    expect(o.animation.demo).toBe(false); // a clean showcase, not a labeled walkthrough
     expect(o.colors.accent).toBe("#7c9cff"); // its palette makes the accent sweep visible
     // Every glyph is washed to one token per beat: a full sweep is the fraction 1.
     const muted = o.pulses.find((p) => p.color === "muted");
@@ -78,15 +79,16 @@ describe("specimen generator", () => {
     expect(o.pulses.map((p) => p.color).filter(Boolean)).toEqual(["muted", "accent", "foreground"]);
   });
 
-  it("explicit options override the template", () => {
+  it("explicit options override the template (deep, per-field)", () => {
     const o = specimenOptionsSchema.parse({
       font: "x.woff2",
       template: "demo",
-      demo: false,
-      lines: 6,
+      animation: { demo: false },
+      type: { lines: 6 },
     });
-    expect(o.demo).toBe(false); // override wins over the template's demo: true
-    expect(o.lines).toBe(6);
+    expect(o.animation.demo).toBe(false); // override wins over the template's demo: true
+    expect(o.animation.mirror).toBe(false); // sibling preset field survives the deep merge
+    expect(o.type.lines).toBe(6);
   });
 
   it("fills missing color tokens when only some are overridden", () => {
@@ -146,11 +148,22 @@ describe("specimen generator", () => {
   });
 
   it("derives glyph size from `lines` only — rejects fontSize / characters", () => {
-    expect(specimenOptionsSchema.parse({ font: "x.woff2" }).lines).toBe(3);
-    expect(specimenOptionsSchema.parse({ font: "x.woff2", lines: 8 }).lines).toBe(8);
-    expect(specimenOptionsSchema.safeParse({ font: "x.woff2", lines: 0 }).success).toBe(false);
-    expect(specimenOptionsSchema.safeParse({ font: "x.woff2", fontSize: 80 }).success).toBe(false);
+    expect(specimenOptionsSchema.parse({ font: "x.woff2" }).type.lines).toBe(3);
+    expect(specimenOptionsSchema.parse({ font: "x.woff2", type: { lines: 8 } }).type.lines).toBe(8);
+    expect(specimenOptionsSchema.safeParse({ font: "x.woff2", type: { lines: 0 } }).success).toBe(false);
+    expect(specimenOptionsSchema.safeParse({ font: "x.woff2", type: { fontSize: 80 } }).success).toBe(false);
     expect(specimenOptionsSchema.safeParse({ font: "x.woff2", characters: 20 }).success).toBe(false);
+  });
+
+  it("steps glyph weight to multiples of 100 (font-shipped weights only)", () => {
+    expect(specimenOptionsSchema.parse({ font: "x.woff2", type: { weight: 700 } }).type.weight).toBe(700);
+    expect(specimenOptionsSchema.safeParse({ font: "x.woff2", type: { weight: 820 } }).success).toBe(false);
+    expect(specimenOptionsSchema.safeParse({ font: "x.woff2", type: { weight: 480 } }).success).toBe(false);
+  });
+
+  it("makes the glyph-wall fill fraction configurable", () => {
+    expect(specimenOptionsSchema.parse({ font: "x.woff2", type: { fill: 0.9 } }).type.fill).toBe(0.9);
+    expect(specimenOptionsSchema.safeParse({ font: "x.woff2", type: { fill: 1.5 } }).success).toBe(false);
   });
 
   it("accepts fractional pulse change-counts", () => {

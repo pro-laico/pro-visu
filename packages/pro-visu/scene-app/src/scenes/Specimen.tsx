@@ -18,7 +18,7 @@ import {
 /**
  * The specimen is a fixed number of LEFT-ALIGNED lines, each filled with width-classed glyph cells
  * to a target width derived from the font's real advances. The glyph size is derived from `lines`
- * (the rows fill the top 80% of the frame); the bottom 20% shows the background + the font name.
+ * (the rows fill the top `fill` of the frame, 0.8 by default); the strip below shows the background + the font name.
  * Glyphs and colors change over a config-composed sequence of "pulses" (mirrored into a seamless
  * loop by default). Glyph changes are width-compensated so each line's total width — and thus its
  * right edge — barely shifts (≤ `maxLineDrift`) as the wall animates.
@@ -31,7 +31,7 @@ const DEFAULT_LEADING = 0.78; // line-height: minimal leading so the cap-height 
 const DEFAULT_LINES = 3;
 const DEFAULT_DRIFT = 0.05;
 const MIN_PER_LINE = 3; // never let a huge font collapse a line to 1–2 glyphs
-const TYPE_FRACTION = 0.8; // glyph wall fills the top 80%; bottom 20% = background + label
+const TYPE_FRACTION = 0.8; // default glyph-wall fill (overridable via the `fill` option); rest = background + label
 
 // Fallback used only if the host doesn't pass `pulses` (the generator always does). `chars`/`colors`
 // are fractions of the wall. These describe the *outward* half; with mirroring on it plays out + back.
@@ -123,7 +123,7 @@ export function Specimen({
   durationSeconds,
 }: SceneProps): React.ReactElement {
   const fontUrl = files.oracle ?? Object.values(files)[0] ?? "";
-  const weight = typeof options.weight === "number" ? options.weight : 800;
+  const weight = typeof options.weight === "number" ? options.weight : 400;
   // The name label: its text plus placement/styling within the bottom gap area. Older wire payloads
   // sent `label` as a bare string (the text) — tolerate that so cached scenes keep working.
   const labelOpt =
@@ -146,6 +146,7 @@ export function Specimen({
   const lines = typeof options.lines === "number" ? Math.max(1, Math.round(options.lines)) : DEFAULT_LINES;
   const blacklist = typeof options.blacklist === "string" ? options.blacklist : "";
   const leading = typeof options.leading === "number" ? options.leading : DEFAULT_LEADING;
+  const typeFraction = typeof options.fill === "number" ? options.fill : TYPE_FRACTION;
   const tol = typeof options.maxLineDrift === "number" ? options.maxLineDrift : DEFAULT_DRIFT;
   const characterPool =
     typeof options.characterPool === "string" ? options.characterPool : undefined;
@@ -177,8 +178,8 @@ export function Specimen({
   const specKey = `${blacklist}|${characterPool ?? ""}`;
   const spec = useMemo(() => buildSpec(blacklist, characterPool), [specKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Geometry: the glyph wall fills the top 80% full-bleed; the bottom 20% is background + label.
-  const typeArea = Math.round(height * TYPE_FRACTION);
+  // Geometry: the glyph wall fills the top `typeFraction` full-bleed; the strip below is background + label.
+  const typeArea = Math.round(height * typeFraction);
   const barH = height - typeArea;
   const fontSize = clamp(Math.floor(typeArea / (lines * leading)), 8, typeArea);
   const lineH = fontSize * leading;
@@ -278,7 +279,7 @@ export function Specimen({
       cancelled = true;
       delete window.__sceneSeek;
     };
-  }, [specKey, pulsesKey, weight, lines, leading, width, height, seed, tol]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [specKey, pulsesKey, weight, lines, leading, typeFraction, width, height, seed, tol]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cumulative start index of each line, for slicing the flat `cells` into rows.
   const offsets = useMemo(() => {

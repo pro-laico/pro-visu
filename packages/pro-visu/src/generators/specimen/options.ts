@@ -132,6 +132,66 @@ export interface SpecimenLabelInput {
 /** A named option preset. The keys here are the selectable `template` values. */
 export type SpecimenTemplate = "demo" | "sweep";
 
+/** Output frame + encoding settings. Override any subset. */
+export interface SpecimenOutputInput {
+  /** Output frame width in px. Default 1920. */
+  width?: number;
+  /** Output frame height in px. Default 1080. */
+  height?: number;
+  /** Render scale (1 = 1:1; higher = crisper capture, downscaled into the video). Default 1. */
+  deviceScaleFactor?: number;
+  /** Output frames per second. Default 30. */
+  fps?: number;
+  /** x264 quality, 0–51 (lower = better quality / larger file). Default 18. */
+  crf?: number;
+  /** Output filename; defaults to "<slug(asset name)>.mp4". */
+  fileName?: string;
+}
+
+/** Glyph typography — the type set on the wall. Override any subset. */
+export interface SpecimenTypeInput {
+  /** Glyph weight, in steps of 100 (100–1000) to match the weights a font actually ships. Default 400 (regular). */
+  weight?: number;
+  /** Number of glyph rows. The glyph size is derived so the rows fill `fill` of the frame height. Default 3. */
+  lines?: number;
+  /** Fraction of the frame height the glyph rows fill; the remaining strip below is the label gap area. Default 0.8. */
+  fill?: number;
+  /** Line-height of the glyph block. Default 0.78 (tight, cap-height-hugging). */
+  leading?: number;
+  /** Glyphs to exclude from the showcase, e.g. "QXZ" (case-insensitive). Default none. */
+  blacklist?: string;
+  /**
+   * Override the glyph pool the specimen draws from (≥2 distinct characters). Default A–Z 0–9 +
+   * symbols. The tight default `leading` clips below the baseline, so lowercase descenders
+   * (g j p q y) get cut off — raise `leading` to ~1 if the pool includes them.
+   */
+  characterPool?: string;
+}
+
+/** Animation timing + behavior. Override any subset. */
+export interface SpecimenAnimationInput {
+  /** Clip length in ms. Defaults to the (mirrored) sum of the pulse durations; set to override. */
+  durationMs?: number;
+  /**
+   * Mirror the pulses (play them out and back) so the clip ends on its opening frame and loops
+   * seamlessly. Doubles the clip length. Set false for a one-shot that ends on the last state. Default true.
+   */
+  mirror?: boolean;
+  /** Schedule seed — same seed ⇒ identical animation. Change for a different (still deterministic) take. Default 1. */
+  seed?: number;
+  /** Multiply every pulse's glyph-change fraction (1 = baseline, 2 = twice as busy, 0 = none). Default 1. */
+  characterIntensity?: number;
+  /** Multiply every pulse's color-change fraction (1 = baseline, 2 = twice as busy, 0 = none). Default 1. */
+  colorIntensity?: number;
+  /**
+   * Max fraction a line's total width may drift as its glyphs change. Default 0.05. Glyph swaps are
+   * width-compensated to stay within this, so the left-aligned right edge barely moves.
+   */
+  maxLineDrift?: number;
+  /** Demo mode: overlay the active pulse's name bottom-right, to see which beat is playing. Default false. */
+  demo?: boolean;
+}
+
 /**
  * Author-facing options for the `specimen` generator — a looping type-specimen video. Only `font`
  * is required; everything else has a sensible default.
@@ -149,60 +209,20 @@ export interface SpecimenOptionsInput {
   template?: SpecimenTemplate;
   /** Display name shown in the bottom gap area (e.g. "ABC Oracle"). Default none. Style/position it via `label`. */
   name?: string;
+  /** Output frame + encoding settings (width, height, deviceScaleFactor, fps, crf, fileName). */
+  output?: SpecimenOutputInput;
+  /** Glyph typography — weight, lines, fill, leading, blacklist, characterPool. */
+  type?: SpecimenTypeInput;
   /** Placement + styling of the `name` label within the bottom gap area (anchor, padding, size, weight, color). */
   label?: SpecimenLabelInput;
-  /** Demo mode: overlay the active pulse's name bottom-right, to see which beat is playing. Default false. */
-  demo?: boolean;
-  /** Output frames per second. Default 30. */
-  fps?: number;
-  /** Clip length in ms. Defaults to the (mirrored) sum of the pulse durations; set to override. */
-  durationMs?: number;
-  /** Output frame width in px. Default 1920. */
-  width?: number;
-  /** Output frame height in px. Default 1080. */
-  height?: number;
-  /** Render scale (1 = 1:1; higher = crisper capture, downscaled into the video). Default 1. */
-  deviceScaleFactor?: number;
-  /** Glyph weight on the variable-font axis, 1–1000. Default 820. */
-  weight?: number;
-  /** Number of glyph rows. The glyph size is derived so the rows fill the top 80% of the frame. Default 3. */
-  lines?: number;
-  /** Line-height of the glyph block. Default 0.78 (tight, cap-height-hugging). */
-  leading?: number;
-  /** Glyphs to exclude from the showcase, e.g. "QXZ" (case-insensitive). Default none. */
-  blacklist?: string;
-  /**
-   * Override the glyph pool the specimen draws from (≥2 distinct characters). Default A–Z 0–9 +
-   * symbols. The tight default `leading` clips below the baseline, so lowercase descenders
-   * (g j p q y) get cut off — raise `leading` to ~1 if the pool includes them.
-   */
-  characterPool?: string;
-  /** Schedule seed — same seed ⇒ identical animation. Change for a different (still deterministic) take. Default 1. */
-  seed?: number;
   /** Color tokens the glyphs cycle through. Override any subset. Default: light-grey palette. */
   colors?: SpecimenColorsInput;
   /** Relative likelihood of each color token on a random (non-targeted) color change. Default 2 / 2 / 1. */
   colorWeights?: SpecimenColorWeightsInput;
   /** The animation storyboard: an ordered sequence of pulses (beats). Default: a lively built-in storyboard. */
   pulses?: PulseInput[];
-  /** Multiply every pulse's glyph-change fraction (1 = baseline, 2 = twice as busy, 0 = none). Default 1. */
-  characterIntensity?: number;
-  /** Multiply every pulse's color-change fraction (1 = baseline, 2 = twice as busy, 0 = none). Default 1. */
-  colorIntensity?: number;
-  /**
-   * Max fraction a line's total width may drift as its glyphs change. Default 0.05. Glyph swaps are
-   * width-compensated to stay within this, so the left-aligned right edge barely moves.
-   */
-  maxLineDrift?: number;
-  /**
-   * Mirror the pulses (play them out and back) so the clip ends on its opening frame and loops
-   * seamlessly. Doubles the clip length. Set false for a one-shot that ends on the last state. Default true.
-   */
-  mirror?: boolean;
-  /** x264 quality, 0–51 (lower = better quality / larger file). Default 18. */
-  crf?: number;
-  /** Output filename; defaults to "<slug(asset name)>.mp4". */
-  fileName?: string;
+  /** Animation timing + behavior (durationMs, mirror, seed, characterIntensity, colorIntensity, maxLineDrift, demo). */
+  animation?: SpecimenAnimationInput;
 }
 
 const P = (name: string, durationMs: number, chars = 0, colors = 0): Pulse => ({
@@ -287,30 +307,39 @@ const SWEEP_PULSES: PulseInput[] = [
 
 /** Named option presets. Selected via the `template` option; explicit options override them. */
 const SPECIMEN_TEMPLATES: Record<SpecimenTemplate, Partial<SpecimenOptionsInput>> = {
-  demo: { demo: true, mirror: false, lines: 4, pulses: DEMO_PULSES },
-  sweep: {
-    mirror: true,
-    lines: 4,
-    colors: SWEEP_COLORS,
-    pulses: SWEEP_PULSES,
-  },
+  demo: { animation: { demo: true, mirror: false }, type: { lines: 4 }, pulses: DEMO_PULSES },
+  sweep: { animation: { mirror: true }, type: { lines: 4 }, colors: SWEEP_COLORS, pulses: SWEEP_PULSES },
 };
 
-/** Merge a selected template underneath the user's explicit options (which win). */
+/** Is `v` a plain object we should recurse into (not an array, not null)? */
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+/** Deep-merge `override` onto `base` (user values win per-field; arrays/primitives replace, nested objects merge). */
+function deepMerge(base: Record<string, unknown>, override: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...base };
+  for (const [k, v] of Object.entries(override)) {
+    const b = out[k];
+    out[k] = isPlainObject(b) && isPlainObject(v) ? deepMerge(b, v) : v;
+  }
+  return out;
+}
+
+/** Merge a selected template underneath the user's explicit options (which win, per-field, deeply). */
 function applyTemplate(raw: unknown): unknown {
-  if (!raw || typeof raw !== "object") return raw;
-  const r = raw as Record<string, unknown>;
+  if (!isPlainObject(raw)) return raw;
   const tmpl =
-    typeof r.template === "string"
-      ? SPECIMEN_TEMPLATES[r.template as SpecimenTemplate]
+    typeof raw.template === "string"
+      ? SPECIMEN_TEMPLATES[raw.template as SpecimenTemplate]
       : undefined;
-  return tmpl ? { ...tmpl, ...r } : raw;
+  return tmpl ? deepMerge(tmpl as Record<string, unknown>, raw) : raw;
 }
 
 /**
  * A type-specimen video: point it at a font file and give it a name — the tool renders a clip
  * (1920×1080 by default) of the typeface set as a fixed number of left-aligned `lines` (sized to
- * fill the top 80% of the frame) whose glyphs and colors change over a composed sequence of
+ * fill `type.fill` of the frame height, 0.8 by default) whose glyphs and colors change over a composed sequence of
  * "pulses" (mirrored into a seamless loop by default), and captures it. Everything else has
  * sensible defaults.
  */
@@ -328,6 +357,89 @@ const specimenObjectSchema = z
       .string()
       .default("")
       .describe('Display name shown in the bottom gap area (e.g. "ABC Oracle"). Default none. Style/position via `label`.'),
+    output: z
+      .object({
+        width: z
+          .number()
+          .int()
+          .positive()
+          .default(1920)
+          .describe("Output frame width in px. Default 1920."),
+        height: z
+          .number()
+          .int()
+          .positive()
+          .default(1080)
+          .describe("Output frame height in px. Default 1080."),
+        deviceScaleFactor: z
+          .number()
+          .positive()
+          .max(4)
+          .default(1)
+          .describe("Render scale (1 = 1:1; higher = crisper capture, downscaled into the video). Default 1."),
+        fps: z
+          .number()
+          .int()
+          .positive()
+          .max(120)
+          .default(30)
+          .describe("Output frames per second. Default 30."),
+        crf: z
+          .number()
+          .int()
+          .min(0)
+          .max(51)
+          .default(18)
+          .describe("x264 quality, 0–51 (lower = better quality / larger file). Default 18."),
+        fileName: z
+          .string()
+          .optional()
+          .describe('Output filename; defaults to "<slug(asset name)>.mp4".'),
+      })
+      .strict()
+      .default({})
+      .describe("Output frame + encoding settings (width, height, deviceScaleFactor, fps, crf, fileName)."),
+    type: z
+      .object({
+        weight: z
+          .number()
+          .int()
+          .min(100)
+          .max(1000)
+          .multipleOf(100)
+          .default(400)
+          .describe("Glyph weight, in steps of 100 (100–1000) to match the weights a font actually ships. Default 400 (regular)."),
+        lines: z
+          .number()
+          .int()
+          .min(1)
+          .max(40)
+          .default(3)
+          .describe("Number of glyph rows; glyph size is derived so the rows fill `fill` of the frame height. Default 3."),
+        fill: z
+          .number()
+          .positive()
+          .max(1)
+          .default(0.8)
+          .describe("Fraction of the frame height the glyph rows fill; the remaining strip below is the label gap area. Default 0.8."),
+        leading: z
+          .number()
+          .positive()
+          .default(0.78)
+          .describe("Line-height of the glyph block. Default 0.78 (tight, cap-height-hugging)."),
+        blacklist: z
+          .string()
+          .default("")
+          .describe('Glyphs to exclude from the showcase, e.g. "QXZ" (case-insensitive). Default none.'),
+        characterPool: z
+          .string()
+          .refine((s) => new Set([...s.trim()]).size >= 2, "characterPool needs ≥2 distinct characters")
+          .optional()
+          .describe("Override the glyph pool the specimen draws from (≥2 distinct characters). Default A–Z 0–9 + symbols. The tight default `leading` clips lowercase descenders (g j p q y) — raise `leading` to ~1 if the pool includes them."),
+      })
+      .strict()
+      .default({})
+      .describe("Glyph typography — weight, lines, fill, leading, blacklist, characterPool."),
     label: z
       .object({
         anchor: z
@@ -369,73 +481,6 @@ const specimenObjectSchema = z
       })
       .default({})
       .describe("Placement + styling of the `name` label within the bottom gap area (anchor, padding, size, weight, color)."),
-    demo: z
-      .boolean()
-      .default(false)
-      .describe("Demo mode: overlay the active pulse's name bottom-right, to see which beat is playing. Default false."),
-    fps: z
-      .number()
-      .int()
-      .positive()
-      .max(120)
-      .default(30)
-      .describe("Output frames per second. Default 30."),
-    durationMs: z
-      .number()
-      .positive()
-      .optional()
-      .describe("Clip length in ms. Defaults to the (mirrored) sum of the pulse durations; set to override."),
-    width: z
-      .number()
-      .int()
-      .positive()
-      .default(1920)
-      .describe("Output frame width in px. Default 1920."),
-    height: z
-      .number()
-      .int()
-      .positive()
-      .default(1080)
-      .describe("Output frame height in px. Default 1080."),
-    deviceScaleFactor: z
-      .number()
-      .positive()
-      .max(4)
-      .default(1)
-      .describe("Render scale (1 = 1:1; higher = crisper capture, downscaled into the video). Default 1."),
-    weight: z
-      .number()
-      .int()
-      .min(1)
-      .max(1000)
-      .default(820)
-      .describe("Glyph weight on the variable-font axis, 1–1000. Default 820."),
-    lines: z
-      .number()
-      .int()
-      .min(1)
-      .max(40)
-      .default(3)
-      .describe("Number of glyph rows; glyph size is derived so rows fill the top 80% of the frame. Default 3."),
-    leading: z
-      .number()
-      .positive()
-      .default(0.78)
-      .describe("Line-height of the glyph block. Default 0.78 (tight, cap-height-hugging)."),
-    blacklist: z
-      .string()
-      .default("")
-      .describe('Glyphs to exclude from the showcase, e.g. "QXZ" (case-insensitive). Default none.'),
-    characterPool: z
-      .string()
-      .refine((s) => new Set([...s.trim()]).size >= 2, "characterPool needs ≥2 distinct characters")
-      .optional()
-      .describe("Override the glyph pool the specimen draws from (≥2 distinct characters). Default A–Z 0–9 + symbols. The tight default `leading` clips lowercase descenders (g j p q y) — raise `leading` to ~1 if the pool includes them."),
-    seed: z
-      .number()
-      .int()
-      .default(1)
-      .describe("Schedule seed — same seed ⇒ identical animation. Change for a different deterministic take. Default 1."),
     colors: z
       .object({
         background: z
@@ -482,37 +527,46 @@ const specimenObjectSchema = z
       .min(1)
       .default(DEFAULT_PULSES)
       .describe("The animation storyboard: an ordered sequence of pulses (beats). Default: a lively built-in storyboard."),
-    characterIntensity: z
-      .number()
-      .nonnegative()
-      .default(1)
-      .describe("Multiply every pulse's glyph-change fraction (1 = baseline, 2 = twice as busy, 0 = none). Default 1."),
-    colorIntensity: z
-      .number()
-      .nonnegative()
-      .default(1)
-      .describe("Multiply every pulse's color-change fraction (1 = baseline, 2 = twice as busy, 0 = none). Default 1."),
-    maxLineDrift: z
-      .number()
-      .positive()
-      .max(0.5)
-      .default(0.05)
-      .describe("Max fraction a line's total width may drift as its glyphs change; swaps are width-compensated. Default 0.05."),
-    mirror: z
-      .boolean()
-      .default(true)
-      .describe("Mirror the pulses (play out and back) for a seamless loop; doubles the clip length. Default true."),
-    crf: z
-      .number()
-      .int()
-      .min(0)
-      .max(51)
-      .default(18)
-      .describe("x264 quality, 0–51 (lower = better quality / larger file). Default 18."),
-    fileName: z
-      .string()
-      .optional()
-      .describe('Output filename; defaults to "<slug(asset name)>.mp4".'),
+    animation: z
+      .object({
+        durationMs: z
+          .number()
+          .positive()
+          .optional()
+          .describe("Clip length in ms. Defaults to the (mirrored) sum of the pulse durations; set to override."),
+        mirror: z
+          .boolean()
+          .default(true)
+          .describe("Mirror the pulses (play out and back) for a seamless loop; doubles the clip length. Default true."),
+        seed: z
+          .number()
+          .int()
+          .default(1)
+          .describe("Schedule seed — same seed ⇒ identical animation. Change for a different deterministic take. Default 1."),
+        characterIntensity: z
+          .number()
+          .nonnegative()
+          .default(1)
+          .describe("Multiply every pulse's glyph-change fraction (1 = baseline, 2 = twice as busy, 0 = none). Default 1."),
+        colorIntensity: z
+          .number()
+          .nonnegative()
+          .default(1)
+          .describe("Multiply every pulse's color-change fraction (1 = baseline, 2 = twice as busy, 0 = none). Default 1."),
+        maxLineDrift: z
+          .number()
+          .positive()
+          .max(0.5)
+          .default(0.05)
+          .describe("Max fraction a line's total width may drift as its glyphs change; swaps are width-compensated. Default 0.05."),
+        demo: z
+          .boolean()
+          .default(false)
+          .describe("Demo mode: overlay the active pulse's name bottom-right, to see which beat is playing. Default false."),
+      })
+      .strict()
+      .default({})
+      .describe("Animation timing + behavior (durationMs, mirror, seed, characterIntensity, colorIntensity, maxLineDrift, demo)."),
   })
   .strict();
 
