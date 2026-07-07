@@ -41,7 +41,36 @@ export const serverFields = [
   { name: 'reuseExisting', type: 'boolean', default: 'true', description: "If a server is already reachable at the URL, use it as-is (don't start or stop one)." },
 ]
 
+Only `command` is required. **Reference** is the interactive view; **TypeScript** is the same
+shape in code, every field at its default.
+
+<Tabs items={['Reference', 'TypeScript']}>
+
+<Tab value="Reference" className="p-0!">
+
 <ConfigOptions items={serverFields} />
+
+</Tab>
+
+<Tab value="TypeScript">
+
+```ts
+settings: {
+  server: {
+    command: "next start",              // required; PORT/HOST injected
+    // build: "next build",             // optional one-shot build first
+    // url: "http://127.0.0.1:3101",    // defaults to http://127.0.0.1:<port>
+    port: 3101,
+    // cwd: ".",                        // defaults to the config dir
+    readyTimeoutMs: 120000,
+    reuseExisting: true,
+  },
+}
+```
+
+</Tab>
+
+</Tabs>
 
 > Set a custom `port` (or `url`) only if your server can't read `PORT` from the environment, or
 > you need a non-default port. Otherwise leave both off — the tool keeps the command, the

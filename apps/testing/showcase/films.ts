@@ -1,7 +1,7 @@
 import type { AssetSpecInput } from "pro-visu";
 
 // Storefront films: scroll-reels over the real pages.
-export const films = [
+export const films: AssetSpecInput[] = [
   {
     name: "home", // auto-sections down the home page; straight loop glides back to the top at the end
     generator: "scroll-reel",
@@ -81,4 +81,4 @@ export const films = [
       motion: { autoSections: { durationMs: 11000 } },
     },
   },
-] satisfies AssetSpecInput[];
+];

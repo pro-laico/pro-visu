@@ -175,22 +175,23 @@ box — the crop is measured after the trigger actions, so an expanded state sta
 
 <Example
   clip="docs-focus"
-  caption="Cropped to the buy box: the cursor picks a size and the clip holds on the selected state — one component, no page chrome."
+  portrait
+  caption="Cropped to one product card: hovering reveals the quick-add, the wishlist heart fills, and the button confirms 'Added to bag' — a live micro-interaction, no page chrome."
   code={`{
-  name: "size-picker",
-  url: "https://your-site.com/products/coat",
+  name: "quick-add",
+  url: "https://your-site.com/shop",
   generator: "interaction",
   options: {
     focus: {
-      selector: ".addbag",
-      padding: 32,
+      selector: "#feature-card",
+      padding: 24,
+      // the controls are hover-revealed, so keep the cursor on the card throughout
       actions: [
-        {
-          do: "click",
-          selector: ".size-options button:nth-of-type(4)",
-        },
+        { do: "hover", selector: "#feature-card .product-media", holdMs: 1000 },
+        { do: "click", selector: "#feature-card .wishlist", holdMs: 1000 },   // heart fills
+        { do: "click", selector: "#feature-card .quick-add", holdMs: 1200 },  // → "Added to bag"
       ],
-      holdMs: 2500,
+      holdMs: 2200,
     },
   },
 }`}

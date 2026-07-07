@@ -2,7 +2,7 @@ import type { ShowcaseSettingsInput } from "pro-visu";
 
 // Serial: the frame-stepped wall is memory-heavy, so run one asset at a time. (Heavy wall plans
 // get a bigger Node heap automatically — no memory knob needed.)
-export const settings = {
+export const settings: ShowcaseSettingsInput = {
   outDir: "public/pro-visu", // served by the Next app at /pro-visu/* (and /gallery)
   concurrency: 1,
   browser: { headless: true },
@@ -15,4 +15,4 @@ export const settings = {
   defaults: {
     "scroll-reel": { output: { width: 1280, height: 800, fps: 30 } },
   },
-} satisfies ShowcaseSettingsInput;
+};

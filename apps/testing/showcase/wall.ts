@@ -13,7 +13,7 @@ const CLIP_VIEW: InteractionOptions = { output: { width: 390, height: 844, devic
 
 // Six distinct clips (no tile reused → no synchronised "twins"), staggered action windows +
 // mixed lengths so the wall never goes "all still then all active" at once.
-export const clips = [
+export const clips: AssetSpecInput[] = [
   {
     name: "clip-menu", // home: open the mega-menu, close it (acts early) — 8s
     url: "/",
@@ -97,9 +97,9 @@ export const clips = [
       ],
     },
   },
-] satisfies AssetSpecInput[];
+];
 
-export const wallAssets = [
+export const wallAssets: AssetSpecInput[] = [
   ...clips,
   {
     name: "lookbook-wall",
@@ -123,4 +123,4 @@ export const wallAssets = [
       ],
     },
   },
-] satisfies AssetSpecInput[];
+];

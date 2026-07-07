@@ -73,20 +73,26 @@ export default defineConfig({
         ],
       },
     },
-    // Element focus: crop to the PDP buy box, trigger a size pick, hold — the crop is measured
-    // after the trigger so the selected state stays in frame.
+    // Element focus: crop to a product card and drive it live — hover reveals the quick-add +
+    // wishlist, the heart fills, the button confirms "Added to bag". The cursor stays over the
+    // card (the controls are hover-gated); the crop is measured after the triggers, so the
+    // changed state stays framed.
     {
       name: "docs-focus",
       generator: "interaction",
-      url: "/products/the-camel-coat",
+      url: "/shop",
       options: {
         cursor: { color: CURSOR },
-        page: { waitForSelector: ".mini-gallery img" },
+        page: { waitForSelector: "#feature-card img" },
         focus: {
-          selector: ".addbag",
-          padding: 32,
-          actions: [{ do: "click", selector: ".size-options button:nth-of-type(4)" }],
-          holdMs: 2500,
+          selector: "#feature-card",
+          padding: 24,
+          actions: [
+            { do: "hover", selector: "#feature-card .product-media", durationMs: 700, holdMs: 1000 },
+            { do: "click", selector: "#feature-card .wishlist", durationMs: 500, holdMs: 1000 },
+            { do: "click", selector: "#feature-card .quick-add", durationMs: 550, holdMs: 1200 },
+          ],
+          holdMs: 2200,
         },
       },
     },

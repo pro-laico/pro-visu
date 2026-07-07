@@ -2,7 +2,7 @@ import type { AssetSpecInput } from "pro-visu";
 import { CURSOR } from "./brand";
 
 // Scripted realtime tours with the synthetic cursor — slow + deliberate, in camel.
-export const interactions = [
+export const interactions: AssetSpecInput[] = [
   {
     name: "menu", // open the mega-menu, glide across a category link
     generator: "interaction",
@@ -53,4 +53,4 @@ export const interactions = [
       ],
     },
   },
-] satisfies AssetSpecInput[];
+];

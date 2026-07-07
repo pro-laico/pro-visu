@@ -34,19 +34,22 @@ export function Example({ code, lang = "ts", clip, caption, portrait }: ExampleP
   const video = clips[clip];
   return (
     <figure className="not-prose my-6 overflow-hidden rounded-xl border border-fd-border bg-fd-card">
-      <div className="grid gap-px bg-fd-border md:grid-cols-2">
+      {/* Portrait clips size their column to the phone (grid auto track) so there's no black
+          margin around them; landscape fills its half. */}
+      <div className={`grid gap-px bg-fd-border ${portrait ? "md:grid-cols-[1fr_auto]" : "md:grid-cols-2"}`}>
         <div className="min-w-0 bg-fd-card [&_figure]:m-0 [&_pre]:max-h-[26rem] [&_pre]:rounded-none">
           <DynamicCodeBlock lang={lang} code={code} />
         </div>
-        <div className="flex items-center justify-center bg-black">
-          <Video
-            src={video}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className={portrait ? "mx-auto h-auto max-h-[30rem] w-auto" : "h-auto w-full"}
-          />
+        <div className={`flex items-center justify-center ${portrait ? "" : "bg-black"}`}>
+          {portrait ? (
+            // A definite-width wrapper: next-video's container is width:100%, so it fills exactly
+            // this box (black hugs the phone), and the grid auto track sizes to it — no side padding.
+            <div className="w-[14rem] bg-black">
+              <Video src={video} autoPlay loop muted playsInline className="h-auto w-full" />
+            </div>
+          ) : (
+            <Video src={video} autoPlay loop muted playsInline className="h-auto w-full" />
+          )}
         </div>
       </div>
       {caption ? (

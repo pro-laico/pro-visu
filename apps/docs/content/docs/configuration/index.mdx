@@ -59,25 +59,31 @@ export const assetFields = [
   { name: 'options', type: 'object', description: 'Generator-specific options. Validated by the target generator.' },
 ]
 
+**Reference** is the interactive view; **TypeScript** is the same shape in code.
+
+<Tabs items={['Reference', 'TypeScript']}>
+
+<Tab value="Reference" className="p-0!">
+
 <ConfigOptions items={assetFields} />
+
+</Tab>
+
+<Tab value="TypeScript">
 
 ```ts
 assets: [
   {
     name: "home-shots",
-    url: "https://your-site.com",
+    url: "https://your-site.com",   // required by URL-based generators (relative resolves against a managed server)
     generator: "screenshots",
     options: {
+      // generator-specific; see /docs/generators/<id>
       viewports: [
         {
           name: "desktop",
           width: 1440,
           height: 900,
-        },
-        {
-          name: "mobile",
-          width: 390,
-          height: 844,
         },
       ],
       elements: [{ selector: "header", name: "nav" }],
@@ -85,6 +91,10 @@ assets: [
   },
 ]
 ```
+
+</Tab>
+
+</Tabs>
 
 ## How options merge
 
@@ -132,16 +142,16 @@ Payload config imports its collections:
 ```ts title="showcase/settings.ts"
 import type { ShowcaseSettingsInput } from "pro-visu";
 
-export const settings = {
+export const settings: ShowcaseSettingsInput = {
   outDir: "pro-visu",
   server: { command: "next start" },
-} satisfies ShowcaseSettingsInput;
+};
 ```
 
 ```ts title="showcase/films.ts"
 import type { AssetSpecInput } from "pro-visu";
 
-export const films = [
+export const films: AssetSpecInput[] = [
   {
     name: "home",
     generator: "scroll-reel",
@@ -152,7 +162,7 @@ export const films = [
     url: "/shop",
     generator: "scroll-reel",
   },
-] satisfies AssetSpecInput[];
+];
 ```
 
 ```ts title="pro-visu.config.ts"
@@ -164,8 +174,8 @@ import { stills } from "./showcase/stills";
 export default defineConfig({ settings, assets: [...films, ...stills] });
 ```
 
-`satisfies` keeps full type-checking and autocomplete without widening the value's type.
-Every author-facing type is exported from `pro-visu`, including per-generator option types
+Annotating each module with its input type keeps full type-checking and autocomplete on the
+value. Every author-facing type is exported from `pro-visu`, including per-generator option types
 (`ScrollReelOptions`, `WallOptions`, …) and their fragments (`WallColumnInput`,
 `ChoreographyStepInput`, `PulseInput`, `PaletteColorInput`, …), so shared recipes and helpers
 in those modules can be fully typed.

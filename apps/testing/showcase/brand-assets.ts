@@ -2,7 +2,7 @@ import type { AssetSpecInput } from "pro-visu";
 import { CAMEL, COGNAC, INK, PAPER, VESPER } from "./brand";
 
 // Colour + type pieces (no URL needed).
-export const brandAssets = [
+export const brandAssets: AssetSpecInput[] = [
   { name: "colors", generator: "palette", options: { colors: VESPER } },
   {
     name: "colors-reel", // the same palette as a looping reveal video
@@ -65,4 +65,4 @@ export const brandAssets = [
       ],
     },
   },
-] satisfies AssetSpecInput[];
+];

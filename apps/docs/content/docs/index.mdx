@@ -3,12 +3,12 @@ title: Introduction
 description: pro-visu turns a website into marketing assets — scroll reels, screenshots, media walls, and specimens — from a single config.
 ---
 
-**pro-visu** is a portable CLI that turns the websites you build into marketing and
-showcase assets: scroll reels, responsive screenshots, looping media walls, and font/colour
-specimens — all from a single `pro-visu.config.ts`.
+**pro-visu** — a portable CLI that turns the sites you build into marketing/showcase assets:
+scroll reels, responsive screenshots, looping media walls, font/colour specimens — all from one
+`pro-visu.config.ts`.
 
-Install it into a website repo, point assets at a URL, and run `pro-visu generate`. Output
-is written into a gitignored `pro-visu/` folder alongside a `manifest.json`.
+Install into a repo, point assets at a URL, run `pro-visu generate`. Output → gitignored
+`pro-visu/` + a `manifest.json`.
 
 <Showcase clip="docs-home" />
 
@@ -16,18 +16,15 @@ is written into a gitignored `pro-visu/` folder alongside a `manifest.json`.
 
 Three pieces:
 
-1. **Config** — a `pro-visu.config.ts` with two blocks: `settings` (repo-level CLI behaviour)
-   and `assets` (the list of things to generate).
-2. **Generators** — each asset names a `generator` that knows how to produce one kind of
-   output. Options are merged from `settings.defaults["<generator>"]` and the asset's own
-   `options`.
-3. **Manifest** — every run writes `<outDir>/manifest.json` recording what was produced
-   (id, generator, file, dimensions, bytes, durationMs). `pro-visu list` prints it.
+1. **Config** — `pro-visu.config.ts`: `settings` (repo-level CLI behaviour) + `assets` (what to
+   generate).
+2. **Generators** — each asset names a `generator`. Options merge `settings.defaults["<generator>"]`
+   under the asset's own `options`.
+3. **Manifest** — every run writes `<outDir>/manifest.json` (id, generator, file, dimensions,
+   bytes, durationMs). `pro-visu list` prints it.
 
-Assets can also depend on each other, forming a small DAG — for example, a
-[wall](/docs/generators/wall) whose tiles are screenshots and clips produced by other assets.
-Dependencies are derived from the options (the asset names in a wall's columns), never
-hand-authored.
+Assets can depend on each other → a small DAG (e.g. a [wall](/docs/generators/wall) of tiles
+produced by other assets). Deps are derived from the options, never hand-authored.
 
 ## Generators at a glance
 
@@ -41,27 +38,25 @@ hand-authored.
 | [`palette`](/docs/generators/palette) | png | A still colour-palette image |
 | [`palette-reel`](/docs/generators/palette-reel) | mp4 | A looping colour-palette reveal video |
 
-The pipeline is a plugin contract, so new asset types slot in without core changes.
+New asset types slot in via a plugin contract — no core changes.
 
 ## Quick start
 
-As a project dev-dependency (recommended — typed config + a version pinned for reproducible builds):
+Dev-dependency (recommended — typed config, version pinned for reproducible builds):
 
 ```bash
-pnpm add -D pro-visu   # adds it to your repo
-npx pro-visu init           # scaffold config, gitignore the output dir, ensure a browser
-npx pro-visu generate       # capture the assets in your config
+pnpm add -D pro-visu
+npx pro-visu init       # scaffold config, gitignore output, ensure a browser
+npx pro-visu generate   # capture the assets
 ```
 
-Or with no install at all, via `npx` or a global install, using a JSON config:
+No install (npx/global, JSON config):
 
 ```bash
-npx pro-visu init --json   # scaffold pro-visu.config.json + a JSON Schema
+npx pro-visu init --json
 npx pro-visu generate
 ```
 
-Continue with [**Getting started**](/docs/getting-started) for the full comparison of both modes
-(and using an unreleased build), or jump to [**Configuration**](/docs/configuration).
+More: [Getting started](/docs/getting-started) · [Configuration](/docs/configuration).
 
-> Captures run in a managed Chromium and encode with a managed ffmpeg — both downloaded once on
-> first use and shared across projects, so no global installs are required.
+> Managed Chromium + ffmpeg, downloaded once and shared across projects — no global installs.

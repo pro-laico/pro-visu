@@ -5,53 +5,34 @@ description: Install pro-visu, scaffold a config, and generate your first assets
 
 ## Set it up with Claude Code (fastest)
 
-pro-visu ships a **Claude Code plugin** so an AI agent can install it and write the config for you.
-In Claude Code, add the marketplace and install the plugin:
+pro-visu ships a **Claude Code plugin** — an agent installs it and writes the config for you:
 
 ```text
 /plugin marketplace add pro-laico/pro-visu
 /plugin install pro-visu@prolaico
 ```
 
-Then just ask — e.g. _"set up pro-visu for this project and capture the homepage."_ The skill
-installs the CLI, scaffolds `pro-visu.config.ts`, picks generators, points them at your site (or a
-[managed server](/docs/configuration/managed-server)), and runs the generate for you.
+Then just ask — e.g. _"set up pro-visu and capture the homepage."_ It installs the CLI, scaffolds
+config, points it at your site (or a [managed server](/docs/configuration/managed-server)), and
+runs the generate.
 
-Prefer to wire it up by hand? The rest of this page is the manual path.
+Rest of the page = the manual path.
 
 ## Install
 
-Two ways to run it — same CLI, same generators; they differ only in how you install it and author
-config:
+Two ways, same CLI and generators:
 
-| | **Dev dependency** (recommended) | **Global / `npx`** (no install) |
+| | **Dev dependency** (recommended) | **npx / global** (no install) |
 |---|---|---|
-| Install | `pnpm add -D pro-visu` | `npm i -g pro-visu`, or just `npx pro-visu …` |
-| Config | TS `pro-visu.config.ts` (`defineConfig`) — or JSON | JSON `pro-visu.config.json` |
-| Editor help | Full TypeScript checking + autocomplete + hover docs | Autocomplete + validation + hover docs from a generated JSON Schema |
-| Version | Pinned in your lockfile → you and CI build identical assets | Floating (npx fetches latest; pin with `pro-visu@x.y.z`) |
-| Best for | A repo you own, and CI pipelines | One-off captures, trying it out |
+| Install | `pnpm add -D pro-visu` | `npx pro-visu …` (or `npm i -g pro-visu`) |
+| Config | TS (`defineConfig`) or JSON | JSON |
+| Version | pinned in your lockfile | floating (pin with `pro-visu@x.y.z`) |
 
-A TS `pro-visu.config.ts` needs the **dev dependency** — its
-`import { defineConfig } from "pro-visu"` must resolve from `node_modules`, both to type-check
-and to run. A JSON config has no import, so it works in either mode.
+A TS config needs the dev dependency — its `defineConfig` import must resolve from `node_modules`.
+JSON works either way, with autocomplete + validation from a generated `pro-visu.schema.json`.
 
-**A — As a project dev-dependency (recommended):**
-
-```bash
-pnpm add -D pro-visu
-```
-
-**B — Without installing (npx or global):**
-
-```bash
-npx pro-visu init --json     # dependency-free JSON config + JSON Schema
-npx pro-visu generate
-```
-
-> **Unreleased builds** (contributing, or pinning `main`): install from GitHub
-> (`pnpm add -D github:pro-laico/pro-visu`), a `pnpm link`, or a `file:` path — see the
-> [package README](https://github.com/pro-laico/pro-visu) for those.
+> **Unreleased builds:** install from GitHub (`pnpm add -D github:pro-laico/pro-visu`), a
+> `pnpm link`, or a `file:` path — see the [README](https://github.com/pro-laico/pro-visu).
 
 ## Initialise
 
@@ -59,22 +40,14 @@ npx pro-visu generate
 npx pro-visu init
 ```
 
-`init` is idempotent and sets up everything needed:
-
-- detects your package manager, framework, and dev port (Next.js → 3000, Vite → 5173, …) and
-  writes a starter `pro-visu.config.ts` to match (unless a config already exists) — or a
-  `pro-visu.config.json` plus a `pro-visu.schema.json` when you pass `--json` **or** pro-visu
-  isn't installed as a project dependency (the npx/global path),
-- creates the output directory (`pro-visu/`) and adds it to `.gitignore`,
-- adds a `"pro-visu": "pro-visu generate"` script to `package.json` (skip with `--no-script`),
-- downloads the managed Chromium and ensures ffmpeg (skip with `--skip-browser`).
-
-The first browser download is one-time, cached, and shared across projects.
+Idempotent. Detects package manager, framework, and dev port → writes a matching config;
+gitignores the output dir; adds a `"pro-visu"` package script; downloads the managed Chromium +
+ffmpeg (one-time, shared). Leaves an existing config alone. `--json` for a dependency-free JSON
+config; [all flags](/docs/cli#pro-visu-init).
 
 ## Configure
 
-Open `pro-visu.config.ts` and point an asset at your site. The starter looks like this (the URL
-matches your detected dev server, or defaults to `http://localhost:3101`):
+Point an asset at your site — set `URL` to whatever you'll run (dev / prod build / deployed):
 
 ```ts
 import { defineConfig } from "pro-visu";
@@ -82,20 +55,7 @@ import { defineConfig } from "pro-visu";
 const URL = "http://localhost:3000";
 
 export default defineConfig({
-  settings: {
-    outDir: "pro-visu",
-    concurrency: 2,
-    browser: { headless: true },
-    defaults: {
-      "scroll-reel": {
-        output: {
-          width: 1440,
-          height: 900,
-          fps: 30,
-        },
-      },
-    },
-  },
+  settings: { outDir: "pro-visu" },
   assets: [
     {
       name: "home-reel",
@@ -106,15 +66,8 @@ export default defineConfig({
 });
 ```
 
-If you scaffolded with `--json`, the equivalent `pro-visu.config.json` carries a
-`"$schema": "./pro-visu.schema.json"` line — your editor reads it for the same autocomplete and
-validation. The schema refreshes itself: after an upgrade, the next `generate` or `doctor`
-rewrites it to match the installed version.
-
-See [Configuration](/docs/configuration) for the full shape, and
-[Generators](/docs/generators) for every asset type and its options. As the config grows, it can
-be [split into modules](/docs/configuration#splitting-the-config) — settings in one file, each
-asset family in its own.
+Full shape (settings, defaults, splitting into modules): [Configuration](/docs/configuration).
+Every asset type + its options: [Generators](/docs/generators).
 
 ## Generate
 
@@ -124,34 +77,15 @@ Start your site (or use a deployed URL), then:
 npx pro-visu generate
 ```
 
-> **Make the URL match.** The capture URLs must point at something that's actually running — your
-> dev server, a production build, or a deployed site. If the config's port doesn't match your dev
-> server's, edit the `URL` const (or uncomment the managed `server` block so pro-visu starts the
-> site itself). `pro-visu generate` probes the URLs up front and tells you when nothing is
-> listening; `pro-visu doctor` runs the same checks without generating anything.
+Assets → `outDir` + `manifest.json`; review with `npx pro-visu list`. `generate` probes the URLs
+up front and fails fast when nothing's listening — so if the port doesn't match your dev server,
+fix `URL`.
 
-Each asset is rendered into `outDir` and recorded in `manifest.json`. Review what was
-produced with:
+> **Don't want to start the site yourself?** A [managed server](/docs/configuration/managed-server)
+> builds → starts → captures → stops it, so `generate` is the only command you run.
 
-```bash
-npx pro-visu list
-```
+## Next
 
-> **Don't want to start the site yourself?** Configure a [managed server](/docs/configuration/managed-server)
-> and the CLI will build → start → capture → stop it for you, so `pro-visu generate` is the only command you run.
-
-## Iterate faster
-
-- `pro-visu generate --draft` — lower fps/scale and a faster encoder for quick previews.
-- `pro-visu generate --asset home-reel` — only (re)build named assets (repeatable).
-- `pro-visu generate --cache` — skip assets whose inputs + options are unchanged.
-- `pro-visu generate --skip-build` — keep the managed server but skip its build step.
-
-See the full [CLI reference](/docs/cli).
-
-## Requirements
-
-- **Node.js** (the CLI runs on Node).
-- **Chromium** — Playwright's managed build, fetched automatically; or point at your own via
-  `settings.browser.channel` / `executablePath`.
-- **ffmpeg** — a working binary is ensured automatically for the video generators.
+- [CLI reference](/docs/cli) — every command + flag: `--draft`, `--asset`, `--cache`, `doctor`.
+- [Configuration](/docs/configuration) · [Generators](/docs/generators) ·
+  [Troubleshooting](/docs/troubleshooting).
