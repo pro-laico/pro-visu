@@ -93,26 +93,6 @@ assets: [
 ]
 ```
 
-## Multi-page tour
-
-Capture several routes and concatenate them into one reel:
-
-```ts
-{
-  name: "site-tour",
-  url: "https://your-site.com",
-  generator: "scroll-reel",
-  options: {
-    routes: [
-      "https://your-site.com",
-      { url: "https://your-site.com/pricing", autoSections: true },
-      { url: "https://your-site.com/contact", durationMs: 2000 },
-    ],
-    aspect: "16:9",
-  },
-}
-```
-
 ## Capture a deployed URL in CI
 
 Skip the managed server and point at a live URL; add `--no-sandbox` for most CI runners:

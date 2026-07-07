@@ -58,6 +58,13 @@ fails loudly with a pointed migration hint, never silently.
 
 ### Removed (BREAKING)
 
+- **`scroll-reel`: the `capture` strategy switch.** Scroll reels are now always frame-stepped —
+  the deterministic, crisp, parallel path; `capture: "realtime"` (and the warnings about options
+  it silently ignored) is gone. For a realtime recording of the live page — time-based hero
+  animation, autoplay video — use the `interaction` generator: a `scrollTo` action reproduces a
+  realtime scroll.
+- **`scroll-reel`: multi-page `routes` tours.** One reel records one page. Migrate by capturing
+  each route as its own scroll-reel asset and concatenating in your editor of choice.
 - **`scroll-reel`: `kenBurns`, `annotations`, and `intro`/`outro` cards.** Post-production
   belongs in an editor; the generator's job is a clean, deterministic capture. Migrate by
   dropping the options and adding zooms/captions/title cards in your video editor of choice.

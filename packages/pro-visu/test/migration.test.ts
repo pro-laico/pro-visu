@@ -24,9 +24,15 @@ describe("legacyOptionHint", () => {
   });
 
   it("flags removed scroll-reel extras as removed", () => {
-    for (const key of ["kenBurns", "annotations", "intro", "outro"]) {
+    for (const key of ["kenBurns", "annotations", "intro", "outro", "routes"]) {
       expect(legacyOptionHint("scroll-reel", unrecognized([key]))).toContain("removed");
     }
+  });
+
+  it("points the removed capture strategy at the interaction generator", () => {
+    const hint = legacyOptionHint("scroll-reel", unrecognized(["capture"]));
+    expect(hint).toContain("frame-stepped");
+    expect(hint).toContain('"interaction" generator');
   });
 
   it("joins hints for multiple offending keys", () => {

@@ -19,7 +19,7 @@ Then open `/gallery` (`pnpm --filter testing dev`) to view the generated assets.
 - `app/shop/page.tsx` — the collection listing (filter bar + product grid).
 - `app/products/[slug]/page.tsx` — product detail with size selector, add-to-bag, and related items
   (`generateStaticParams` over the catalog).
-- `app/about/page.tsx` — the house / brand story (also the `/about` route the tour visits).
+- `app/about/page.tsx` — the house / brand story.
 - `app/lookbook/page.tsx` — a brand board built for capture: stable-id 3:4 panels
   (`#lb-wordmark`, `#lb-editorial`, `#lb-spec-coat`, `#lb-swatch`, `#lb-quote`) that the focus
   clips crop into standalone tiles.
@@ -48,8 +48,8 @@ The storefront uses tonal placeholders until you provide photography — see
 ## Harness
 
 - `pro-visu.config.ts` — a managed-server config exercising the generators/features (scroll reels,
-  screenshots, media wall, palettes, type specimens, scripted interactions, element focus,
-  multi-page tour); output goes to `public/pro-visu/` (gitignored) so Next serves it. It's split
+  screenshots, media wall, palettes, type specimens, scripted interactions, element focus);
+  output goes to `public/pro-visu/` (gitignored) so Next serves it. It's split
   into modules under `showcase/` (brand constants, settings, one file per asset family) — the
   split-config pattern the docs recommend.
 - `pro-visu.docs.config.ts` — the curated set of example clips/stills embedded in the docs.

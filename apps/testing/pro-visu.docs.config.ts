@@ -27,7 +27,7 @@ export default defineConfig({
   },
   assets: [
     // The landing hero: auto-sections tuned to kill stop/start jitter (dsf 3 supersample) +
-    // boomerang so the tour loops with no restart cut.
+    // boomerang so the pan loops with no restart cut.
     {
       name: "docs-home",
       generator: "scroll-reel",

@@ -23,7 +23,6 @@ export type {
   ScrollReelOptions,
   ChoreographyStepInput,
   AutoSectionsInput,
-  RouteInput,
   AspectInput,
 } from "@/generators/scroll-reel/options";
 

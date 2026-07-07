@@ -7,7 +7,7 @@ import {
   type WallPulseInput,
   type FauxTileInput,
 } from "@/scene-engine/scene-options";
-import { frameCaptureShape, videoOutputShape } from "@/generators/shared-options";
+import { captureStrategyShape, frameCaptureShape, videoOutputShape } from "@/generators/shared-options";
 
 /**
  * A tile in a wall column: the NAME of another asset in the config (its output is stacked in the
@@ -83,6 +83,7 @@ export const wallOptionsSchema = z
       .positive()
       .default(16_000)
       .describe("Clip length in ms — the whole loop. Default 16000."),
+    ...captureStrategyShape(),
     ...frameCaptureShape(),
     /** Backdrop shown in the gutters between tiles. */
     background: z

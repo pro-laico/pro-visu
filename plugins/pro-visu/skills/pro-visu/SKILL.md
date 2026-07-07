@@ -14,7 +14,7 @@ gitignored `pro-visu/` folder. Your job with this skill: install pro-visu, write
 **Generators:**
 | id | output |
 |---|---|
-| `scroll-reel` | mp4 — scroll reels, choreographed tours, social formats |
+| `scroll-reel` | mp4 — frame-stepped scroll reels, choreographed section pans, social formats |
 | `interaction` | mp4 — scripted realtime demos with a synthetic cursor, or element-focused clips |
 | `screenshots` | png/jpeg full-page + element captures across named viewports |
 | `wall` | mp4 — a seamless-looping media wall of your other assets and local `{ src }` files |

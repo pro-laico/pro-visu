@@ -102,9 +102,8 @@ settings: {
 }
 ```
 
-This is distinct from scroll-reel's [capture *strategy*](/docs/generators/scroll-reel#capture-strategy)
-(how frames are recorded). Realtime recordings (the `interaction` generator, `capture: "realtime"`)
-apply the same cleanup but keep media playing — a live recording wants its motion.
+Realtime recordings (the `interaction` generator) apply the same cleanup but keep media
+playing — a live recording wants its motion.
 
 > **Auth:** `cookies` isn't limited to capture-mode signals — a session cookie carries auth, letting
 > captures reach login-gated pages. Keep the value in an env var, not the config; see

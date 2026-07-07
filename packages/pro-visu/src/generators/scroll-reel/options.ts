@@ -116,27 +116,26 @@ export const scrollReelOptionsSchema = z
     /**
      * Choreographed scroll: an ordered list of steps instead of one top→bottom sweep. Each step scrolls
      * to a target (a 0..1 number, an "NN%" string, or a CSS selector to bring into view), then holds —
-     * the "pause on each section" look. "frames" capture only (ignored by "realtime"). Omit for the
-     * default single eased sweep. Clip length becomes startDelay + Σ(step travel + hold) + endDwell.
+     * the "pause on each section" look. Omit for the default single eased sweep. Clip length becomes
+     * startDelay + Σ(step travel + hold) + endDwell.
      */
     choreography: z
       .array(choreographyStepSchema)
       .optional()
       .describe(
-        'Choreographed scroll: an ordered list of steps instead of one top→bottom sweep ("frames" only). Omit for the default single eased sweep.',
+        "Choreographed scroll: an ordered list of steps instead of one top→bottom sweep. Omit for the default single eased sweep.",
       ),
 
     /**
      * Auto-choreograph: detect the page's sections and pan/hold through them automatically (no manual
      * selectors). `true` for defaults, or an object to tune. The clip is a fixed budget (`durationMs`,
-     * default 12000) split across detected sections. "frames" capture only; ignored if `choreography`
-     * is set.
+     * default 12000) split across detected sections. Ignored if `choreography` is set.
      */
     autoSections: z
       .union([z.boolean(), autoSectionsSchema])
       .optional()
       .describe(
-        'Auto-choreograph: detect sections and pan/hold through them ("frames" only). `true` for defaults, or an object to tune. Ignored if `choreography` is set.',
+        "Auto-choreograph: detect sections and pan/hold through them. `true` for defaults, or an object to tune. Ignored if `choreography` is set.",
       ),
 
     /** Loop style. "boomerang" plays the scroll forward then back within the clip for a seamless loop. */
@@ -170,51 +169,13 @@ export const scrollReelOptionsSchema = z
         "Also capture the reel at these viewports; each emits an asset (<name>-<viewport name>).",
       ),
 
-    // --- multi-page tour ("frames" path) ---
-    /**
-     * Capture several routes and concatenate them into one reel. Each entry is a URL, or an object with
-     * per-route `choreography` / `autoSections` / `durationMs`. Frame-stepped per route; emits a single
-     * asset (variants are skipped; aspect/outputs apply to the final tour).
-     */
-    routes: z
-      .array(
-        z.union([
-          z.string(),
-          z
-            .object({
-              url: z
-                .string()
-                .describe('Route URL (absolute, or a "/path" against the managed server).'),
-              choreography: z
-                .array(choreographyStepSchema)
-                .optional()
-                .describe("Per-route choreographed scroll (overrides the tour default)."),
-              autoSections: z
-                .union([z.boolean(), autoSectionsSchema])
-                .optional()
-                .describe("Per-route auto-section choreography."),
-              durationMs: z
-                .number()
-                .int()
-                .positive()
-                .optional()
-                .describe("This route's slice of the tour (ms)."),
-            })
-            .strict(),
-        ]),
-      )
-      .optional()
-      .describe(
-        'Capture several routes and concatenate them into one reel ("frames" path). Emits a single asset (variants skipped; aspect/outputs apply to the final tour).',
-      ),
-
-    // --- per-frame settling ("frames" path) ---
+    // --- per-frame settling ---
     /** Wait for fonts + in-view images before each frame's screenshot. Defaults on (off in draft). */
     settlePerFrame: z
       .boolean()
       .optional()
       .describe(
-        "Wait for fonts + in-view images before each frame's screenshot (\"frames\"). Defaults on (off in draft).",
+        "Wait for fonts + in-view images before each frame's screenshot. Defaults on (off in draft).",
       ),
     /** Max time (ms) to wait per frame for settling before screenshotting anyway. */
     settleMaxMs: z
@@ -226,7 +187,7 @@ export const scrollReelOptionsSchema = z
         "Max time (ms) to wait per frame for settling before screenshotting anyway. Default 250.",
       ),
 
-    // --- output formats & reframing ("frames" path) ---
+    // --- output formats & reframing ---
     /** Reframe the output to a target aspect: a preset ("16:9"|"9:16"|"1:1") or explicit {width,height}. */
     aspect: z
       .union([
@@ -300,29 +261,17 @@ export interface AutoSectionsInput {
   constantVelocity?: boolean;
 }
 
-/** One route in a multi-page tour: a URL string, or an object with per-route choreography. */
-export type RouteInput =
-  | string
-  | {
-      /** Route URL (absolute, or a "/path" against the managed server). */
-      url: string;
-      /** Per-route choreographed scroll (overrides the tour default). */
-      choreography?: ChoreographyStepInput[];
-      /** Per-route auto-section choreography. */
-      autoSections?: boolean | AutoSectionsInput;
-      /** This route's slice of the tour (ms). */
-      durationMs?: number;
-    };
-
 /** Target output aspect: a preset, or an explicit pixel box. */
 export type AspectInput = "16:9" | "9:16" | "1:1" | { width: number; height: number };
 
 /**
- * Author-facing options for the `scroll-reel` generator — a video of a page. By default it eases a
- * single top→bottom scroll; the options below switch it into choreographed / auto-section /
- * multi-route modes and reframe / re-encode the output. Site-cleanup toggles (hide the cookie
- * banner, block trackers, freeze the clock, …) live in `settings.capture`, applied to every URL
- * capture. Everything is optional, with the defaults noted below.
+ * Author-facing options for the `scroll-reel` generator — a frame-stepped video of a page
+ * scrolling. By default it eases a single top→bottom scroll; the options below switch it into
+ * choreographed / auto-section motion and reframe / re-encode the output. Site-cleanup toggles
+ * (hide the cookie banner, block trackers, freeze the clock, …) live in `settings.capture`,
+ * applied to every URL capture. For a realtime recording of the live page (scripted cursor,
+ * time-based animation) use the `interaction` generator instead. Everything is optional, with
+ * the defaults noted below.
  */
 export interface ScrollReelOptionsInput {
   /** Output width in CSS px. Default 1280. */
@@ -349,24 +298,18 @@ export interface ScrollReelOptionsInput {
   waitUntil?: "load" | "domcontentloaded" | "networkidle" | "commit";
   /** Optional element to wait for before recording (e.g. a hero section). Omit to skip. */
   waitForSelector?: string;
-  /**
-   * Capture strategy. "frames" (default) steps a virtual clock per frame — frame-accurate, crisp,
-   * reproducible. "realtime" records the live session; use it only for time-based hero animation or
-   * autoplay video. Default "frames".
-   */
-  capture?: "frames" | "realtime";
-  /** Parallel render workers for "frames" (each its own browser context). Omit to auto-pick from cores + free memory. */
+  /** Parallel render workers (each its own browser context). Omit to auto-pick from cores + free memory. */
   workers?: number;
-  /** Intermediate frame format for "frames". "jpeg" (default) is faster; "png" is lossless. Default "jpeg". */
+  /** Intermediate frame format. "jpeg" (default) is faster; "png" is lossless. Default "jpeg". */
   frameFormat?: "jpeg" | "png";
   /**
-   * Choreographed scroll: an ordered list of steps instead of one top→bottom sweep ("frames" only).
-   * Omit for the default single eased sweep.
+   * Choreographed scroll: an ordered list of steps instead of one top→bottom sweep. Omit for the
+   * default single eased sweep.
    */
   choreography?: ChoreographyStepInput[];
   /**
-   * Auto-choreograph: detect the page's sections and pan/hold through them ("frames" only). `true`
-   * for defaults, or an object to tune. Ignored if `choreography` is set. Omit to disable.
+   * Auto-choreograph: detect the page's sections and pan/hold through them. `true` for defaults,
+   * or an object to tune. Ignored if `choreography` is set. Omit to disable.
    */
   autoSections?: boolean | AutoSectionsInput;
   /** Loop style. "boomerang" plays the scroll forward then back for a seamless loop. Default "none". */
@@ -377,12 +320,7 @@ export interface ScrollReelOptionsInput {
   themeClass?: string;
   /** Also capture the reel at these viewports; each emits an asset (<name>-<viewport name>). */
   viewports?: ViewportInput[];
-  /**
-   * Capture several routes and concatenate them into one reel ("frames" path). Emits a single asset
-   * (variants skipped; aspect/outputs apply to the final tour).
-   */
-  routes?: RouteInput[];
-  /** Wait for fonts + in-view images before each frame's screenshot ("frames"). Defaults on (off in draft). */
+  /** Wait for fonts + in-view images before each frame's screenshot. Defaults on (off in draft). */
   settlePerFrame?: boolean;
   /** Max time (ms) to wait per frame for settling before screenshotting anyway. Default 250. */
   settleMaxMs?: number;

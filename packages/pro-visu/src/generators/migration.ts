@@ -31,6 +31,10 @@ const RENAMED_KEYS: Record<string, Record<string, string>> = {
     annotations: "removed — annotate in your editor of choice",
     intro: "removed — title cards belong in your editor of choice",
     outro: "removed — title cards belong in your editor of choice",
+    capture:
+      'removed — scroll-reel is always frame-stepped; for a realtime recording of the live page use the "interaction" generator (a scrollTo action reproduces a realtime scroll)',
+    routes:
+      "removed — multi-page tours were dropped; capture each route as its own scroll-reel asset and concatenate in your editor of choice",
   },
   wall: {
     size: 'faux-tile "size" was renamed to "caption" (same string)',

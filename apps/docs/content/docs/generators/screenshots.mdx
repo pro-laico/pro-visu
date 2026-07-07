@@ -123,17 +123,17 @@ logged with a warning and skipped — the page shot and remaining elements/viewp
 ## Capturing the UI in a particular state
 
 `screenshots` captures the page as it loads — it's **stateless**, with no clicks or scripted steps.
-To showcase the UI in a *state* (a menu open, a tab switched, a form filled), drive it with a
-[`scroll-reel`](/docs/generators/scroll-reel) interaction instead and use that clip. Here, on a
+To showcase the UI in a *state* (a menu open, a tab switched, a form filled), drive it with the
+[`interaction`](/docs/generators/interaction) generator instead and use that clip. Here, on a
 phone viewport, a scripted tap opens the menu and holds it open:
 
 <Example
   clip="docs-menu"
-  caption="A phone-viewport scroll-reel standing in for a 'stateful screenshot' — the mobile menu open, captured."
+  caption="A phone-viewport interaction standing in for a 'stateful screenshot' — the mobile menu open, captured."
   code={`{
   name: "menu-open",
   url: "https://your-site.com",
-  generator: "scroll-reel",
+  generator: "interaction",
   options: {
     width: 390,
     height: 844,

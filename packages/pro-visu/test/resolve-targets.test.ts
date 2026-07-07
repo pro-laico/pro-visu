@@ -34,28 +34,9 @@ describe("resolveTargets", () => {
     expect(a.url).toBe("https://example.com/x");
   });
 
-  it("resolves relative routes (string and object forms), passing absolutes through", () => {
-    const a = resolveTargets(
-      [
-        asset({
-          options: { routes: ["/", "/shop", { url: "/about", durationMs: 5 }, "https://x.com/y"] },
-        }),
-      ],
-      BASE,
-      needsUrl,
-    )[0]!;
-    expect(a.options.routes).toEqual([
-      "http://127.0.0.1:3101/",
-      "http://127.0.0.1:3101/shop",
-      { url: "http://127.0.0.1:3101/about", durationMs: 5 },
-      "https://x.com/y",
-    ]);
-  });
-
-  it("does not mutate the input asset or its options", () => {
-    const original = asset({ url: "/shop", options: { routes: ["/x"] } });
+  it("does not mutate the input asset", () => {
+    const original = asset({ url: "/shop" });
     resolveTargets([original], BASE, needsUrl);
     expect(original.url).toBe("/shop");
-    expect(original.options.routes).toEqual(["/x"]);
   });
 });

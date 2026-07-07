@@ -97,7 +97,7 @@ and are merged beneath each asset's own `options`.
 
 | Generator | Output | Key options |
 |---|---|---|
-| `scroll-reel` | mp4 of the site (frame-stepped by default) — scroll reels, choreographed tours, social formats | `width`/`height`/`fps`/`durationMs`/`easing` plus `capture`, `choreography`, `autoSections`, `loop`, `colorScheme`/`viewports`, `aspect`, `outputs`, `routes` — see [Recording reels in depth](#recording-reels-in-depth-scroll-reel) |
+| `scroll-reel` | mp4 of the site (frame-stepped) — scroll reels, choreographed section pans, social formats | `width`/`height`/`fps`/`durationMs`/`easing` plus `choreography`, `autoSections`, `loop`, `colorScheme`/`viewports`, `aspect`, `outputs` — see [Recording reels in depth](#recording-reels-in-depth-scroll-reel) |
 | `interaction` | mp4 — scripted realtime demos with a synthetic cursor, or a clip cropped to one component | `actions[]`, `cursor`, `focus` |
 | `screenshots` | png/jpeg page + element captures per viewport | `viewports[]`, `fullPage`, `format`, `elements[]`, `deviceScaleFactor` |
 | `wall` | mp4 media wall — columns of your assets (and local `{ src }` files), each scrolling on its own, looping seamlessly | `columns[]` (tiles + per-column motion), `pulses`, `loops`, `pan`, `gap`/`tileAspect`/`cornerRadius`, `stagger`, `test` |
@@ -123,25 +123,24 @@ assets: [
 
 ## Recording reels in depth (`scroll-reel`)
 
-`scroll-reel` is the workhorse. By default it captures **frame-stepped**: it drives a virtual
-clock, screenshots each frame, and pipes them to ffmpeg — so output is frame-accurate, crisp
-(supersampled by `deviceScaleFactor`), parallelized across `workers`, and **byte-identical
-run-to-run**. Every option below is a `scroll-reel` option.
+`scroll-reel` is the workhorse, and it does one thing: record a page scrolling. Every capture is
+**frame-stepped**: it drives a virtual clock, screenshots each frame, and pipes them to ffmpeg —
+so output is frame-accurate, crisp (supersampled by `deviceScaleFactor`), parallelized across
+`workers`, and **byte-identical run-to-run**. Every option below is a `scroll-reel` option.
 
 > Every option has hover docs in `pro-visu.config.ts` — the authoring types are generated from
 > the validation schema, so the editor always matches what the tool accepts.
 
-### Capture strategy
+### Frame rendering
 
 | Option | Meaning |
 |---|---|
-| `capture` | `"frames"` (default) deterministic frame-stepping; `"realtime"` records live (fallback for time-based hero animations / autoplay video). |
-| `workers` | Parallel render contexts for `"frames"` (auto-picked from cores + free memory). |
-| `frameFormat` | Intermediate frame format for `"frames"`: `"jpeg"` (default) or `"png"` (lossless). |
+| `workers` | Parallel render contexts (auto-picked from cores + free memory). |
+| `frameFormat` | Intermediate frame format: `"jpeg"` (default) or `"png"` (lossless). |
 
-Choreography, auto-sections, variants, aspect and extra outputs are **frames-only**;
-`realtime` ignores them (with a warning). Site cleanup (hide the cookie banner, block trackers,
-freeze the clock) lives in `settings.capture`, applied to every URL capture.
+Site cleanup (hide the cookie banner, block trackers, freeze the clock) lives in
+`settings.capture`, applied to every URL capture. For a **realtime** recording of the live page
+(time-based hero animation, autoplay video, scripted cursors) use the `interaction` generator.
 
 ### Motion
 
@@ -211,21 +210,6 @@ The viewport × color-scheme matrix is emitted as separate assets (`<name>-<suff
   **realtime** (interactions and their animations are time-based).
 - `focus: { selector, padding?, actions?, holdMs? }` — capture a single component (optionally trigger
   it first), cropped to its box.
-
-### Multi-page tour
-
-```ts
-options: {
-  routes: [
-    "https://site.com",
-    { url: "https://site.com/pricing", autoSections: true },
-    { url: "https://site.com/contact", durationMs: 2000 },
-  ],
-}
-```
-
-`routes` captures each page as a frame-stepped segment and concatenates them into one reel; aspect
-and extra `outputs` apply to the final tour.
 
 ## Media wall & composition
 

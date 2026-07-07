@@ -136,7 +136,7 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     baseServerCfg && options.skipBuild ? { ...baseServerCfg, build: undefined } : baseServerCfg;
 
   // The managed server's URL is the default base: a url-based asset that omits `url` captures its
-  // root, and relative `url`/`routes` entries resolve against it. (No server → assets as authored.)
+  // root, and a relative `url` resolves against it. (No server → assets as authored.)
   const serverBase = serverCfg ? resolveServerUrl(serverCfg) : undefined;
   const resolvedConfig: ResolvedConfig = {
     ...config,

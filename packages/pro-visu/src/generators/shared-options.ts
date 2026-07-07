@@ -66,11 +66,30 @@ export function videoOutputShape(d: VideoOutputDefaults): {
   };
 }
 
-/** capture strategy / workers / frameFormat — the frame-stepped capture block. */
+/** workers / frameFormat — the frame-stepped render block. */
 export function frameCaptureShape(): {
-  capture: z.ZodDefault<z.ZodEnum<["frames", "realtime"]>>;
   workers: z.ZodOptional<z.ZodNumber>;
   frameFormat: z.ZodDefault<z.ZodEnum<["jpeg", "png"]>>;
+} {
+  return {
+    workers: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe(
+        "Parallel render workers (each its own browser context). Omit to auto-pick from cores + free memory.",
+      ),
+    frameFormat: z
+      .enum(["jpeg", "png"])
+      .default("jpeg")
+      .describe('Intermediate frame format. "jpeg" (default) is faster; "png" is lossless.'),
+  };
+}
+
+/** The frames/realtime strategy switch — only for generators that genuinely offer both (wall). */
+export function captureStrategyShape(): {
+  capture: z.ZodDefault<z.ZodEnum<["frames", "realtime"]>>;
 } {
   return {
     capture: z
@@ -79,18 +98,6 @@ export function frameCaptureShape(): {
       .describe(
         '"frames" (default) steps a virtual clock per frame — frame-accurate, crisp, reproducible; "realtime" records the live session (for time-based animation / autoplay video).',
       ),
-    workers: z
-      .number()
-      .int()
-      .positive()
-      .optional()
-      .describe(
-        'Parallel render workers for "frames" (each its own browser context). Omit to auto-pick from cores + free memory.',
-      ),
-    frameFormat: z
-      .enum(["jpeg", "png"])
-      .default("jpeg")
-      .describe('Intermediate frame format for "frames". "jpeg" (default) is faster; "png" is lossless.'),
   };
 }
 

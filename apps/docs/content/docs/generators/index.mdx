@@ -8,7 +8,7 @@ the asset's own `options` (the asset wins). Each generator validates its own opt
 
 | Generator | Output | Needs `url`? | Key options |
 |---|---|---|---|
-| [`scroll-reel`](/docs/generators/scroll-reel) | mp4 (+ gif/webp/poster) | Yes | `width`/`height`/`fps`/`durationMs`, `capture`, `choreography`, `autoSections`, `loop`, `colorScheme`/`viewports`, `aspect`, `outputs`, `routes` |
+| [`scroll-reel`](/docs/generators/scroll-reel) | mp4 (+ gif/webp/poster) | Yes | `width`/`height`/`fps`/`durationMs`, `choreography`, `autoSections`, `loop`, `colorScheme`/`viewports`, `aspect`, `outputs` |
 | [`interaction`](/docs/generators/interaction) | mp4 | Yes | `actions[]`, `cursor`, `focus` |
 | [`screenshots`](/docs/generators/screenshots) | png / jpeg | Yes | `viewports[]`, `fullPage`, `format`, `elements[]`, `deviceScaleFactor` |
 | [`wall`](/docs/generators/wall) | mp4 | No | `columns[]` (tiles by name or `{ src }` + per-column motion), `pulses`, `loops`, `pan`, `gap`/`tileAspect`, `test` |
@@ -30,6 +30,7 @@ the asset's own `options` (the asset wins). Each generator validates its own opt
 The video generators capture **frame-stepped** by default: a virtual clock is driven, each
 frame is screenshotted, and frames are piped to ffmpeg — so output is frame-accurate,
 supersampled by `deviceScaleFactor`, parallelised across `workers`, and byte-identical
-run-to-run. `scroll-reel` can fall back to `capture: "realtime"` for time-based hero
-animations; scripted interactions are always realtime — that's the
-[interaction](/docs/generators/interaction) generator.
+run-to-run. The one deliberate exception is the
+[interaction](/docs/generators/interaction) generator, which always records **realtime** —
+scripted interactions, time-based hero animations, and autoplay video are inherently live.
+(`wall` also offers `capture: "realtime"` as a fast iteration mode.)

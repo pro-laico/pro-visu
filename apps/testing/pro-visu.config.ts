@@ -5,7 +5,6 @@ import { focusClips } from "./showcase/focus";
 import { interactions } from "./showcase/interactions";
 import { screenshots } from "./showcase/screenshots";
 import { settings } from "./showcase/settings";
-import { tour } from "./showcase/tour";
 import { wallAssets } from "./showcase/wall";
 
 // The complete VESPER showcase, split into modules under showcase/ (one file per asset family).
@@ -13,5 +12,5 @@ import { wallAssets } from "./showcase/wall";
 // (repeatable — dependencies are pulled in automatically).
 export default defineConfig({
   settings,
-  assets: [...wallAssets, ...films, ...focusClips, ...interactions, ...tour, ...screenshots, ...brandAssets],
+  assets: [...wallAssets, ...films, ...focusClips, ...interactions, ...screenshots, ...brandAssets],
 });

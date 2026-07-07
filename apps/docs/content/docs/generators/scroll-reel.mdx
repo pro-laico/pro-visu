@@ -1,19 +1,19 @@
 ---
 title: scroll-reel
-description: Deterministic frame-stepped scroll recordings — single sweeps, choreographed tours, multi-page reels, and social formats.
+description: Deterministic frame-stepped scroll recordings — single sweeps, choreographed section pans, and social formats.
 ---
 
-`scroll-reel` is the workhorse generator. By default it captures **frame-stepped**: it drives
-a virtual clock, screenshots each frame, and pipes them to ffmpeg — so output is frame-accurate,
-crisp (supersampled by `deviceScaleFactor`), parallelised across `workers`, and **byte-identical
-run-to-run**.
+`scroll-reel` is the workhorse generator, and it does one thing: record a page scrolling. Every
+capture is **frame-stepped** — it drives a virtual clock, screenshots each frame, and pipes them
+to ffmpeg — so output is frame-accurate, crisp (supersampled by `deviceScaleFactor`), parallelised
+across `workers`, and **byte-identical run-to-run**.
 
 ```ts
 { name: "home", url: "https://your-site.com", generator: "scroll-reel" }
 ```
 
 Here it *actually scrolls*: `autoSections` detects the page's sections and paces a pan/hold
-down the whole page within a fixed time budget — a hands-off tour, no choreography to author:
+down the whole page within a fixed time budget — hands-off, no choreography to author:
 
 <Example
   clip="docs-scroll"
@@ -35,7 +35,7 @@ last frames match:
 
 <Example
   clip="docs-home"
-  caption="A boomerang loop over an auto-sections tour — supersampled at deviceScaleFactor 3 for a crisp hero clip."
+  caption="A boomerang loop over an auto-sections pan — supersampled at deviceScaleFactor 3 for a crisp hero clip."
   code={`{
   name: "docs-home",
   generator: "scroll-reel",
@@ -50,9 +50,10 @@ last frames match:
 }`}
 />
 
-> Want a scripted click-through with a visible cursor, or a clip cropped to one component?
-> That's the [`interaction`](/docs/generators/interaction) generator. Site cleanup (hide the
-> cookie banner, block trackers, freeze the clock) lives in
+> Want a scripted click-through with a visible cursor, a clip cropped to one component, or a
+> **realtime** recording of the live page (time-based hero animation, autoplay video)? That's the
+> [`interaction`](/docs/generators/interaction) generator. Site cleanup (hide the cookie banner,
+> block trackers, freeze the clock) lives in
 > [`settings.capture`](/docs/configuration/settings#capture) and applies to every URL capture.
 
 ## Core sizing
@@ -60,7 +61,7 @@ last frames match:
 export const coreSizingOptions = [
   { name: 'width / height', description: 'Viewport size in CSS px. Default 1280 × 800.' },
   { name: 'fps', description: 'Output frames per second. Default 30 (max 120).' },
-  { name: 'durationMs', description: 'Clip length in ms (when not using choreography/autoSections/routes). Default 6000.' },
+  { name: 'durationMs', description: 'Clip length in ms (when not using choreography/autoSections). Default 6000.' },
   { name: 'deviceScaleFactor', description: 'Render scale — higher captures crisper, then downscales into the video. Default 2 (max 4).' },
   { name: 'easing', description: 'Scroll easing: "linear", "ease-in", "ease-out", "ease-in-out" (default), "ease-out-strong", "ease-in-out-strong".' },
   { name: 'crf', description: 'x264 quality, 0–51 (lower = better/larger). Default 18.' },
@@ -80,23 +81,19 @@ export const timingOptions = [
 
 <ConfigOptions items={timingOptions} />
 
-## Capture strategy
+## Frame rendering
 
-How frames are recorded — not to be confused with [`settings.capture`](/docs/configuration/settings#capture),
+How frames are rendered — not to be confused with [`settings.capture`](/docs/configuration/settings#capture),
 the site cleanup applied to every URL capture.
 
-export const captureStrategyOptions = [
-  { name: 'capture', description: '"frames" (default) deterministic frame-stepping; "realtime" records live — a fallback for time-based hero animations or autoplay video.' },
-  { name: 'workers', description: 'Parallel render contexts for "frames" (auto-picks from cores + free memory; all captures share a run-wide context budget).' },
-  { name: 'frameFormat', description: 'Intermediate frame format for "frames": "jpeg" (default) or "png" (lossless).' },
+export const frameRenderingOptions = [
+  { name: 'workers', description: 'Parallel render contexts (auto-picks from cores + free memory; all captures share a run-wide context budget).' },
+  { name: 'frameFormat', description: 'Intermediate frame format: "jpeg" (default) or "png" (lossless).' },
   { name: 'settlePerFrame', description: 'Wait for fonts + in-view images before each frame. Default on (off in --draft).' },
   { name: 'settleMaxMs', description: 'Per-frame settling cap in ms. Default 250.' },
 ]
 
-<ConfigOptions items={captureStrategyOptions} />
-
-Choreography, auto-sections, variants, aspect, and extra outputs are **frames-only**;
-`realtime` ignores them (with a warning).
+<ConfigOptions items={frameRenderingOptions} />
 
 ## Motion
 
@@ -165,23 +162,6 @@ A vertical cut of the same page — `aspect: "9:16"` reframes the capture for a 
   },
 }`}
 />
-
-## Multi-page tour
-
-```ts
-options: {
-  routes: [
-    "https://site.com",
-    { url: "https://site.com/pricing", autoSections: true },
-    { url: "https://site.com/contact", durationMs: 2000 },
-  ],
-}
-```
-
-`routes` captures each page as a frame-stepped segment and concatenates them into one reel;
-`aspect` and extra `outputs` apply to the final tour. Variants are **not** expanded —
-`viewports` and `colorScheme: "both"` are skipped (a warning is logged), so a route tour emits
-a single asset. Per-route objects accept `choreography` / `autoSections` / `durationMs`.
 
 > Every option also has hover docs in `pro-visu.config.ts` — the authoring types are generated
 > from the validation schema, so the editor always matches what the tool accepts.
