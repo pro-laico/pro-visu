@@ -3,8 +3,63 @@ title: screenshots
 description: Responsive full-page and element captures, one set per viewport.
 ---
 
-`screenshots` captures still images of a page at one or more viewports, optionally plus
-specific elements. Output is png or jpeg.
+`screenshots` captures still images of a page at one or more viewports, optionally plus specific
+elements. It's **stateless** — the page as it loads, no clicks or scripted steps — and each capture
+is warmed first (scroll the whole document, let fonts load, decode images) so `fullPage` shots
+aren't blank or fallback-font further down. Output is png or jpeg.
+
+```ts
+{ name: "home-shots", url: "https://your-site.com", generator: "screenshots" }
+```
+
+By default it emits a full-page desktop (1440×900) and mobile (390×844) shot. The options add more
+viewports, crop specific elements at every viewport, switch format/quality, and tune load/settle
+timing. Site cleanup (hide the cookie banner, block trackers, freeze the clock) lives in
+[`settings.capture`](/docs/configuration/settings#capture) and applies to every URL capture.
+
+> Want to showcase the UI in a *state* — a menu open, a tab switched, a form filled? `screenshots`
+> can't click. Drive it with the [`interaction`](/docs/generators/interaction) generator and use
+> that clip (see the last example below).
+
+## Config options
+
+export const options = [
+  { name: 'viewports', type: 'Viewport[]', default: 'desktop 1440×900 + mobile 390×844', description: `Viewports to capture at (at least one); each emits its own asset.`, options: [
+    { name: 'name', type: 'string', required: true, description: `Label for this viewport — used in the asset id / filename (e.g. "desktop").` },
+    { name: 'width', type: 'number', required: true, description: `Viewport width in CSS px.` },
+    { name: 'height', type: 'number', required: true, description: `Viewport height in CSS px. Ignored for fullPage shots (Playwright resizes to the page height); only affects viewport and element captures.` },
+    { name: 'deviceScaleFactor', type: 'number', description: `Override the generator-level deviceScaleFactor for this viewport. Omit to inherit it.` },
+  ] },
+  { name: 'fullPage', type: 'boolean', default: 'true', description: `Capture the entire scrollable page vs. just the viewport.` },
+  { name: 'output', type: 'object', description: `Image output: format, quality, scale, transparency.`, options: [
+    { name: 'format', type: "'png' | 'jpeg'", default: "'png'", description: `Output image format.` },
+    { name: 'quality', type: 'number', description: `JPEG quality, 1–100 (jpeg only; rejected for png). Omit for the encoder default.` },
+    { name: 'deviceScaleFactor', type: 'number', default: '2', description: `Render scale, max 4 (2 = retina-crisp). A viewport can override it.` },
+    { name: 'omitBackground', type: 'boolean', default: 'false', description: `Capture with a transparent background (png only).` },
+  ] },
+  { name: 'page', type: 'object', description: `Page load & settle timing.`, options: [
+    { name: 'waitUntil', type: "'load' | 'domcontentloaded' | 'networkidle' | 'commit'", default: "'networkidle'", description: `Page-load milestone to wait for before capturing.` },
+    { name: 'waitForSelector', type: 'string', description: `Optional element to wait for (visible) before capturing, e.g. a hero image. Omit to skip.` },
+    { name: 'settleMs', type: 'number', default: '0', description: `Extra settle time (ms) before capturing. Floored at 600ms by the page warm-up pass — raise it for slow animations or deferred content the warm pass doesn't catch.` },
+  ] },
+  { name: 'elements', type: '{ selector, name }[]', default: '[]', description: `Specific elements to crop (in addition to the page) at every viewport. A miss (zero nodes, or a hidden node) is warned and skipped — it never aborts the run.`, options: [
+    { name: 'selector', type: 'string', required: true, description: `CSS selector of the element to shoot.` },
+    { name: 'name', type: 'string', required: true, description: `Name used in the filename + manifest id for this element shot.` },
+  ] },
+]
+
+Everything is optional. **Reference** is the interactive view; **TypeScript** is the same shape in
+code, every option at its default.
+
+<Tabs items={['Reference', 'TypeScript']}>
+
+<Tab value="Reference" className="p-0!">
+
+<ConfigOptions items={options} />
+
+</Tab>
+
+<Tab value="TypeScript">
 
 ```ts
 {
@@ -12,17 +67,53 @@ specific elements. Output is png or jpeg.
   url: "https://your-site.com",
   generator: "screenshots",
   options: {
+    // --- viewports (each emitted as its own asset) ---
     viewports: [
       { name: "desktop", width: 1440, height: 900 },
       { name: "mobile", width: 390, height: 844 },
     ],
-    elements: [{ selector: "header", name: "nav" }],
+
+    // --- what to capture ---
+    fullPage: true,
+    // elements: [{ selector: "header", name: "nav" }],  // optional; cropped at every viewport
+
+    // --- format & scale ---
+    output: {
+      format: "png",
+      // quality: 80,                // optional; jpeg only, 1–100
+      deviceScaleFactor: 2,
+      omitBackground: false,         // png only; transparent background
+    },
+
+    // --- timing & navigation ---
+    page: {
+      waitUntil: "networkidle",
+      // waitForSelector: "#hero",   // optional; wait for an element first
+      settleMs: 0,                   // floored at 600ms by the warm-up pass
+    },
   },
 }
 ```
 
-A full-page desktop capture — the whole scrollable page, far taller than the 900px viewport
-(scroll the panel):
+</Tab>
+
+</Tabs>
+
+> Every option also has hover docs in `pro-visu.config.ts` — the authoring types are generated
+> from the validation schema, so the editor always matches what the tool accepts.
+
+Each viewport produces a page shot (unless you scope to elements), and each `elements` entry
+produces one capture per viewport, named `<asset>-<viewport>-<element>`. Viewports render in
+parallel (cap of 3), each in its own isolated browser context; element shots stay sequential within
+a viewport, and ids/filenames keep input order. A very large `fullPage` shot (>16000px on either
+axis) warns — Chromium caps screenshots near ~32767px, so lower `deviceScaleFactor` if it clips.
+
+## Examples
+
+### Full-page desktop capture
+
+`fullPage: true` shoots the whole scrollable page — far taller than the 900px viewport (scroll the
+panel):
 
 <ImageExample
   tall
@@ -47,7 +138,9 @@ A full-page desktop capture — the whole scrollable page, far taller than the 9
 }`}
 />
 
-And the same site on a phone, just the viewport — as a visitor first sees it:
+### Mobile viewport
+
+The same site on a phone with `fullPage: false` — just the viewport, as a visitor first sees it:
 
 <ImageExample
   src="/examples/docs-shot-mobile.png"
@@ -71,61 +164,11 @@ And the same site on a phone, just the viewport — as a visitor first sees it:
 }`}
 />
 
-## Options
+### Stateful shots via `interaction`
 
-export const options = [
-  { name: 'viewports', type: '{ name, width, height?, deviceScaleFactor? }[]', default: 'desktop 1440×900 + mobile 390×844', description: 'Viewports to capture at. height defaults to 900; deviceScaleFactor is positive, max 4.' },
-  { name: 'fullPage', type: 'boolean', default: 'true', description: 'Capture the entire scrollable page vs. just the viewport.' },
-  { name: 'format', type: '"png" | "jpeg"', default: '"png"', description: 'Output format.' },
-  { name: 'quality', type: 'number (1–100)', description: 'jpeg only. Rejected with format: "png".' },
-  { name: 'deviceScaleFactor', type: 'number (>0, ≤4)', default: '2', description: 'Render scale; a viewport can override it.' },
-  { name: 'waitUntil', type: '"load" | "domcontentloaded" | "networkidle" | "commit"', default: '"networkidle"', description: 'Navigation wait condition.' },
-  { name: 'waitForSelector', type: 'string', description: 'Wait for this selector (state visible) before capturing.' },
-  { name: 'elements', type: '{ selector, name }[]', default: '[]', description: 'Element captures taken at every viewport.' },
-  { name: 'omitBackground', type: 'boolean', default: 'false', description: 'png only — capture with a transparent background.' },
-  { name: 'settleMs', type: 'number', default: '0', description: 'Extra settle time before capturing. Floored at 600ms — see Page warm-up (#page-warm-up).' },
-]
-
-<ConfigOptions items={options} />
-
-> `height` is ignored for `fullPage` shots (Playwright resizes to the page height); it only
-> affects viewport and element captures.
-
-Each viewport produces a page shot (unless you scope to elements), and each `elements` entry
-produces one capture per viewport, named `<asset>-<viewport>-<element>`.
-
-## Page warm-up
-
-Before each shot the page is driven through a scroll/warm pass: it scrolls down through the full
-document to trigger lazy-loaded and intersection-mounted content, lets web fonts finish loading,
-and waits for images to decode, then returns to the top. Without this, `fullPage` shots tend to
-capture blank or placeholder regions and fallback fonts further down the page.
-
-The warm pass ends with a settle wait of `max(settleMs, 600)` milliseconds. Raise `settleMs`
-above 600 for pages with slow animations or deferred network content the warm pass alone
-doesn't catch.
-
-## Element-capture resilience
-
-Element captures never abort the run. If an `elements` selector matches zero nodes, or matches a
-node that can't be shot (e.g. a present-but-hidden `display:none` element), that capture is
-logged with a warning and skipped — the page shot and remaining elements/viewports still run.
-
-## Rendering notes
-
-- Viewports render in parallel (cap of 3 at a time), each in its own isolated browser context;
-  element shots stay sequential within a viewport. Filenames and manifest ids stay in input
-  order regardless.
-- A very large `fullPage` shot (>16000px on either axis) emits a warning, since Chromium caps
-  screenshots near ~32767px and a high `deviceScaleFactor` can push a tall page past that — the
-  result may be clipped or slow. Lower the scale if you hit this.
-
-## Capturing the UI in a particular state
-
-`screenshots` captures the page as it loads — it's **stateless**, with no clicks or scripted steps.
-To showcase the UI in a *state* (a menu open, a tab switched, a form filled), drive it with the
-[`interaction`](/docs/generators/interaction) generator instead and use that clip. Here, on a
-phone viewport, a scripted tap opens the menu and holds it open:
+To capture a *state* (a menu open, a tab switched), `screenshots` can't help — drive it with
+[`interaction`](/docs/generators/interaction) instead. Here a scripted tap opens the mobile menu
+and holds it open:
 
 <Example
   clip="docs-menu"

@@ -3,12 +3,127 @@ title: interaction
 description: Realtime recordings of scripted interactions — a synthetic cursor driving the page, or a clip cropped to one component.
 ---
 
-`interaction` records the page **live** while a scripted sequence plays out — a visible
-synthetic cursor moves, clicks, hovers, and types, exactly like a hand-recorded product demo,
-but reproducible from config. It always records realtime (interactions and their animations are
-inherently time-based) and always emits a single asset.
+`interaction` records the page **live** while a scripted sequence plays out — a visible synthetic
+cursor moves, clicks, hovers, and types, exactly like a hand-recorded product demo but reproducible
+from config. It always records realtime (interactions and their animations are inherently
+time-based) and always emits a single asset.
 
-Give it `actions` (a scripted tour), `focus` (a clip cropped to one component), or both.
+```ts
+{ name: "menu-demo", url: "https://your-site.com", generator: "interaction", options: { actions: [{ do: "click", selector: "#menu-button" }] } }
+```
+
+Give it `actions` (a scripted tour), `focus` (a clip cropped to one component), or both — one of the
+two is required. Site cleanup (hide the cookie banner, block trackers, seed a session cookie for
+logged-in flows) comes from [`settings.capture`](/docs/configuration/settings#capture), same as
+every other URL capture — media keeps playing during the recording, since an interaction is live by
+design.
+
+## Config options
+
+export const options = [
+  { name: 'output', type: 'Output', description: `Video output: size, scale, frame rate, encoding, filename.`, options: [
+    { name: 'width', type: 'number', default: '1280', description: `Output width in CSS px.` },
+    { name: 'height', type: 'number', default: '800', description: `Output height in CSS px.` },
+    { name: 'deviceScaleFactor', type: 'number', default: '2', description: `Render scale, max 4 — higher captures crisper, then downscales into the video.` },
+    { name: 'fps', type: 'number', default: '30', description: `Output frames per second (max 120).` },
+    { name: 'crf', type: 'number', default: '18', description: `x264 quality, 0–51 (lower = better quality / larger file).` },
+    { name: 'fileName', type: 'string', description: `Output filename. Defaults to "<slug(asset name)>.mp4".` },
+  ] },
+  { name: 'page', type: 'Page', description: `Page load + interaction timing.`, options: [
+    { name: 'startDelayMs', type: 'number', default: '500', description: `Dwell before the first step (ms).` },
+    { name: 'endDwellMs', type: 'number', default: '800', description: `Dwell after the last step (ms).` },
+    { name: 'waitUntil', type: "'load' | 'domcontentloaded' | 'networkidle' | 'commit'", default: "'networkidle'", description: `Page-load milestone to wait for before recording.` },
+    { name: 'waitForSelector', type: 'string', description: `Optional element to wait for before recording, e.g. a hero section. Omit to skip.` },
+  ] },
+  { name: 'actions', type: 'Action[]', default: '[]', description: `The scripted steps, performed live with a visible synthetic cursor. Omit only when focus alone (scroll-into-view + hold) is enough — an interaction needs actions and/or focus.`, options: [
+    { name: 'do', type: "'move' | 'click' | 'hover' | 'type' | 'scrollTo' | 'wait'", required: true, description: `What this step does.` },
+    { name: 'selector', type: 'string', description: `Target element for move / click / hover / type.` },
+    { name: 'x', type: 'number', description: `Viewport-relative X target (0..1) for a selector-less move.` },
+    { name: 'y', type: 'number', description: `Viewport-relative Y target (0..1) for a selector-less move.` },
+    { name: 'text', type: 'string', description: `Text to type (for type).` },
+    { name: 'to', type: 'number | string', description: `Scroll target for scrollTo: a 0..1 number, an "NN%" string, or a CSS selector.` },
+    { name: 'durationMs', type: 'number', description: `Cursor travel / scroll animation time (ms). Defaults to 700.` },
+    { name: 'holdMs', type: 'number', description: `Pause after the step (ms). Defaults to 600.` },
+  ] },
+  { name: 'cursor', type: 'Cursor', description: `The synthetic cursor shown during the recording. Omit for the default cursor.`, options: [
+    { name: 'show', type: 'boolean', description: `Show the cursor. Defaults to true. Set false for hands-off UI-state clips (e.g. media wall tiles).` },
+    { name: 'size', type: 'number', description: `Cursor size (px). Defaults to 22.` },
+    { name: 'color', type: 'string', description: `Cursor color. Defaults to white-with-shadow.` },
+  ] },
+  { name: 'focus', type: 'Focus', description: `Element-focused clip: scroll one component into view, optionally trigger it, hold, and crop the output to its box. The crop box is measured AFTER any trigger actions run, so an expanded dropdown/drawer stays in frame. Omit for a full-viewport recording.`, options: [
+    { name: 'selector', type: 'string', required: true, description: `Selector of the element to scroll into view and crop to.` },
+    { name: 'padding', type: 'number', description: `Padding (px) around the element when cropping. Defaults to 24.` },
+    { name: 'actions', type: 'Action[]', description: `Optional steps to trigger the component (e.g. open a dropdown) before holding.` },
+    { name: 'holdMs', type: 'number', description: `Time to dwell on the element after positioning / triggering (ms). Defaults to 2000.` },
+  ] },
+  { name: 'colorScheme', type: "'light' | 'dark'", description: `Force a color scheme for the capture. Omit to leave as-is.` },
+]
+
+An interaction needs `actions`, `focus`, or both; everything else is optional. **Reference** is the
+interactive view; **TypeScript** is the same shape in code, every option at its default.
+
+<Tabs items={['Reference', 'TypeScript']}>
+
+<Tab value="Reference" className="p-0!">
+
+<ConfigOptions items={options} />
+
+</Tab>
+
+<Tab value="TypeScript">
+
+```ts
+{
+  name: "menu-demo",
+  url: "https://your-site.com",
+  generator: "interaction",
+  options: {
+    // --- sizing & encoding ---
+    output: {
+      width: 1280,
+      height: 800,
+      deviceScaleFactor: 2,
+      fps: 30,
+      crf: 18,
+      // fileName: "menu-demo.mp4",  // optional; defaults to <slug(name)>.mp4
+    },
+
+    // --- timing & navigation ---
+    page: {
+      startDelayMs: 500,
+      endDwellMs: 800,
+      waitUntil: "networkidle",
+      // waitForSelector: "#hero",   // optional; wait for an element first
+    },
+
+    // --- the scripted tour (needs actions and/or focus) ---
+    actions: [
+      { do: "click", selector: "#menu-button" }, // per action: durationMs 700, holdMs 600
+    ],
+    // cursor: { show: true, size: 22, color: "#0b0b0f" }, // optional; default white-with-shadow
+
+    // --- element-focused clip (alternative / addition to actions) ---
+    // focus: { selector: "#pricing-card", padding: 24, holdMs: 2000, actions: [] },
+
+    // --- variant ---
+    // colorScheme: "dark",          // optional; force light or dark
+  },
+}
+```
+
+</Tab>
+
+</Tabs>
+
+> Every option also has hover docs in `pro-visu.config.ts` — the authoring types are generated
+> from the validation schema, so the editor always matches what the tool accepts.
+
+## Examples
+
+### Scripted tour
+
+`actions` scripts a live click-through with a visible cursor — UI in a state you could never
+screenshot from a static page.
 
 <Example
   clip="docs-menu"
@@ -19,8 +134,7 @@ Give it `actions` (a scripted tour), `focus` (a clip cropped to one component), 
   url: "https://your-site.com",
   generator: "interaction",
   options: {
-    width: 390,
-    height: 844,
+    output: { width: 390, height: 844 },
     actions: [
       { do: "click", selector: "#menu-button", holdMs: 2600 },
     ],
@@ -28,30 +142,10 @@ Give it `actions` (a scripted tour), `focus` (a clip cropped to one component), 
 }`}
 />
 
-## Scripted actions
+### Element focus
 
-```ts
-options: {
-  cursor: { color: "#e91e63" },
-  actions: [
-    { do: "click", selector: "#menu-button" },
-    { do: "hover", selector: ".dropdown a:first-child" },
-    { do: "type", selector: "input[type=search]", text: "shoes" },
-  ],
-}
-```
-
-- **`actions: [{ do, selector?, x?, y?, text?, to?, durationMs?, holdMs? }]`** where `do` is
-  `"move" | "click" | "hover" | "type" | "scrollTo" | "wait"`. Per action: `durationMs`
-  (cursor travel / scroll time) default `700`, `holdMs` (pause after) default `600`.
-- **`cursor: { show?, size?, color? }`** — the synthetic cursor. Defaults: `show` `true`,
-  `size` `22`, `color` `#0b0b0f`. Set `show: false` for hands-off UI-state clips (e.g. media
-  wall tiles).
-
-## Element focus
-
-Capture a single component — scroll it into view, optionally trigger it, hold, and crop the
-output to its box:
+`focus` scrolls one component into view, optionally triggers it, holds, and crops the output to its
+box — the crop is measured after the trigger actions, so an expanded state stays in frame.
 
 ```ts
 options: {
@@ -63,27 +157,3 @@ options: {
   },
 }
 ```
-
-- **`focus: { selector, padding?, actions?, holdMs? }`** — defaults: `padding` `24` px,
-  `holdMs` `2000` ms. The crop box is measured **after** any trigger actions run, so an
-  expanded dropdown/drawer stays in frame.
-
-## Output & timing
-
-export const outputOptions = [
-  { name: 'width / height', description: 'Viewport size in CSS px. Default 1280 × 800.' },
-  { name: 'deviceScaleFactor', description: 'Render scale. Default 2 (max 4).' },
-  { name: 'fps', description: 'Output frames per second. Default 30.' },
-  { name: 'crf', description: 'x264 quality, 0–51. Default 18.' },
-  { name: 'startDelayMs / endDwellMs', description: 'Dwell before the first / after the last step. Defaults 500 / 800.' },
-  { name: 'waitUntil / waitForSelector', description: 'Navigation wait milestone (default "networkidle") + optional selector to wait for.' },
-  { name: 'colorScheme', description: '"light" or "dark" — force a scheme for the capture.' },
-  { name: 'fileName', description: 'Output filename. Defaults to <slug(asset name)>.mp4.' },
-]
-
-<ConfigOptions items={outputOptions} />
-
-Site cleanup (hide the cookie banner, block trackers, seed a session cookie for logged-in
-flows) comes from [`settings.capture`](/docs/configuration/settings#capture), same as every
-other URL capture — media keeps playing during the recording, since an interaction is live by
-design.

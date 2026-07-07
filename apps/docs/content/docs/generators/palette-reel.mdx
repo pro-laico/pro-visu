@@ -6,8 +6,8 @@ description: A looping colour-palette reveal video — the moving counterpart of
 `palette-reel` is the moving version of [`palette`](/docs/generators/palette). The colours
 start as thin slivers showing only their name; one at a time a sliver expands into a band that
 reveals its configured `details` (hex / oklch / rgb …), holds, then collapses before the next
-opens — sweeping every colour and looping seamlessly. Only `colors` is required. No `url`.
-Output is mp4.
+opens — sweeping every colour and looping seamlessly. It's a **local** generator: no `url`, output
+is mp4. Only `colors` is required.
 
 ```ts
 {
@@ -24,6 +24,147 @@ Output is mp4.
 }
 ```
 
+The available `details` field ids are `name`, `hex`, `rgb`, `oklch`, and `hsl` — the same set as
+the still [`palette`](/docs/generators/palette).
+
+## Config options
+
+export const options = [
+  { name: 'colors', type: '{ name, hex }[]', required: true, description: `The colours to reveal (at least one).`, options: [
+    { name: 'name', type: 'string', required: true, description: `Display name shown on the colour's sliver / band.` },
+    { name: 'hex', type: 'string', required: true, description: `Colour value as a hex string like #D7DBDE.` },
+  ] },
+  { name: 'details', type: "('name' | 'hex' | 'rgb' | 'oklch' | 'hsl')[]", default: "['hex', 'oklch', 'rgb']", description: `Fields revealed when a colour expands. The name is always shown, so it's ignored here.` },
+  { name: 'output', type: 'object', description: `Output frame / encode settings.`, options: [
+    { name: 'width', type: 'number', default: '1920', description: `Output width in CSS px.` },
+    { name: 'height', type: 'number', default: '1080', description: `Output height in CSS px.` },
+    { name: 'deviceScaleFactor', type: 'number', default: '1', description: `Render scale, max 4 — higher captures crisper, then downscales into the video.` },
+    { name: 'fps', type: 'number', default: '30', description: `Output frames per second (max 120).` },
+    { name: 'crf', type: 'number', default: '18', description: `x264 quality, 0–51 (lower = better quality / larger file).` },
+    { name: 'fileName', type: 'string', description: `Output filename. Defaults to "<slug(asset name)>.mp4".` },
+  ] },
+  { name: 'timing', type: 'object', description: `Reveal timing (milliseconds).`, options: [
+    { name: 'holdMs', type: 'number', default: '2000', description: `How long each colour stays fully open before handing off to the next (ms).` },
+    { name: 'transitionMs', type: 'number', default: '700', description: `Crossfade length from one open colour to the next (ms).` },
+    { name: 'bounce', type: 'boolean', default: 'true', description: `Ping-pong the sweep (down the list then back up) so every handoff is between neighbouring bands, avoiding the last→first "pinch" at the loop seam. When false, it wraps directly (last→first): shorter, but crossfades non-adjacent bands at the seam.` },
+    { name: 'easing', type: "'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'ease-out-strong' | 'ease-in-out-strong'", default: "'ease-in-out'", description: `Easing applied to the crossfade ramp.` },
+    { name: 'durationMs', type: 'number', description: `Clip length override (ms). Omit to derive (count × (hold + transition)) for a clean loop.` },
+  ] },
+  { name: 'layout', type: 'object', description: `Sliver arrangement and sizing.`, options: [
+    { name: 'orientation', type: "'rows' | 'columns'", default: "'rows'", description: `Sliver arrangement: horizontal bands (names upright) or full-height vertical strips.` },
+    { name: 'grownFlex', type: 'number', default: '12', description: `How many times a sliver's share a fully-open band takes (a collapsed sliver is the baseline). Min 1.` },
+    { name: 'minCrossPx', type: 'number', default: '0', description: `Minimum cross-size of a sliver (px) so its name stays legible. 0 derives it from the height.` },
+    { name: 'nameAlwaysVisible', type: 'boolean', default: 'true', description: `Keep the name fully visible even in a collapsed sliver (else it fades with the band).` },
+    { name: 'background', type: 'string', default: "'#ffffff'", description: `Backdrop behind the bands (shown in the gap between them).` },
+    { name: 'gap', type: 'number', default: '0', description: `Gap between bands (px). 0 means the bands abut.` },
+    { name: 'cornerRadius', type: 'number', default: '0', description: `Band corner radius (px). 0 is square.` },
+  ] },
+  { name: 'text', type: 'object', description: `Label typography and formatting.`, options: [
+    { name: 'uppercase', type: 'boolean', default: 'false', description: `Uppercase the colour names.` },
+    { name: 'rgbStyle', type: "'labeled' | 'css' | 'plain'", default: "'labeled'", description: `RGB string style.` },
+    { name: 'oklchStyle', type: "'css' | 'labeled'", default: "'css'", description: `OKLCH string style.` },
+    { name: 'fontFile', type: 'string', description: `Custom font file (woff2 / woff / ttf / otf), served into the render. Omit for a system bold sans.` },
+    { name: 'fontWeight', type: 'number', default: '700', description: `Label font weight (1–1000).` },
+    { name: 'fontSize', type: 'number', description: `Name font size in px. Omit to derive from the frame size.` },
+    { name: 'detailFontScale', type: 'number', default: '0.62', description: `Detail-line font size as a fraction of the name size.` },
+  ] },
+  { name: 'contrast', type: 'object', description: `Text-colour selection by band contrast.`, options: [
+    { name: 'textLight', type: 'string', default: "'#ffffff'", description: `Light text colour, used on dark bands (picked by contrast).` },
+    { name: 'textDark', type: 'string', default: "'#141414'", description: `Dark text colour, used on light bands (picked by contrast).` },
+    { name: 'contrastThreshold', type: 'number', default: '0.5', description: `Luminance above which the dark text is used (0..1).` },
+  ] },
+]
+
+Only `colors` is required; everything else has a default. **Reference** is the interactive view;
+**TypeScript** is the same shape in code, every option at its default.
+
+<Tabs items={['Reference', 'TypeScript']}>
+
+<Tab value="Reference" className="p-0!">
+
+<ConfigOptions items={options} />
+
+</Tab>
+
+<Tab value="TypeScript">
+
+```ts
+{
+  name: "brand-colors-reel",
+  generator: "palette-reel",
+  options: {
+    // --- colours & reveal ---
+    colors: [
+      { name: "Ink", hex: "#1a1714" },
+      { name: "Camel", hex: "#b49a77" },
+    ],
+    details: ["hex", "oklch", "rgb"],
+
+    // --- output ---
+    output: {
+      width: 1920,
+      height: 1080,
+      deviceScaleFactor: 1,
+      fps: 30,
+      crf: 18,
+      // fileName: "brand-colors-reel.mp4", // optional; defaults to <slug(name)>.mp4
+    },
+
+    // --- timing (ms) ---
+    timing: {
+      holdMs: 2000,
+      transitionMs: 700,
+      bounce: true,
+      easing: "ease-in-out",
+      // durationMs: 12000,          // optional; derived from count × (hold + transition)
+    },
+
+    // --- layout & sizing ---
+    layout: {
+      orientation: "rows",
+      grownFlex: 12,
+      minCrossPx: 0,
+      nameAlwaysVisible: true,
+      background: "#ffffff",
+      gap: 0,
+      cornerRadius: 0,
+    },
+
+    // --- styling ---
+    text: {
+      uppercase: false,
+      rgbStyle: "labeled",
+      oklchStyle: "css",
+      // fontFile: "./fonts/Brand.woff2", // optional; falls back to a system bold sans
+      fontWeight: 700,
+      // fontSize: 64,               // optional; derived from the frame size
+      detailFontScale: 0.62,
+    },
+
+    // --- contrast ---
+    contrast: {
+      textLight: "#ffffff",
+      textDark: "#141414",
+      contrastThreshold: 0.5,
+    },
+  },
+}
+```
+
+</Tab>
+
+</Tabs>
+
+> Every option also has hover docs in `pro-visu.config.ts` — the authoring types are generated
+> from the validation schema, so the editor always matches what the tool accepts.
+
+## Examples
+
+### Looping brand reveal
+
+Feed it the palette and the `details` you want on each band; the reel expands one colour at a time,
+holds, and collapses — looping seamlessly.
+
 <Example
   clip="colors-reel"
   caption="The VESPER brand palette as a looping reveal — each colour expands to show its hex + oklch, then collapses."
@@ -39,69 +180,9 @@ Output is mp4.
       { name: "Cognac", hex: "#8a5a3c" },
     ],
     details: ["hex", "oklch"],
-    uppercase: true,
-    background: "#1a1714",
-    textLight: "#f6f3ed",
+    text: { uppercase: true },
+    layout: { background: "#1a1714" },
+    contrast: { textLight: "#f6f3ed" },
   },
 }`}
 />
-
-## Options
-
-### Colours & reveal
-
-export const coloursAndReveal = [
-  { name: 'colors', type: '{ name, hex }[]', required: true, description: 'The colours to reveal (≥1).' },
-  { name: 'orientation', type: '"rows" | "columns"', default: '"rows"', description: 'Horizontal bands or full-height vertical strips.' },
-  { name: 'details', type: 'FieldId[]', default: '["hex","oklch","rgb"]', description: 'Fields revealed when a colour expands (name is always shown).' },
-]
-
-<ConfigOptions items={coloursAndReveal} />
-
-### Timing (milliseconds)
-
-export const timing = [
-  { name: 'holdMs', type: 'number', default: '2000', description: 'How long each colour stays fully open (ms).' },
-  { name: 'transitionMs', type: 'number', default: '700', description: 'Crossfade length between colours (ms).' },
-  { name: 'bounce', type: 'boolean', default: 'true', description: 'Ping-pong the sweep so every handoff is between neighbours (avoids a last→first pinch at the loop seam). When "false", the reel wraps directly from the last item to the first — shorter, but crossfades non-adjacent bands at the seam.' },
-  { name: 'easing', type: '"linear" | "ease-in" | "ease-out" | "ease-in-out" | "ease-out-strong" | "ease-in-out-strong"', default: '"ease-in-out"', description: 'Easing for the crossfade ramp.' },
-  { name: 'durationMs', type: 'number', default: 'derived', description: 'Override the derived clean-loop length (ms).' },
-]
-
-<ConfigOptions items={timing} />
-
-### Layout & styling
-
-export const layoutAndStyling = [
-  { name: 'grownFlex', type: 'number (≥1)', default: '12', description: "How many times a sliver's share a fully-open band takes." },
-  { name: 'minCrossPx', type: 'number', default: '0', description: 'Minimum sliver cross-size (px) so names stay legible.' },
-  { name: 'nameAlwaysVisible', type: 'boolean', default: 'true', description: 'Keep the name visible even in a collapsed sliver.' },
-  { name: 'uppercase', type: 'boolean', default: 'false', description: 'Uppercase the colour names.' },
-  { name: 'rgbStyle', type: '"labeled" | "css" | "plain"', default: '"labeled"', description: 'RGB string style.' },
-  { name: 'oklchStyle', type: '"css" | "labeled"', default: '"css"', description: 'OKLCH string style.' },
-  { name: 'textLight / textDark', type: 'string', default: '#ffffff / #141414', description: 'Contrast-picked text colours.' },
-  { name: 'contrastThreshold', type: 'number (0–1)', default: '0.5', description: 'Luminance above which dark text is used.' },
-  { name: 'fontFile', type: 'string', default: 'system bold sans', description: 'Custom font (woff2 / woff / ttf / otf) served into the render. Unset falls back to a system bold sans.' },
-  { name: 'fontWeight', type: 'number (1–1000)', default: '700', description: 'Label font weight.' },
-  { name: 'fontSize', type: 'number', default: 'derived', description: 'Name font size in px.' },
-  { name: 'detailFontScale', type: 'number', default: '0.62', description: 'Detail-line size as a fraction of the name size.' },
-  { name: 'background', type: 'string', default: '"#ffffff"', description: 'Backdrop behind the bands (shown in "gap").' },
-  { name: 'gap', type: 'number', default: '0', description: 'Gap between bands (px).' },
-  { name: 'cornerRadius', type: 'number', default: '0', description: 'Band corner radius (px).' },
-]
-
-<ConfigOptions items={layoutAndStyling} />
-
-### Output
-
-export const output = [
-  { name: 'width / height', type: 'number', default: '1920 / 1080', description: 'Output frame size.' },
-  { name: 'deviceScaleFactor', type: 'number (≤4)', default: '1', description: 'Render scale.' },
-  { name: 'fps', type: 'number (≤120)', default: '30', description: 'Frames per second.' },
-  { name: 'crf', type: 'number (0–51)', default: '18', description: 'x264 quality (lower = better/larger).' },
-  { name: 'fileName', type: 'string', default: '<name>.mp4', description: 'Output filename.' },
-]
-
-<ConfigOptions items={output} />
-
-The available `details` field ids are `name`, `hex`, `rgb`, `oklch`, and `hsl`.

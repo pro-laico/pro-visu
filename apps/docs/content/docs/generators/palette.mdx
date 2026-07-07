@@ -3,9 +3,10 @@ title: palette
 description: A still colour-palette image with labelled, auto-contrasting swatches.
 ---
 
-`palette` renders a still image of colour swatches, each labelled with the fields you place in
-its corners (name / hex / rgb / oklch / hsl) with auto-contrasting text. Only `colors`
-is required. No `url`. Output is png.
+`palette` renders a still PNG of colour swatches. Each swatch is labelled with the fields you place
+in its corners (`name` / `hex` / `rgb` / `oklch` / `hsl`), and the label text auto-contrasts against
+the swatch behind it. It's a **local** generator — no `url`, no browser navigation — so only `colors`
+is required.
 
 ```ts
 {
@@ -17,11 +18,145 @@ is required. No `url`. Output is png.
       { name: "Camel", hex: "#b49a77" },
       { name: "Paper", hex: "#f6f3ed" },
     ],
-    layout: "columns",
-    uppercase: true,
   },
 }
 ```
+
+By default it lays the colours out as full-width `rows`, labelling each with its name + hex (top-left)
+and rgb + oklch (top-right). The options switch the layout to columns or a grid, choose which fields
+land in which corner and how they're formatted, embed a brand font, and tune sizing, contrast, and
+spacing.
+
+## Config options
+
+export const options = [
+  { name: 'colors', type: '{ name, hex }[]', required: true, description: `The colours to show — at least one. Each swatch is rendered in listed order.`, options: [
+    { name: 'name', type: 'string', required: true, description: `Display name, e.g. "Wet Grey".` },
+    { name: 'hex', type: 'string', required: true, description: `Hex value — "#rgb" or "#rrggbb", with or without the leading #.` },
+  ] },
+  { name: 'output', type: 'object', description: `Output image sizing and filename.`, options: [
+    { name: 'width', type: 'number', default: '1400', description: `Output width in px.` },
+    { name: 'height', type: 'number', default: '1750', description: `Output height in px (portrait 4:5 with the default width).` },
+    { name: 'deviceScaleFactor', type: 'number', default: '2', description: `Render scale, max 4 (2 = retina-crisp).` },
+    { name: 'fileName', type: 'string', description: `Output filename. Defaults to "<slug(asset name)>.png".` },
+  ] },
+  { name: 'layout', type: 'object', description: `Swatch arrangement and spacing.`, options: [
+    { name: 'layout', type: "'rows' | 'columns' | 'grid'", default: "'rows'", description: `Swatch arrangement: full-width bands, full-height columns, or an N-wide grid.` },
+    { name: 'gridColumns', type: 'number', default: '3', description: `Columns when layout is "grid" (1–12).` },
+    { name: 'background', type: 'string', default: "'#ffffff'", description: `Page background, shown only in the gaps between swatches.` },
+    { name: 'gap', type: 'number', default: '0', description: `Gap between swatches (px). 0 makes the swatches abut.` },
+    { name: 'cornerRadius', type: 'number', default: '0', description: `Swatch corner radius (px). 0 is square.` },
+    { name: 'padding', type: 'number', description: `Inset of the labels from the swatch edges (px). Omit to derive from the width.` },
+  ] },
+  { name: 'fields', type: 'object', description: `Which fields land in which swatch corner.`, options: [
+    { name: 'topLeft', type: 'FieldId[]', default: "['name', 'hex']", description: `Fields stacked (top→bottom) in the top-left corner.` },
+    { name: 'topRight', type: 'FieldId[]', default: "['rgb', 'oklch']", description: `Fields stacked (top→bottom) in the top-right corner.` },
+    { name: 'bottomLeft', type: 'FieldId[]', default: '[]', description: `Fields stacked (top→bottom) in the bottom-left corner. Empty by default.` },
+    { name: 'bottomRight', type: 'FieldId[]', default: '[]', description: `Fields stacked (top→bottom) in the bottom-right corner. Empty by default.` },
+  ] },
+  { name: 'text', type: 'object', description: `Label text styling and formatting.`, options: [
+    { name: 'uppercase', type: 'boolean', default: 'false', description: `Uppercase the colour names.` },
+    { name: 'rgbStyle', type: "'labeled' | 'css' | 'plain'", default: "'labeled'", description: `RGB string style — "R:255,G:128,B:0", "rgb(255, 128, 0)", or "255 128 0".` },
+    { name: 'oklchStyle', type: "'css' | 'labeled'", default: "'css'", description: `OKLCH string style — "oklch(88% 0.012 250)" or "L:88% C:0.012 H:250".` },
+    { name: 'fontFile', type: 'string', description: `Custom font file (.woff2 / .woff / .ttf / .otf) embedded into the render. Omit to fall back to a system bold sans.` },
+    { name: 'fontSize', type: 'number', description: `Label font size in px. Omit to derive from the width.` },
+    { name: 'fontWeight', type: 'number', default: '700', description: `Label font weight (1–1000).` },
+  ] },
+  { name: 'contrast', type: 'object', description: `Auto-contrasting text colours and threshold.`, options: [
+    { name: 'textLight', type: 'string', default: "'#ffffff'", description: `Light text colour, used on dark swatches (picked by contrast).` },
+    { name: 'textDark', type: 'string', default: "'#141414'", description: `Dark text colour, used on light swatches (picked by contrast).` },
+    { name: 'contrastThreshold', type: 'number', default: '0.5', description: `Luminance (0–1) above which the dark text colour is used.` },
+  ] },
+]
+
+Only `colors` is required. **Reference** is the interactive view; **TypeScript** is the same shape in
+code, every option at its default.
+
+<Tabs items={['Reference', 'TypeScript']}>
+
+<Tab value="Reference" className="p-0!">
+
+<ConfigOptions items={options} />
+
+</Tab>
+
+<Tab value="TypeScript">
+
+```ts
+{
+  name: "brand-colors",
+  generator: "palette",
+  options: {
+    // --- content (required) ---
+    colors: [{ name: "Ink", hex: "#1a1714" }],
+
+    // --- output image sizing & filename ---
+    output: {
+      width: 1400,
+      height: 1750,
+      deviceScaleFactor: 2,
+      // fileName: "brand-colors.png",        // optional; defaults to <slug(name)>.png
+    },
+
+    // --- swatch arrangement & spacing ---
+    layout: {
+      layout: "rows",
+      gridColumns: 3,
+      background: "#ffffff",
+      gap: 0,
+      cornerRadius: 0,
+      // padding: 40,                          // optional; derived from width
+    },
+
+    // --- corner fields (each stacks its list top→bottom) ---
+    fields: {
+      topLeft: ["name", "hex"],
+      topRight: ["rgb", "oklch"],
+      bottomLeft: [],
+      bottomRight: [],
+    },
+
+    // --- label text styling & formatting ---
+    text: {
+      uppercase: false,
+      rgbStyle: "labeled",
+      oklchStyle: "css",
+      // fontFile: "public/fonts/Inter.woff2", // optional; embeds your brand font
+      // fontSize: 48,                          // optional; derived from width
+      fontWeight: 700,
+    },
+
+    // --- auto-contrasting text colours ---
+    contrast: {
+      textLight: "#ffffff",
+      textDark: "#141414",
+      contrastThreshold: 0.5,
+    },
+  },
+}
+```
+
+</Tab>
+
+</Tabs>
+
+The available corner field ids are `name`, `hex`, `rgb`, `oklch`, and `hsl`. How each renders:
+
+| Field | Style | Example |
+|---|---|---|
+| `hex` | — | `#FF8000` (always uppercased) |
+| `rgb` | `"labeled"` | `R:255,G:128,B:0` |
+| `rgb` | `"css"` | `rgb(255, 128, 0)` |
+| `rgb` | `"plain"` | `255 128 0` |
+| `oklch` | `"css"` | `oklch(88% 0.012 250)` |
+| `oklch` | `"labeled"` | `L:88% C:0.012 H:250` |
+| `hsl` | — | `H:210,S:14,L:88` (s/l are percentages) |
+
+## Examples
+
+### Default rows
+
+Pass `colors` and nothing else — full-width bands, each labelled with auto-contrasting text.
 
 <ImageExample
   src="/examples/docs-palette.png"
@@ -44,35 +179,9 @@ is required. No `url`. Output is png.
 }`}
 />
 
-## Options
+### Grid with placed corners
 
-export const options = [
-  { name: 'colors', type: '{ name, hex }[]', description: 'The colours to show (≥1). hex accepts "#rgb" or "#rrggbb".', required: true },
-  { name: 'layout', type: '"rows" | "columns" | "grid"', default: '"rows"', description: 'Full-width bands, full-height columns, or an N-wide grid.' },
-  { name: 'gridColumns', type: 'number (1–12)', default: '3', description: 'Columns when layout: "grid".' },
-  { name: 'width / height', type: 'number', default: '1400 / 1750', description: 'Output size (default is portrait 4:5).' },
-  { name: 'deviceScaleFactor', type: 'number (≤4)', default: '2', description: 'Render scale.' },
-  { name: 'background', type: 'string', default: '"#ffffff"', description: 'Page background, shown only in the gaps.' },
-  { name: 'gap', type: 'number', default: '0', description: 'Gap between swatches (px).' },
-  { name: 'cornerRadius', type: 'number', default: '0', description: 'Swatch corner radius (px).' },
-  { name: 'topLeft / topRight / bottomLeft / bottomRight', type: 'FieldId[]', default: 'TL ["name","hex"], TR ["rgb","oklch"]', description: 'Fields shown (stacked) in each corner.' },
-  { name: 'uppercase', type: 'boolean', default: 'false', description: 'Uppercase the colour names.' },
-  { name: 'rgbStyle', type: '"labeled" | "css" | "plain"', default: '"labeled"', description: 'RGB string style.' },
-  { name: 'oklchStyle', type: '"css" | "labeled"', default: '"css"', description: 'OKLCH string style.' },
-  { name: 'fontFile', type: 'string', default: 'system sans fallback', description: 'Custom font (.woff2 / .woff / .ttf / .otf) embedded into the render. Optional — omit to fall back to a system bold sans.' },
-  { name: 'fontSize', type: 'number', default: 'derived', description: 'Label font size in px.' },
-  { name: 'fontWeight', type: 'number (1–1000)', default: '700', description: 'Label font weight.' },
-  { name: 'textLight / textDark', type: 'string', default: '#ffffff / #141414', description: 'Text colours picked by contrast against each swatch.' },
-  { name: 'contrastThreshold', type: 'number (0–1)', default: '0.5', description: 'Luminance above which dark text is used.' },
-  { name: 'padding', type: 'number', default: 'derived', description: 'Inset of labels from swatch edges (px).' },
-  { name: 'fileName', type: 'string', default: '<name>.png', description: 'Output filename.' },
-]
-
-<ConfigOptions items={options} />
-
-The available corner field ids are `name`, `hex`, `rgb`, `oklch`, and `hsl`.
-
-Place specific fields in each corner (each corner stacks its list top→bottom), and pick a layout:
+Switch to a `grid` and choose exactly which field lands in each corner, then embed a brand font.
 
 ```ts
 {
@@ -85,31 +194,20 @@ Place specific fields in each corner (each corner stacks its list top→bottom),
       { name: "Paper", hex: "#f6f3ed" },
       { name: "Loden", hex: "#5c5e4c" },
     ],
-    layout: "grid",
-    gridColumns: 2,
-    topLeft: ["name"],
-    topRight: ["hex"],
-    bottomLeft: ["rgb"],
-    bottomRight: ["oklch"],
-    rgbStyle: "css",                     // rgb(26, 23, 20)
-    fontFile: "public/fonts/Inter.woff2", // optional — embeds your brand font
-    uppercase: true,
+    layout: { layout: "grid", gridColumns: 2 },
+    fields: {
+      topLeft: ["name"],
+      topRight: ["hex"],
+      bottomLeft: ["rgb"],
+      bottomRight: ["oklch"],
+    },
+    text: {
+      rgbStyle: "css",                      // rgb(26, 23, 20)
+      fontFile: "public/fonts/Inter.woff2", // optional — embeds your brand font
+      uppercase: true,
+    },
   },
 }
 ```
-
-## Field formats
-
-How each field renders:
-
-| Field | Style | Example |
-|---|---|---|
-| `hex` | — | `#FF8000` (always uppercased) |
-| `rgb` | `"labeled"` | `R:255,G:128,B:0` |
-| `rgb` | `"css"` | `rgb(255, 128, 0)` |
-| `rgb` | `"plain"` | `255 128 0` |
-| `oklch` | `"css"` | `oklch(88% 0.012 250)` |
-| `oklch` | `"labeled"` | `L:88% C:0.012 H:250` |
-| `hsl` | — | `H:210,S:14,L:88` (s/l are percentages) |
 
 For a moving version, see [`palette-reel`](/docs/generators/palette-reel).

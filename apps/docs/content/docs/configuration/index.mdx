@@ -14,7 +14,7 @@ export default defineConfig({
     outDir: "pro-visu",
     concurrency: 2,
     browser: { headless: true },
-    defaults: { "scroll-reel": { width: 1440, height: 900, fps: 30 } },
+    defaults: { "scroll-reel": { output: { width: 1440, height: 900, fps: 30 } } },
   },
   assets: [
     { name: "home-reel", url: "https://your-site.com", generator: "scroll-reel" },
@@ -73,7 +73,7 @@ For each asset, the generator's options come from two places, merged in order:
 1. `settings.defaults["<generator-id>"]` — your repo-wide defaults for that generator.
 2. The asset's own `options` — which win.
 
-So you can set `defaults: { "scroll-reel": { width: 1440, height: 900, fps: 30 } }` once and
+So you can set `defaults: { "scroll-reel": { output: { width: 1440, height: 900, fps: 30 } } }` once and
 omit those fields on every reel.
 
 ## The asset graph
@@ -114,7 +114,7 @@ export const settings = {
 import type { AssetSpecInput } from "pro-visu";
 
 export const films = [
-  { name: "home", generator: "scroll-reel", options: { autoSections: { durationMs: 14000 } } },
+  { name: "home", generator: "scroll-reel", options: { motion: { autoSections: { durationMs: 14000 } } } },
   { name: "shop", url: "/shop", generator: "scroll-reel" },
 ] satisfies AssetSpecInput[];
 ```

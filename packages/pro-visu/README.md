@@ -61,7 +61,7 @@ export default defineConfig({
     outDir: "pro-visu",
     concurrency: 2,
     browser: { headless: true },
-    defaults: { "scroll-reel": { width: 1440, height: 900, fps: 30 } },
+    defaults: { "scroll-reel": { output: { width: 1440, height: 900, fps: 30 } } },
   },
   assets: [
     { name: "home-reel", url: "https://your-site.com", generator: "scroll-reel" },
@@ -97,10 +97,10 @@ and are merged beneath each asset's own `options`.
 
 | Generator | Output | Key options |
 |---|---|---|
-| `scroll-reel` | mp4 of the site (frame-stepped) — scroll reels, choreographed section pans, social formats | `width`/`height`/`fps`/`durationMs`/`easing` plus `choreography`, `autoSections`, `loop`, `colorScheme`/`viewports`, `aspect`, `outputs` — see [Recording reels in depth](#recording-reels-in-depth-scroll-reel) |
-| `interaction` | mp4 — scripted realtime demos with a synthetic cursor, or a clip cropped to one component | `actions[]`, `cursor`, `focus` |
-| `screenshots` | png/jpeg page + element captures per viewport | `viewports[]`, `fullPage`, `format`, `elements[]`, `deviceScaleFactor` |
-| `wall` | mp4 media wall — columns of your assets (and local `{ src }` files), each scrolling on its own, looping seamlessly | `columns[]` (tiles + per-column motion), `pulses`, `loops`, `pan`, `gap`/`tileAspect`/`cornerRadius`, `stagger`, `test` |
+| `scroll-reel` | mp4 of the site (frame-stepped) — scroll reels, choreographed section pans, social formats | `output.{width,height,fps,outputs}`, `motion.{durationMs,easing,choreography,autoSections,loop}`, `variants.{colorScheme,viewports}`, `reframe.aspect` — see [Recording reels in depth](#recording-reels-in-depth-scroll-reel) |
+| `interaction` | mp4 — scripted realtime demos with a synthetic cursor, or a clip cropped to one component | `actions[]`, `cursor`, `focus`, `output`, `page` |
+| `screenshots` | png/jpeg page + element captures per viewport | `viewports[]`, `fullPage`, `elements[]`, `output.{format,deviceScaleFactor}` |
+| `wall` | mp4 media wall — columns of your assets (and local `{ src }` files), each scrolling on its own, looping seamlessly | `columns[]` (tiles + per-column motion), `motion.{pulses,loops,pan,durationMs}`, `layout.{gap,tileAspect,cornerRadius}`, `preview` |
 | `specimen` / `palette` / `palette-reel` | type specimen / colour palette (still + reel) | see the [docs](https://pro-visu.com/docs) |
 
 ```ts
@@ -135,8 +135,8 @@ so output is frame-accurate, crisp (supersampled by `deviceScaleFactor`), parall
 
 | Option | Meaning |
 |---|---|
-| `workers` | Parallel render contexts (auto-picked from cores + free memory). |
-| `frameFormat` | Intermediate frame format: `"jpeg"` (default) or `"png"` (lossless). |
+| `render.workers` | Parallel render contexts (auto-picked from cores + free memory). |
+| `render.frameFormat` | Intermediate frame format: `"jpeg"` (default) or `"png"` (lossless). |
 
 Site cleanup (hide the cookie banner, block trackers, freeze the clock) lives in
 `settings.capture`, applied to every URL capture. For a **realtime** recording of the live page
@@ -146,49 +146,53 @@ Site cleanup (hide the cookie banner, block trackers, freeze the clock) lives in
 
 ```ts
 options: {
-  // pause-on-section tour: scroll to a target (0..1, "NN%", or a selector) and hold
-  choreography: [
-    { to: "#hero", holdMs: 1200 },
-    { to: "#features", holdMs: 1500 },
-    { to: "100%", durationMs: 1000 },
-  ],
-  loop: "boomerang",             // play forward then back → seamless loop
+  motion: {
+    // pause-on-section tour: scroll to a target (0..1, "NN%", or a selector) and hold
+    choreography: [
+      { to: "#hero", holdMs: 1200 },
+      { to: "#features", holdMs: 1500 },
+      { to: "100%", durationMs: 1000 },
+    ],
+    loop: "boomerang",           // play forward then back → seamless loop
+  },
 }
 ```
 
-- `easing` — the shared vocabulary: `linear`, `ease-in`, `ease-out`, `ease-in-out` (default),
+- `motion.easing` — the shared vocabulary: `linear`, `ease-in`, `ease-out`, `ease-in-out` (default),
   `ease-out-strong`, `ease-in-out-strong`.
-- `choreography: [{ to, durationMs?, holdMs?, easing? }]` — replaces the single sweep with an
+- `motion.choreography: [{ to, durationMs?, holdMs?, easing? }]` — replaces the single sweep with an
   authored sequence (`to` = a `0..1` number, an `"NN%"` string, or a CSS selector to bring into view).
-- `autoSections: true | { minHeightFraction?, selector?, holdMs?, durationMs?, maxSections?, constantVelocity? }`
+- `motion.autoSections: true | { minHeightFraction?, selector?, holdMs?, durationMs?, maxSections?, constantVelocity? }`
   — auto-detect the page's sections and pan/hold through them within a fixed `durationMs` budget.
-- `loop: "none" | "boomerang"`.
-- Per-frame settling: `settlePerFrame` (default on; off in `--draft`) waits for fonts + in-view
-  images each frame; bounded by `settleMaxMs`.
+- `motion.loop: "none" | "boomerang"`.
+- Per-frame settling: `render.settlePerFrame` (default on; off in `--draft`) waits for fonts + in-view
+  images each frame; bounded by `render.settleMaxMs`.
 
 ### Variants — one config, many assets
 
 ```ts
 options: {
-  colorScheme: "both",                              // → <name>-light and <name>-dark
-  viewports: [
-    { name: "desktop", width: 1440, height: 900 },
-    { name: "mobile", width: 390, height: 844, deviceScaleFactor: 3 },
-  ],                                                 // → <name>-desktop, <name>-mobile (× schemes)
+  variants: {
+    colorScheme: "both",                            // → <name>-light and <name>-dark
+    viewports: [
+      { name: "desktop", width: 1440, height: 900 },
+      { name: "mobile", width: 390, height: 844, deviceScaleFactor: 3 },
+    ],                                               // → <name>-desktop, <name>-mobile (× schemes)
+  },
 }
 ```
 
-- `colorScheme: "light" | "dark" | "both"` (+ `themeClass` to toggle a CSS-class theme).
-- `viewports: [{ name, width, height, deviceScaleFactor? }]`.
+- `variants.colorScheme: "light" | "dark" | "both"` (+ `variants.themeClass` to toggle a CSS-class theme).
+- `variants.viewports: [{ name, width, height, deviceScaleFactor? }]`.
 
 The viewport × color-scheme matrix is emitted as separate assets (`<name>-<suffix>`).
 
 ### Output formats & framing
 
-- `aspect: "16:9" | "9:16" | "1:1" | { width, height }` with `fit: "cover" | "contain"` and `padColor`
-  — reframe for social (e.g. `9:16` reels).
-- `outputs: ("mp4" | "gif" | "webp" | "poster")[]` (default `["mp4"]`) — each becomes its own asset;
-  `gifFps` tunes the GIF/WebP frame rate.
+- `reframe.aspect: "16:9" | "9:16" | "1:1" | { width, height }` with `reframe.fit: "cover" | "contain"`
+  and `reframe.padColor` — reframe for social (e.g. `9:16` reels).
+- `output.outputs: ("mp4" | "gif" | "webp" | "poster")[]` (default `["mp4"]`) — each becomes its own
+  asset; `output.gifFps` tunes the GIF/WebP frame rate.
 
 ### Scripted interaction & element focus (the `interaction` generator)
 
@@ -228,8 +232,10 @@ assets: [
     name: "wall",
     generator: "wall",                       // no url — dependencies derived from the tiles below
     options: {
-      durationMs: 16000,
-      pan: { direction: "left", loops: 1 },
+      motion: {
+        durationMs: 16000,
+        pan: { direction: "left", loops: 1 },
+      },
       columns: [
         { tiles: [{ src: "public/img/coat.jpg" }, "ui-home"], direction: "down",
           pulses: [{ at: 0.1, span: 0.15, distance: 0.5 }] },

@@ -12,8 +12,162 @@ across `workers`, and **byte-identical run-to-run**.
 { name: "home", url: "https://your-site.com", generator: "scroll-reel" }
 ```
 
-Here it *actually scrolls*: `autoSections` detects the page's sections and paces a pan/hold
-down the whole page within a fixed time budget — hands-off, no choreography to author:
+By default it eases a single top→bottom sweep. The options switch it into choreographed or
+auto-section motion, emit light/dark and per-viewport variants, and reframe / re-encode the output
+for social. Site cleanup (hide the cookie banner, block trackers, freeze the clock) lives in
+[`settings.capture`](/docs/configuration/settings#capture) and applies to every URL capture.
+
+> Want a scripted click-through with a visible cursor, a clip cropped to one component, or a
+> **realtime** recording of the live page (time-based hero animation, autoplay video)? That's the
+> [`interaction`](/docs/generators/interaction) generator.
+
+## Config options
+
+export const options = [
+  { name: 'output', type: 'object', description: `Pixel size, encoding, and output formats.`, options: [
+    { name: 'width', type: 'number', default: '1280', description: `Output width in CSS px.` },
+    { name: 'height', type: 'number', default: '800', description: `Output height in CSS px.` },
+    { name: 'deviceScaleFactor', type: 'number', default: '2', description: `Render scale, max 4 — higher captures crisper, then downscales into the video.` },
+    { name: 'fps', type: 'number', default: '30', description: `Output frames per second (max 120).` },
+    { name: 'crf', type: 'number', default: '18', description: `x264 quality, 0–51 (lower = better quality / larger file).` },
+    { name: 'fileName', type: 'string', description: `Output filename. Defaults to "<slug(asset name)>.mp4".` },
+    { name: 'outputs', type: "('mp4' | 'gif' | 'webp' | 'poster')[]", default: "['mp4']", description: `Files to emit per variant; each becomes its own asset.` },
+    { name: 'gifFps', type: 'number', description: `GIF / animated-WebP frame rate (max 50). Defaults to min(fps, 15).` },
+  ] },
+  { name: 'page', type: 'object', description: `Page-load waiting + dwell at the ends of the scroll.`, options: [
+    { name: 'startDelayMs', type: 'number', default: '500', description: `Dwell at the top before scrolling (ms).` },
+    { name: 'endDwellMs', type: 'number', default: '800', description: `Dwell at the bottom after scrolling (ms).` },
+    { name: 'waitUntil', type: "'load' | 'domcontentloaded' | 'networkidle' | 'commit'", default: "'networkidle'", description: `Page-load milestone to wait for before recording.` },
+    { name: 'waitForSelector', type: 'string', description: `Optional element to wait for (visible) before recording, e.g. a hero section.` },
+  ] },
+  { name: 'render', type: 'object', description: `Frame-stepped render tuning (parallelism, frame format, per-frame settling).`, options: [
+    { name: 'workers', type: 'number', description: `Parallel render workers, each its own browser context. Omit to auto-pick from cores + free memory.` },
+    { name: 'frameFormat', type: "'jpeg' | 'png'", default: "'jpeg'", description: `Intermediate frame format. "jpeg" is faster; "png" is lossless.` },
+    { name: 'settlePerFrame', type: 'boolean', default: 'true', description: `Wait for fonts + in-view images before each frame's screenshot. Off in --draft.` },
+    { name: 'settleMaxMs', type: 'number', default: '250', description: `Max time (ms) to wait per frame for settling before screenshotting anyway.` },
+  ] },
+  { name: 'motion', type: 'object', description: `How the scroll moves: duration/easing, loop, and choreography.`, options: [
+    { name: 'durationMs', type: 'number', default: '6000', description: `Time to scroll from top to bottom (ms). Ignored when choreography / autoSections drives the length.` },
+    { name: 'easing', type: "'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'ease-out-strong' | 'ease-in-out-strong'", default: "'ease-in-out'", description: `Easing for the default top→bottom scroll.` },
+    { name: 'loop', type: "'none' | 'boomerang'", default: "'none'", description: `Loop style. "boomerang" plays the scroll forward then back for a seamless loop.` },
+    { name: 'choreography', type: 'ChoreographyStep[]', description: `Choreographed scroll: an ordered list of steps instead of one top→bottom sweep. Omit for the default single eased sweep. Clip length becomes startDelayMs + Σ(step travel + hold) + endDwellMs.`, options: [
+      { name: 'to', type: 'number | string', required: true, description: `Target: a 0..1 number, an "NN%" string, or a CSS selector to bring into view.` },
+      { name: 'durationMs', type: 'number', default: '1200', description: `Travel time to this target (ms).` },
+      { name: 'holdMs', type: 'number', default: '800', description: `Hold time at this target after arriving (ms).` },
+      { name: 'easing', type: 'Easing', default: "'ease-in-out'", description: `Easing for the travel to this target.` },
+    ] },
+    { name: 'autoSections', type: 'boolean | AutoSections', description: `Auto-choreograph: detect the page's sections and pan/hold through them within a fixed budget. true for defaults, or an object to tune. Ignored if choreography is set.`, options: [
+      { name: 'minHeightFraction', type: 'number', default: '0.5', description: `Min element height (as a fraction of the viewport, max 2) to count as a section.` },
+      { name: 'selector', type: 'string', description: `Explicit section selector; overrides the heuristic. Omit to auto-detect.` },
+      { name: 'holdMs', type: 'number', default: '700', description: `Hold at each detected section (ms).` },
+      { name: 'durationMs', type: 'number', default: '12000', description: `Total clip length (ms) split across detected sections.` },
+      { name: 'maxSections', type: 'number', default: '8', description: `Cap on the number of sections.` },
+      { name: 'constantVelocity', type: 'boolean', default: 'true', description: `Distribute travel time by distance for uniform scroll speed.` },
+    ] },
+  ] },
+  { name: 'variants', type: 'object', description: `Variant matrix: each cell (color scheme × viewport) is emitted as its own asset.`, options: [
+    { name: 'colorScheme', type: "'light' | 'dark' | 'both'", description: `Force a color scheme. "both" emits a light AND a dark asset (<name>-light / <name>-dark). Omit to leave as-is.` },
+    { name: 'themeClass', type: 'string', description: `Add this class to <html> before capture, e.g. to trigger a CSS-class dark theme.` },
+    { name: 'viewports', type: 'Viewport[]', description: `Also capture the reel at these viewports; each emits an asset (<name>-<viewport name>).`, options: [
+      { name: 'name', type: 'string', required: true, description: `Label for this viewport — used in the asset id / filename (e.g. "desktop").` },
+      { name: 'width', type: 'number', required: true, description: `Viewport width in CSS px.` },
+      { name: 'height', type: 'number', required: true, description: `Viewport height in CSS px.` },
+      { name: 'deviceScaleFactor', type: 'number', description: `Override the generator-level deviceScaleFactor for this viewport. Omit to inherit it.` },
+    ] },
+  ] },
+  { name: 'reframe', type: 'object', description: `Reframe the output to a target aspect.`, options: [
+    { name: 'aspect', type: "'16:9' | '9:16' | '1:1' | { width, height }", description: `Reframe the output to a target aspect: a preset or an explicit pixel box. Omit to keep the capture aspect.` },
+    { name: 'fit', type: "'cover' | 'contain'", default: "'cover'", description: `How to fit the capture into aspect: "cover" (scale + center-crop) or "contain" (scale + pad).` },
+    { name: 'padColor', type: 'string', default: "'#0b0b0f'", description: `Pad color used by "contain".` },
+  ] },
+]
+
+Everything is optional. **Reference** is the interactive view; **TypeScript** is the same shape
+in code, every option at its default.
+
+<Tabs items={['Reference', 'TypeScript']}>
+
+<Tab value="Reference" className="p-0!">
+
+<ConfigOptions items={options} />
+
+</Tab>
+
+<Tab value="TypeScript">
+
+```ts
+{
+  name: "home",
+  url: "https://your-site.com",
+  generator: "scroll-reel",
+  options: {
+    // --- sizing, encoding & output formats ---
+    output: {
+      width: 1280,
+      height: 800,
+      deviceScaleFactor: 2,
+      fps: 30,
+      crf: 18,
+      // fileName: "home.mp4",       // optional; defaults to <slug(name)>.mp4
+      outputs: ["mp4"],
+      // gifFps: 15,                 // defaults to min(fps, 15)
+    },
+
+    // --- page load & end dwell ---
+    page: {
+      startDelayMs: 500,
+      endDwellMs: 800,
+      waitUntil: "networkidle",
+      // waitForSelector: "#hero",   // optional; wait for an element first
+    },
+
+    // --- frame rendering ---
+    render: {
+      // workers: 4,                 // optional; auto-picks from cores + free memory
+      frameFormat: "jpeg",
+      settlePerFrame: true,
+      settleMaxMs: 250,
+    },
+
+    // --- motion (default is a single top→bottom sweep) ---
+    motion: {
+      durationMs: 6000,
+      easing: "ease-in-out",
+      loop: "none",
+      // choreography: [{ to: "#hero", holdMs: 1200 }, { to: "100%", durationMs: 1000 }],
+      // autoSections: { minHeightFraction: 0.5, holdMs: 700, durationMs: 12000, maxSections: 8, constantVelocity: true },
+    },
+
+    // --- variants (each emitted as its own asset) ---
+    variants: {
+      // colorScheme: "both",        // optional; → <name>-light and <name>-dark
+      // themeClass: "dark",         // optional; class added to <html>
+      // viewports: [{ name: "mobile", width: 390, height: 844 }],
+    },
+
+    // --- reframing ---
+    reframe: {
+      // aspect: "9:16",             // optional; preset or { width, height }
+      fit: "cover",
+      padColor: "#0b0b0f",
+    },
+  },
+}
+```
+
+</Tab>
+
+</Tabs>
+
+> Every option also has hover docs in `pro-visu.config.ts` — the authoring types are generated
+> from the validation schema, so the editor always matches what the tool accepts.
+
+## Examples
+
+### Auto-sections
+
+`autoSections` detects the page's sections and paces a pan/hold down the whole page within a fixed
+time budget — hands-off, no choreography to author.
 
 <Example
   clip="docs-scroll"
@@ -23,15 +177,18 @@ down the whole page within a fixed time budget — hands-off, no choreography to
   url: "https://your-site.com",
   generator: "scroll-reel",
   options: {
-    autoSections: {
-      durationMs: 9000,
+    motion: {
+      autoSections: {
+        durationMs: 9000,
+      },
     },
   },
 }`}
 />
 
-And a seamless loop: `loop: "boomerang"` plays the capture forward then back, so the first and
-last frames match:
+### Boomerang loop
+
+`loop: "boomerang"` plays the capture forward then back, so the first and last frames match.
 
 <Example
   clip="docs-home"
@@ -40,128 +197,44 @@ last frames match:
   name: "docs-home",
   generator: "scroll-reel",
   options: {
-    deviceScaleFactor: 3,
-    loop: "boomerang",
-    autoSections: {
-      durationMs: 22000,
-      holdMs: 1600,
+    output: {
+      deviceScaleFactor: 3,
+    },
+    motion: {
+      loop: "boomerang",
+      autoSections: {
+        durationMs: 22000,
+        holdMs: 1600,
+      },
     },
   },
 }`}
 />
 
-> Want a scripted click-through with a visible cursor, a clip cropped to one component, or a
-> **realtime** recording of the live page (time-based hero animation, autoplay video)? That's the
-> [`interaction`](/docs/generators/interaction) generator. Site cleanup (hide the cookie banner,
-> block trackers, freeze the clock) lives in
-> [`settings.capture`](/docs/configuration/settings#capture) and applies to every URL capture.
+### Vertical (social) reframe
 
-## Core sizing
-
-export const coreSizingOptions = [
-  { name: 'width / height', description: 'Viewport size in CSS px. Default 1280 × 800.' },
-  { name: 'fps', description: 'Output frames per second. Default 30 (max 120).' },
-  { name: 'durationMs', description: 'Clip length in ms (when not using choreography/autoSections). Default 6000.' },
-  { name: 'deviceScaleFactor', description: 'Render scale — higher captures crisper, then downscales into the video. Default 2 (max 4).' },
-  { name: 'easing', description: 'Scroll easing: "linear", "ease-in", "ease-out", "ease-in-out" (default), "ease-out-strong", "ease-in-out-strong".' },
-  { name: 'crf', description: 'x264 quality, 0–51 (lower = better/larger). Default 18.' },
-  { name: 'fileName', description: 'Output filename. Defaults to <slug(asset name)>.mp4.' },
-]
-
-<ConfigOptions items={coreSizingOptions} />
-
-## Timing & navigation
-
-export const timingOptions = [
-  { name: 'startDelayMs', description: 'Dwell at the top before scrolling (ms). Default 500.' },
-  { name: 'endDwellMs', description: 'Dwell at the bottom after scrolling (ms). Default 800.' },
-  { name: 'waitUntil', description: 'Navigation wait: "load", "domcontentloaded", "networkidle" (default), or "commit".' },
-  { name: 'waitForSelector', description: 'Optional CSS selector to wait for (visible) before recording — e.g. a hero section.' },
-]
-
-<ConfigOptions items={timingOptions} />
-
-## Frame rendering
-
-How frames are rendered — not to be confused with [`settings.capture`](/docs/configuration/settings#capture),
-the site cleanup applied to every URL capture.
-
-export const frameRenderingOptions = [
-  { name: 'workers', description: 'Parallel render contexts (auto-picks from cores + free memory; all captures share a run-wide context budget).' },
-  { name: 'frameFormat', description: 'Intermediate frame format: "jpeg" (default) or "png" (lossless).' },
-  { name: 'settlePerFrame', description: 'Wait for fonts + in-view images before each frame. Default on (off in --draft).' },
-  { name: 'settleMaxMs', description: 'Per-frame settling cap in ms. Default 250.' },
-]
-
-<ConfigOptions items={frameRenderingOptions} />
-
-## Motion
-
-```ts
-options: {
-  choreography: [
-    { to: "#hero", holdMs: 1200 },
-    { to: "#features", holdMs: 1500 },
-    { to: "100%", durationMs: 1000 },
-  ],
-  loop: "boomerang",             // play forward then back → seamless loop
-}
-```
-
-- **`choreography: [{ to, durationMs?, holdMs?, easing? }]`** — replaces the single sweep with
-  an authored sequence. `to` is a `0..1` number, an `"NN%"` string, or a CSS selector to bring
-  into view. Per step: `durationMs` default `1200`, `holdMs` default `800`. Clip length becomes
-  `startDelayMs` + Σ(step travel + hold) + `endDwellMs`.
-- **`autoSections: true | { minHeightFraction?, selector?, holdMs?, durationMs?, maxSections?, constantVelocity? }`**
-  — auto-detect the page's sections and pan/hold through them within a fixed `durationMs` budget.
-  Defaults: `minHeightFraction` `0.5` (max `2`), `holdMs` `700`, `durationMs` `12000`,
-  `maxSections` `8`, `constantVelocity` `true`. Ignored if `choreography` is set.
-- **`loop: "none" | "boomerang"`** — boomerang plays forward then back for a seamless loop.
-  Default `"none"`.
-
-## Variants — one config, many assets
-
-```ts
-options: {
-  colorScheme: "both",                              // → <name>-light and <name>-dark
-  viewports: [
-    { name: "desktop", width: 1440, height: 900 },
-    { name: "mobile", width: 390, height: 844, deviceScaleFactor: 3 },
-  ],                                                 // → <name>-desktop, <name>-mobile
-}
-```
-
-- `colorScheme: "light" | "dark" | "both"` (with `themeClass` to toggle a CSS-class theme).
-- `viewports: [{ name, width, height, deviceScaleFactor? }]`.
-
-The viewport × colour-scheme matrix is emitted as separate assets (`<name>-<suffix>`).
-
-## Output formats & framing
-
-- **`aspect: "16:9" | "9:16" | "1:1" | { width, height }`** with `fit: "cover" | "contain"`
-  (default `"cover"`) and `padColor` (default `#0b0b0f`, used by `"contain"`) — reframe for
-  social (e.g. `9:16` reels).
-- **`outputs: ("mp4" | "gif" | "webp" | "poster")[]`** (default `["mp4"]`) — each becomes its
-  own asset; `gifFps` tunes the GIF/WebP frame rate (default `min(fps, 15)`, max `50`).
-
-A vertical cut of the same page — `aspect: "9:16"` reframes the capture for a Reel or Story:
+`aspect: "9:16"` reframes the same page for a Reel or Story. Add `outputs` for gif/poster to
+cover organic formats too.
 
 <Example
   clip="docs-vertical"
   portrait
-  caption="The same scroll, reframed vertical for social. Add outputs for gif/poster to cover organic formats too."
+  caption="The same scroll, reframed vertical for social."
   code={`{
   name: "home-vertical",
   url: "https://your-site.com",
   generator: "scroll-reel",
   options: {
-    width: 430,
-    height: 932,
-    durationMs: 5000,
-    aspect: "9:16",
+    output: {
+      width: 430,
+      height: 932,
+    },
+    motion: {
+      durationMs: 5000,
+    },
+    reframe: {
+      aspect: "9:16",
+    },
   },
 }`}
 />
-
-> Every option also has hover docs in `pro-visu.config.ts` — the authoring types are generated
-> from the validation schema, so the editor always matches what the tool accepts.

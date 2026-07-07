@@ -15,12 +15,9 @@ A `9:16` clip with multiple output formats:
   url: "https://your-site.com",
   generator: "scroll-reel",
   options: {
-    width: 430,
-    height: 932,
-    deviceScaleFactor: 2,
-    durationMs: 5000,
-    aspect: "9:16",
-    outputs: ["mp4", "gif", "poster"],
+    output: { width: 430, height: 932, deviceScaleFactor: 2, outputs: ["mp4", "gif", "poster"] },
+    motion: { durationMs: 5000 },
+    reframe: { aspect: "9:16" },
   },
 }
 ```
@@ -35,12 +32,14 @@ Pause on each section instead of one continuous scroll:
   url: "https://your-site.com",
   generator: "scroll-reel",
   options: {
-    choreography: [
-      { to: "#hero", holdMs: 1200 },
-      { to: "#features", holdMs: 1500 },
-      { to: "#pricing", holdMs: 1500 },
-      { to: "100%", durationMs: 1000 },
-    ],
+    motion: {
+      choreography: [
+        { to: "#hero", holdMs: 1200 },
+        { to: "#features", holdMs: 1500 },
+        { to: "#pricing", holdMs: 1500 },
+        { to: "100%", durationMs: 1000 },
+      ],
+    },
   },
 }
 ```
@@ -79,15 +78,17 @@ assets: [
     name: "wall",
     generator: "wall",
     options: {
-      durationMs: 16000,
-      pan: { direction: "left", loops: 1 },
+      motion: {
+        durationMs: 16000,
+        pan: { direction: "left", loops: 1 },
+      },
       columns: [
         { tiles: [{ src: "public/img/hero.jpg" }, "shot-home"], direction: "down",
           pulses: [{ at: 0.1, span: 0.15, distance: 0.5 }] },
         { tiles: ["shot-shop", { src: "public/img/hero.jpg" }], direction: "up", loops: 1, stagger: 0.4 },
         { tiles: ["shot-home", "shot-shop"], stagger: 0.15 },
       ],
-      // dial it in fast with test: true + capture: "realtime"; remove both for the real render
+      // dial it in fast with preview: { enabled: true } + render: { capture: "realtime" }; remove both for the real render
     },
   },
 ]
