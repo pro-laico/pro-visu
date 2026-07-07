@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SCENE_OPTION_SCHEMAS, wallSceneOptionsSchema } from "@/generators/scene/scene-options";
+import { SCENE_OPTION_SCHEMAS, wallSceneOptionsSchema } from "@/scene-engine/scene-options";
 import { wallOptionsSchema } from "@/generators/wall/options";
 import { generatorIds, getGenerator } from "@/generators/registry";
 import { WALL_ID } from "@/generators/wall";

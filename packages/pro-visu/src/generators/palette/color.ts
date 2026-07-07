@@ -1,6 +1,6 @@
 /**
- * Pure color math for the palette generator: hex parsing and conversions to RGB / OKLCH / HSL /
- * CMYK, a relative-luminance contrast pick (dark-vs-light text on a swatch), and per-field label
+ * Pure color math for the palette generator: hex parsing and conversions to RGB / OKLCH / HSL,
+ * a relative-luminance contrast pick (dark-vs-light text on a swatch), and per-field label
  * formatting. No I/O — fully unit-testable.
  */
 
@@ -11,7 +11,7 @@ export interface Rgb {
 }
 
 /** A field that can be shown on a swatch. */
-export type FieldId = "name" | "hex" | "rgb" | "oklch" | "hsl" | "cmyk";
+export type FieldId = "name" | "hex" | "rgb" | "oklch" | "hsl";
 
 /** Normalize `#rgb` / `rgb` / `#rrggbb` (any case) to canonical uppercase `#RRGGBB`. */
 export function normalizeHex(hex: string): string {
@@ -109,28 +109,6 @@ export function rgbToHsl({ r, g, b }: Rgb): Hsl {
   return { h: Math.round(h), s: Math.round(s * 100), l: Math.round(l * 100) };
 }
 
-export interface Cmyk {
-  c: number;
-  m: number;
-  y: number;
-  k: number;
-}
-
-/** sRGB (0..255) → CMYK percentages (naive, profile-less). */
-export function rgbToCmyk({ r, g, b }: Rgb): Cmyk {
-  const rn = r / 255;
-  const gn = g / 255;
-  const bn = b / 255;
-  const k = 1 - Math.max(rn, gn, bn);
-  if (k >= 1 - 1e-9) return { c: 0, m: 0, y: 0, k: 100 };
-  return {
-    c: Math.round(((1 - rn - k) / (1 - k)) * 100),
-    m: Math.round(((1 - gn - k) / (1 - k)) * 100),
-    y: Math.round(((1 - bn - k) / (1 - k)) * 100),
-    k: Math.round(k * 100),
-  };
-}
-
 /** WCAG relative luminance (0..1) of an sRGB color. */
 function relativeLuminance({ r, g, b }: Rgb): number {
   return (
@@ -191,10 +169,6 @@ export function formatField(
     case "hsl": {
       const { h, s, l } = rgbToHsl(rgb);
       return `H:${h},S:${s},L:${l}`;
-    }
-    case "cmyk": {
-      const { c, m, y, k } = rgbToCmyk(rgb);
-      return `C:${c},M:${m},Y:${y},K:${k}`;
     }
   }
 }

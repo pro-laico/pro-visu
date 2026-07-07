@@ -1,10 +1,15 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { generateConfigJsonSchema } from "@/config/json-schema";
+import {
+  generateConfigJsonSchema,
+  refreshSchemaFile,
+  serializeConfigJsonSchema,
+  DEFAULT_SCHEMA_FILE,
+} from "@/config/json-schema";
 import { generatorIds } from "@/generators/registry";
-import { runSchema } from "@/cli/commands/schema";
+import { TOOL_VERSION } from "@/version";
 
 type JsonObject = Record<string, unknown>;
 
@@ -45,7 +50,7 @@ describe("generateConfigJsonSchema", () => {
   });
 });
 
-describe("runSchema", () => {
+describe("refreshSchemaFile", () => {
   let dir: string;
   beforeEach(() => {
     dir = mkdtempSync(path.join(tmpdir(), "showcase-schema-"));
@@ -54,18 +59,27 @@ describe("runSchema", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it("writes a valid pro-visu.schema.json to the cwd", async () => {
-    await runSchema({ cwd: dir });
-    const written = JSON.parse(readFileSync(path.join(dir, "pro-visu.schema.json"), "utf8"));
-    expect(written.title).toBe("pro-visu config");
-    expect(written.required).toContain("assets");
+  it("does nothing when no schema file exists", async () => {
+    await refreshSchemaFile(dir);
+    expect(() => readFileSync(path.join(dir, DEFAULT_SCHEMA_FILE), "utf8")).toThrow();
   });
 
-  it("honors a custom --out path", async () => {
-    await runSchema({ cwd: dir, out: "config/pro-visu.schema.json" });
-    const written = JSON.parse(
-      readFileSync(path.join(dir, "config", "pro-visu.schema.json"), "utf8"),
-    );
-    expect(written.$schema).toBe("http://json-schema.org/draft-07/schema#");
+  it("leaves a current-version schema untouched", async () => {
+    const file = path.join(dir, DEFAULT_SCHEMA_FILE);
+    writeFileSync(file, serializeConfigJsonSchema(), "utf8");
+    const before = readFileSync(file, "utf8");
+    await refreshSchemaFile(dir);
+    expect(readFileSync(file, "utf8")).toBe(before);
+  });
+
+  it("rewrites a schema stamped by another tool version", async () => {
+    const file = path.join(dir, DEFAULT_SCHEMA_FILE);
+    const stale = JSON.parse(serializeConfigJsonSchema()) as Record<string, unknown>;
+    stale["x-tool-version"] = "0.0.1";
+    writeFileSync(file, JSON.stringify(stale), "utf8");
+    await refreshSchemaFile(dir);
+    const written = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+    expect(written["x-tool-version"]).toBe(TOOL_VERSION);
+    expect(written.title).toBe("pro-visu config");
   });
 });

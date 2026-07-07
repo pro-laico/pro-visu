@@ -1,6 +1,6 @@
 ---
 title: scroll-reel
-description: Deterministic frame-stepped recordings — scroll reels, choreographed tours, scripted interactions, and social formats.
+description: Deterministic frame-stepped scroll recordings — single sweeps, choreographed tours, multi-page reels, and social formats.
 ---
 
 `scroll-reel` is the workhorse generator. By default it captures **frame-stepped**: it drives
@@ -12,33 +12,7 @@ run-to-run**.
 { name: "home", url: "https://your-site.com", generator: "scroll-reel" }
 ```
 
-The clip below is a `scroll-reel` captured from a real storefront — one choreography beat
-holds on the hero while a gentle Ken Burns push plays out and back (`loop: "boomerang"`), so it
-loops with no visible seam:
-
-<Example
-  clip="hero-loop"
-  caption="A seamless looping hero — boomerang playback folds the Ken Burns zoom so the first and last frames match."
-  code={`{
-  name: "hero-loop",
-  generator: "scroll-reel",
-  options: {
-    durationMs: 4000,
-    // forward then back → no seam
-    loop: "boomerang",
-    kenBurns: {
-      scaleTo: 1.05,
-      originY: 0.4,
-    },
-    // hold the hero; the zoom moves
-    choreography: [
-      { to: "0%", durationMs: 4000 },
-    ],
-  },
-}`}
-/>
-
-And here it *actually scrolls*: `autoSections` detects the page's sections and paces a pan/hold
+Here it *actually scrolls*: `autoSections` detects the page's sections and paces a pan/hold
 down the whole page within a fixed time budget — a hands-off tour, no choreography to author:
 
 <Example
@@ -56,6 +30,31 @@ down the whole page within a fixed time budget — a hands-off tour, no choreogr
 }`}
 />
 
+And a seamless loop: `loop: "boomerang"` plays the capture forward then back, so the first and
+last frames match:
+
+<Example
+  clip="docs-home"
+  caption="A boomerang loop over an auto-sections tour — supersampled at deviceScaleFactor 3 for a crisp hero clip."
+  code={`{
+  name: "docs-home",
+  generator: "scroll-reel",
+  options: {
+    deviceScaleFactor: 3,
+    loop: "boomerang",
+    autoSections: {
+      durationMs: 22000,
+      holdMs: 1600,
+    },
+  },
+}`}
+/>
+
+> Want a scripted click-through with a visible cursor, or a clip cropped to one component?
+> That's the [`interaction`](/docs/generators/interaction) generator. Site cleanup (hide the
+> cookie banner, block trackers, freeze the clock) lives in
+> [`settings.capture`](/docs/configuration/settings#capture) and applies to every URL capture.
+
 ## Core sizing
 
 export const coreSizingOptions = [
@@ -63,7 +62,7 @@ export const coreSizingOptions = [
   { name: 'fps', description: 'Output frames per second. Default 30 (max 120).' },
   { name: 'durationMs', description: 'Clip length in ms (when not using choreography/autoSections/routes). Default 6000.' },
   { name: 'deviceScaleFactor', description: 'Render scale — higher captures crisper, then downscales into the video. Default 2 (max 4).' },
-  { name: 'easing', description: 'Scroll easing: "linear", "ease-in-out-cubic" (default), "ease-in-out-quad", "ease-out-cubic", "ease-in-out-sine", "ease-in-out-expo", "ease-out-quint".' },
+  { name: 'easing', description: 'Scroll easing: "linear", "ease-in", "ease-out", "ease-in-out" (default), "ease-out-strong", "ease-in-out-strong".' },
   { name: 'crf', description: 'x264 quality, 0–51 (lower = better/larger). Default 18.' },
   { name: 'fileName', description: 'Output filename. Defaults to <slug(asset name)>.mp4.' },
 ]
@@ -84,21 +83,22 @@ export const timingOptions = [
 ## Capture strategy
 
 How frames are recorded — not to be confused with [`settings.capture`](/docs/configuration/settings#capture),
-the site-side capture-mode toggles.
+the site cleanup applied to every URL capture.
 
 export const captureStrategyOptions = [
   { name: 'capture', description: '"frames" (default) deterministic frame-stepping; "realtime" records live — a fallback for time-based hero animations or autoplay video.' },
   { name: 'workers', description: 'Parallel render contexts for "frames" (auto-picks from cores + free memory; all captures share a run-wide context budget).' },
   { name: 'frameFormat', description: 'Intermediate frame format for "frames": "jpeg" (default) or "png" (lossless).' },
+  { name: 'settlePerFrame', description: 'Wait for fonts + in-view images before each frame. Default on (off in --draft).' },
+  { name: 'settleMaxMs', description: 'Per-frame settling cap in ms. Default 250.' },
 ]
 
 <ConfigOptions items={captureStrategyOptions} />
 
-Choreography, auto-sections, variants, cards, annotations, aspect, and extra outputs are
-**frames-only**; `realtime` ignores them (with a warning). Scripted `actions` and `focus`
-record realtime by nature.
+Choreography, auto-sections, variants, aspect, and extra outputs are **frames-only**;
+`realtime` ignores them (with a warning).
 
-## Motion & cinematography
+## Motion
 
 ```ts
 options: {
@@ -107,7 +107,6 @@ options: {
     { to: "#features", holdMs: 1500 },
     { to: "100%", durationMs: 1000 },
   ],
-  kenBurns: { scaleTo: 1.06 },   // slow zoom over the clip
   loop: "boomerang",             // play forward then back → seamless loop
 }
 ```
@@ -120,39 +119,8 @@ options: {
   — auto-detect the page's sections and pan/hold through them within a fixed `durationMs` budget.
   Defaults: `minHeightFraction` `0.5` (max `2`), `holdMs` `700`, `durationMs` `12000`,
   `maxSections` `8`, `constantVelocity` `true`. Ignored if `choreography` is set.
-- **`kenBurns: { scaleFrom?, scaleTo?, easing?, originX?, originY? }`** — slow zoom (folds
-  automatically under `loop: "boomerang"` so it stays seamless). Defaults: `scaleFrom` `1`,
-  `scaleTo` `1.08`, `originX`/`originY` `0.5`.
 - **`loop: "none" | "boomerang"`** — boomerang plays forward then back for a seamless loop.
   Default `"none"`.
-
-## Clean capture
-
-Suppress real-site noise so frames are clean and deterministic:
-
-- **Page:** `hideSelectors: []`, `injectCss`, `clickSelectors: []` (best-effort consent
-  dismissal), `hideScrollbars` (default `true`), `pauseAnimations` (default `false`),
-  `freezeClock` (default `false` — pin `Date.now` / `performance.now` / `Math.random`).
-- **Network:** `blockTrackers` (default `true` — aborts common analytics/ads/session-replay),
-  `blockHosts: []`, `blockResourceTypes: []` (e.g. `["media", "font"]`).
-- **Settling:** `settlePerFrame` (default on; off in `--draft`) waits for fonts + in-view
-  images each frame, bounded by `settleMaxMs` (default `250`).
-
-```ts
-options: {
-  // Hide chrome that shouldn't be in the shot
-  hideSelectors: ["#cookie-banner", ".intercom-launcher"],
-  clickSelectors: ["#onetrust-accept-btn-handler"], // best-effort consent dismissal
-  injectCss: ".promo-bar { display: none !important }",
-  // Determinism
-  freezeClock: true,        // pin Date.now / performance.now / Math.random
-  pauseAnimations: true,    // hold CSS animations/transitions on their first frame
-  // Network
-  blockTrackers: true,      // default — aborts analytics/ads/session-replay
-  blockHosts: ["widget.example.com"],
-  blockResourceTypes: ["media"], // skip heavy autoplay video, etc.
-}
-```
 
 ## Variants — one config, many assets
 
@@ -178,22 +146,6 @@ The viewport × colour-scheme matrix is emitted as separate assets (`<name>-<suf
   social (e.g. `9:16` reels).
 - **`outputs: ("mp4" | "gif" | "webp" | "poster")[]`** (default `["mp4"]`) — each becomes its
   own asset; `gifFps` tunes the GIF/WebP frame rate (default `min(fps, 15)`, max `50`).
-- **`intro` / `outro: { title?, subtitle?, background?, color?, durationMs?, fadeMs? }`** — a
-  fade-in title card / end card. Defaults: `background` `#0b0b0f`, `color` `#ffffff`,
-  `durationMs` `1500`, `fadeMs` `400`.
-- **`annotations: [{ text?, ring?, spotlight?, atMs?, untilMs?, position? }]`** — timed
-  captions, a highlight ring around a selector, or a spotlight that dims everything else.
-  Defaults: `atMs` `0`, `untilMs` end of clip, `position` `"top" | "bottom" | "center"`
-  (default `"bottom"`).
-
-```ts
-options: {
-  aspect: "9:16",
-  outputs: ["mp4", "gif", "poster"],
-  intro: { title: "Acme", subtitle: "Botanik" },
-  annotations: [{ text: "Real-time data", ring: "#chart", atMs: 1000, untilMs: 3000 }],
-}
-```
 
 A vertical cut of the same page — `aspect: "9:16"` reframes the capture for a Reel or Story:
 
@@ -213,44 +165,6 @@ A vertical cut of the same page — `aspect: "9:16"` reframes the capture for a 
   },
 }`}
 />
-
-## Scripted interaction & element focus
-
-Records **realtime** (interactions and their animations are time-based).
-
-```ts
-options: {
-  cursor: { color: "#e91e63" },
-  actions: [
-    { do: "click", selector: "#menu-button" },
-    { do: "hover", selector: ".dropdown a:first-child" },
-    { do: "type", selector: "input[type=search]", text: "shoes" },
-  ],
-}
-```
-
-- **`actions: [{ do, selector?, x?, y?, text?, to?, durationMs?, holdMs? }]`** where `do` is
-  `"move" | "click" | "hover" | "type" | "scrollTo" | "wait"` — a scripted tour with a
-  synthetic `cursor: { show?, size?, color? }`. Per action: `durationMs` default `700`,
-  `holdMs` default `600`. Cursor defaults: `show` `true`, `size` `22`, `color` `#0b0b0f`.
-- **`focus: { selector, padding?, actions?, holdMs? }`** — capture a single component
-  (optionally trigger it first), cropped to its box. Defaults: `padding` `24`, `holdMs` `2000`.
-
-```ts
-options: {
-  // Crop to one component, triggering its toggle before the hold
-  focus: {
-    selector: "#pricing-card",
-    padding: 32,
-    actions: [{ do: "click", selector: "#billing-annual" }],
-    holdMs: 2500,
-  },
-}
-```
-
-Setting `actions` or `focus` emits a **single asset** and records realtime: variants
-(`viewports` / `colorScheme: "both"`), cards (`intro` / `outro`), `annotations`, `aspect`, and
-extra `outputs` are skipped — `actions` logs a warning if you set any of these.
 
 ## Multi-page tour
 

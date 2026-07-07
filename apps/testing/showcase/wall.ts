@@ -1,32 +1,23 @@
-import { defineAssets, type AssetSpecInput, type ScrollReelOptions } from "pro-visu";
+import type { AssetSpecInput, InteractionOptions } from "pro-visu";
 import { INK } from "./brand";
 
 // The media wall and its tile producers: a quiet grid of mobile phone screens — most tiles sit
 // still, now and then one does a single thing (a drawer slides in, a heart fills). Clip lengths
-// (8s / 12s) divide the 24s wall so every tile loops cleanly.
-
-// Full-res photo accents (image passthrough → full source resolution).
-export const imageTiles = defineAssets(
-  [
-    { name: "img-hero", src: "public/img/hero.jpg" },
-    { name: "img-editorial", src: "public/img/editorial.jpg" },
-    { name: "img-atelier", src: "public/img/about-atelier.jpg" },
-    { name: "img-tote", src: "public/img/products/leather-tote.jpg" },
-  ].map((t): AssetSpecInput => ({ name: t.name, generator: "image", options: { src: t.src } })),
-);
+// (8s / 12s) divide the 24s wall so every tile loops cleanly. Full-res photo accents ride in as
+// direct `{ src }` tiles on the wall itself — no producer assets needed.
 
 // Shared clip recipe: 390×844 phone viewport, cursor hidden. Each clip is authored as
 // hold still → one interaction (held well past a second) → settle back to rest, so the loop is
 // seamless; startDelayMs + endDwellMs + Σ(durationMs + holdMs) sums to the clip length.
-const CLIP_VIEW: ScrollReelOptions = { width: 390, height: 844, deviceScaleFactor: 2, fps: 30, cursor: { show: false } };
+const CLIP_VIEW: InteractionOptions = { width: 390, height: 844, deviceScaleFactor: 2, fps: 30, cursor: { show: false } };
 
 // Six distinct clips (no tile reused → no synchronised "twins"), staggered action windows +
 // mixed lengths so the wall never goes "all still then all active" at once.
-export const clips = defineAssets([
+export const clips = [
   {
     name: "clip-menu", // home: open the mega-menu, close it (acts early) — 8s
     url: "/",
-    generator: "scroll-reel",
+    generator: "interaction",
     options: {
       ...CLIP_VIEW,
       waitForSelector: ".hero-media img",
@@ -41,7 +32,7 @@ export const clips = defineAssets([
   {
     name: "clip-wishlist", // shop: heart the coat, unheart it — 8s
     url: "/shop",
-    generator: "scroll-reel",
+    generator: "interaction",
     options: {
       ...CLIP_VIEW,
       waitForSelector: "#shop-grid .product img",
@@ -57,7 +48,7 @@ export const clips = defineAssets([
   {
     name: "clip-cart", // PDP coat: add to bag, drawer held open ~4s, close — 12s
     url: "/products/the-camel-coat",
-    generator: "scroll-reel",
+    generator: "interaction",
     options: {
       ...CLIP_VIEW,
       waitForSelector: "#pdp-add",
@@ -73,7 +64,7 @@ export const clips = defineAssets([
   {
     name: "clip-cart-trouser", // PDP trouser: same flow, different bag, acts later — 12s
     url: "/products/pleated-wool-trouser",
-    generator: "scroll-reel",
+    generator: "interaction",
     options: {
       ...CLIP_VIEW,
       waitForSelector: "#pdp-add",
@@ -89,7 +80,7 @@ export const clips = defineAssets([
   {
     name: "clip-size", // PDP slip: pick size L, back to M (acts late) — 8s
     url: "/products/silk-slip-dress",
-    generator: "scroll-reel",
+    generator: "interaction",
     options: {
       ...CLIP_VIEW,
       waitForSelector: "#pdp-add",
@@ -105,7 +96,7 @@ export const clips = defineAssets([
   {
     name: "clip-wishlist-slip", // shop: heart the slip — 8s
     url: "/shop",
-    generator: "scroll-reel",
+    generator: "interaction",
     options: {
       ...CLIP_VIEW,
       waitForSelector: "#shop-grid .product img",
@@ -118,16 +109,15 @@ export const clips = defineAssets([
       ],
     },
   },
-]);
+] satisfies AssetSpecInput[];
 
-export const wallAssets = defineAssets([
-  ...imageTiles,
+export const wallAssets = [
   ...clips,
   {
     name: "lookbook-wall",
     generator: "wall",
-    // No `inputs` map — each column lists its tiles by name, so the wall derives its
-    // dependencies. 5 columns × 2 tiles: 6 mobile clips (videos lead) + 4 photos (accent).
+    // Each column lists its tiles: clip assets by name (the wall derives its dependencies) and
+    // full-res photos as direct { src } files. 5 columns × 2 tiles.
     options: {
       width: 1920,
       height: 1080,
@@ -144,12 +134,12 @@ export const wallAssets = defineAssets([
       // alternating up/down with spread staggers. No X pan, no pulses.
       loops: 1,
       columns: [
-        { tiles: ["clip-cart", "img-hero"], direction: "down", stagger: 0.0 },
-        { tiles: ["clip-menu", "img-editorial"], direction: "up", stagger: 0.42 },
-        { tiles: ["clip-wishlist", "img-atelier"], direction: "down", stagger: 0.68 },
-        { tiles: ["clip-size", "img-tote"], direction: "up", stagger: 0.18 },
+        { tiles: ["clip-cart", { src: "public/img/hero.jpg" }], direction: "down", stagger: 0.0 },
+        { tiles: ["clip-menu", { src: "public/img/editorial.jpg" }], direction: "up", stagger: 0.42 },
+        { tiles: ["clip-wishlist", { src: "public/img/about-atelier.jpg" }], direction: "down", stagger: 0.68 },
+        { tiles: ["clip-size", { src: "public/img/products/leather-tote.jpg" }], direction: "up", stagger: 0.18 },
         { tiles: ["clip-cart-trouser", "clip-wishlist-slip"], direction: "down", stagger: 0.54 },
       ],
     },
   },
-]);
+] satisfies AssetSpecInput[];

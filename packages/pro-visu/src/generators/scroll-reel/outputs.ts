@@ -5,18 +5,10 @@ import {
   buildAspectArgs,
   buildGifArgs,
   buildPosterArgs,
-  buildStillSegmentArgs,
   buildWebpArgs,
-  concatMp4,
   probeVideoDurationMs,
   runFfmpeg,
 } from "@/media/ffmpeg";
-import {
-  renderCard,
-  DEFAULT_CARD_DURATION_MS,
-  DEFAULT_CARD_FADE_MS,
-  type CardSpec,
-} from "@/generators/scroll-reel/cards";
 import { ensureDir } from "@/utils/fs";
 import { sha256File } from "@/utils/hash";
 import { slugify } from "@/utils/paths";
@@ -37,7 +29,6 @@ export interface OutputJob {
   /** Capture dimensions (before any aspect reframe). */
   width: number;
   height: number;
-  deviceScaleFactor: number;
   durationMs: number;
   options: ResolvedScrollReelOptions;
   preset: string;
@@ -57,7 +48,7 @@ export async function produceOutputs(job: OutputJob): Promise<AssetRecord[]> {
   const logger = ctx.logger;
   const signal = ctx.signal; // a cancel kills any in-progress reframe/encode here too
 
-  // 1. Aspect reframe (once, shared by every output) — or use the capture as-is.
+  // Aspect reframe (once, shared by every output) — or use the capture as-is.
   let videoMp4 = job.sourceMp4;
   let outW = job.width;
   let outH = job.height;
@@ -84,55 +75,8 @@ export async function produceOutputs(job: OutputJob): Promise<AssetRecord[]> {
     videoMp4 = reframed;
   }
 
-  // The poster always comes from the content clip (never an intro card's fade-from-black).
-  const posterSource = videoMp4;
-
-  // 2. Intro / outro cards: render at the output size and concatenate around the clip.
-  let extraMs = 0;
-  if (options.intro || options.outro) {
-    const makeCard = async (spec: CardSpec, tag: string): Promise<string> => {
-      const ms = spec.durationMs ?? DEFAULT_CARD_DURATION_MS;
-      const fade = (spec.fadeMs ?? DEFAULT_CARD_FADE_MS) / 1000;
-      const png = path.join(ctx.tmpDir, `${slugify(job.assetId)}-${tag}.png`);
-      await renderCard(ctx.browser, {
-        spec,
-        width: outW,
-        height: outH,
-        scale: job.deviceScaleFactor,
-        outPath: png,
-      });
-      const seg = path.join(ctx.tmpDir, `${slugify(job.assetId)}-${tag}.mp4`);
-      await runFfmpeg(
-        buildStillSegmentArgs({
-          pngPath: png,
-          outPath: seg,
-          seconds: ms / 1000,
-          fps: options.fps,
-          width: outW,
-          height: outH,
-          fadeInSec: fade,
-          fadeOutSec: fade,
-          crf: options.crf,
-          preset: job.preset,
-        }),
-        logger,
-        signal,
-      );
-      extraMs += ms;
-      return seg;
-    };
-    const segs: string[] = [];
-    if (options.intro) segs.push(await makeCard(options.intro, "intro"));
-    segs.push(videoMp4);
-    if (options.outro) segs.push(await makeCard(options.outro, "outro"));
-    if (segs.length > 1) {
-      const stitched = path.join(ctx.tmpDir, `${slugify(job.assetId)}-carded.mp4`);
-      await concatMp4(segs, stitched, logger, signal);
-      videoMp4 = stitched;
-    }
-  }
-  // Probe the real container duration (concat/mux can drift a little from the computed sum).
-  const videoMs = (await probeVideoDurationMs(videoMp4)) ?? job.durationMs + extraMs;
+  // Probe the real container duration (mux can drift a little from the computed sum).
+  const videoMs = (await probeVideoDurationMs(videoMp4)) ?? job.durationMs;
 
   const gifFps = options.gifFps ?? Math.min(options.fps, 15);
   const want = new Set(options.outputs);
@@ -156,7 +100,7 @@ export async function produceOutputs(job: OutputJob): Promise<AssetRecord[]> {
       );
     } else {
       await runFfmpeg(
-        buildPosterArgs({ inputPath: posterSource, outputPath: outPath, atSeconds: 0 }),
+        buildPosterArgs({ inputPath: videoMp4, outputPath: outPath, atSeconds: 0 }),
         logger,
         signal,
       );

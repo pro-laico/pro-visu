@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseByteRange } from "@/scene/serve";
+import { parseByteRange } from "@/scene-engine/serve";
 
 describe("parseByteRange", () => {
   const SIZE = 1000;

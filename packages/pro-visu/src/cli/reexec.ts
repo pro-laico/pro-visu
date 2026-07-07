@@ -1,12 +1,32 @@
+import os from "node:os";
 import { spawn } from "node:child_process";
 import v8 from "node:v8";
+import type { ResolvedAssetSpec } from "@/config/schema";
 
 /** Env flag set on the re-exec'd child so it doesn't try to re-exec again (infinite loop guard). */
-const REEXEC_FLAG = "SHOWCASE_MEM_REEXEC";
+const REEXEC_FLAG = "PRO_VISU_MEM_REEXEC";
 
 /** This process's V8 old-space (heap) limit, in MB. */
 export function currentHeapLimitMB(): number {
   return Math.round(v8.getHeapStatistics().heap_size_limit / (1024 * 1024));
+}
+
+/**
+ * Pick a Node heap target for the selected plan, or undefined when the default is fine. Heavy
+ * frame-stepped compositing jobs — real (non-test) walls — buffer frames across parallel workers
+ * and can exceed Node's default ~4 GB old-space; everything else streams. The target is half the
+ * machine's RAM, capped at 8 GB (the browser and ffmpeg need the rest). Pure given its inputs —
+ * unit-tested via {@link shouldReexec}.
+ */
+export function autoHeapTargetMB(
+  selected: Array<Pick<ResolvedAssetSpec, "generator" | "options">>,
+  totalMemBytes: number = os.totalmem(),
+): number | undefined {
+  const heavy = selected.some(
+    (s) => s.generator === "wall" && (s.options as { test?: unknown }).test !== true,
+  );
+  if (!heavy) return undefined;
+  return Math.min(8192, Math.floor(totalMemBytes / (1024 * 1024) / 2));
 }
 
 /**
@@ -15,26 +35,26 @@ export function currentHeapLimitMB(): number {
  * Pure — unit-tested.
  */
 export function shouldReexec(
-  maxMemoryMB: number | undefined,
+  targetMB: number | undefined,
   currentLimitMB: number,
   alreadyReexec: boolean,
 ): boolean {
-  if (!maxMemoryMB || maxMemoryMB <= 0) return false;
+  if (!targetMB || targetMB <= 0) return false;
   if (alreadyReexec) return false;
-  return currentLimitMB < maxMemoryMB * 0.95;
+  return currentLimitMB < targetMB * 0.95;
 }
 
 /**
- * Honor `settings.maxMemoryMB`: if it asks for more heap than this process has, re-exec the CLI with
- * `--max-old-space-size=<MB>` so a heavy run has room to finish instead of crashing with a V8 OOM.
- * Returns true if it re-exec'd — the child ran the whole command (stdio inherited), so the caller
- * should simply return. Signals are forwarded to the child so Esc/Ctrl+C still work.
+ * Give a heavy run more heap automatically: when the plan warrants more than this process has,
+ * re-exec the CLI with `--max-old-space-size=<MB>` so the run finishes instead of crashing with a
+ * V8 OOM. Returns true if it re-exec'd — the child ran the whole command (stdio inherited), so the
+ * caller should simply return. Signals are forwarded to the child so Esc/Ctrl+C still work.
  */
-export async function reexecWithMemory(maxMemoryMB: number | undefined): Promise<boolean> {
-  if (!shouldReexec(maxMemoryMB, currentHeapLimitMB(), process.env[REEXEC_FLAG] === "1")) {
+export async function reexecWithMemory(targetMB: number | undefined): Promise<boolean> {
+  if (!shouldReexec(targetMB, currentHeapLimitMB(), process.env[REEXEC_FLAG] === "1")) {
     return false;
   }
-  const args = [`--max-old-space-size=${maxMemoryMB}`, process.argv[1]!, ...process.argv.slice(2)];
+  const args = [`--max-old-space-size=${targetMB}`, process.argv[1]!, ...process.argv.slice(2)];
   const child = spawn(process.execPath, args, {
     stdio: "inherit",
     env: { ...process.env, [REEXEC_FLAG]: "1" },

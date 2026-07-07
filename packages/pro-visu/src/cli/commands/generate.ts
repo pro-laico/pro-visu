@@ -6,12 +6,14 @@ import type { ResolvedConfig } from "@/config/schema";
 import { resolveTargets } from "@/config/resolve-targets";
 import { getGenerator } from "@/generators/registry";
 import { watchForInterrupt } from "@/cli/interrupt";
-import { reexecWithMemory, currentHeapLimitMB } from "@/cli/reexec";
+import { reexecWithMemory, autoHeapTargetMB, currentHeapLimitMB } from "@/cli/reexec";
 import os from "node:os";
+import path from "node:path";
 import v8 from "node:v8";
-import { startRunState, updateRunState, clearRunState } from "@/cli/run-state";
-import { ensureChromium } from "@/browser-install/ensure-chromium";
-import { ensureFfmpeg } from "@/media/ensure-ffmpeg";
+import { startRunState, updateRunState, clearRunState, cleanStaleRunState } from "@/cli/run-state";
+import { refreshSchemaFile } from "@/config/json-schema";
+import { ensureChromium } from "@/binaries/chromium";
+import { ensureFfmpeg } from "@/binaries/ensure-ffmpeg";
 import {
   startManagedServer,
   resolveServerUrl,
@@ -32,7 +34,7 @@ import type { Reporter } from "@/pipeline/reporter";
 import { TOOL_VERSION } from "@/version";
 import { reportConfigError, printSummary } from "@/cli/ui";
 import { generatorIds } from "@/generators/registry";
-import { legacyOptionHint } from "@/generators/migration";
+import { legacyGeneratorHint, legacyOptionHint } from "@/generators/migration";
 import { didYouMean } from "@/utils/suggest";
 
 export interface GenerateOptions {
@@ -49,8 +51,6 @@ export interface GenerateOptions {
   draft?: boolean;
   /** Skip assets whose inputs+options+tool fingerprint is unchanged. */
   cache?: boolean;
-  /** Validate config + print the resolved plan (assets, URLs, server), then exit without generating. */
-  dryRun?: boolean;
   verbose?: boolean;
 }
 
@@ -68,12 +68,9 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   }
   const { config } = loaded;
 
-  // Honor settings.maxMemoryMB: if it wants more heap than this process has, re-exec with a larger
-  // --max-old-space-size and let the child run the whole command. Must happen before any heavy work.
-  if (await reexecWithMemory(config.settings.maxMemoryMB)) return;
-  if (config.settings.maxMemoryMB) {
-    bootstrapLog.info(`Node heap limit: ${currentHeapLimitMB()} MB (settings.maxMemoryMB=${config.settings.maxMemoryMB})`);
-  }
+  // Keep a scaffolded pro-visu.schema.json current with this tool version (JSON-config editor
+  // autocomplete). Best-effort; looks next to the config file.
+  await refreshSchemaFile(loaded.configFile ? path.dirname(loaded.configFile) : cwd, bootstrapLog);
 
   // NOTE: everything up to the dashboard mounting logs through `bootstrapLog` — the reporting
   // logger buffers lines into the not-yet-rendered dashboard, which would swallow early errors.
@@ -117,6 +114,15 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     return;
   }
 
+  // Heavy frame-stepped plans (real walls) can exceed Node's default heap: pick a bigger target
+  // from the machine's RAM and re-exec with --max-old-space-size before any heavy work. The child
+  // runs the whole command; nothing to do here afterwards.
+  const heapTarget = autoHeapTargetMB(selected);
+  if (await reexecWithMemory(heapTarget)) return;
+  if (heapTarget) {
+    bootstrapLog.debug(`Node heap limit: ${currentHeapLimitMB()} MB (auto target ${heapTarget} MB)`);
+  }
+
   // The managed server only matters to url-based generators (it captures web pages). If nothing in
   // the selection needs a URL — e.g. only a `test`-mode wall, or other local generators — skip it
   // automatically so previews don't pay for a site build/boot they never use.
@@ -138,11 +144,6 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
       Boolean(getGenerator(id)?.requiresUrl),
     ),
   };
-
-  if (options.dryRun) {
-    printPlan(bootstrapLog, resolvedConfig, selected, serverCfg, quality, concurrencyOverride);
-    return;
-  }
 
   // No managed server → the asset URLs must already be live. Probe them now so a dead dev server
   // fails with one actionable message instead of a per-asset Playwright navigation error later.
@@ -176,9 +177,11 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   const reporter = createReporter({ tty: Boolean(process.stdout.isTTY), verbose: !!options.verbose });
   const logger = reporter.isLive ? createReportingLogger(level, reporter) : createLogger(level);
 
-  // Track this run on disk so `pro-visu reset` can clean up if it's killed hard, and let Esc /
-  // Ctrl+C stop it gracefully (a second press bails immediately; reset mops up any orphans).
+  // Self-heal: if a previous run was killed hard, tear down its orphaned server/temp dirs now.
+  // Then track THIS run on disk so the next startup can do the same for us, and let Esc /
+  // Ctrl+C stop it gracefully (a second press bails immediately).
   await ensureDir(outDir);
+  await cleanStaleRunState(outDir, bootstrapLog);
   await startRunState(outDir);
   const abort = new AbortController();
   let interrupted = false;
@@ -216,7 +219,7 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
 
   // Memory watchdog, two triggers, each stopping the run gracefully (like Esc) with a clear message:
   //  1. The Node heap nearing its V8 limit — instead of a hard "JavaScript heap out of memory" crash.
-  //     Raise settings.maxMemoryMB (more heap) or lower settings.concurrency.
+  //     (Heavy wall plans already re-exec with a bigger heap; this catches everything else.)
   //  2. SYSTEM memory nearly exhausted — the heavy usage lives in Chromium renderers and ffmpeg
   //     encoders, which the Node heap number cannot see; when the OS runs out, the machine swap-
   //     thrashes or the browser is OOM-killed mid-capture. Sampled via os.freemem(), and tripped only
@@ -236,7 +239,7 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     const used = process.memoryUsage().heapUsed;
     if (limit > 0 && used / limit > 0.88) {
       stopForMemory(
-        "Low memory — stopping early to avoid a crash (raise settings.maxMemoryMB or lower concurrency).",
+        "Low memory — stopping early to avoid a crash (lower settings.concurrency or the asset's workers).",
       );
       return;
     }
@@ -319,8 +322,8 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     const finished = outcomes.filter((o) => o.status === "ok").length;
     if (lowMemory) {
       logger.warn(
-        `Stopped early — low memory (${finished} asset(s) finished). Raise settings.maxMemoryMB or ` +
-          `lower settings.concurrency, then re-run (already-finished assets are cached if --cache is on).`,
+        `Stopped early — low memory (${finished} asset(s) finished). Lower settings.concurrency ` +
+          `or the asset's workers, then re-run (already-finished assets are cached if --cache is on).`,
       );
     } else {
       logger.warn(`Interrupted — stopped cleanly (${finished} asset(s) finished).`);
@@ -358,8 +361,10 @@ export function validatePlan(
   for (const spec of selected) {
     const generator = getGenerator(spec.generator);
     if (!generator) {
+      const legacy = legacyGeneratorHint(spec.generator);
       log.error(
         `Asset "${spec.name}": unknown generator "${spec.generator}"${didYouMean(spec.generator, ids)}. ` +
+          (legacy ? `${legacy}. ` : "") +
           `Available: ${ids.join(", ")}.`,
       );
       ok = false;
@@ -378,26 +383,6 @@ export function validatePlan(
     }
   }
   return ok;
-}
-
-/** Print the resolved --dry-run plan: each selected asset, its target, and the server decision. */
-function printPlan(
-  log: Logger,
-  resolvedConfig: ResolvedConfig,
-  selected: ResolvedConfig["assets"],
-  serverCfg: { command: string } | undefined,
-  quality: "draft" | "final",
-  concurrencyOverride: number | undefined,
-): void {
-  const byName = new Map(resolvedConfig.assets.map((a) => [a.name, a]));
-  const concurrency = concurrencyOverride ?? resolvedConfig.settings.concurrency;
-  log.info(`Plan: ${selected.length} asset(s), quality "${quality}", concurrency ${concurrency}`);
-  for (const s of selected) {
-    const resolved = byName.get(s.name) ?? s;
-    log.log(`  • ${s.name}  [${s.generator}]${resolved.url ? `  ${resolved.url}` : ""}`);
-  }
-  if (serverCfg) log.info(`Managed server: ${serverCfg.command}`);
-  log.info("Dry run — nothing generated.");
 }
 
 /**

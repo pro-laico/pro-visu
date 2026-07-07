@@ -1,7 +1,8 @@
 import type { Browser, Page } from "playwright-core";
-import { captureFramedVideo } from "@/media/frame-capture";
+import { captureFramedVideo } from "@/recorder/frame-capture";
 import { applyCapture } from "@/pipeline/capture";
-import { createSharedNetworkCache } from "@/pipeline/network-cache";
+import { applyPostNav, installNetworkHygiene, installPreNav } from "@/pipeline/clean-capture";
+import { createSharedNetworkCache } from "@/recorder/network-cache";
 import {
   detectSectionOffsets,
   measureNormalizedOffsets,
@@ -10,23 +11,12 @@ import {
   seekFrame,
 } from "@/generators/scroll-reel/scroll";
 import {
-  applyPostNav,
-  installNetworkHygiene,
-  installPreNav,
-} from "@/generators/scroll-reel/clean-capture";
-import {
-  annotationStateAt,
-  installAnnotationRuntime,
-} from "@/generators/scroll-reel/annotations";
-import {
   autoSectionSteps,
   autoSectionsBudgetMs,
   boomerangSpec,
   choreographyTimelineSpec,
   clamp01,
   defaultTimelineSpec,
-  foldProgress,
-  kenBurnsScaleAt,
   resolveTimeline,
   scrollTimelineTotalMs,
   DEFAULT_AUTO_HOLD_MS,
@@ -61,7 +51,7 @@ export interface ScrollFramesArgs {
   settleMaxMs: number;
   /** Force a color scheme for this capture (emulated via prefers-color-scheme). */
   colorScheme?: "light" | "dark";
-  capture?: ResolvedCaptureSettings;
+  capture: ResolvedCaptureSettings;
   tmpDir: string;
   logger: Logger;
   /** Fractional progress (0–1) as frames complete. */
@@ -180,7 +170,7 @@ async function buildScrollTimeline(
  * Deterministic, frame-stepped recording of a real site. Each worker navigates + warms the page once
  * (reusing {@link prepareScroll} to trigger lazy content, fonts and image decode), applies clean-capture
  * suppression, builds the scroll timeline (resolving any choreography selectors against the page), then
- * for every frame sets the scroll position via {@link seekFrame} (one evaluate: seek + annotations + settle),
+ * for every frame sets the scroll position via {@link seekFrame} (one evaluate: seek + settle),
  * and screenshots — piped straight into ffmpeg by the shared {@link captureFramedVideo} harness. No
  * realtime recording, no dropped/jittered frames, no navigation lead to trim.
  */
@@ -217,9 +207,9 @@ export async function captureScrollFrames(a: ScrollFramesArgs): Promise<void> {
       // Cache BEFORE hygiene: Playwright runs the last-registered route first, so hygiene aborts
       // trackers and falls back; only requests it lets through reach the shared cache.
       if (netCache) await netCache.install(page);
-      await installNetworkHygiene(page, options);
+      await installNetworkHygiene(page, a.capture);
       // Pre-navigation hooks (e.g. freeze the clock, theme class) must be installed before page scripts.
-      await installPreNav(page, options);
+      await installPreNav(page, a.capture, { themeClass: options.themeClass });
       logger.debug(`navigating to ${a.url} (waitUntil=${options.waitUntil})`);
       await page.goto(a.url, { waitUntil: options.waitUntil });
       if (options.waitForSelector) {
@@ -227,44 +217,18 @@ export async function captureScrollFrames(a: ScrollFramesArgs): Promise<void> {
         await page.waitForSelector(options.waitForSelector, { state: "visible" });
       }
       // Suppress capture noise (hide banners/scrollbars, inject CSS, dismiss consent overlays).
-      await applyPostNav(page, options, logger);
+      await applyPostNav(page, a.capture, logger, { themeClass: options.themeClass });
       // Warm-up (not recorded): load lazy content, fonts and images, then settle back at the top.
       await page.evaluate(prepareScroll, { settleMs: PREWARM_SETTLE_MS });
-      if (options.annotations && options.annotations.length > 0) {
-        await page.evaluate(installAnnotationRuntime, { color: "#7c9cff" });
-      }
       // Resolve the timeline against the (now stable) page; deterministic across workers.
       return buildScrollTimeline(page, options, totalSeconds, logger);
     },
     seekToFrame: async (page, t, timeline) => {
-      const kb = options.kenBurns;
-      let scale: number | undefined;
-      let originX: number | undefined;
-      let originY: number | undefined;
-      if (kb) {
-        const p = totalSeconds > 0 ? t / totalSeconds : 1;
-        // Fold the zoom progress under a boomerang loop so the zoom returns to its start (seamless).
-        const zp = options.loop === "boomerang" ? foldProgress(p) : p;
-        scale = kenBurnsScaleAt(zp, {
-          scaleFrom: kb.scaleFrom ?? 1,
-          scaleTo: kb.scaleTo ?? 1.08,
-          easing: kb.easing ?? options.easing,
-        });
-        originX = kb.originX ?? 0.5;
-        originY = kb.originY ?? 0.5;
-      }
-      // ONE evaluate per frame: seek + annotations + settle ride the same protocol round-trip
-      // (they used to be three). The settle is capped in-page at settleMaxMs so the call always
-      // returns — a stuck decode can't stack pending protocol calls.
+      // ONE evaluate per frame: seek + settle ride the same protocol round-trip. The settle is
+      // capped in-page at settleMaxMs so the call always returns — a stuck decode can't stack
+      // pending protocol calls.
       await page.evaluate(seekFrame, {
         normalizedY: timeline.scrollAt(t),
-        scale,
-        originX,
-        originY,
-        annotationState:
-          options.annotations && options.annotations.length > 0
-            ? annotationStateAt(options.annotations, t * 1000, totalSeconds * 1000)
-            : undefined,
         settleMaxMs: a.settlePerFrame ? a.settleMaxMs : undefined,
       });
     },

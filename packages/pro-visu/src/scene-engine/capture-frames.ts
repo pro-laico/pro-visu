@@ -1,5 +1,5 @@
 import type { Browser } from "playwright-core";
-import { captureFramedVideo } from "@/media/frame-capture";
+import { captureFramedVideo } from "@/recorder/frame-capture";
 import type { Logger } from "@/utils/logger";
 
 export interface FrameCaptureArgs {

@@ -13,7 +13,7 @@ import { ManifestStore } from "@/manifest/manifest";
 import { ensureDir, removeDir } from "@/utils/fs";
 import { sha256File } from "@/utils/hash";
 import { ZodError } from "zod";
-import { legacyOptionHint } from "@/generators/migration";
+import { legacyGeneratorHint, legacyOptionHint } from "@/generators/migration";
 import type { ResolvedAssetSpec, ResolvedConfig } from "@/config/schema";
 import type { Logger } from "@/utils/logger";
 import type { AssetRecord } from "@/manifest/schema";
@@ -124,7 +124,10 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
     const log = opts.logger.withTag(spec.name);
     try {
       const generator = getGenerator(spec.generator);
-      if (!generator) throw new Error(`Unknown generator "${spec.generator}".`);
+      if (!generator) {
+        const legacy = legacyGeneratorHint(spec.generator);
+        throw new Error(`Unknown generator "${spec.generator}".${legacy ? ` ${legacy}.` : ""}`);
+      }
 
       const resolvedInputs: Record<string, string> = {};
       const inputHashes: Record<string, string> = {};
@@ -345,8 +348,8 @@ export function applyDerivedInputs(config: ResolvedConfig): void {
 /**
  * Merge a spec's options on top of the repo's per-generator defaults. Defaults are keyed
  * by generator id (the same string used in `assets[].generator`); per-asset options win.
- * Plain objects merge recursively — an asset that sets `kenBurns.scaleTo` keeps the default's
- * other `kenBurns` fields — while arrays and primitives replace wholesale.
+ * Plain objects merge recursively — an asset that sets `cursor.color` keeps the default's
+ * other `cursor` fields — while arrays and primitives replace wholesale.
  */
 export function mergeGeneratorOptions(
   defaults: Record<string, Record<string, unknown>>,

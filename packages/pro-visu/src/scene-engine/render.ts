@@ -1,12 +1,12 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { copyFile, rename, stat } from "node:fs/promises";
-import type { ResolvedSceneOptions } from "@/generators/scene/options";
-import { SCENE_OPTION_SCHEMAS } from "@/generators/scene/scene-options";
-import { startSceneServer } from "@/scene/serve";
-import { recordSceneRealtime } from "@/scene/capture-realtime";
-import { captureSceneFrames } from "@/scene/capture-frames";
-import { autoWorkers } from "@/media/frame-capture";
+import type { ResolvedSceneOptions } from "@/scene-engine/options";
+import { SCENE_OPTION_SCHEMAS } from "@/scene-engine/scene-options";
+import { startSceneServer } from "@/scene-engine/serve";
+import { recordSceneRealtime } from "@/scene-engine/capture-realtime";
+import { captureSceneFrames } from "@/scene-engine/capture-frames";
+import { autoWorkers } from "@/recorder/frame-capture";
 import { probeVideoDimensions, transcodeToMp4 } from "@/media/ffmpeg";
 import { ensureDir } from "@/utils/fs";
 import { sha256File } from "@/utils/hash";

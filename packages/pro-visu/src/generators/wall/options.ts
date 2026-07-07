@@ -1,19 +1,67 @@
 import { z } from "zod";
 import {
-  wallColumnSchema,
   wallPanSchema,
   wallPulseSchema,
   fauxTileSchema,
   type WallPanInput,
-  type WallColumnInput,
   type WallPulseInput,
   type FauxTileInput,
-} from "@/generators/scene/scene-options";
+} from "@/scene-engine/scene-options";
+import { frameCaptureShape, videoOutputShape } from "@/generators/shared-options";
+
+/**
+ * A tile in a wall column: the NAME of another asset in the config (its output is stacked in the
+ * column), or `{ src }` — a local image/video file used directly, no separate asset entry needed.
+ */
+const wallTileSchema = z.union([
+  z.string().min(1),
+  z
+    .object({
+      src: z
+        .string()
+        .min(1)
+        .describe("Path to a local image/video file (relative to the working dir, or absolute)."),
+    })
+    .strict(),
+]);
+
+/** One column of the wall (authoring shape): its tiles + its own optional Y motion. */
+const wallColumnSchema = z
+  .object({
+    /** Tiles stacked in this column: asset names and/or `{ src }` files (cycled to fill the height). */
+    tiles: z
+      .array(wallTileSchema)
+      .min(1)
+      .describe(
+        "Tiles stacked in this column (cycled to fill the height): asset names and/or { src } files. At least one.",
+      ),
+    /** Constant start-position shift, 0..1 of a tile-set — de-aligns columns with similar content. */
+    stagger: z
+      .number()
+      .min(0)
+      .max(1)
+      .default(0)
+      .describe("Start-position shift (0..1 of a tile-set) that de-aligns columns with similar content. Default 0."),
+    /** Scroll direction. Defaults to "down". */
+    direction: z.enum(["up", "down"]).optional().describe("Scroll direction. Default 'down'."),
+    /** Continuous whole-clip loops for this column. Omit to inherit the wall-level `loops`. */
+    loops: z
+      .number()
+      .nonnegative()
+      .optional()
+      .describe("Continuous whole-clip loops for this column. Omit to inherit the wall-level loops."),
+    /** This column's pulses. Omit to inherit the wall-level `pulses`. */
+    pulses: z
+      .array(wallPulseSchema)
+      .optional()
+      .describe("This column's pulses. Omit to inherit the wall-level pulses."),
+  })
+  .strict();
 
 /**
  * Author-facing options for the `wall` generator — a media wall whose `columns` are self-contained
- * units: each column owns its `tiles` (the assets stacked in it, by name) AND its own Y motion. The
- * dependency map is derived from those tile names, so there's no separate `inputs` list to maintain.
+ * units: each column owns its `tiles` (assets by name, or local files via `{ src }`) AND its own Y
+ * motion. The dependency map is derived from the tile names, so there's no separate list to maintain.
  *
  * Motion is built from one uniform "pulse" primitive, shared by columns, the wall-level default, and
  * the pan. A track's travel = `loops` continuous whole-clip periods + the sum of its `pulses` (each
@@ -28,64 +76,26 @@ import {
 export const wallOptionsSchema = z
   .object({
     // --- output ---
-    /** Output width (CSS px). */
-    width: z.number().int().positive().default(1920).describe("Output width in CSS px. Default 1920."),
-    /** Output height (CSS px). */
-    height: z.number().int().positive().default(1080).describe("Output height in CSS px. Default 1080."),
-    /** Render scale (2 = retina-crisp, downscaled into the video). */
-    deviceScaleFactor: z
-      .number()
-      .positive()
-      .max(4)
-      .default(2)
-      .describe("Render scale (2 = retina-crisp, downscaled into the video). Default 2."),
-    /** Output frames per second. */
-    fps: z.number().int().positive().max(120).default(30).describe("Output frames per second. Default 30."),
+    ...videoOutputShape({ width: 1920, height: 1080, deviceScaleFactor: 2 }),
     /** Clip length (ms) — the whole loop. Tile videos should loop within a length dividing this. */
     durationMs: z
       .number()
       .positive()
       .default(16_000)
       .describe("Clip length in ms — the whole loop. Default 16000."),
-    /** x264 quality, 0–51 (lower = better/larger). */
-    crf: z
-      .number()
-      .int()
-      .min(0)
-      .max(51)
-      .default(18)
-      .describe("x264 quality, 0–51 (lower = better quality / larger file). Default 18."),
-    /** Capture strategy. "frames" (default) is deterministic + parallelizable. */
-    capture: z
-      .enum(["frames", "realtime"])
-      .default("frames")
-      .describe('Capture strategy. "frames" (default) is deterministic + parallelizable; "realtime" records the live session.'),
-    /** Parallel frame-render workers. Omit to auto-pick from cores + free memory. */
-    workers: z
-      .number()
-      .int()
-      .positive()
-      .optional()
-      .describe("Parallel frame-render workers. Each worker warms every tile video's decoder before capture, so video-heavy walls parallelize safely. Omit to auto-pick from cores + free memory."),
-    /** Intermediate frame format (frames capture only). "jpeg" (default) is fast; "png" is lossless. */
-    frameFormat: z
-      .enum(["jpeg", "png"])
-      .default("jpeg")
-      .describe('Intermediate frame format (frames capture). "jpeg" (default) is fast; "png" is lossless.'),
+    ...frameCaptureShape(),
     /** Backdrop shown in the gutters between tiles. */
     background: z
       .string()
       .default("#0b0b0f")
       .describe('Backdrop shown in the gutters between tiles. Default "#0b0b0f".'),
-    /** Output filename; defaults to "<slug(asset name)>.mp4". */
-    fileName: z.string().optional().describe('Output filename; defaults to "<slug(asset name)>.mp4".'),
 
     // --- columns (System 2 + layout): each column = its tiles + its own motion ---
     /** The columns (≥3) — each its own tiles + motion. Count = array length (fewer = larger tiles). */
     columns: z
       .array(wallColumnSchema)
       .min(3)
-      .describe("The columns (≥3) — each lists its stacked `tiles` (by name) and may carry its own motion. Count = columns.length."),
+      .describe("The columns (≥3) — each lists its stacked `tiles` (asset names and/or { src } files) and may carry its own motion. Count = columns.length."),
     /** Gap between columns and between tiles (px). */
     gap: z.number().nonnegative().default(8).describe("Gap between columns and between tiles (px). Default 8."),
     /** Default/fallback tile aspect (width / height). Tiles fit the column width and take their OWN
@@ -141,9 +151,30 @@ export const wallOptionsSchema = z
 // Exact<> guard at the bottom — a drift is a compile error.
 // ---------------------------------------------------------------------------
 
-/** Re-exported so configs can type a single column / pulse / pan / faux tile. */
-export type { WallColumnInput, WallPanInput, WallPulseInput, FauxTileInput };
-export type { WallEasing } from "@/generators/scene/scene-options";
+/** Re-exported so configs can type a single pulse / pan / faux tile. */
+export type { WallPanInput, WallPulseInput, FauxTileInput };
+
+/** A tile: another asset's name, or a local file used directly. */
+export type WallTileInput =
+  | string
+  | {
+      /** Path to a local image/video file (relative to the working dir, or absolute). */
+      src: string;
+    };
+
+/** One column of the wall: its tiles + its own optional Y motion. */
+export interface WallColumnInput {
+  /** Tiles stacked in this column (cycled to fill the height): asset names and/or `{ src }` files. At least one. */
+  tiles: WallTileInput[];
+  /** Constant start-position shift, 0..1 of a tile-set — de-aligns columns with similar content. Default 0. */
+  stagger?: number;
+  /** Scroll direction. Defaults to "down". */
+  direction?: "up" | "down";
+  /** Continuous whole-clip loops for this column. Omit to inherit the wall-level `loops`. */
+  loops?: number;
+  /** This column's pulses. Omit to inherit the wall-level `pulses`. */
+  pulses?: WallPulseInput[];
+}
 
 /**
  * Author-facing options for the `wall` generator. Each entry in `columns` is a self-contained unit
@@ -157,36 +188,38 @@ export interface WallOptionsInput {
   width?: number;
   /** Output height in CSS px. Default 1080. */
   height?: number;
-  /** Render scale (2 = retina-crisp, downscaled into the video). Default 2. */
+  /** Render scale (higher = crisper capture, downscaled into the video). Default 2. */
   deviceScaleFactor?: number;
   /** Output frames per second. Default 30. */
   fps?: number;
-  /** Clip length in ms — the whole loop. Default 16000. */
-  durationMs?: number;
   /** x264 quality, 0–51 (lower = better quality / larger file). Default 18. */
   crf?: number;
+  /** Output filename; defaults to "<slug(asset name)>.mp4". */
+  fileName?: string;
+  /** Clip length in ms — the whole loop. Default 16000. */
+  durationMs?: number;
   /**
-   * Capture strategy. "frames" (default) is deterministic + parallelizable; "realtime" records the
-   * live session. Default "frames".
+   * Capture strategy. "frames" (default) steps a virtual clock per frame — frame-accurate, crisp,
+   * reproducible; "realtime" records the live session. Default "frames".
    */
   capture?: "frames" | "realtime";
   /**
-   * Parallel frame-render workers. Each worker warms every tile video's decoder before capture
-   * starts, so video-heavy walls parallelize safely. Omit to auto-pick from cores + free memory.
+   * Parallel render workers for "frames" (each its own browser context). Each worker warms every
+   * tile video's decoder before capture starts, so video-heavy walls parallelize safely. Omit to
+   * auto-pick from cores + free memory.
    */
   workers?: number;
-  /** Intermediate frame format (frames capture). "jpeg" (default) is fast; "png" is lossless. */
+  /** Intermediate frame format for "frames". "jpeg" (default) is faster; "png" is lossless. */
   frameFormat?: "jpeg" | "png";
   /** Backdrop shown in the gutters between tiles. Default "#0b0b0f". */
   background?: string;
-  /** Output filename; defaults to "<slug(asset name)>.mp4". */
-  fileName?: string;
 
   // --- columns: each its own tiles + motion ---
   /**
-   * The columns (≥3). Each column lists the assets stacked in it (`tiles`, by name — cycled to fill
-   * the height) and may carry its own motion (`direction` / `loops` / `pulses`); omitted `loops` /
-   * `pulses` inherit the wall-level defaults below. Column count = `columns.length`.
+   * The columns (≥3). Each column lists the tiles stacked in it (asset names and/or `{ src }`
+   * files — cycled to fill the height) and may carry its own motion (`direction` / `loops` /
+   * `pulses`); omitted `loops` / `pulses` inherit the wall-level defaults below. Column count =
+   * `columns.length`.
    */
   columns: WallColumnInput[];
   /** Gap between columns and between tiles (px). Default 8. */

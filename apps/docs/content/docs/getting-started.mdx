@@ -98,7 +98,8 @@ export default defineConfig({
 
 If you scaffolded with `--json`, the equivalent `pro-visu.config.json` carries a
 `"$schema": "./pro-visu.schema.json"` line — your editor reads it for the same autocomplete and
-validation. Refresh that schema after upgrading the tool with `pro-visu schema`.
+validation. The schema refreshes itself: after an upgrade, the next `generate` or `doctor`
+rewrites it to match the installed version.
 
 See [Configuration](/docs/configuration) for the full shape, and
 [Generators](/docs/generators) for every asset type and its options. As the config grows, it can

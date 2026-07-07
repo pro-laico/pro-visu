@@ -1,33 +1,7 @@
 import { z } from "zod";
+import { namedViewportSchema, type ViewportInput } from "@/generators/shared-options";
 
-/** A named viewport to capture at. */
-const viewportSchema = z
-  .object({
-    name: z
-      .string()
-      .min(1)
-      .describe("Label for this viewport — used in the filename + manifest id (e.g. \"desktop\")."),
-    width: z.number().int().positive().describe("Viewport width in CSS px."),
-    /** Viewport height. Note: ignored for `fullPage` shots (Playwright resizes to the page height);
-     *  only affects viewport/element captures. */
-    height: z
-      .number()
-      .int()
-      .positive()
-      .default(900)
-      .describe(
-        "Viewport height in CSS px. Default 900. Ignored for fullPage shots; only affects viewport/element captures.",
-      ),
-    /** Override the generator-level deviceScaleFactor for this viewport. */
-    deviceScaleFactor: z
-      .number()
-      .positive()
-      .max(4)
-      .optional()
-      .describe("Override the generator-level deviceScaleFactor for this viewport. Omit to inherit it."),
-  })
-  .strict();
-export type ScreenshotViewport = z.infer<typeof viewportSchema>;
+export type ScreenshotViewport = z.infer<typeof namedViewportSchema>;
 
 /** A specific element to capture (in addition to the page) at each viewport. */
 const elementShotSchema = z
@@ -41,7 +15,7 @@ const elementShotSchema = z
 export const screenshotsOptionsSchema = z
   .object({
     viewports: z
-      .array(viewportSchema)
+      .array(namedViewportSchema)
       .min(1)
       .default([
         { name: "desktop", width: 1440, height: 900 },
@@ -109,20 +83,7 @@ export const screenshotsOptionsSchema = z
 // Exact<> guard at the bottom — a drift is a compile error.
 // ---------------------------------------------------------------------------
 
-/** A named viewport to capture at; each viewport emits its own asset. */
-export interface ViewportInput {
-  /** Label for this viewport — used in the filename + manifest id (e.g. "desktop"). */
-  name: string;
-  /** Viewport width in CSS px. */
-  width: number;
-  /**
-   * Viewport height in CSS px. Default 900. Ignored for `fullPage` shots (Playwright resizes to the
-   * full page height); only affects viewport/element captures.
-   */
-  height?: number;
-  /** Override the generator-level `deviceScaleFactor` for this viewport. Omit to inherit it. */
-  deviceScaleFactor?: number;
-}
+export type { ViewportInput };
 
 /** A specific element to capture (in addition to the page) at each viewport. */
 export interface ElementShotInput {
@@ -135,6 +96,8 @@ export interface ElementShotInput {
 /**
  * Author-facing options for the `screenshots` generator — responsive stills of a page (one per
  * viewport), plus optional per-element crops. Everything is optional; sensible defaults apply.
+ * Note: a viewport's `height` is ignored for `fullPage` shots (Playwright resizes to the page
+ * height); it only affects viewport/element captures.
  */
 export interface ScreenshotsOptionsInput {
   /**

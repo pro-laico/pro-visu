@@ -341,15 +341,4 @@ describe("createReporter", () => {
     }
   });
 
-  it("honors SHOWCASE_LIVE as a legacy alias, with PRO_VISU_LIVE winning", () => {
-    try {
-      process.env.SHOWCASE_LIVE = "1";
-      expect(createReporter({ tty: false, verbose: true })).toBeInstanceOf(InkReporter);
-      process.env.PRO_VISU_LIVE = "0";
-      expect(createReporter({ tty: false, verbose: true })).toBeInstanceOf(NoopReporter);
-    } finally {
-      delete process.env.SHOWCASE_LIVE;
-      delete process.env.PRO_VISU_LIVE;
-    }
-  });
 });

@@ -1,38 +1,32 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import { isNewerVersion, updateCheckEnabled } from "@/cli/update-check";
 
-const notify = vi.fn();
-const updateNotifier = vi.fn(() => ({ notify }));
-vi.mock("update-notifier", () => ({ default: updateNotifier }));
+describe("isNewerVersion", () => {
+  it("compares x.y.z numerically", () => {
+    expect(isNewerVersion("0.5.0", "0.5.1")).toBe(true);
+    expect(isNewerVersion("0.5.0", "0.6.0")).toBe(true);
+    expect(isNewerVersion("0.5.0", "1.0.0")).toBe(true);
+    expect(isNewerVersion("0.5.0", "0.5.0")).toBe(false);
+    expect(isNewerVersion("0.5.1", "0.5.0")).toBe(false);
+    expect(isNewerVersion("0.10.0", "0.9.0")).toBe(false); // numeric, not lexicographic
+  });
+});
 
-const { checkForUpdates } = await import("@/cli/update-check");
+describe("updateCheckEnabled", () => {
+  const cleanEnv = {} as NodeJS.ProcessEnv;
 
-describe("checkForUpdates", () => {
-  beforeEach(() => {
-    updateNotifier.mockClear();
-    notify.mockClear();
-    updateNotifier.mockImplementation(() => ({ notify }));
+  it("is on for a normal published run", () => {
+    expect(updateCheckEnabled(cleanEnv, [], "0.5.0")).toBe(true);
   });
 
   it("skips the unpublished dev build", () => {
-    checkForUpdates("0.0.0-dev");
-    expect(updateNotifier).not.toHaveBeenCalled();
+    expect(updateCheckEnabled(cleanEnv, [], "0.0.0-dev")).toBe(false);
   });
 
-  it("checks the registry for a real version and defers the notice", () => {
-    checkForUpdates("0.2.0");
-    expect(updateNotifier).toHaveBeenCalledWith(
-      expect.objectContaining({
-        pkg: { name: "pro-visu", version: "0.2.0" },
-        shouldNotifyInNpmScript: true,
-      }),
-    );
-    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ defer: true }));
-  });
-
-  it("never throws if the update check itself fails", () => {
-    updateNotifier.mockImplementationOnce(() => {
-      throw new Error("network down");
-    });
-    expect(() => checkForUpdates("0.2.0")).not.toThrow();
+  it("honors the opt-outs (env + flag) and CI/test environments", () => {
+    expect(updateCheckEnabled({ NO_UPDATE_NOTIFIER: "1" } as NodeJS.ProcessEnv, [], "0.5.0")).toBe(false);
+    expect(updateCheckEnabled({ CI: "true" } as NodeJS.ProcessEnv, [], "0.5.0")).toBe(false);
+    expect(updateCheckEnabled({ NODE_ENV: "test" } as NodeJS.ProcessEnv, [], "0.5.0")).toBe(false);
+    expect(updateCheckEnabled(cleanEnv, ["--no-update-notifier"], "0.5.0")).toBe(false);
   });
 });

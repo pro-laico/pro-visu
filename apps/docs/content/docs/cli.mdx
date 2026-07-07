@@ -1,6 +1,6 @@
 ---
 title: CLI reference
-description: The pro-visu commands — init, generate, doctor, list, schema, and reset — and their flags.
+description: The pro-visu commands — init, generate, doctor, and list — and their flags.
 ---
 
 The CLI is `pro-visu` (available as `npx pro-visu` once installed). Every command accepts
@@ -38,26 +38,31 @@ Run the generators defined in your config; writes assets and `manifest.json` int
 | `--skip-build` | Keep the managed server but skip its build step (fast iteration when the site is unchanged). |
 | `--draft` | Draft quality: faster, lower-fidelity renders for iteration. |
 | `--cache` | Skip assets whose inputs + options + tool fingerprint are unchanged. |
-| `--dry-run` | Validate the config + every asset's options and print the resolved plan (assets, URLs, server decision) without generating anything. |
 | `--verbose` | Verbose (debug) logging — plain log lines instead of the live dashboard. |
 
 Before any heavy work, `generate` validates every selected asset's options and — when no managed
 server is configured — probes the asset URLs, so a typo'd option or a dev server that isn't
-running fails in seconds with a pointed message.
+running fails in seconds with a pointed message. (For a full read-only checkup and the resolved
+plan, run [`doctor`](#pro-visu-doctor).)
+
+`generate` also **self-heals on startup**: if a previous run was killed hard (crash or forced
+quit), the orphaned server process tree and temp dirs it recorded are cleaned up automatically
+before the new run starts. Heavy frame-stepped plans (real media walls) re-exec the CLI with a
+larger Node heap sized from your machine's RAM, so big renders don't hit Node's default limit.
 
 On an interactive terminal, a live dashboard shows setup (build/server) and per-asset progress —
 bar, current step, ETA where determinate — with a `done/total` header rollup, windowed to the
 terminal height. Keys: **Esc**/**Ctrl+C** cancel (again to force-quit), **↑/↓** scroll,
 **f** resume following the running rows. A summary panel with dimensions/sizes prints at the end.
-Set `PRO_VISU_LIVE=0` to force plain logs or `PRO_VISU_LIVE=1` to force the dashboard
-(`SHOWCASE_LIVE` is a legacy alias).
+Set `PRO_VISU_LIVE=0` to force plain logs or `PRO_VISU_LIVE=1` to force the dashboard.
 
 ## `pro-visu doctor`
 
 Check the setup without generating anything: Node version, config discovery + validation
-(including every asset's generator options and the dependency graph), Chromium, ffmpeg, and —
-when no managed server is configured — whether the asset URLs actually respond. Exits non-zero
-when something needs fixing, so it also works as a CI gate.
+(including every asset's generator options and the dependency graph), Chromium, ffmpeg, the
+**resolved plan** (each asset, its target URL, and the server decision), and — when no managed
+server is configured — whether the asset URLs actually respond. Exits non-zero when something
+needs fixing, so it also works as a CI gate.
 
 | Flag | Meaning |
 |---|---|
@@ -74,54 +79,28 @@ Print the assets recorded in the manifest (id, generator, file, dimensions, size
 | `--cwd <dir>` | Working directory. |
 | `--json` | Print the manifest as JSON (machine-readable, for scripts/CI). |
 
-## `pro-visu schema`
+## JSON Schema (automatic)
 
-Write a JSON Schema for `pro-visu.config.json` so editors give autocomplete + validation for a
-dependency-free (JSON) config — the same authoring help the typed `defineConfig` gives, without
-installing the package. Reference it from the config with `"$schema": "./pro-visu.schema.json"`
-(`pro-visu init --json` wires this up for you). Re-run after upgrading the tool to refresh the
-schema to the new version.
-
-| Flag | Meaning |
-|---|---|
-| `--cwd <dir>` | Working directory. |
-| `--out <path>` | Output path (default `pro-visu.schema.json`). |
-
-The schema is generated from the installed tool's own validation schemas, so it always matches your
-version and includes per-generator `options` (the right options autocomplete once you set
-`generator`).
-
-## `pro-visu reset`
-
-Tear down anything a previous `generate` left running if it was killed hard (crash or a
-forced quit): the managed-server process tree, plus the run's temp directories, recorded in a
-run-state file under `outDir` (the browser is tied to the CLI process and exits on its own).
-A clean exit removes that file, so there's normally nothing to do.
-
-| Flag | Meaning |
-|---|---|
-| `--config <path>` | Path to a config file. |
-| `--cwd <dir>` | Working directory. |
-| `--force` | Clean up even if a run still looks active. |
+`pro-visu init --json` writes a `pro-visu.schema.json` next to the JSON config and references it
+via `"$schema"` — editors then give the same autocomplete + validation the typed `defineConfig`
+path gets. The schema is generated from the installed tool's own validation schemas and is
+**refreshed automatically**: whenever `generate` or `doctor` runs after an upgrade, a stale
+schema file is rewritten to match the new version. There is nothing to re-run by hand.
 
 ## Update notifications
 
-The CLI checks npm at most once a day for a newer release and, if one exists, prints a small
-notice after the command finishes:
+The CLI checks npm at most once a day (in a detached background process — it never blocks or
+slows a command) and, if a newer release exists, prints a small notice after the command
+finishes:
 
 ```
-Update available 0.4.0 → 0.5.0
-Run npm i pro-visu to update
+Update available 0.5.0 → 0.6.0
+Run npm i pro-visu@latest (or your package manager's equivalent) to update.
 ```
 
-(The suggested command adapts to how pro-visu is installed — global vs. local, and your
-package manager.)
-
-The check runs in a detached background process and is fully best-effort — it never blocks, slows,
-or fails a command. It stays quiet automatically in CI, in non-interactive (piped) output, and on
-an unpublished local build. To turn it off, set `NO_UPDATE_NOTIFIER=1`, pass `--no-update-notifier`
-on any run, or opt out permanently via the configstore file noted in the
-[update-notifier docs](https://github.com/yeoman/update-notifier#user-settings).
+It stays quiet automatically in CI, in non-interactive (piped) output, and on an unpublished
+local build. To turn it off, set `NO_UPDATE_NOTIFIER=1` or pass `--no-update-notifier` on any
+run.
 
 ## Config discovery
 

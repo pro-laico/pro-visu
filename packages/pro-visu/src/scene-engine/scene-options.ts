@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { easingSchema } from "@/generators/easing";
 
 /**
  * The specimen wire pulse — the scene runs on SECONDS internally; the friendly specimen generator
@@ -95,14 +96,8 @@ const specimenSceneOptionsSchema = z
   })
   .strict();
 
-/** The wall's easing curves (kebab-cased, matching the rest of the tool). */
-const wallEasingEnum = z.enum([
-  "linear",
-  "ease-in",
-  "ease-out",
-  "ease-in-out",
-  "ease-in-out-strong",
-]);
+/** The shared easing vocabulary (scene-side alias). */
+const wallEasingEnum = easingSchema;
 
 /**
  * One "pulse" — the uniform motion primitive shared by columns, the wall-level default, and the pan.
@@ -193,7 +188,7 @@ export const fauxTileSchema = z
       .optional()
       .describe("Box fill (any CSS color). Omit to auto-derive a distinct color from the tile name."),
     /** Optional caption shown under the name (e.g. "16:9") — purely cosmetic. */
-    size: z.string().optional().describe("Optional caption shown under the name (e.g. 16:9) — purely cosmetic."),
+    caption: z.string().optional().describe("Optional caption shown under the name (e.g. 16:9) — purely cosmetic."),
     /** This faux tile's aspect ratio (width / height): 1.78 = 16:9 (short), 0.56 = 9:16 (tall), 1 =
      *  square. Omit to use the wall's `tileAspect` default. Real tiles use their media's own aspect. */
     aspect: z
@@ -269,7 +264,7 @@ const paletteReelSceneOptionsSchema = z
     holdSeconds: z.number().positive().default(2),
     transitionSeconds: z.number().positive().default(0.7),
     bounce: z.boolean().default(true),
-    easing: z.enum(["linear", "ease-in", "ease-out", "ease-in-out"]).default("ease-in-out"),
+    easing: easingSchema.default("ease-in-out"),
     grownFlex: z.number().min(1).default(12),
     minCrossPx: z.number().nonnegative().default(0),
     nameAlwaysVisible: z.boolean().default(true),
@@ -339,7 +334,7 @@ export interface FauxTileInput {
   /** Box fill (any CSS color). Omit to auto-derive a distinct color from the tile name. */
   color?: string;
   /** Optional caption shown under the name (e.g. "16:9") — purely cosmetic. */
-  size?: string;
+  caption?: string;
   /** This faux tile's aspect ratio (width / height): 1.78 = 16:9 (short), 0.56 = 9:16 (tall), 1 =
    *  square. Omit to use the wall's `tileAspect` default. Real tiles use their media's own aspect. */
   aspect?: number;
@@ -395,7 +390,7 @@ export interface PaletteReelSceneOptionsInput {
   /** Ping-pong the sweep so every handoff is between neighbours (no last→first pinch at the seam). Default true. */
   bounce?: boolean;
   /** Easing applied to the crossfade. Default "ease-in-out". */
-  easing?: "linear" | "ease-in" | "ease-out" | "ease-in-out";
+  easing?: WallEasing;
   /** How many times a sliver's share a fully-open band takes. Default 12. */
   grownFlex?: number;
   /** Minimum cross-size of a sliver in px. Default 0 (derive from the frame size). */

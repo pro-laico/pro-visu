@@ -1,7 +1,7 @@
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { rm, writeFile } from "node:fs/promises";
-import { ffmpegBinaryPath } from "@/media/ffmpeg-binary";
+import { ffmpegBinaryPath } from "@/binaries/ffmpeg-binary";
 import { ensureDir } from "@/utils/fs";
 import type { Logger } from "@/utils/logger";
 

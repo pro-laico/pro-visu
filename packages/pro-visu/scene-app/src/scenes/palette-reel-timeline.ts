@@ -17,7 +17,13 @@
  * position(0): a seamless loop with no mirror.
  */
 
-export type Easing = "linear" | "ease-in" | "ease-out" | "ease-in-out";
+export type Easing =
+  | "linear"
+  | "ease-in"
+  | "ease-out"
+  | "ease-in-out"
+  | "ease-out-strong"
+  | "ease-in-out-strong";
 
 /** Timing for the sweep. All durations are seconds. */
 export interface ReelTimingParams {
@@ -51,6 +57,10 @@ export function ease(u: number, e: Easing): number {
     }
     case "ease-in-out":
       return x * x * x * (x * (x * 6 - 15) + 10); // smootherstep (quintic)
+    case "ease-out-strong":
+      return 1 - Math.pow(1 - x, 5); // quintic, back-loaded
+    case "ease-in-out-strong":
+      return x < 0.5 ? 16 * Math.pow(x, 5) : 1 - Math.pow(-2 * x + 2, 5) / 2; // quintic in-out
     default:
       return x; // "linear"
   }

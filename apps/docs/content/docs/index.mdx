@@ -24,18 +24,19 @@ Three pieces:
 3. **Manifest** — every run writes `<outDir>/manifest.json` recording what was produced
    (id, generator, file, dimensions, bytes, durationMs). `pro-visu list` prints it.
 
-Assets can also depend on each other through `inputs`, forming a small DAG — for example, a
-[wall](/docs/generators/wall) whose tiles are images, screenshots, and clips produced by other
-assets (the wall derives those dependencies from the asset names in its columns).
+Assets can also depend on each other, forming a small DAG — for example, a
+[wall](/docs/generators/wall) whose tiles are screenshots and clips produced by other assets.
+Dependencies are derived from the options (the asset names in a wall's columns), never
+hand-authored.
 
 ## Generators at a glance
 
 | Generator | Output | What it's for |
 |---|---|---|
-| [`scroll-reel`](/docs/generators/scroll-reel) | mp4 (+ gif/webp/poster) | Deterministic frame-stepped recordings — scroll reels, choreographed tours, scripted interactions, social formats |
+| [`scroll-reel`](/docs/generators/scroll-reel) | mp4 (+ gif/webp/poster) | Deterministic frame-stepped recordings — scroll reels, choreographed tours, social formats |
+| [`interaction`](/docs/generators/interaction) | mp4 | Scripted realtime demos with a synthetic cursor, or clips cropped to one component |
 | [`screenshots`](/docs/generators/screenshots) | png / jpeg | Responsive full-page and element captures per breakpoint |
-| [`wall`](/docs/generators/wall) | mp4 | A seamless-looping media wall of your assets, each column scrolling on its own |
-| [`image`](/docs/generators/image) | (passthrough) | Register an existing image file as an asset (e.g. a wall tile) |
+| [`wall`](/docs/generators/wall) | mp4 | A seamless-looping media wall of your assets (and local files), each column scrolling on its own |
 | [`specimen`](/docs/generators/specimen) | mp4 | A looping type specimen from a font file |
 | [`palette`](/docs/generators/palette) | png | A still colour-palette image |
 | [`palette-reel`](/docs/generators/palette-reel) | mp4 | A looping colour-palette reveal video |

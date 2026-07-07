@@ -2,6 +2,7 @@ import type { Browser, Page } from "playwright-core";
 import type { Logger } from "@/utils/logger";
 import { mapLimit } from "@/utils/concurrency";
 import { applyCapture } from "@/pipeline/capture";
+import { applyPostNav, installNetworkHygiene, installPreNav } from "@/pipeline/clean-capture";
 import { prepareScroll } from "@/generators/scroll-reel/scroll";
 import type { ResolvedCaptureSettings } from "@/config/schema";
 import type { ResolvedScreenshotsOptions } from "@/generators/screenshots/options";
@@ -14,7 +15,7 @@ export interface CaptureArgs<T> {
   url: string;
   options: ResolvedScreenshotsOptions;
   logger: Logger;
-  capture?: ResolvedCaptureSettings;
+  capture: ResolvedCaptureSettings;
   /**
    * Called with each shot's buffer AS SOON as it is captured, so the caller writes it to disk and
    * the buffer is released immediately. Holding every shot until the end multiplies badly: fullPage
@@ -56,11 +57,15 @@ async function captureViewport<T>(
     await applyCapture(context, args.capture, url);
     const page = await context.newPage();
     try {
+      await installNetworkHygiene(page, args.capture);
+      await installPreNav(page, args.capture);
       logger.debug(`[${bp.name}] navigating to ${url}`);
       await page.goto(url, { waitUntil: options.waitUntil });
       if (options.waitForSelector) {
         await page.waitForSelector(options.waitForSelector, { state: "visible" });
       }
+      // Suppress capture noise (hide banners/scrollbars, inject CSS, dismiss consent overlays).
+      await applyPostNav(page, args.capture, logger);
       // Drive the page so lazy-loaded / intersection-mounted content, web fonts, and image decode
       // are done before we shoot — otherwise fullPage shots capture blank/placeholder regions and
       // fallback fonts. Returns to the top when finished.

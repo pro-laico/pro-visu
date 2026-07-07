@@ -2,7 +2,7 @@ import { z } from "zod";
 import { normalizeHex, type FieldId } from "@/generators/palette/color";
 
 /** Field ids that can be placed in a swatch corner. */
-const fieldEnum = z.enum(["name", "hex", "rgb", "oklch", "hsl", "cmyk"]);
+const fieldEnum = z.enum(["name", "hex", "rgb", "oklch", "hsl"]);
 
 const hexString = z.string().refine(
   (s) => {
@@ -26,7 +26,7 @@ export interface PaletteColorInput {
 
 /**
  * Author-facing options for the `palette` generator — a still color-palette image. Each color is a
- * swatch labeled with the fields you place in its corners (name / hex / rgb / oklch / hsl / cmyk),
+ * swatch labeled with the fields you place in its corners (name / hex / rgb / oklch / hsl),
  * with auto-contrasting text. Only `colors` is required.
  */
 export interface PaletteOptionsInput {

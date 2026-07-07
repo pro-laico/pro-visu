@@ -1,60 +1,88 @@
 import { describe, expect, it } from "vitest";
-import { legacyOptionHint } from "@/generators/migration";
+import type { ZodIssue } from "zod";
+import { legacyGeneratorHint, legacyOptionHint } from "@/generators/migration";
 import { scrollReelOptionsSchema } from "@/generators/scroll-reel/options";
-import { screenshotsOptionsSchema } from "@/generators/screenshots/options";
 import { wallOptionsSchema } from "@/generators/wall/options";
-import { paletteReelOptionsSchema } from "@/generators/palette-reel/options";
 
-/** Parse with the real schema and collect the hints a CLI error would carry. */
-function hintsFor(generatorId: string, schema: { safeParse: (v: unknown) => any }, value: unknown): string[] {
-  const parsed = schema.safeParse(value);
-  expect(parsed.success).toBe(false);
-  return parsed.error.issues
-    .map((issue: never) => legacyOptionHint(generatorId, issue))
-    .filter(Boolean) as string[];
+/** Build the unrecognized_keys issue shape zod emits for a strict schema. */
+function unrecognized(keys: string[]): ZodIssue {
+  return { code: "unrecognized_keys", keys, path: [], message: "Unrecognized key(s)" } as ZodIssue;
 }
 
 describe("legacyOptionHint", () => {
-  it("points a 0.4-era scroll-reel `duration` at `durationMs`", () => {
-    const hints = hintsFor("scroll-reel", scrollReelOptionsSchema, { duration: 6000 });
-    expect(hints.join(" ")).toContain('"durationMs"');
+  it("points moved clean-capture options at settings.capture", () => {
+    for (const key of ["hideSelectors", "blockTrackers", "freezeClock", "injectCss"]) {
+      const hint = legacyOptionHint("scroll-reel", unrecognized([key]));
+      expect(hint).toContain(key);
+      expect(hint).toContain("settings.capture");
+    }
   });
 
-  it("points old camelCase easing values at the kebab-case spelling", () => {
-    const hints = hintsFor("scroll-reel", scrollReelOptionsSchema, { easing: "easeInOutCubic" });
-    expect(hints.join(" ")).toContain('"ease-in-out-cubic"');
+  it("points actions/cursor/focus at the interaction generator", () => {
+    const hint = legacyOptionHint("scroll-reel", unrecognized(["actions", "cursor", "focus"]));
+    expect(hint).toContain('"interaction" generator');
   });
 
-  it("points screenshots `breakpoints` at `viewports`", () => {
-    const hints = hintsFor("screenshots", screenshotsOptionsSchema, {
-      breakpoints: [{ name: "desktop", width: 1440 }],
-    });
-    expect(hints.join(" ")).toContain('"viewports"');
+  it("flags removed scroll-reel extras as removed", () => {
+    for (const key of ["kenBurns", "annotations", "intro", "outro"]) {
+      expect(legacyOptionHint("scroll-reel", unrecognized([key]))).toContain("removed");
+    }
   });
 
-  it("flags the wall's seconds→ms unit change", () => {
-    const hints = hintsFor("wall", wallOptionsSchema, {
-      durationSeconds: 16,
+  it("joins hints for multiple offending keys", () => {
+    const hint = legacyOptionHint("scroll-reel", unrecognized(["kenBurns", "hideSelectors"]));
+    expect(hint).toContain("kenBurns");
+    expect(hint).toContain("hideSelectors");
+    expect(hint).toContain("; ");
+  });
+
+  it("flags the wall faux-tile size→caption rename", () => {
+    expect(legacyOptionHint("wall", unrecognized(["size"]))).toContain('"caption"');
+  });
+
+  it("points pre-unification easing names at their canonical replacement", () => {
+    const issue = {
+      code: "invalid_enum_value",
+      received: "ease-in-out-cubic",
+      options: ["linear", "ease-in", "ease-out", "ease-in-out", "ease-out-strong", "ease-in-out-strong"],
+      path: ["easing"],
+      message: "Invalid enum value",
+    } as ZodIssue;
+    expect(legacyOptionHint("scroll-reel", issue)).toContain('"ease-in-out"');
+  });
+
+  it("returns undefined for keys with no migration story", () => {
+    expect(legacyOptionHint("scroll-reel", unrecognized(["definitelyNotAThing"]))).toBeUndefined();
+    expect(legacyOptionHint("specimen", unrecognized(["kenBurns"]))).toBeUndefined();
+  });
+
+  it("fires on the real schemas (end to end through safeParse)", () => {
+    const reel = scrollReelOptionsSchema.safeParse({ kenBurns: { scaleTo: 1.1 } });
+    expect(reel.success).toBe(false);
+    if (!reel.success) {
+      const hints = reel.error.issues.map((i) => legacyOptionHint("scroll-reel", i)).filter(Boolean);
+      expect(hints.join(" ")).toContain("kenBurns");
+    }
+
+    const wall = wallOptionsSchema.safeParse({
       columns: [{ tiles: ["a"] }, { tiles: ["b"] }, { tiles: ["c"] }],
+      test: true,
+      testTiles: { a: { size: "16:9" } },
     });
-    expect(hints.join(" ")).toContain("milliseconds");
+    expect(wall.success).toBe(false);
+    if (!wall.success) {
+      const hints = wall.error.issues.map((i) => legacyOptionHint("wall", i)).filter(Boolean);
+      expect(hints.join(" ")).toContain('"caption"');
+    }
   });
+});
 
-  it("covers all three renamed palette-reel timing options", () => {
-    const hints = hintsFor("palette-reel", paletteReelOptionsSchema, {
-      colors: [{ name: "ink", hex: "#141414" }],
-      holdSeconds: 2,
-      transitionSeconds: 0.7,
-      durationSeconds: 10,
-    });
-    const joined = hints.join(" ");
-    expect(joined).toContain('"holdMs"');
-    expect(joined).toContain('"transitionMs"');
-    expect(joined).toContain('"durationMs"');
+describe("legacyGeneratorHint", () => {
+  it("explains the removed image generator", () => {
+    expect(legacyGeneratorHint("image")).toContain("{ src:");
   });
-
-  it("stays silent for plain typos that aren't known renames", () => {
-    const hints = hintsFor("scroll-reel", scrollReelOptionsSchema, { widht: 100 });
-    expect(hints).toHaveLength(0);
+  it("returns undefined for anything else", () => {
+    expect(legacyGeneratorHint("scroll-reel")).toBeUndefined();
+    expect(legacyGeneratorHint("nope")).toBeUndefined();
   });
 });

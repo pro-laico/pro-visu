@@ -1,11 +1,11 @@
-import { defineAssets } from "pro-visu";
+import type { AssetSpecInput } from "pro-visu";
 import { CURSOR } from "./brand";
 
 // Scripted realtime tours with the synthetic cursor — slow + deliberate, in camel.
-export const interactions = defineAssets([
+export const interactions = [
   {
     name: "menu", // open the mega-menu, glide across a category link
-    generator: "scroll-reel",
+    generator: "interaction",
     options: {
       cursor: { color: CURSOR },
       actions: [
@@ -17,7 +17,7 @@ export const interactions = defineAssets([
   },
   {
     name: "cart", // quick-add the featured piece, open the cart drawer
-    generator: "scroll-reel",
+    generator: "interaction",
     options: {
       cursor: { color: CURSOR },
       actions: [
@@ -28,7 +28,7 @@ export const interactions = defineAssets([
   },
   {
     name: "buy", // PDP buy flow: choose a size, add to bag, drawer slides in
-    generator: "scroll-reel",
+    generator: "interaction",
     url: "/products/the-camel-coat",
     options: {
       cursor: { color: CURSOR },
@@ -38,4 +38,4 @@ export const interactions = defineAssets([
       ],
     },
   },
-]);
+] satisfies AssetSpecInput[];

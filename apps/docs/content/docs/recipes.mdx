@@ -7,7 +7,7 @@ Copy-paste starting points. Each is an entry in your `assets` array (or `setting
 
 ## A vertical social reel
 
-A `9:16` clip with multiple output formats and title cards:
+A `9:16` clip with multiple output formats:
 
 ```ts
 {
@@ -21,8 +21,6 @@ A `9:16` clip with multiple output formats and title cards:
     durationMs: 5000,
     aspect: "9:16",
     outputs: ["mp4", "gif", "poster"],
-    intro: { title: "Acme", subtitle: "Spring 2026" },
-    outro: { title: "acme.com" },
   },
 }
 ```
@@ -43,20 +41,19 @@ Pause on each section instead of one continuous scroll:
       { to: "#pricing", holdMs: 1500 },
       { to: "100%", durationMs: 1000 },
     ],
-    kenBurns: { scaleTo: 1.05 },
   },
 }
 ```
 
 ## A scripted interaction demo
 
-Drive the UI with a synthetic cursor (records realtime):
+Drive the UI with a synthetic cursor (the `interaction` generator; records realtime):
 
 ```ts
 {
   name: "search-demo",
   url: "https://your-site.com",
-  generator: "scroll-reel",
+  generator: "interaction",
   options: {
     cursor: { color: "#e91e63" },
     actions: [
@@ -71,14 +68,13 @@ Drive the UI with a synthetic cursor (records realtime):
 ## A media wall
 
 Composite several captures into a seamless-looping [wall](/docs/generators/wall) — each column
-names the assets it stacks (they run first) and carries its own motion:
+lists the tiles it stacks (asset names run first; `{ src }` files come straight from disk) and
+carries its own motion:
 
 ```ts
 assets: [
   { name: "shot-home", url: "/", generator: "screenshots", options: { fullPage: false } },
   { name: "shot-shop", url: "/shop", generator: "screenshots", options: { fullPage: false } },
-  { name: "img-hero", generator: "image", options: { src: "public/img/hero.jpg" } },
-  // …enough to fill the columns…
   {
     name: "wall",
     generator: "wall",
@@ -86,9 +82,9 @@ assets: [
       durationMs: 16000,
       pan: { direction: "left", loops: 1 },
       columns: [
-        { tiles: ["img-hero", "shot-home"], direction: "down",
+        { tiles: [{ src: "public/img/hero.jpg" }, "shot-home"], direction: "down",
           pulses: [{ at: 0.1, span: 0.15, distance: 0.5 }] },
-        { tiles: ["shot-shop", "img-hero"], direction: "up", loops: 1, stagger: 0.4 },
+        { tiles: ["shot-shop", { src: "public/img/hero.jpg" }], direction: "up", loops: 1, stagger: 0.4 },
         { tiles: ["shot-home", "shot-shop"], stagger: 0.15 },
       ],
       // dial it in fast with test: true + capture: "realtime"; remove both for the real render

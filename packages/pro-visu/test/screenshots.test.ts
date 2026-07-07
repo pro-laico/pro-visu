@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Browser } from "playwright-core";
 import { screenshotsOptionsSchema } from "@/generators/screenshots/options";
 import { captureScreenshots } from "@/generators/screenshots/capture";
+import { captureSettingsSchema } from "@/config/schema";
 import { getGenerator, generatorIds } from "@/generators/registry";
 import { SCREENSHOTS_ID } from "@/generators/screenshots";
 import { mergeGeneratorOptions } from "@/pipeline/runner";
@@ -16,7 +17,7 @@ describe("screenshots generator", () => {
   it("applies sensible defaults", () => {
     const opts = screenshotsOptionsSchema.parse({});
     expect(opts.viewports.map((b) => b.name)).toEqual(["desktop", "mobile"]);
-    expect(opts.viewports[0]!.height).toBe(900); // viewport default fills in
+    expect(opts.viewports[0]!.height).toBe(900); // default desktop viewport
     expect(opts.fullPage).toBe(true);
     expect(opts.format).toBe("png");
     expect(opts.deviceScaleFactor).toBe(2);
@@ -67,6 +68,8 @@ describe("screenshots generator", () => {
       browser,
       url: "https://example.com",
       options,
+      // Tracker blocking / suppression CSS would need page.route / addStyleTag on the stub page.
+      capture: captureSettingsSchema.parse({ blockTrackers: false, hideScrollbars: false }),
       logger: createLogger("silent"),
       persist: async (key, buffer) => {
         // Persist runs while capture is still in flight, not after everything is collected.

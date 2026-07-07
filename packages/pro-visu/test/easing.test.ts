@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EASINGS } from "@/generators/scroll-reel/scroll";
+import { EASINGS } from "@/generators/easing";
 
 describe("easing functions", () => {
   it("map endpoints 0 -> 0 and 1 -> 1", () => {
@@ -11,12 +11,11 @@ describe("easing functions", () => {
 
   it("have the expected midpoints", () => {
     expect(EASINGS.linear(0.5)).toBeCloseTo(0.5);
-    expect(EASINGS["ease-in-out-cubic"](0.5)).toBeCloseTo(0.5);
-    expect(EASINGS["ease-in-out-quad"](0.25)).toBeCloseTo(0.125);
-    expect(EASINGS["ease-out-cubic"](0.5)).toBeCloseTo(0.875);
-    expect(EASINGS["ease-in-out-sine"](0.5)).toBeCloseTo(0.5);
-    expect(EASINGS["ease-out-quint"](0.5)).toBeCloseTo(0.96875); // 1 - (1-0.5)^5, pinned to a constant
-    expect(EASINGS["ease-in-out-expo"](0.5)).toBeCloseTo(0.5);
+    expect(EASINGS["ease-in"](0.5)).toBeCloseTo(0.125); // cubic-in
+    expect(EASINGS["ease-out"](0.5)).toBeCloseTo(0.875); // cubic-out
+    expect(EASINGS["ease-in-out"](0.5)).toBeCloseTo(0.5);
+    expect(EASINGS["ease-out-strong"](0.5)).toBeCloseTo(0.96875); // 1 - (1-0.5)^5, pinned to a constant
+    expect(EASINGS["ease-in-out-strong"](0.5)).toBeCloseTo(0.5);
   });
 
   it("stay within [0,1] and never decrease", () => {

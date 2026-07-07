@@ -65,5 +65,5 @@ Two flags adjust the lifecycle explicitly:
 - `--skip-build` — keep the managed server but drop its `build` step, for fast iteration when
   the site itself is unchanged.
 
-If a run is killed hard before teardown, [`pro-visu reset`](/docs/cli#pro-visu-reset) stops any
+If a run is killed hard before teardown, the next `pro-visu generate` stops any
 orphaned server process tree and cleans up temp directories.

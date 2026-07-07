@@ -4,7 +4,7 @@ import {
   interactionTotalMs,
   DEFAULT_ACTION_DURATION_MS,
   DEFAULT_ACTION_HOLD_MS,
-} from "@/generators/scroll-reel/interaction";
+} from "@/generators/interaction/capture";
 
 describe("interactionTotalMs", () => {
   it("sums start delay + end dwell with no actions", () => {

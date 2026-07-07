@@ -6,14 +6,26 @@ All notable changes to `pro-visu` are documented here. The format is based on
 
 ## [Unreleased]
 
+A surface-trim release built from a usability audit: fewer commands, fewer options, one easing
+vocabulary, and site cleanup in one place — with the trimmed paths replaced by automation
+(heap sizing, interrupted-run cleanup, JSON Schema refresh) instead of knobs. Every removal
+fails loudly with a pointed migration hint, never silently.
+
 ### Added
 
+- **The `interaction` generator.** Scripted realtime demos — a synthetic cursor that moves,
+  clicks, hovers, and types — and element-focused clips cropped to one component, split out of
+  `scroll-reel` into their own generator. `actions`, `cursor`, and `focus` work exactly as
+  before; they just live under `generator: "interaction"` now, so `scroll-reel`'s options no
+  longer carry a mode matrix where half the settings silently don't apply.
+- **Walls take files directly.** A column tile can now be `{ src: "public/img/hero.jpg" }` — a
+  local image/video used straight from disk, hashed into the cache key — instead of a separate
+  passthrough asset per photo. This replaces the `image` generator.
 - **Split your config across files.** Every author-facing type is now exported from `pro-visu` —
   per-generator option types (`ScrollReelOptions`, `WallOptions`, …) and their fragments
-  (`WallColumnInput`, `ChoreographyStepInput`, `PulseInput`, `PaletteColorInput`,
-  `ScrollReelViewportInput`, and more) — alongside new typed identity helpers `defineSettings`,
-  `defineAsset`, and `defineAssets`. Keep settings in one module and each asset family in its
-  own, and compose them in `pro-visu.config.ts` the way a Payload config imports its collections.
+  (`WallColumnInput`, `ChoreographyStepInput`, `PulseInput`, `PaletteColorInput`, and more) —
+  so settings and each asset family can live in their own modules
+  (`satisfies AssetSpecInput[]`) and compose in `pro-visu.config.ts`.
 - **`specimen`: a `label` block** to place and style the name label within the bottom gap area.
   `anchor` picks any of nine positions (`top-left` … `bottom-right`), `padding` insets it from the
   gap edges (`0` = flush to the rendered corner), and `size` / `weight` / `color` style the text.
@@ -21,8 +33,67 @@ All notable changes to `pro-visu` are documented here. The format is based on
 
 ### Changed (BREAKING)
 
+- **Site cleanup moved to `settings.capture`** — `hideSelectors`, `injectCss`, `clickSelectors`,
+  `hideScrollbars`, `pauseAnimations`, `freezeClock`, `blockTrackers`, `blockHosts`, and
+  `blockResourceTypes` are no longer per-reel `scroll-reel` options. They now apply to **every**
+  URL capture (scroll-reel, screenshots, interaction) from one place, which also means
+  screenshots get tracker blocking and banner hiding for the first time. Migrate by moving those
+  keys from a reel's `options` into `settings.capture`.
+- **One easing vocabulary everywhere:** `linear`, `ease-in`, `ease-out`, `ease-in-out`
+  (default), `ease-out-strong`, `ease-in-out-strong` — shared by scroll-reel travel, wall
+  pulses/pan, and palette-reel crossfades (which gain the strong variants). Migrate by renaming:
+  `ease-in-out-cubic`/`-quad`/`-sine` → `ease-in-out`, `ease-out-cubic` → `ease-out`,
+  `ease-in-out-expo` → `ease-in-out-strong`, `ease-out-quint` → `ease-out-strong`.
+- **Asset `inputs` are no longer authored.** Dependencies are always derived from options (a
+  wall's column tiles); the config-level `inputs` map is gone. Migrate by deleting any `inputs`
+  keys — the graph is built for you.
+- **`wall`: faux-tile `size` renamed to `caption`** (it was always a caption string, never a
+  size). Migrate by renaming the key in `testTiles`.
+- **`screenshots`: a viewport's `height` is now required** (it previously defaulted to 900).
+  Migrate by adding `height` to any viewport that omitted it.
+- **`palette` / `palette-reel`: the `cmyk` field id was dropped** (a print colour model on a
+  screen-capture tool). `name`, `hex`, `rgb`, `oklch`, and `hsl` remain.
 - **`specimen`: the label colour moved** from `colors.label` to `label.color`. The label's colour is
   part of the label, not a glyph token. Move any `colors: { label }` to `label: { color }`.
+
+### Removed (BREAKING)
+
+- **`scroll-reel`: `kenBurns`, `annotations`, and `intro`/`outro` cards.** Post-production
+  belongs in an editor; the generator's job is a clean, deterministic capture. Migrate by
+  dropping the options and adding zooms/captions/title cards in your video editor of choice.
+- **The `image` generator.** Walls take `{ src }` tiles directly (see Added). Migrate by
+  deleting the passthrough assets and inlining their paths into the wall's `columns`.
+- **`pro-visu reset`** — replaced by automation: the next `generate` detects an interrupted
+  run's record and tears down its orphaned server/temp dirs itself.
+- **`pro-visu schema` and `generate --dry-run`** — also automation/consolidation: a scaffolded
+  `pro-visu.schema.json` refreshes itself on the next `generate`/`doctor` after an upgrade, and
+  `doctor` now prints the resolved plan (assets, URLs, server decision).
+- **`settings.maxMemoryMB`** — heavy frame-stepped plans (real walls) now re-exec with a larger
+  Node heap automatically, sized from the machine's RAM. Migrate by deleting the setting.
+- **The `SHOWCASE_LIVE` env alias** — use `PRO_VISU_LIVE`.
+
+### Changed
+
+- **The update check is dependency-free.** The `update-notifier` package (and its transitive
+  tree) is gone; a ~100-line built-in check hits npm at most daily from a detached worker and
+  prints the same after-command notice. `NO_UPDATE_NOTIFIER` / `--no-update-notifier` still
+  opt out.
+- **Internals segmented for the next contributor:** the deterministic frame recorder now lives
+  under `src/recorder/`, the scene engine (serving + capture + `renderScene`, with a
+  contributor README on adding scenes) under `src/scene-engine/`, and the Chromium/ffmpeg
+  bootstrap under `src/binaries/`. No behavior change.
+
+### Upgrade notes
+
+1. Move any `hideSelectors` / `blockTrackers` / `freezeClock` / … keys from `scroll-reel`
+   options into `settings.capture`.
+2. Change assets using `actions` / `cursor` / `focus` to `generator: "interaction"`.
+3. Replace `image` assets with `{ src }` tiles in the wall's `columns`, and delete any `inputs`
+   maps and `settings.maxMemoryMB`.
+4. Rename easings to the new vocabulary and `testTiles.*.size` to `caption`.
+5. Drop `kenBurns` / `annotations` / `intro` / `outro` from reels (re-create in your editor).
+6. Every remaining mismatch fails validation with a pointed hint — run `pro-visu doctor` to see
+   them all at once.
 
 ### Changed
 

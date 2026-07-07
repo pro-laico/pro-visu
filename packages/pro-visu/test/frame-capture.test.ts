@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Browser } from "playwright-core";
-import { autoWorkers, captureFramedVideo, planFrames } from "@/media/frame-capture";
+import { autoWorkers, captureFramedVideo, planFrames } from "@/recorder/frame-capture";
 import { createLogger } from "@/utils/logger";
 
 describe("planFrames", () => {

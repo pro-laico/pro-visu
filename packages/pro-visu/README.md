@@ -5,8 +5,8 @@ screenshots, media walls — with more asset types to come) of the websites you 
 into any website repo, point it at a URL, and it writes assets into a gitignored `pro-visu/`
 folder.
 
-> Status: **0.5** (pre-1.0; the option surface may still shift). Generators: `scroll-reel`,
-> `screenshots`, `wall`, `image`, `specimen`, `palette`, `palette-reel` — see the
+> Status: **pre-1.0** (the option surface may still shift). Generators: `scroll-reel`,
+> `interaction`, `screenshots`, `wall`, `specimen`, `palette`, `palette-reel` — see the
 > [Generators](#generators) table. The pipeline is a plugin contract, so new asset types slot in
 > without core changes.
 
@@ -74,21 +74,21 @@ Config is discovered in multiple formats: `pro-visu.config.{ts,js,mjs,cjs,json}`
 
 The config doesn't have to be one file. Every author-facing type is exported (generator option
 types plus their fragments — `WallColumnInput`, `ChoreographyStepInput`, `PaletteColorInput`, …),
-and the typed identity helpers `defineSettings` / `defineAsset` / `defineAssets` mirror
-`defineConfig` — so a growing showcase can keep settings and each asset family in their own
-modules and compose them in `pro-visu.config.ts`. See
+so a growing showcase can keep settings and each asset family in their own modules
+(`satisfies AssetSpecInput[]`) and compose them in `pro-visu.config.ts`. See
 [Splitting the config](https://pro-visu.com/docs/configuration#splitting-the-config).
 
-**Capture mode** (`settings.capture`) lets a site render a clean, settled snapshot for the camera
-only — animations finished, no cookie banner, no chat widget — while keeping the real behaviour
-for visitors. The signal is delivered as query params, cookies, localStorage, and/or an init
-script; the site reads whichever fits its rendering model. (A session cookie also carries auth
-for login-gated pages.) See the [settings docs](https://pro-visu.com/docs/configuration/settings#capture).
+**Capture mode** (`settings.capture`) makes every URL capture clean and settled — in two halves.
+Signals INTO the site (query params, cookies, localStorage, an init script) let it render for
+the camera; cleanup BY the tool (hide/click selectors, injected CSS, tracker blocking, a frozen
+clock) suppresses what the site won't remove itself. Applied to every URL-based asset. (A
+session cookie also carries auth for login-gated pages.) See the
+[settings docs](https://pro-visu.com/docs/configuration/settings#capture).
 
 Prefer JSON (or running via `npx`/global)? `pro-visu init --json` writes the same config as
 `pro-visu.config.json` plus a `pro-visu.schema.json`, wired up with `"$schema": "./pro-visu.schema.json"`
-so your editor still autocompletes and validates every field. `pro-visu schema` regenerates that
-schema (run it after upgrading the tool).
+so your editor still autocompletes and validates every field. The schema refreshes itself — after
+an upgrade, the next `generate`/`doctor` rewrites it to match the installed version.
 
 ## Generators
 
@@ -97,10 +97,10 @@ and are merged beneath each asset's own `options`.
 
 | Generator | Output | Key options |
 |---|---|---|
-| `scroll-reel` | mp4 of the site (frame-stepped by default) — scroll reels, choreographed tours, interaction demos | `width`/`height`/`fps`/`durationMs`/`easing` plus `capture`, `choreography`, `autoSections`, `kenBurns`, `loop`, clean-capture, `colorScheme`/`viewports`, `aspect`, `outputs`, `intro`/`outro`, `annotations`, `actions`, `focus`, `routes` — see [Recording reels in depth](#recording-reels-in-depth-scroll-reel) |
+| `scroll-reel` | mp4 of the site (frame-stepped by default) — scroll reels, choreographed tours, social formats | `width`/`height`/`fps`/`durationMs`/`easing` plus `capture`, `choreography`, `autoSections`, `loop`, `colorScheme`/`viewports`, `aspect`, `outputs`, `routes` — see [Recording reels in depth](#recording-reels-in-depth-scroll-reel) |
+| `interaction` | mp4 — scripted realtime demos with a synthetic cursor, or a clip cropped to one component | `actions[]`, `cursor`, `focus` |
 | `screenshots` | png/jpeg page + element captures per viewport | `viewports[]`, `fullPage`, `format`, `elements[]`, `deviceScaleFactor` |
-| `wall` | mp4 media wall — columns of your assets, each scrolling on its own, looping seamlessly | `columns[]` (tiles + per-column motion), `pulses`, `loops`, `pan`, `gap`/`tileAspect`/`cornerRadius`, `stagger`, `test` |
-| `image` | passthrough — registers an existing image file as an asset (e.g. a wall tile) | `src`, `fileName` |
+| `wall` | mp4 media wall — columns of your assets (and local `{ src }` files), each scrolling on its own, looping seamlessly | `columns[]` (tiles + per-column motion), `pulses`, `loops`, `pan`, `gap`/`tileAspect`/`cornerRadius`, `stagger`, `test` |
 | `specimen` / `palette` / `palette-reel` | type specimen / colour palette (still + reel) | see the [docs](https://pro-visu.com/docs) |
 
 ```ts
@@ -139,10 +139,11 @@ run-to-run**. Every option below is a `scroll-reel` option.
 | `workers` | Parallel render contexts for `"frames"` (auto-picked from cores + free memory). |
 | `frameFormat` | Intermediate frame format for `"frames"`: `"jpeg"` (default) or `"png"` (lossless). |
 
-Choreography, auto-sections, variants, cards, annotations, aspect and extra outputs are
-**frames-only**; `realtime` ignores them (with a warning).
+Choreography, auto-sections, variants, aspect and extra outputs are **frames-only**;
+`realtime` ignores them (with a warning). Site cleanup (hide the cookie banner, block trackers,
+freeze the clock) lives in `settings.capture`, applied to every URL capture.
 
-### Motion & cinematography
+### Motion
 
 ```ts
 options: {
@@ -152,31 +153,19 @@ options: {
     { to: "#features", holdMs: 1500 },
     { to: "100%", durationMs: 1000 },
   ],
-  kenBurns: { scaleTo: 1.06 },   // slow zoom over the clip
   loop: "boomerang",             // play forward then back → seamless loop
 }
 ```
 
-- `easing` — `linear`, `ease-in-out-cubic`, `ease-in-out-quad`, `ease-out-cubic`, `ease-out-quint`, `ease-in-out-sine`, `ease-in-out-expo`.
+- `easing` — the shared vocabulary: `linear`, `ease-in`, `ease-out`, `ease-in-out` (default),
+  `ease-out-strong`, `ease-in-out-strong`.
 - `choreography: [{ to, durationMs?, holdMs?, easing? }]` — replaces the single sweep with an
   authored sequence (`to` = a `0..1` number, an `"NN%"` string, or a CSS selector to bring into view).
 - `autoSections: true | { minHeightFraction?, selector?, holdMs?, durationMs?, maxSections?, constantVelocity? }`
   — auto-detect the page's sections and pan/hold through them within a fixed `durationMs` budget.
-- `kenBurns: { scaleFrom?, scaleTo?, easing?, originX?, originY? }` — slow zoom (folds automatically
-  under `loop: "boomerang"` so it stays seamless).
 - `loop: "none" | "boomerang"`.
-
-### Clean capture
-
-Suppress real-site noise so frames are clean and deterministic:
-
-- `hideSelectors: []`, `injectCss`, `clickSelectors: []` (best-effort consent dismissal),
-  `hideScrollbars` (default `true`), `pauseAnimations`, `freezeClock` (pin `Date.now` /
-  `performance.now` / `Math.random`).
-- Network: `blockTrackers` (default `true` — aborts common analytics/ads/session-replay),
-  `blockHosts: []`, `blockResourceTypes: []` (e.g. `["media", "font"]`).
-- Settling: `settlePerFrame` (default on; off in `--draft`) waits for fonts + in-view images each
-  frame; bounded by `settleMaxMs`.
+- Per-frame settling: `settlePerFrame` (default on; off in `--draft`) waits for fonts + in-view
+  images each frame; bounded by `settleMaxMs`.
 
 ### Variants — one config, many assets
 
@@ -198,39 +187,28 @@ The viewport × color-scheme matrix is emitted as separate assets (`<name>-<suff
 ### Output formats & framing
 
 - `aspect: "16:9" | "9:16" | "1:1" | { width, height }` with `fit: "cover" | "contain"` and `padColor`
-  — reframe for social (e.g. `9:16` reels). 
+  — reframe for social (e.g. `9:16` reels).
 - `outputs: ("mp4" | "gif" | "webp" | "poster")[]` (default `["mp4"]`) — each becomes its own asset;
   `gifFps` tunes the GIF/WebP frame rate.
-- `intro` / `outro: { title?, subtitle?, background?, color?, durationMs?, fadeMs? }` — fade-in title
-  card / end card.
-- `annotations: [{ text?, ring?, spotlight?, atMs?, untilMs?, position? }]` — timed captions, a
-  highlight ring around a selector, or a spotlight that dims everything else.
+
+### Scripted interaction & element focus (the `interaction` generator)
 
 ```ts
-options: {
-  aspect: "9:16",
-  outputs: ["mp4", "gif", "poster"],
-  intro: { title: "Acme", subtitle: "Botanik" },
-  annotations: [{ text: "Real-time data", ring: "#chart", atMs: 1000, untilMs: 3000 }],
-}
-```
-
-### Scripted interaction & element focus (realtime)
-
-```ts
-options: {
-  cursor: { color: "#e91e63" },
-  actions: [
-    { do: "click", selector: "#menu-button" },
-    { do: "hover", selector: ".dropdown a:first-child" },
-    { do: "type", selector: "input[type=search]", text: "shoes" },
-  ],
+{ name: "search-demo", url: "https://your-site.com", generator: "interaction",
+  options: {
+    cursor: { color: "#e91e63" },
+    actions: [
+      { do: "click", selector: "#menu-button" },
+      { do: "hover", selector: ".dropdown a:first-child" },
+      { do: "type", selector: "input[type=search]", text: "shoes" },
+    ],
+  },
 }
 ```
 
 - `actions: [{ do: "move" | "click" | "hover" | "type" | "scrollTo" | "wait", selector?, x?, y?, text?, to?, durationMs?, holdMs? }]`
-  drives a scripted tour with a synthetic `cursor: { show?, size?, color? }`. Records **realtime**
-  (interactions and their animations are time-based).
+  drives a scripted tour with a synthetic `cursor: { show?, size?, color? }`. Always records
+  **realtime** (interactions and their animations are time-based).
 - `focus: { selector, padding?, actions?, holdMs? }` — capture a single component (optionally trigger
   it first), cropped to its box.
 
@@ -251,29 +229,28 @@ and extra `outputs` apply to the final tour.
 
 ## Media wall & composition
 
-Assets can depend on other assets via `inputs: { slot: assetName }` — producers run first and
-their output is fed to the consumer. The **`wall`** generator composites assets into a seamless
-media wall: each column lists the assets it stacks (by name), and the wall **derives** its
-dependencies from those names — so the producers run first and there's no `inputs` map to write.
+Assets can depend on other assets — the dependency map is always **derived**, never authored.
+The **`wall`** generator composites assets into a seamless media wall: each column lists the
+tiles it stacks — other assets by name (their producers run first) and/or local files directly
+via `{ src }`.
 Every tile fills its column's **width** and takes its **own height** from its media's aspect ratio
 (16:9 → short, 9:16 → tall) — a natural masonry, not a fixed grid; you don't set a tile size.
 
 ```ts
 assets: [
-  { name: "img-coat", generator: "image", options: { src: "public/img/coat.jpg" } },
   { name: "ui-home", url: "/", generator: "screenshots", options: { fullPage: false } },
   // …enough to fill the columns…
   {
     name: "wall",
-    generator: "wall",                       // no url, no inputs — derived from the tiles below
+    generator: "wall",                       // no url — dependencies derived from the tiles below
     options: {
       durationMs: 16000,
       pan: { direction: "left", loops: 1 },
       columns: [
-        { tiles: ["img-coat", "ui-home"], direction: "down",
+        { tiles: [{ src: "public/img/coat.jpg" }, "ui-home"], direction: "down",
           pulses: [{ at: 0.1, span: 0.15, distance: 0.5 }] },
-        { tiles: ["ui-home", "img-coat"], direction: "up", loops: 1, stagger: 0.4 },
-        { tiles: ["img-coat", "ui-home"], stagger: 0.15 },
+        { tiles: ["ui-home", { src: "public/img/coat.jpg" }], direction: "up", loops: 1, stagger: 0.4 },
+        { tiles: [{ src: "public/img/coat.jpg" }, "ui-home"], stagger: 0.15 },
       ],
     },
   },
@@ -300,15 +277,13 @@ assets: [
 |---|---|
 | `pro-visu init` | Scaffold config (detecting your framework/package manager/dev port), create + gitignore the output dir, ensure Chromium. `--json` scaffolds a dependency-free JSON config + JSON Schema (auto-selected when pro-visu isn't a local dependency) |
 | `pro-visu generate [--asset <name>]` | Run generators per config; writes assets + `manifest.json` |
-| `pro-visu doctor` | Check the setup — Node, config + asset options, Chromium, ffmpeg, URL reachability — without generating |
+| `pro-visu doctor` | Check the setup — Node, config + asset options, Chromium, ffmpeg, the resolved plan, URL reachability — without generating |
 | `pro-visu list [--json]` | Show generated assets recorded in the manifest |
-| `pro-visu schema [--out <path>]` | Write a JSON Schema for `pro-visu.config.json` (editor autocomplete); re-run after upgrading to refresh it |
-| `pro-visu reset` | Clean up orphaned processes/temp from an interrupted run |
 
 `generate` flags: `--draft` (faster, lower-fidelity iteration), `--cache` (skip assets whose
 inputs+options are unchanged), `--skip-server` (use an already-running site), `--skip-build`
-(keep the managed server but skip its build), `--dry-run` (validate + print the plan only),
-`--concurrency`, `--verbose`. A managed server
+(keep the managed server but skip its build), `--concurrency`, `--verbose`. Interrupted-run
+cleanup and the JSON Schema refresh happen automatically on the next run. A managed server
 (`settings.server`) can build → start → capture → stop the site automatically so the npm script
 is just `pro-visu generate`. See the [CLI docs](https://pro-visu.com/docs/cli) for the
 full flag list.

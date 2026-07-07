@@ -5,11 +5,10 @@ import { createRequire } from "node:module";
 import { resolveCwd } from "@/utils/paths";
 import { ensureDir, ensureGitignoreEntry, pathExists } from "@/utils/fs";
 import { createLogger } from "@/utils/logger";
-import { ensureChromium } from "@/browser-install/ensure-chromium";
-import { ensureFfmpeg } from "@/media/ensure-ffmpeg";
+import { ensureChromium } from "@/binaries/chromium";
+import { ensureFfmpeg } from "@/binaries/ensure-ffmpeg";
 import { DEFAULT_OUTDIR } from "@/config/defaults";
-import { serializeConfigJsonSchema } from "@/config/json-schema";
-import { DEFAULT_SCHEMA_FILE } from "@/cli/commands/schema";
+import { serializeConfigJsonSchema, DEFAULT_SCHEMA_FILE } from "@/config/json-schema";
 
 const CONFIG_FILES = [
   "pro-visu.config.ts",

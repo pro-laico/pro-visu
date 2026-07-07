@@ -1,13 +1,18 @@
+import path from "node:path";
 import { existsSync } from "node:fs";
 import { resolveCwd } from "@/utils/paths";
 import { createLogger } from "@/utils/logger";
 import { loadShowcaseConfig } from "@/config/load";
 import type { ResolvedConfig } from "@/config/schema";
-import { ensureChromium } from "@/browser-install/ensure-chromium";
-import { ensureFfmpeg } from "@/media/ensure-ffmpeg";
-import { ffmpegIsSupported } from "@/media/ffmpeg-binary";
+import { refreshSchemaFile } from "@/config/json-schema";
+import { resolveTargets } from "@/config/resolve-targets";
+import { resolveServerUrl } from "@/server/manage-server";
+import { ensureChromium } from "@/binaries/chromium";
+import { ensureFfmpeg } from "@/binaries/ensure-ffmpeg";
+import { ffmpegIsSupported } from "@/binaries/ffmpeg-binary";
 import { applyDerivedInputs } from "@/pipeline/runner";
 import { buildGraph } from "@/pipeline/graph";
+import { getGenerator } from "@/generators/registry";
 import { reportConfigError } from "@/cli/ui";
 import { validatePlan, preflightUrls } from "@/cli/commands/generate";
 
@@ -19,8 +24,9 @@ export interface DoctorOptions {
 /**
  * Diagnose the environment + config without generating anything: Node version, config discovery
  * and validation (including every asset's generator options), the dependency graph, Chromium,
- * ffmpeg, and — when no managed server is configured — whether the asset URLs actually respond.
- * Exits non-zero when something needs fixing.
+ * ffmpeg, the resolved plan (each asset + its URL + the server decision), and — when no managed
+ * server is configured — whether the asset URLs actually respond. Exits non-zero when something
+ * needs fixing, so it also works as a CI gate.
  */
 export async function runDoctor(options: DoctorOptions = {}): Promise<void> {
   const cwd = resolveCwd(options.cwd);
@@ -41,15 +47,19 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<void> {
 
   // Config: discovery, schema validation, per-asset options, and the dependency graph.
   let config: ResolvedConfig | undefined;
+  let configFile: string | undefined;
   try {
     const loaded = await loadShowcaseConfig({ cwd, configFile: options.config });
     config = loaded.config;
+    configFile = loaded.configFile;
     const where = loaded.configFile ?? 'package.json "pro-visu" key';
     log.success(`Config OK (${where}) — ${config.assets.length} asset(s).`);
   } catch (err) {
     failed = true;
     reportConfigError(log, err);
   }
+  // Keep a scaffolded pro-visu.schema.json current with this tool version (best-effort).
+  await refreshSchemaFile(configFile ? path.dirname(configFile) : cwd, log);
   if (config) {
     if (validatePlan(log, config, config.assets, config.settings.quality)) {
       log.success("Asset options OK.");
@@ -88,11 +98,24 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<void> {
     );
   }
 
-  // Capture targets: a managed server is started per run; otherwise the URLs must already respond.
+  // The resolved plan: each asset, its target URL, and the server decision.
   if (config) {
-    if (config.settings.server) {
-      log.info(`Managed server configured: \`${config.settings.server.command}\` (started per run).`);
-    } else if (await preflightUrls(log, config, config.assets)) {
+    const serverCfg = config.settings.server;
+    const serverBase = serverCfg ? resolveServerUrl(serverCfg) : undefined;
+    const resolved = resolveTargets(config.assets, serverBase, (id) =>
+      Boolean(getGenerator(id)?.requiresUrl),
+    );
+    log.info(
+      `Plan: ${resolved.length} asset(s), quality "${config.settings.quality}", concurrency ${config.settings.concurrency}`,
+    );
+    for (const a of resolved) {
+      log.log(`  • ${a.name}  [${a.generator}]${a.url ? `  ${a.url}` : ""}`);
+    }
+
+    // Capture targets: a managed server is started per run; otherwise the URLs must already respond.
+    if (serverCfg) {
+      log.info(`Managed server configured: \`${serverCfg.command}\` (started per run).`);
+    } else if (await preflightUrls(log, { ...config, assets: resolved }, resolved)) {
       log.success("Asset URLs respond.");
     } else {
       failed = true;

@@ -19,11 +19,12 @@ export interface PipelineContext {
   browser: Browser;
   target: AssetTarget;
   /**
-   * Capture-mode toggles (cookies / localStorage / init script) to seed onto every context this
-   * generator opens, via `applyCapture`. Undefined when no `settings.capture` is configured. The
-   * query-param half is already folded into `target.url`.
+   * Capture-mode settings (site signals + tool-side cleanup) to apply to every context/page this
+   * generator opens, via `applyCapture` and the pipeline clean-capture helpers. Always present —
+   * `settings.capture` resolves with defaults. The query-param half is already folded into
+   * `target.url`.
    */
-  capture?: ResolvedCaptureSettings;
+  capture: ResolvedCaptureSettings;
   /** Absolute file paths of this asset's declared `inputs`, keyed by slot name. */
   resolvedInputs: Record<string, string>;
   /** Absolute output root (e.g. <repo>/showcase). */

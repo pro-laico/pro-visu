@@ -46,12 +46,13 @@ settings: {
 Pair it with `--skip-server` when capturing an already-deployed URL. See the
 [CI recipe](/docs/recipes#capture-a-deployed-url-in-ci).
 
-## "JavaScript heap out of memory" / run stops with a low-memory warning
+## Run stops with a low-memory warning
 
-Heavy frame-stepped jobs (large walls especially) can exceed Node's default heap. Raise it with
-`settings.maxMemoryMB` (the CLI re-execs itself with a bigger heap) or lower
-`settings.concurrency`. The run watches its own memory and stops gracefully before a crash —
-already-finished assets are kept, and are skipped on the next run when `--cache` is on.
+Heavy plans manage memory automatically: a run with a real (non-test) wall re-execs with a
+bigger Node heap sized from your machine's RAM, and every run watches its own memory and stops
+gracefully before a crash — already-finished assets are kept, and are skipped on the next run
+when `--cache` is on. If a run still stops, lower `settings.concurrency` or the asset's
+`workers`.
 
 ## Capturing pages behind a login
 
@@ -78,5 +79,6 @@ noise; `PRO_VISU_LIVE=1` forces the dashboard on a terminal that mis-reports as 
 
 ## A run was killed hard and left processes behind
 
-`pro-visu reset` tears down orphaned server/browser process trees and temp dirs recorded by the
-interrupted run. Add `--force` if the run still looks active but is actually stuck.
+Nothing to do — the next `pro-visu generate` detects the interrupted run's record, tears down
+the orphaned server process tree and temp dirs, and then starts normally. (If the previous run
+still looks *active*, it warns instead of killing it.)

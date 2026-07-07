@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { ffmpegPath } from "@/media/ffmpeg";
-import { downloadFfmpeg, ffmpegIsSupported } from "@/media/ffmpeg-binary";
+import { downloadFfmpeg, ffmpegIsSupported } from "@/binaries/ffmpeg-binary";
 import type { Logger } from "@/utils/logger";
 
 /** Does the managed ffmpeg binary exist AND actually execute on this platform? */

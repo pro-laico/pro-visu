@@ -4,7 +4,7 @@ description: A still colour-palette image with labelled, auto-contrasting swatch
 ---
 
 `palette` renders a still image of colour swatches, each labelled with the fields you place in
-its corners (name / hex / rgb / oklch / hsl / cmyk) with auto-contrasting text. Only `colors`
+its corners (name / hex / rgb / oklch / hsl) with auto-contrasting text. Only `colors`
 is required. No `url`. Output is png.
 
 ```ts
@@ -70,7 +70,7 @@ export const options = [
 
 <ConfigOptions items={options} />
 
-The available corner field ids are `name`, `hex`, `rgb`, `oklch`, `hsl`, and `cmyk`.
+The available corner field ids are `name`, `hex`, `rgb`, `oklch`, and `hsl`.
 
 Place specific fields in each corner (each corner stacks its list top→bottom), and pick a layout:
 
@@ -111,6 +111,5 @@ How each field renders:
 | `oklch` | `"css"` | `oklch(88% 0.012 250)` |
 | `oklch` | `"labeled"` | `L:88% C:0.012 H:250` |
 | `hsl` | — | `H:210,S:14,L:88` (s/l are percentages) |
-| `cmyk` | — | `C:0,M:50,Y:100,K:0` (percentages) |
 
 For a moving version, see [`palette-reel`](/docs/generators/palette-reel).

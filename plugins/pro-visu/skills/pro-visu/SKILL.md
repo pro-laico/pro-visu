@@ -14,10 +14,10 @@ gitignored `pro-visu/` folder. Your job with this skill: install pro-visu, write
 **Generators:**
 | id | output |
 |---|---|
-| `scroll-reel` | mp4 — scroll reels, choreographed tours, scripted interactions, social formats |
+| `scroll-reel` | mp4 — scroll reels, choreographed tours, social formats |
+| `interaction` | mp4 — scripted realtime demos with a synthetic cursor, or element-focused clips |
 | `screenshots` | png/jpeg full-page + element captures across named viewports |
-| `wall` | mp4 — a seamless-looping media wall composited from your other assets |
-| `image` | passthrough — registers an existing image file as an asset (e.g. a wall tile) |
+| `wall` | mp4 — a seamless-looping media wall of your other assets and local `{ src }` files |
 | `specimen` | mp4 — a looping type specimen from a font file |
 | `palette` / `palette-reel` | png / mp4 — a colour palette (still / animated reveal) |
 
@@ -72,15 +72,14 @@ export default defineConfig({
 });
 ```
 
-URL-based generators (`scroll-reel`, `screenshots`) take a `url`; local generators (`wall`, `image`,
-`specimen`, `palette`, `palette-reel`) need none. Per-asset `options` override
+URL-based generators (`scroll-reel`, `interaction`, `screenshots`) take a `url`; local generators
+(`wall`, `specimen`, `palette`, `palette-reel`) need none. Per-asset `options` override
 `settings.defaults["<generator-id>"]`. See https://pro-visu.com/docs/generators for every option,
 and https://pro-visu.com/docs/recipes for ready-made configs (social reels, tours, media walls).
 
 ## 4. Generate
 ```bash
-pnpm exec pro-visu doctor                   # verify config + env + URL reachability first
-pnpm exec pro-visu generate --dry-run       # print the resolved plan without capturing
+pnpm exec pro-visu doctor                   # verify config + env + URLs and print the plan first
 pnpm exec pro-visu generate                 # all assets (add --draft while iterating)
 pnpm exec pro-visu generate --asset home-reel   # just one (repeatable)
 pnpm exec pro-visu list                     # show what's in the manifest (--json for scripts)
@@ -102,11 +101,17 @@ Common offenders:
 **Fix at the SITE level: gate every such animation behind a toggle that renders the final/settled
 state, and toggle it OFF for captures.** pro-visu delivers that toggle for you via
 `settings.capture` — it appends a `query` param, sets `cookies`, seeds `localStorage`, and/or runs
-an `initScript` on every URL-based capture (and folds them into the cache key):
+an `initScript` on every URL-based capture (and folds them into the cache key). The same block
+also carries tool-side cleanup — `hideSelectors`, `clickSelectors`, `freezeClock`,
+`blockTrackers`, … — for noise the site won't remove itself:
 
 ```ts
 settings: {
-  capture: { query: { capture: "1" }, cookies: [{ name: "pv_capture", value: "1" }] },
+  capture: {
+    query: { capture: "1" },
+    cookies: [{ name: "pv_capture", value: "1" }],
+    hideSelectors: ["#cookie-banner"],
+  },
 }
 ```
 

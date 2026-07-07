@@ -1,13 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { EASINGS } from "@/generators/scroll-reel/scroll";
+import { EASINGS } from "@/generators/easing";
 import {
   autoSectionSteps,
   autoSectionsBudgetMs,
   boomerangSpec,
   choreographyTimelineSpec,
   defaultTimelineSpec,
-  foldProgress,
-  kenBurnsScaleAt,
   normalizedScrollAt,
   resolveTimeline,
   scrollTimelineTotalMs,
@@ -20,7 +18,7 @@ describe("defaultTimelineSpec", () => {
     startDelayMs: 500,
     durationMs: 6000,
     endDwellMs: 800,
-    easing: "ease-in-out-cubic",
+    easing: "ease-in-out",
   });
 
   it("produces hold → scroll → hold segments whose fractions sum to 1", () => {
@@ -28,7 +26,7 @@ describe("defaultTimelineSpec", () => {
     const sum = spec.segments.reduce((s, seg) => s + seg.durationFraction, 0);
     expect(sum).toBeCloseTo(1);
     expect(spec.segments[0]).toMatchObject({ fromY: 0, toY: 0 });
-    expect(spec.segments[1]).toMatchObject({ fromY: 0, toY: 1, easing: "ease-in-out-cubic" });
+    expect(spec.segments[1]).toMatchObject({ fromY: 0, toY: 1, easing: "ease-in-out" });
     expect(spec.segments[2]).toMatchObject({ fromY: 1, toY: 1 });
   });
 
@@ -60,7 +58,7 @@ describe("normalizedScrollAt", () => {
     startDelayMs: 500,
     durationMs: 6000,
     endDwellMs: 800,
-    easing: "ease-in-out-cubic",
+    easing: "ease-in-out",
   });
   const total = 500 + 6000 + 800;
   const startFrac = 500 / total;
@@ -80,7 +78,7 @@ describe("normalizedScrollAt", () => {
 
   it("applies the scroll segment's easing (not linear) within it", () => {
     const quarter = startFrac + scrollFrac * 0.25;
-    expect(normalizedScrollAt(spec, quarter)).toBeCloseTo(EASINGS["ease-in-out-cubic"](0.25));
+    expect(normalizedScrollAt(spec, quarter)).toBeCloseTo(EASINGS["ease-in-out"](0.25));
     // discriminating: a linear ramp would be 0.25 here, the eased value is much smaller.
     expect(normalizedScrollAt(spec, quarter)).toBeLessThan(0.2);
   });
@@ -133,7 +131,7 @@ describe("resolveTimeline", () => {
           startDelayMs: 100,
           durationMs: 900,
           endDwellMs: 200,
-          easing: "ease-out-cubic",
+          easing: "ease-out",
         }),
         1.2,
       );
@@ -287,7 +285,7 @@ describe("boomerangSpec", () => {
   });
 
   it("is a seamless loop that reaches the bottom at the midpoint", () => {
-    const base = defaultTimelineSpec({ startDelayMs: 0, durationMs: 1000, endDwellMs: 0, easing: "ease-in-out-cubic" });
+    const base = defaultTimelineSpec({ startDelayMs: 0, durationMs: 1000, endDwellMs: 0, easing: "ease-in-out" });
     const tl = resolveTimeline(boomerangSpec(base), 2);
     expect(tl.scrollAt(0)).toBeCloseTo(0);
     expect(tl.scrollAt(2)).toBeCloseTo(0); // ends where it began → seamless
@@ -295,39 +293,10 @@ describe("boomerangSpec", () => {
   });
 
   it("is time-symmetric for symmetric easings", () => {
-    const base = defaultTimelineSpec({ startDelayMs: 0, durationMs: 1000, endDwellMs: 0, easing: "ease-in-out-sine" });
+    const base = defaultTimelineSpec({ startDelayMs: 0, durationMs: 1000, endDwellMs: 0, easing: "ease-in-out" });
     const tl = resolveTimeline(boomerangSpec(base), 1);
     for (const p of [0.1, 0.25, 0.4]) {
       expect(tl.scrollAt(p)).toBeCloseTo(tl.scrollAt(1 - p));
-    }
-  });
-});
-
-describe("foldProgress", () => {
-  it("makes a tent: 0→0, 0.5→1, 1→0", () => {
-    expect(foldProgress(0)).toBeCloseTo(0);
-    expect(foldProgress(0.25)).toBeCloseTo(0.5);
-    expect(foldProgress(0.5)).toBeCloseTo(1);
-    expect(foldProgress(0.75)).toBeCloseTo(0.5);
-    expect(foldProgress(1)).toBeCloseTo(0);
-  });
-});
-
-describe("kenBurnsScaleAt", () => {
-  it("eases from scaleFrom to scaleTo", () => {
-    const cfg = { scaleFrom: 1, scaleTo: 1.5, easing: "linear" as const };
-    expect(kenBurnsScaleAt(0, cfg)).toBeCloseTo(1);
-    expect(kenBurnsScaleAt(0.5, cfg)).toBeCloseTo(1.25);
-    expect(kenBurnsScaleAt(1, cfg)).toBeCloseTo(1.5);
-  });
-
-  it("is monotonic non-decreasing for a zoom-in", () => {
-    const cfg = { scaleFrom: 1, scaleTo: 1.2, easing: "ease-in-out-cubic" as const };
-    let prev = -Infinity;
-    for (let p = 0; p <= 1; p += 0.1) {
-      const v = kenBurnsScaleAt(p, cfg);
-      expect(v).toBeGreaterThanOrEqual(prev - 1e-9);
-      prev = v;
     }
   });
 });

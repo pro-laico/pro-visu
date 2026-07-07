@@ -1,9 +1,11 @@
 import { z } from "zod";
 import { normalizeHex, type FieldId } from "@/generators/palette/color";
+import { easingSchema, type Easing } from "@/generators/easing";
+import { videoOutputShape } from "@/generators/shared-options";
 import type { PaletteColorInput } from "@/generators/palette/options";
 
 /** Field ids that can be revealed on a band when it expands (same set as the still palette). */
-const fieldEnum = z.enum(["name", "hex", "rgb", "oklch", "hsl", "cmyk"]);
+const fieldEnum = z.enum(["name", "hex", "rgb", "oklch", "hsl"]);
 
 const hexString = z.string().refine(
   (s) => {
@@ -44,7 +46,7 @@ export interface PaletteReelOptionsInput {
    */
   bounce?: boolean;
   /** Easing applied to the crossfade ramp. Default "ease-in-out". */
-  easing?: "linear" | "ease-in" | "ease-out" | "ease-in-out";
+  easing?: Easing;
   /** Clip length override (ms). Omit to derive (count × (hold + transition)) for a clean loop. */
   durationMs?: number;
 
@@ -141,8 +143,7 @@ const paletteReelObjectSchema = z
       .describe(
         "Ping-pong the sweep so each handoff is between neighbouring bands; off wraps directly (last to first). Default true.",
       ),
-    easing: z
-      .enum(["linear", "ease-in", "ease-out", "ease-in-out"])
+    easing: easingSchema
       .default("ease-in-out")
       .describe('Easing applied to the crossfade ramp. Default "ease-in-out".'),
     durationMs: z
@@ -229,42 +230,7 @@ const paletteReelObjectSchema = z
       .default(0)
       .describe("Band corner radius (px). Default 0 (square)."),
 
-    width: z
-      .number()
-      .int()
-      .positive()
-      .default(1920)
-      .describe("Output frame width in px. Default 1920."),
-    height: z
-      .number()
-      .int()
-      .positive()
-      .default(1080)
-      .describe("Output frame height in px. Default 1080."),
-    deviceScaleFactor: z
-      .number()
-      .positive()
-      .max(4)
-      .default(1)
-      .describe("Render scale (higher = crisper capture, downscaled into the video). Default 1."),
-    fps: z
-      .number()
-      .int()
-      .positive()
-      .max(120)
-      .default(30)
-      .describe("Output frames per second. Default 30."),
-    crf: z
-      .number()
-      .int()
-      .min(0)
-      .max(51)
-      .default(18)
-      .describe("x264 quality, 0-51 (lower = better quality / larger file). Default 18."),
-    fileName: z
-      .string()
-      .optional()
-      .describe('Output filename; defaults to "<slug(asset name)>.mp4".'),
+    ...videoOutputShape({ width: 1920, height: 1080, deviceScaleFactor: 1 }),
   })
   .strict();
 

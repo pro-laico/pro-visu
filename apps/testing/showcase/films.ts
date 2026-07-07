@@ -1,21 +1,13 @@
-import { defineAssets } from "pro-visu";
-import { INK, PAPER } from "./brand";
+import type { AssetSpecInput } from "pro-visu";
 
-// Storefront films: scroll-reels over the real pages, plus a seamless hero loop.
-export const films = defineAssets([
+// Storefront films: scroll-reels over the real pages.
+export const films = [
   {
-    name: "home", // auto-sections + slow Ken Burns, branded cards, spotlight + ring annotations
+    name: "home", // auto-sections down the whole home page
     generator: "scroll-reel",
     options: {
       waitForSelector: ".hero-media img",
       autoSections: { durationMs: 14000 },
-      kenBurns: { scaleTo: 1.05, originY: 0.35 },
-      intro: { title: "VESPER", subtitle: "Autumn / Winter 2026", background: INK, color: PAPER },
-      outro: { title: "Maison Vesper", subtitle: "Quietly made in Europe", background: INK, color: PAPER },
-      annotations: [
-        { spotlight: "#hero", text: "Quiet luxury, considered", atMs: 600, untilMs: 4000, position: "bottom" },
-        { ring: "#feature-card", text: "The Autumn Edit", atMs: 5000, untilMs: 8500, position: "top" },
-      ],
     },
   },
   {
@@ -58,13 +50,12 @@ export const films = defineAssets([
     },
   },
   {
-    name: "product", // PDP: gallery → details → related, ring on the add-to-bag CTA
+    name: "product", // PDP: gallery → details → related
     generator: "scroll-reel",
     url: "/products/the-camel-coat",
     options: {
       waitForSelector: ".mini-gallery img",
       autoSections: { durationMs: 10000 },
-      annotations: [{ ring: "#pdp-add", text: "Add to bag", atMs: 2500, untilMs: 5500, position: "bottom" }],
     },
   },
   {
@@ -83,7 +74,6 @@ export const films = defineAssets([
     options: {
       waitForSelector: ".about-hero-media img",
       autoSections: { durationMs: 10000 },
-      kenBurns: { scaleTo: 1.04 },
     },
   },
   {
@@ -95,17 +85,4 @@ export const films = defineAssets([
       autoSections: { durationMs: 11000 },
     },
   },
-  {
-    name: "hero-loop", // drop-in looping hero bg: held beat + boomeranged Ken Burns, no seam
-    generator: "scroll-reel",
-    options: {
-      durationMs: 4000,
-      loop: "boomerang",
-      startDelayMs: 0,
-      endDwellMs: 0,
-      kenBurns: { scaleTo: 1.05, originY: 0.4 },
-      choreography: [{ to: "0%", durationMs: 4000, holdMs: 0 }],
-      waitForSelector: ".hero-media img",
-    },
-  },
-]);
+] satisfies AssetSpecInput[];

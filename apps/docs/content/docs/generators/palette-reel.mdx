@@ -64,7 +64,7 @@ export const timing = [
   { name: 'holdMs', type: 'number', default: '2000', description: 'How long each colour stays fully open (ms).' },
   { name: 'transitionMs', type: 'number', default: '700', description: 'Crossfade length between colours (ms).' },
   { name: 'bounce', type: 'boolean', default: 'true', description: 'Ping-pong the sweep so every handoff is between neighbours (avoids a last→first pinch at the loop seam). When "false", the reel wraps directly from the last item to the first — shorter, but crossfades non-adjacent bands at the seam.' },
-  { name: 'easing', type: '"linear" | "ease-in" | "ease-out" | "ease-in-out"', default: '"ease-in-out"', description: 'Easing for the crossfade ramp.' },
+  { name: 'easing', type: '"linear" | "ease-in" | "ease-out" | "ease-in-out" | "ease-out-strong" | "ease-in-out-strong"', default: '"ease-in-out"', description: 'Easing for the crossfade ramp.' },
   { name: 'durationMs', type: 'number', default: 'derived', description: 'Override the derived clean-loop length (ms).' },
 ]
 
@@ -104,4 +104,4 @@ export const output = [
 
 <ConfigOptions items={output} />
 
-The available `details` field ids are `name`, `hex`, `rgb`, `oklch`, `hsl`, and `cmyk`.
+The available `details` field ids are `name`, `hex`, `rgb`, `oklch`, and `hsl`.

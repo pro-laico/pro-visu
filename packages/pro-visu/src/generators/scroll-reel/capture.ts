@@ -4,6 +4,7 @@ import type { Browser } from "playwright-core";
 import type { Logger } from "@/utils/logger";
 import { ensureDir } from "@/utils/fs";
 import { applyCapture } from "@/pipeline/capture";
+import { applyPostNav, installNetworkHygiene, installPreNav } from "@/pipeline/clean-capture";
 import { pageScroll, prepareScroll } from "@/generators/scroll-reel/scroll";
 import type { ResolvedCaptureSettings } from "@/config/schema";
 import type { ResolvedScrollReelOptions } from "@/generators/scroll-reel/options";
@@ -18,7 +19,7 @@ export interface CaptureArgs {
   /** Scratch root; a unique recording subdir is created inside. */
   tmpDir: string;
   logger: Logger;
-  capture?: ResolvedCaptureSettings;
+  capture: ResolvedCaptureSettings;
 }
 
 export interface CaptureResult {
@@ -52,12 +53,16 @@ export async function captureScrollWebm(args: CaptureArgs): Promise<CaptureResul
   const recStart = Date.now(); // Playwright records the whole context lifetime
   let leadSeconds = 0;
   try {
+    await installNetworkHygiene(page, args.capture);
+    await installPreNav(page, args.capture, { themeClass: options.themeClass });
     logger.debug(`navigating to ${url} (waitUntil=${options.waitUntil})`);
     await page.goto(url, { waitUntil: options.waitUntil });
     if (options.waitForSelector) {
       logger.debug(`waiting for selector ${options.waitForSelector}`);
       await page.waitForSelector(options.waitForSelector, { state: "visible" });
     }
+    // Realtime is chosen exactly when time-based animation / autoplay should play — keep media running.
+    await applyPostNav(page, args.capture, logger, { themeClass: options.themeClass, pauseMedia: false });
     // Warm-up (trimmed from the head): load lazy content, fonts and images, settle at the top.
     await page.evaluate(prepareScroll, { settleMs: PREWARM_SETTLE_MS });
     // Everything above is blank/churn in the recording; the animated scroll starts now.

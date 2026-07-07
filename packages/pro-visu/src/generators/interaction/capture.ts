@@ -3,13 +3,9 @@ import { mkdtemp } from "node:fs/promises";
 import type { Browser, Page } from "playwright-core";
 import { ensureDir } from "@/utils/fs";
 import { applyCapture } from "@/pipeline/capture";
-import {
-  applyPostNav,
-  installNetworkHygiene,
-  installPreNav,
-} from "@/generators/scroll-reel/clean-capture";
+import { applyPostNav, installNetworkHygiene, installPreNav } from "@/pipeline/clean-capture";
 import type { ResolvedCaptureSettings } from "@/config/schema";
-import type { ResolvedScrollReelOptions } from "@/generators/scroll-reel/options";
+import type { ResolvedInteractionOptions } from "@/generators/interaction/options";
 import type { Logger } from "@/utils/logger";
 
 /** Default cursor travel / scroll-animation time for a step that omits `durationMs`. */
@@ -52,7 +48,7 @@ export function clampCrop(
   return { x, y, width: w, height: h };
 }
 
-type InteractionAction = NonNullable<ResolvedScrollReelOptions["actions"]>[number];
+type InteractionAction = ResolvedInteractionOptions["actions"][number];
 
 /** Pure: total interaction clip length in ms (start delay + each step's travel + hold + end dwell). */
 export function interactionTotalMs(
@@ -262,11 +258,10 @@ function moveCursorToSelector(page: Page, selector: string, ms: number): Promise
 export interface InteractionArgs {
   browser: Browser;
   url: string;
-  options: ResolvedScrollReelOptions;
-  colorScheme?: "light" | "dark";
+  options: ResolvedInteractionOptions;
+  capture: ResolvedCaptureSettings;
   tmpDir: string;
   logger: Logger;
-  capture?: ResolvedCaptureSettings;
 }
 
 export interface InteractionResult {
@@ -293,21 +288,22 @@ export async function captureInteractionWebm(args: InteractionArgs): Promise<Int
   await applyCapture(context, args.capture, url);
   const page = await context.newPage();
   const video = page.video();
-  const actions = options.actions ?? [];
+  const actions = options.actions;
   const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
   const recStart = Date.now();
   let leadSeconds = 0;
   try {
-    if (args.colorScheme) await page.emulateMedia({ colorScheme: args.colorScheme });
-    await installNetworkHygiene(page, options);
-    await installPreNav(page, options);
+    if (options.colorScheme) await page.emulateMedia({ colorScheme: options.colorScheme });
+    await installNetworkHygiene(page, args.capture);
+    await installPreNav(page, args.capture);
     logger.debug(`navigating to ${url} (waitUntil=${options.waitUntil})`);
     await page.goto(url, { waitUntil: options.waitUntil });
     if (options.waitForSelector) {
       await page.waitForSelector(options.waitForSelector, { state: "visible" });
     }
-    await applyPostNav(page, options, logger);
+    // Keep media playing: an interaction records live, and the page may be mid-demo on purpose.
+    await applyPostNav(page, args.capture, logger, { pauseMedia: false });
     try {
       await page.evaluate(
         () =>
@@ -390,14 +386,14 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
   let leadSeconds = 0;
   let cropBox = { x: 0, y: 0, width: options.width, height: options.height };
   try {
-    if (args.colorScheme) await page.emulateMedia({ colorScheme: args.colorScheme });
-    await installNetworkHygiene(page, options);
-    await installPreNav(page, options);
+    if (options.colorScheme) await page.emulateMedia({ colorScheme: options.colorScheme });
+    await installNetworkHygiene(page, args.capture);
+    await installPreNav(page, args.capture);
     await page.goto(url, { waitUntil: options.waitUntil });
     if (options.waitForSelector) {
       await page.waitForSelector(options.waitForSelector, { state: "visible" });
     }
-    await applyPostNav(page, options, logger);
+    await applyPostNav(page, args.capture, logger, { pauseMedia: false });
     await page.evaluate(installCursorRuntime, {
       show: options.cursor?.show ?? true,
       size: options.cursor?.size ?? 22,

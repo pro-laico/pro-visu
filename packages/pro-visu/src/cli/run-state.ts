@@ -1,11 +1,12 @@
 import path from "node:path";
 import { readFile, writeFile, rm } from "node:fs/promises";
 import { spawn } from "node:child_process";
+import { removeDir } from "@/utils/fs";
 
 /**
  * A small record of what a `pro-visu generate` run spawned, written to `<outDir>/.pro-visu-run.json`
- * and deleted on a clean exit. If the run is killed hard (Ctrl+C / crash), the file survives so
- * `pro-visu reset` can find and tear down the orphaned server + browser + temp dirs.
+ * and deleted on a clean exit. If the run is killed hard (Ctrl+C / crash), the file survives and the
+ * NEXT `pro-visu generate` tears down the orphaned server + temp dirs automatically on startup.
  */
 export interface RunState {
   /** The `pro-visu generate` process id (used to tell "still running" from "orphaned"). */
@@ -58,6 +59,30 @@ export async function clearRunState(outDir: string): Promise<void> {
   } catch {
     /* already gone */
   }
+}
+
+/**
+ * Startup self-healing: if a previous run was killed hard, its run-state file survives — tear down
+ * the orphaned server process tree and temp dirs, then clear the file. When the recorded pid is
+ * still alive (another run in progress, or a stuck one), leave it and warn. Called by `generate`
+ * before starting; a clean previous exit means there's nothing to do.
+ */
+export async function cleanStaleRunState(
+  outDir: string,
+  log: { info(m: string): void; warn(m: string): void },
+): Promise<void> {
+  const state = await readRunState(outDir);
+  if (!state) return;
+  if (isAlive(state.pid)) {
+    log.warn(`Another pro-visu run looks active (pid ${state.pid}) — not cleaning up after it.`);
+    return;
+  }
+  const killedServer = await killTreeByPid(state.serverPid);
+  for (const dir of state.tmpDirs ?? []) await removeDir(dir);
+  await clearRunState(outDir);
+  log.info(
+    `Cleaned up after an interrupted run${killedServer ? ` (stopped orphaned server pid ${state.serverPid})` : ""}.`,
+  );
 }
 
 /** Is a pid still running? */

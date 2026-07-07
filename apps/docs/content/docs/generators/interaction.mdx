@@ -1,0 +1,89 @@
+---
+title: interaction
+description: Realtime recordings of scripted interactions — a synthetic cursor driving the page, or a clip cropped to one component.
+---
+
+`interaction` records the page **live** while a scripted sequence plays out — a visible
+synthetic cursor moves, clicks, hovers, and types, exactly like a hand-recorded product demo,
+but reproducible from config. It always records realtime (interactions and their animations are
+inherently time-based) and always emits a single asset.
+
+Give it `actions` (a scripted tour), `focus` (a clip cropped to one component), or both.
+
+<Example
+  clip="docs-menu"
+  portrait
+  caption="A phone-sized interaction: the cursor opens the mega-menu and holds it — UI in a state you could never screenshot from a static page."
+  code={`{
+  name: "menu-demo",
+  url: "https://your-site.com",
+  generator: "interaction",
+  options: {
+    width: 390,
+    height: 844,
+    actions: [
+      { do: "click", selector: "#menu-button", holdMs: 2600 },
+    ],
+  },
+}`}
+/>
+
+## Scripted actions
+
+```ts
+options: {
+  cursor: { color: "#e91e63" },
+  actions: [
+    { do: "click", selector: "#menu-button" },
+    { do: "hover", selector: ".dropdown a:first-child" },
+    { do: "type", selector: "input[type=search]", text: "shoes" },
+  ],
+}
+```
+
+- **`actions: [{ do, selector?, x?, y?, text?, to?, durationMs?, holdMs? }]`** where `do` is
+  `"move" | "click" | "hover" | "type" | "scrollTo" | "wait"`. Per action: `durationMs`
+  (cursor travel / scroll time) default `700`, `holdMs` (pause after) default `600`.
+- **`cursor: { show?, size?, color? }`** — the synthetic cursor. Defaults: `show` `true`,
+  `size` `22`, `color` `#0b0b0f`. Set `show: false` for hands-off UI-state clips (e.g. media
+  wall tiles).
+
+## Element focus
+
+Capture a single component — scroll it into view, optionally trigger it, hold, and crop the
+output to its box:
+
+```ts
+options: {
+  focus: {
+    selector: "#pricing-card",
+    padding: 32,
+    actions: [{ do: "click", selector: "#billing-annual" }],
+    holdMs: 2500,
+  },
+}
+```
+
+- **`focus: { selector, padding?, actions?, holdMs? }`** — defaults: `padding` `24` px,
+  `holdMs` `2000` ms. The crop box is measured **after** any trigger actions run, so an
+  expanded dropdown/drawer stays in frame.
+
+## Output & timing
+
+export const outputOptions = [
+  { name: 'width / height', description: 'Viewport size in CSS px. Default 1280 × 800.' },
+  { name: 'deviceScaleFactor', description: 'Render scale. Default 2 (max 4).' },
+  { name: 'fps', description: 'Output frames per second. Default 30.' },
+  { name: 'crf', description: 'x264 quality, 0–51. Default 18.' },
+  { name: 'startDelayMs / endDwellMs', description: 'Dwell before the first / after the last step. Defaults 500 / 800.' },
+  { name: 'waitUntil / waitForSelector', description: 'Navigation wait milestone (default "networkidle") + optional selector to wait for.' },
+  { name: 'colorScheme', description: '"light" or "dark" — force a scheme for the capture.' },
+  { name: 'fileName', description: 'Output filename. Defaults to <slug(asset name)>.mp4.' },
+]
+
+<ConfigOptions items={outputOptions} />
+
+Site cleanup (hide the cookie banner, block trackers, seed a session cookie for logged-in
+flows) comes from [`settings.capture`](/docs/configuration/settings#capture), same as every
+other URL capture — media keeps playing during the recording, since an interaction is live by
+design.

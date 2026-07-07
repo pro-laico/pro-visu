@@ -1,6 +1,17 @@
 import type { Page } from "playwright-core";
-import type { ResolvedScrollReelOptions } from "@/generators/scroll-reel/options";
+import type { ResolvedCaptureSettings } from "@/config/schema";
 import type { Logger } from "@/utils/logger";
+
+/**
+ * Tool-side capture cleanup, driven by `settings.capture` and applied uniformly to every
+ * URL-based capture (scroll-reel, screenshots, interaction): suppression CSS, overlay
+ * dismissal, tracker blocking, and the clock freeze. Page-variant extras a generator owns
+ * (e.g. scroll-reel's `themeClass`) ride in via {@link PageVariantExtras}.
+ */
+export interface PageVariantExtras {
+  /** Class added to <html> before capture (e.g. to trigger a CSS-class dark theme). */
+  themeClass?: string;
+}
 
 export interface CleanCssOptions {
   hideSelectors: string[];
@@ -103,10 +114,10 @@ export function shouldBlockRequest(
 /** Abort tracker/denylisted/blocked-type requests during capture (must run BEFORE `page.goto`). */
 export async function installNetworkHygiene(
   page: Page,
-  opts: ResolvedScrollReelOptions,
+  capture: ResolvedCaptureSettings,
 ): Promise<void> {
-  const hosts = [...(opts.blockTrackers ? DEFAULT_TRACKER_HOSTS : []), ...opts.blockHosts];
-  const resourceTypes = opts.blockResourceTypes;
+  const hosts = [...(capture.blockTrackers ? DEFAULT_TRACKER_HOSTS : []), ...capture.blockHosts];
+  const resourceTypes = capture.blockResourceTypes;
   if (hosts.length === 0 && resourceTypes.length === 0) return;
   await page.route("**/*", (route) => {
     const req = route.request();
@@ -155,35 +166,44 @@ function applyThemeClass(cls: string): void {
 }
 
 /** Install pre-navigation hooks (must run BEFORE `page.goto`). */
-export async function installPreNav(page: Page, opts: ResolvedScrollReelOptions): Promise<void> {
-  if (opts.freezeClock) {
+export async function installPreNav(
+  page: Page,
+  capture: ResolvedCaptureSettings,
+  extras: PageVariantExtras = {},
+): Promise<void> {
+  if (capture.freezeClock) {
     await page.addInitScript(freezeClockScript);
   }
-  if (opts.themeClass) {
-    await page.addInitScript(applyThemeClass, opts.themeClass);
+  if (extras.themeClass) {
+    await page.addInitScript(applyThemeClass, extras.themeClass);
   }
 }
 
-/** Apply post-navigation cleanup: inject suppression CSS, then dismiss overlays (best-effort). */
+/**
+ * Apply post-navigation cleanup: inject suppression CSS, then dismiss overlays (best-effort), and
+ * pause media so autoplay video can't make frames depend on wall-clock time. `pauseMedia: false`
+ * keeps media playing (realtime recordings that WANT autoplay motion).
+ */
 export async function applyPostNav(
   page: Page,
-  opts: ResolvedScrollReelOptions,
+  capture: ResolvedCaptureSettings,
   logger: Logger,
+  extras: PageVariantExtras & { pauseMedia?: boolean } = {},
 ): Promise<void> {
   const css = buildCleanCss({
-    hideSelectors: opts.hideSelectors,
-    hideScrollbars: opts.hideScrollbars,
-    pauseAnimations: opts.pauseAnimations,
-    injectCss: opts.injectCss,
+    hideSelectors: capture.hideSelectors,
+    hideScrollbars: capture.hideScrollbars,
+    pauseAnimations: capture.pauseAnimations,
+    injectCss: capture.injectCss,
   });
   if (css) {
     await page.addStyleTag({ content: css });
   }
   // Re-apply the theme class after the (possibly client-rendered) app has mounted.
-  if (opts.themeClass) {
-    await page.evaluate(applyThemeClass, opts.themeClass);
+  if (extras.themeClass) {
+    await page.evaluate(applyThemeClass, extras.themeClass);
   }
-  for (const selector of opts.clickSelectors) {
+  for (const selector of capture.clickSelectors) {
     try {
       await page.click(selector, { timeout: 1000 });
       logger.debug(`dismissed overlay via ${selector}`);
@@ -191,6 +211,7 @@ export async function applyPostNav(
       // Not present / not clickable — fine, these are best-effort consent dismissals.
     }
   }
-  // Pause media so autoplay video can't make frames depend on wall-clock time.
-  await page.evaluate(pauseAllMedia);
+  if (extras.pauseMedia !== false) {
+    await page.evaluate(pauseAllMedia);
+  }
 }

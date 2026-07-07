@@ -1,7 +1,7 @@
-import { defineAssets } from "pro-visu";
+import type { AssetSpecInput } from "pro-visu";
 
 // Responsive stills of the storefront, plus element crops.
-export const screenshots = defineAssets([
+export const screenshots = [
   {
     name: "shots",
     generator: "screenshots",
@@ -17,4 +17,4 @@ export const screenshots = defineAssets([
       ],
     },
   },
-]);
+] satisfies AssetSpecInput[];

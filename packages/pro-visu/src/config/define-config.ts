@@ -1,10 +1,10 @@
 import type { ScrollReelOptions } from "@/generators/scroll-reel/options";
+import type { InteractionOptions } from "@/generators/interaction/options";
 import type { ScreenshotsOptions } from "@/generators/screenshots/options";
 import type { WallOptions } from "@/generators/wall/options";
 import type { SpecimenOptions } from "@/generators/specimen/options";
 import type { PaletteOptions } from "@/generators/palette/options";
 import type { PaletteReelOptions } from "@/generators/palette-reel/options";
-import type { ImageOptions } from "@/generators/image/options";
 
 /**
  * Author-facing config types. These power editor autocomplete in `pro-visu.config.ts`.
@@ -51,6 +51,11 @@ export interface ServerSettingsInput {
   reuseExisting?: boolean;
 }
 
+/**
+ * Capture-mode settings applied to every URL-based capture: signals INTO the site (query /
+ * cookies / localStorage / init script) plus cleanup applied BY the tool (hide/click selectors,
+ * injected CSS, tracker blocking, clock freeze, …).
+ */
 export interface CaptureSettingsInput {
   /** Query params appended to every URL-based asset, e.g. `{ capture: "1" }` → `?capture=1`. */
   query?: Record<string, string>;
@@ -60,6 +65,24 @@ export interface CaptureSettingsInput {
   localStorage?: Record<string, string>;
   /** JS run in every page before its own scripts, e.g. `window.__PV_CAPTURE__ = true`. */
   initScript?: string;
+  /** Hide elements matching these CSS selectors before capture (cookie banners, chat widgets, …). Default none. */
+  hideSelectors?: string[];
+  /** Extra CSS injected before capture (e.g. a brand backdrop, or hiding a sticky header). Omit for none. */
+  injectCss?: string;
+  /** Click these selectors once after load to dismiss overlays (consent dialogs); best-effort. Default none. */
+  clickSelectors?: string[];
+  /** Hide scrollbars so they don't appear in captures. Default true. */
+  hideScrollbars?: boolean;
+  /** Pause CSS animations/transitions for fully static, deterministic captures. Default false. */
+  pauseAnimations?: boolean;
+  /** Freeze Date.now / performance.now / Math.random (seeded) so time/random content is stable. Default false. */
+  freezeClock?: boolean;
+  /** Abort common analytics/ads/session-replay requests during capture (cleaner, faster). Default true. */
+  blockTrackers?: boolean;
+  /** Extra hostname substrings to block during capture. Default none. */
+  blockHosts?: string[];
+  /** Playwright resource types to block (e.g. "media", "font", "image"). Default none. */
+  blockResourceTypes?: string[];
 }
 
 export interface ShowcaseSettingsInput {
@@ -67,20 +90,13 @@ export interface ShowcaseSettingsInput {
   outDir?: string;
   /** How many assets to generate in parallel (shared browser, separate contexts). */
   concurrency?: number;
-  /**
-   * Raise the Node heap (V8 old-space) to this many MB. Heavy jobs — large frame-stepped walls
-   * especially — can exceed Node's ~4 GB default and crash with "JavaScript heap out of memory".
-   * When set above the current limit, the CLI re-execs itself with `--max-old-space-size`. This is
-   * the Node process heap, not the browser's.
-   */
-  maxMemoryMB?: number;
   /** CLI log verbosity. */
   logLevel?: LogLevel;
   /** Playwright launch controls. */
   browser?: BrowserSettingsInput;
   /** Build → start → wait → capture → stop a server automatically. */
   server?: ServerSettingsInput;
-  /** Capture-mode toggles applied to every URL-based asset (disable animations, hide cookie banner, …). */
+  /** Capture-mode settings applied to every URL-based asset (hide the cookie banner, block trackers, seed cookies, …). */
   capture?: CaptureSettingsInput;
   /** "draft" lowers fps/scale and speeds the encoder for fast iteration. */
   quality?: "draft" | "final";
@@ -89,12 +105,12 @@ export interface ShowcaseSettingsInput {
   /** Per-generator option defaults, keyed by generator id, merged under each asset. */
   defaults?: {
     "scroll-reel"?: ScrollReelOptions;
+    interaction?: InteractionOptions;
     screenshots?: ScreenshotsOptions;
     wall?: WallOptions;
     specimen?: SpecimenOptions;
     palette?: PaletteOptions;
     "palette-reel"?: PaletteReelOptions;
-    image?: ImageOptions;
   };
 }
 
@@ -102,45 +118,34 @@ export interface ShowcaseSettingsInput {
 export interface AssetBaseInput {
   /** Unique id for this asset — also the output filename (`<slug(name)>.mp4`) and manifest key. */
   name: string;
-  /** Other assets this one consumes, as `{ slotName: assetName }`. Producers run first. */
-  inputs?: Record<string, string>;
 }
 
 /**
  * Discriminated by `generator` so each asset gets the right `options` autocomplete. URL-based
  * generators take a `url` — absolute, or a `/path` resolved against the managed server; omit it
- * to capture the managed server's root. Local generators (wall, specimen, palette, image) need none.
+ * to capture the managed server's root. Local generators (wall, specimen, palette) need none.
+ * Asset dependencies are derived from options (e.g. a wall's column tiles) — there is no
+ * authored `inputs` map.
  */
 export type AssetSpecInput =
   | (AssetBaseInput & { url?: string; generator: "scroll-reel"; options?: ScrollReelOptions })
+  | (AssetBaseInput & { url?: string; generator: "interaction"; options: InteractionOptions })
   | (AssetBaseInput & { url?: string; generator: "screenshots"; options?: ScreenshotsOptions })
-  | (AssetBaseInput & { generator: "wall"; options?: WallOptions })
+  | (AssetBaseInput & { generator: "wall"; options: WallOptions })
   | (AssetBaseInput & { generator: "specimen"; options: SpecimenOptions })
   | (AssetBaseInput & { generator: "palette"; options: PaletteOptions })
-  | (AssetBaseInput & { generator: "palette-reel"; options: PaletteReelOptions })
-  | (AssetBaseInput & { generator: "image"; options: ImageOptions });
+  | (AssetBaseInput & { generator: "palette-reel"; options: PaletteReelOptions });
 
 export interface ShowcaseUserConfig {
   settings?: ShowcaseSettingsInput;
   assets: AssetSpecInput[];
 }
 
-/** Identity helper that gives `pro-visu.config.ts` full type-checking + autocomplete. */
+/**
+ * Identity helper that gives `pro-visu.config.ts` full type-checking + autocomplete. To split a
+ * config across modules, type the pieces with `satisfies` instead:
+ * `export const reels = [...] satisfies AssetSpecInput[]`.
+ */
 export function defineConfig(config: ShowcaseUserConfig): ShowcaseUserConfig {
   return config;
-}
-
-/** Identity helper for a `settings` block kept in its own module. */
-export function defineSettings(settings: ShowcaseSettingsInput): ShowcaseSettingsInput {
-  return settings;
-}
-
-/** Identity helper for a single asset kept in its own module. */
-export function defineAsset(asset: AssetSpecInput): AssetSpecInput {
-  return asset;
-}
-
-/** Identity helper for a group of assets kept in their own module. */
-export function defineAssets(assets: AssetSpecInput[]): AssetSpecInput[] {
-  return assets;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Page, Route } from "playwright-core";
-import { createSharedNetworkCache } from "@/pipeline/network-cache";
+import { createSharedNetworkCache } from "@/recorder/network-cache";
 import { createLogger } from "@/utils/logger";
 
 interface FakeResponse {

@@ -5,8 +5,9 @@ description: A seamless-looping media wall — columns of your image/video/scree
 
 A **wall** composites your assets into a marquee of tiles: columns that pan horizontally while each
 column scrolls vertically on its own, looping seamlessly. It takes no `url` — each column lists the
-assets it stacks **by name**, and the wall derives its dependencies from them (the producers run
-first; there's no separate `inputs` map to maintain).
+tiles it stacks: other assets **by name** (the wall derives its dependencies from them, and the
+producers run first) and/or local files directly via **`{ src }`** (photos and clips straight from
+disk, no producer asset needed).
 
 Every tile fills its **column's width** and takes its **own height** from its media's aspect ratio —
 a 16:9 asset is short, a 9:16 asset is tall, all the same width — so the columns read as a natural
@@ -14,22 +15,21 @@ masonry rather than a rigid grid. You don't set a tile size; the content decides
 
 ```ts
 assets: [
-  // tile producers — real photos, page captures, UI clips (any asset works)
-  { name: "img-coat", generator: "image", options: { src: "public/img/coat.jpg" } },
+  // tile producers — page captures, UI clips (any asset works)
   { name: "ui-home", url: "/", generator: "screenshots", options: { fullPage: false } },
-  { name: "clip-cart", url: "/products/coat", generator: "scroll-reel", options: { /* … */ } },
+  { name: "clip-cart", url: "/products/coat", generator: "interaction", options: { /* … */ } },
   // …enough to fill the columns…
 
   {
     name: "lookbook-wall",
-    generator: "wall",                 // no `inputs` — derived from the column tiles below
+    generator: "wall",                 // dependencies derived from the column tiles below
     options: {
       durationMs: 16000,
       columns: [
-        { tiles: ["img-coat", "clip-cart", "ui-home"], direction: "down",
+        { tiles: [{ src: "public/img/coat.jpg" }, "clip-cart", "ui-home"], direction: "down",
           pulses: [{ at: 0.1, span: 0.15, distance: 0.5, easing: "ease-in-out-strong" }] },
-        { tiles: ["img-crew", "ui-shop"], direction: "up", loops: 1, stagger: 0.4 },
-        { tiles: ["img-editorial", "clip-menu", "ui-about"], stagger: 0.15 },
+        { tiles: [{ src: "public/img/crew.jpg" }, "ui-shop"], direction: "up", loops: 1, stagger: 0.4 },
+        { tiles: [{ src: "public/img/editorial.jpg" }, "clip-menu", "ui-about"], stagger: 0.15 },
         // …≥3 columns…
       ],
       pan: { direction: "left", loops: 1 },  // steady whole-wall creep, one wrap over the clip
@@ -42,7 +42,7 @@ A very simple wall — three columns of photos, each with one gentle drift, loop
 
 <Example
   clip="docs-wall"
-  caption="Three columns of image tiles. The producers (the photos) run first; the wall is derived from the tile names."
+  caption="Three columns of photos as direct { src } tiles — no producer assets at all."
   code={`{
   name: "lookbook-wall",
   generator: "wall",
@@ -55,16 +55,16 @@ A very simple wall — three columns of photos, each with one gentle drift, loop
     loops: 1,
     columns: [
       {
-        tiles: ["img-coat", "img-editorial"],
+        tiles: [{ src: "img/coat.jpg" }, { src: "img/editorial.jpg" }],
         direction: "down",
       },
       {
-        tiles: ["img-hero", "img-tote"],
+        tiles: [{ src: "img/hero.jpg" }, { src: "img/tote.jpg" }],
         direction: "up",
         stagger: 0.4,
       },
       {
-        tiles: ["img-slip", "img-atelier"],
+        tiles: [{ src: "img/slip.jpg" }, { src: "img/atelier.jpg" }],
         direction: "down",
         stagger: 0.2,
       },
@@ -80,7 +80,7 @@ A very simple wall — three columns of photos, each with one gentle drift, loop
 (`direction`, `loops`, `pulses`, `stagger`). Omitted motion fields inherit the wall-level defaults.
 
 export const columnOptions = [
-  { name: 'tiles', type: 'string[]', required: true, description: 'Required (≥1). Assets stacked in this column, by name. Each keeps the column width and its own height; the set repeats to fill (and scroll through) the column.' },
+  { name: 'tiles', type: '(string | { src })[]', required: true, description: 'Required (≥1). Tiles stacked in this column: asset names and/or local files via { src: "path" }. Each keeps the column width and its own height; the set repeats to fill (and scroll through) the column.' },
   { name: 'direction', type: '"up" | "down"', default: '"down"', description: 'Vertical scroll direction. Set "up" per column where you want it.' },
   { name: 'loops', type: 'number', default: 'wall loops', description: 'Continuous whole-clip scroll periods for this column. Omit to inherit the wall-level loops.' },
   { name: 'pulses', type: 'Pulse[]', default: 'wall pulses', description: "This column's pulses (see below). Omit to inherit the wall-level pulses." },
@@ -102,7 +102,7 @@ export const pulseOptions = [
   { name: 'at', type: 'number (0–1)', description: 'When the move starts, as a fraction of the clip.' },
   { name: 'span', type: 'number (0–1)', description: 'How long the move takes, as a fraction of the clip. If at + span > 1, the start shifts back so it ends exactly at the loop point (a 0.2 pulse at 0.9 starts at 0.8) — a pulse can never overrun the clip.' },
   { name: 'distance', type: 'number', description: 'How far it travels, in periods (1 = one full tile-set). Usually 0–1.' },
-  { name: 'easing', type: '"linear" | "ease-in" | "ease-out" | "ease-in-out" | "ease-in-out-strong"', default: '"ease-in-out"', description: 'Ramp of the move.' },
+  { name: 'easing', type: '"linear" | "ease-in" | "ease-out" | "ease-in-out" | "ease-out-strong" | "ease-in-out-strong"', default: '"ease-in-out"', description: 'Ramp of the move (the shared easing vocabulary).' },
 ]
 
 <ConfigOptions items={pulseOptions} />
@@ -136,7 +136,7 @@ export const options = [
   { name: 'background', type: 'string', default: '"#0b0b0f"', description: 'Backdrop shown in the gutters and behind tiles.' },
   { name: 'fileName', type: 'string', default: '<name>.mp4', description: 'Output filename.' },
   { name: 'test', type: 'boolean', default: 'false', description: 'Preview mode — see below.' },
-  { name: 'testTiles', type: '{ [name]: { color?, size?, aspect? } }', default: '{}', description: "Per-tile faux appearance in test mode. aspect (w/h) lets a faux tile mimic a real tile's height so the preview matches the final masonry." },
+  { name: 'testTiles', type: '{ [name]: { color?, caption?, aspect? } }', default: '{}', description: "Per-tile faux appearance in test mode. aspect (w/h) lets a faux tile mimic a real tile's height so the preview matches the final masonry." },
 ]
 
 <ConfigOptions items={options} />
@@ -153,9 +153,9 @@ first. Flip **`test: true`** and the wall renders every tile as a flat **labeled
 options: {
   test: true,
   testTiles: {
-    "img-coat": { color: "#b49a77", size: "3:4", aspect: 0.75 }, // optional per-tile theming + height
-    "img-hero": { color: "#7a5234", size: "16:9", aspect: 1.78 }, // short landscape
-    "img-tote": { color: "#8a5a3c" },                              // auto-colour + fallback aspect
+    "img-coat": { color: "#b49a77", caption: "3:4", aspect: 0.75 }, // optional per-tile theming + height
+    "img-hero": { color: "#7a5234", caption: "16:9", aspect: 1.78 }, // short landscape
+    "img-tote": { color: "#8a5a3c" },                                 // auto-colour + fallback aspect
   },
   columns: [ /* …your real columns… */ ],
 }

@@ -43,9 +43,8 @@ Each entry in `assets` describes one thing to generate.
 export const assetFields = [
   { name: 'name', type: 'string', required: true, description: 'Unique across the config — used in filenames and the manifest id.' },
   { name: 'generator', type: 'string', required: true, description: 'One of the generator ids (/docs/generators).' },
-  { name: 'url', type: 'string', description: 'Page to capture. Required by URL-based generators (scroll-reel, screenshots) unless a managed server (/docs/configuration/managed-server) is configured — then omitting it captures the server root, and a relative "/path" resolves against it. Local generators (wall, image, palette, palette-reel, specimen) take no url.' },
+  { name: 'url', type: 'string', description: 'Page to capture. Required by URL-based generators (scroll-reel, interaction, screenshots) unless a managed server (/docs/configuration/managed-server) is configured — then omitting it captures the server root, and a relative "/path" resolves against it. Local generators (wall, palette, palette-reel, specimen) take no url.' },
   { name: 'options', type: 'object', description: 'Generator-specific options. Validated by the target generator.' },
-  { name: 'inputs', type: 'object', description: 'Other assets this one consumes, as { slot: assetName }.' },
 ]
 
 <ConfigOptions items={assetFields} />
@@ -77,20 +76,19 @@ For each asset, the generator's options come from two places, merged in order:
 So you can set `defaults: { "scroll-reel": { width: 1440, height: 900, fps: 30 } }` once and
 omit those fields on every reel.
 
-## The input graph
+## The asset graph
 
-Assets can depend on other assets via `inputs: { slot: assetName }`. The producing assets run
-first, and their output files are exposed to the consumer. A generator can also **derive** its
-`inputs` from its options instead of you hand-writing the map — the [`wall`](/docs/generators/wall)
-does this, treating each tile name in its columns as a dependency:
+Assets can depend on other assets — but you never author the dependency map. A generator
+**derives** its dependencies from its own options: the [`wall`](/docs/generators/wall) treats
+each asset name in its columns as a producer that must run first (and local files ride in as
+`{ src }` tiles, no producer needed):
 
 ```ts
 assets: [
   { name: "hero-shot", url: "/", generator: "screenshots", options: { fullPage: false } },
-  { name: "img-coat", generator: "image", options: { src: "public/img/coat.jpg" } },
   { name: "wall", generator: "wall",
-    // no `inputs` — derived from the tile names below; hero-shot + img-coat run first
-    options: { columns: [{ tiles: ["hero-shot", "img-coat"] }, /* …≥3… */] } },
+    // hero-shot runs first (named as a tile); the photo is used directly from disk
+    options: { columns: [{ tiles: ["hero-shot", { src: "public/img/coat.jpg" }] }, /* …≥3… */] } },
 ]
 ```
 
@@ -104,21 +102,21 @@ one file, each asset family in its own — and compose them in `pro-visu.config.
 Payload config imports its collections:
 
 ```ts title="showcase/settings.ts"
-import { defineSettings } from "pro-visu";
+import type { ShowcaseSettingsInput } from "pro-visu";
 
-export const settings = defineSettings({
+export const settings = {
   outDir: "pro-visu",
   server: { command: "next start" },
-});
+} satisfies ShowcaseSettingsInput;
 ```
 
 ```ts title="showcase/films.ts"
-import { defineAssets } from "pro-visu";
+import type { AssetSpecInput } from "pro-visu";
 
-export const films = defineAssets([
+export const films = [
   { name: "home", generator: "scroll-reel", options: { autoSections: { durationMs: 14000 } } },
   { name: "shop", url: "/shop", generator: "scroll-reel" },
-]);
+] satisfies AssetSpecInput[];
 ```
 
 ```ts title="pro-visu.config.ts"
@@ -130,8 +128,7 @@ import { stills } from "./showcase/stills";
 export default defineConfig({ settings, assets: [...films, ...stills] });
 ```
 
-`defineSettings`, `defineAsset`, and `defineAssets` are typed identity helpers like
-`defineConfig` — plain annotations work just as well (`const films: AssetSpecInput[] = [...]`).
+`satisfies` keeps full type-checking and autocomplete without widening the value's type.
 Every author-facing type is exported from `pro-visu`, including per-generator option types
 (`ScrollReelOptions`, `WallOptions`, …) and their fragments (`WallColumnInput`,
 `ChoreographyStepInput`, `PulseInput`, `PaletteColorInput`, …), so shared recipes and helpers

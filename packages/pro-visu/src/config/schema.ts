@@ -99,12 +99,15 @@ export const serverSettingsSchema = z
 export type ResolvedServerSettings = z.infer<typeof serverSettingsSchema>;
 
 /**
- * "Capture mode" toggles applied to every URL-based capture, so a site can render a clean, settled
- * snapshot (animations finished, no cookie banner, no chat widget, …) while keeping that behavior
- * for real users. Delivered four ways so a site can read whichever fits its rendering model:
- * a query param, cookies (SSR-readable + persist across in-app navigation — best for multi-route
- * reels), and an init script / localStorage for client-only reads. All are optional. A cookie can
- * also carry a session/auth value, letting captures reach login-gated pages.
+ * "Capture mode" settings applied to every URL-based capture (scroll-reel, screenshots,
+ * interaction), so a site renders a clean, settled snapshot (animations finished, no cookie
+ * banner, no chat widget, …) while keeping that behavior for real users.
+ *
+ * Two halves, one home:
+ * - Signals INTO the site (query / cookies / localStorage / initScript) — let the site itself
+ *   render capture-friendly; a cookie can also carry a session/auth value for login-gated pages.
+ * - Cleanup applied BY the tool (hide/click selectors, injected CSS, tracker blocking, clock
+ *   freeze, …) — suppress noise the site won't remove on its own.
  */
 export const captureSettingsSchema = z
   .object({
@@ -128,6 +131,51 @@ export const captureSettingsSchema = z
       .string()
       .optional()
       .describe("JS run in every page before its own scripts (e.g. `window.__PV_CAPTURE__ = true`)."),
+    /** Hide elements matching these CSS selectors before capture (cookie banners, chat widgets, …). */
+    hideSelectors: z
+      .array(z.string())
+      .default([])
+      .describe("Hide elements matching these CSS selectors before capture (cookie banners, chat widgets, …). Default none."),
+    /** Extra CSS injected before capture (e.g. a brand backdrop, or hiding a sticky header). */
+    injectCss: z
+      .string()
+      .optional()
+      .describe("Extra CSS injected before capture (e.g. a brand backdrop, or hiding a sticky header). Omit for none."),
+    /** Click these selectors once after load to dismiss overlays (consent dialogs); best-effort. */
+    clickSelectors: z
+      .array(z.string())
+      .default([])
+      .describe("Click these selectors once after load to dismiss overlays (consent dialogs); best-effort. Default none."),
+    /** Hide scrollbars so they don't appear in captures. */
+    hideScrollbars: z
+      .boolean()
+      .default(true)
+      .describe("Hide scrollbars so they don't appear in captures. Default true."),
+    /** Pause CSS animations/transitions for fully static, deterministic captures. */
+    pauseAnimations: z
+      .boolean()
+      .default(false)
+      .describe("Pause CSS animations/transitions for fully static, deterministic captures. Default false."),
+    /** Freeze Date.now / performance.now / Math.random (seeded) so time/random content is stable. */
+    freezeClock: z
+      .boolean()
+      .default(false)
+      .describe("Freeze Date.now / performance.now / Math.random (seeded) so time/random content is stable. Default false."),
+    /** Abort common analytics/ads/session-replay requests during capture (cleaner, faster). */
+    blockTrackers: z
+      .boolean()
+      .default(true)
+      .describe("Abort common analytics/ads/session-replay requests during capture (cleaner, faster). Default true."),
+    /** Extra hostname substrings to block during capture. */
+    blockHosts: z
+      .array(z.string())
+      .default([])
+      .describe("Extra hostname substrings to block during capture. Default none."),
+    /** Playwright resource types to block (e.g. "media", "font", "image"). */
+    blockResourceTypes: z
+      .array(z.string())
+      .default([])
+      .describe('Playwright resource types to block (e.g. "media", "font", "image"). Default none.'),
   })
   .strict();
 export type ResolvedCaptureSettings = z.infer<typeof captureSettingsSchema>;
@@ -147,18 +195,6 @@ export const settingsSchema = z.object({
     .positive()
     .default(2)
     .describe("How many assets to generate in parallel, sharing one browser with separate contexts (default 2)."),
-  /**
-   * Raise the Node heap (V8 old-space) to this many MB for the run. Heavy jobs — large frame-stepped
-   * walls especially — can exceed Node's default ~4 GB limit and crash with "JavaScript heap out of
-   * memory". When set above the current limit, the CLI re-execs itself with `--max-old-space-size`.
-   * (This is the Node process heap, not the browser's — the browser manages its own memory.)
-   */
-  maxMemoryMB: z
-    .number()
-    .int()
-    .positive()
-    .optional()
-    .describe("Raise the Node heap (V8 old-space) to this many MB to avoid out-of-memory on heavy jobs; re-execs with --max-old-space-size."),
   logLevel: logLevelSchema.default("info").describe("CLI log verbosity (default \"info\")."),
   browser: browserSettingsSchema.default({}).describe("Playwright launch controls."),
   /**
@@ -173,10 +209,10 @@ export const settingsSchema = z.object({
   server: serverSettingsSchema
     .optional()
     .describe("Build → start → wait → capture → stop a server automatically."),
-  /** "Capture mode" toggles (query/cookies/localStorage/init script) applied to every URL capture. */
+  /** Capture-mode settings (site signals + tool-side cleanup) applied to every URL capture. */
   capture: captureSettingsSchema
-    .optional()
-    .describe('Capture-mode toggles applied to every URL-based asset (e.g. disable animations / hide the cookie banner).'),
+    .default({})
+    .describe("Capture-mode settings applied to every URL-based asset (hide the cookie banner, block trackers, seed cookies, …)."),
   /** Render quality. "draft" lowers fps/scale and speeds the encoder for fast iteration. */
   quality: z
     .enum(["draft", "final"])
@@ -190,7 +226,13 @@ export const settingsSchema = z.object({
 }).strict();
 export type ResolvedSettings = z.infer<typeof settingsSchema>;
 
-/** One thing to generate. Options are validated by the target generator at run time. */
+/**
+ * One thing to generate. Options are validated by the target generator at run time.
+ *
+ * Asset dependencies are NOT authored: generators derive them from their own options (e.g. a
+ * wall's columns name the assets they stack), and the pipeline stamps the derived `inputs` map
+ * onto the parsed spec before building the DAG. The transform seeds the (internal) empty map.
+ */
 export const assetSpecSchema = z
   .object({
     name: z.string().min(1),
@@ -209,14 +251,9 @@ export const assetSpecSchema = z
       .optional(),
     generator: z.string().min(1),
     options: z.record(z.string(), z.unknown()).default({}),
-    /**
-     * Other assets this one consumes, as `{ slotName: assetName }`. The producing assets run
-     * first and their output files are exposed to this asset (e.g. a scene playing an earlier
-     * recording). Forms a DAG; cycles are rejected.
-     */
-    inputs: z.record(z.string(), z.string()).default({}),
   })
-  .strict();
+  .strict()
+  .transform((a) => ({ ...a, inputs: {} as Record<string, string> }));
 export type ResolvedAssetSpec = z.infer<typeof assetSpecSchema>;
 
 export const showcaseConfigSchema = z

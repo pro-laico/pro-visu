@@ -303,22 +303,3 @@ export function boomerangSpec(spec: TimelineSpec): TimelineSpec {
   return { segments: [...forward, ...backward] };
 }
 
-// --- Ken Burns (slow zoom) ---
-
-/** Fold progress into a tent: 0→0, 0.5→1, 1→0. Keeps a zoom seamless under a boomerang loop. */
-export function foldProgress(p: number): number {
-  const c = clamp01(p);
-  return c < 0.5 ? c * 2 : (1 - c) * 2;
-}
-
-export interface KenBurnsResolved {
-  scaleFrom: number;
-  scaleTo: number;
-  easing: EasingName;
-}
-
-/** Pure: the zoom scale at normalized progress (0..1), eased from scaleFrom to scaleTo. */
-export function kenBurnsScaleAt(progress: number, cfg: KenBurnsResolved): number {
-  const eased = EASINGS[cfg.easing](clamp01(progress));
-  return cfg.scaleFrom + (cfg.scaleTo - cfg.scaleFrom) * eased;
-}

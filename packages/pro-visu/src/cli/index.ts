@@ -1,13 +1,11 @@
 #!/usr/bin/env node
 import { cac } from "cac";
 import { TOOL_VERSION } from "@/version";
-import { checkForUpdates } from "@/cli/update-check";
+import { checkForUpdates, runUpdateWorker, UPDATE_WORKER_FLAG } from "@/cli/update-check";
 import { runInit } from "@/cli/commands/init";
 import { runGenerate } from "@/cli/commands/generate";
 import { runDoctor } from "@/cli/commands/doctor";
 import { runList } from "@/cli/commands/list";
-import { runReset } from "@/cli/commands/reset";
-import { runSchema } from "@/cli/commands/schema";
 
 const cli = cac("pro-visu");
 
@@ -31,12 +29,11 @@ cli
   .option("--skip-build", "Skip the server build step (fast iteration when the site is unchanged)")
   .option("--draft", "Draft quality: faster, lower-fidelity renders for iteration")
   .option("--cache", "Skip assets whose inputs+options are unchanged")
-  .option("--dry-run", "Validate the config and print the plan without generating")
   .option("--verbose", "Verbose (debug) logging (plain logs instead of the live dashboard)")
   .action(runGenerate);
 
 cli
-  .command("doctor", "Check the environment + config (Node, config, Chromium, ffmpeg, URLs)")
+  .command("doctor", "Check the setup and print the plan (Node, config, Chromium, ffmpeg, URLs)")
   .option("--config <path>", "Path to a config file")
   .option("--cwd <dir>", "Working directory")
   .action(runDoctor);
@@ -49,25 +46,17 @@ cli
   .option("--json", "Print the manifest as JSON (for scripts/CI)")
   .action(runList);
 
-cli
-  .command("schema", "Write a JSON Schema for pro-visu.config.json (editor autocomplete)")
-  .option("--cwd <dir>", "Working directory")
-  .option("--out <path>", "Output path (default pro-visu.schema.json)")
-  .action(runSchema);
-
-cli
-  .command("reset", "Clean up orphaned processes/temp from an interrupted run")
-  .option("--config <path>", "Path to a config file")
-  .option("--cwd <dir>", "Working directory")
-  .option("--force", "Clean up even if a run still looks active")
-  .action(runReset);
-
 cli.help();
 cli.version(TOOL_VERSION);
 
 const parsed = cli.parse(process.argv, { run: false });
 
 async function main(): Promise<void> {
+  // A detached invocation of ourselves refreshes the update-check cache, then exits.
+  if (process.env[UPDATE_WORKER_FLAG] === "1") {
+    await runUpdateWorker();
+    return;
+  }
   // Fire-and-forget: arms a deferred "newer version on npm" notice (best-effort, non-blocking).
   checkForUpdates();
   if (!cli.matchedCommand) {

@@ -4,7 +4,6 @@ import {
   hexToRgb,
   normalizeHex,
   pickTextColor,
-  rgbToCmyk,
   rgbToHsl,
   rgbToOklch,
 } from "@/generators/palette/color";
@@ -49,16 +48,10 @@ describe("rgbToOklch", () => {
   });
 });
 
-describe("rgbToHsl / rgbToCmyk", () => {
+describe("rgbToHsl", () => {
   it("hsl of a mid grey is desaturated", () => {
     const { s } = rgbToHsl({ r: 128, g: 128, b: 128 });
     expect(s).toBe(0);
-  });
-  it("cmyk of black is K=100", () => {
-    expect(rgbToCmyk({ r: 0, g: 0, b: 0 })).toEqual({ c: 0, m: 0, y: 0, k: 100 });
-  });
-  it("cmyk of white is all zero", () => {
-    expect(rgbToCmyk({ r: 255, g: 255, b: 255 })).toEqual({ c: 0, m: 0, y: 0, k: 0 });
   });
 });
 

@@ -16,7 +16,13 @@
 
 export type Dir = 1 | -1;
 
-export type Easing = "linear" | "ease-in" | "ease-out" | "ease-in-out" | "ease-in-out-strong";
+export type Easing =
+  | "linear"
+  | "ease-in"
+  | "ease-out"
+  | "ease-in-out"
+  | "ease-out-strong"
+  | "ease-in-out-strong";
 
 /** One eased move that adds `distance` periods of travel at `at`, lasting `span` (clip fractions). */
 export interface PulseInput {
@@ -48,12 +54,13 @@ function mod(n: number, m: number): number {
   return ((n % m) + m) % m;
 }
 
-/** Easing curves, 0→1. "ease-in-out-strong" is a quintic with a heavy hold at both ends. */
+/** Easing curves, 0→1 — the shared vocabulary (base curves cubic, "strong" quintic). */
 const EASES: Record<Easing, (x: number) => number> = {
   linear: (x) => x,
   "ease-in": (x) => x * x * x,
   "ease-out": (x) => 1 - Math.pow(1 - x, 3),
   "ease-in-out": (x) => (x < 0.5 ? 4 * x ** 3 : 1 - Math.pow(-2 * x + 2, 3) / 2),
+  "ease-out-strong": (x) => 1 - Math.pow(1 - x, 5),
   "ease-in-out-strong": (x) => (x < 0.5 ? 16 * x ** 5 : 1 - Math.pow(-2 * x + 2, 5) / 2),
 };
 

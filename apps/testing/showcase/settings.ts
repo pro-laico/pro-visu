@@ -1,11 +1,10 @@
-import { defineSettings } from "pro-visu";
+import type { ShowcaseSettingsInput } from "pro-visu";
 
-// Serial + a roomy Node heap: the frame-stepped wall is memory-heavy, so run one asset at a
-// time and raise the heap past Node's ~4 GB default.
-export const settings = defineSettings({
+// Serial: the frame-stepped wall is memory-heavy, so run one asset at a time. (Heavy wall plans
+// get a bigger Node heap automatically — no memory knob needed.)
+export const settings = {
   outDir: "public/pro-visu", // served by the Next app at /pro-visu/* (and /gallery)
   concurrency: 1,
-  maxMemoryMB: 8192,
   browser: { headless: true },
   server: {
     build: "pnpm build",
@@ -16,4 +15,4 @@ export const settings = defineSettings({
   defaults: {
     "scroll-reel": { width: 1280, height: 800, fps: 30 },
   },
-});
+} satisfies ShowcaseSettingsInput;

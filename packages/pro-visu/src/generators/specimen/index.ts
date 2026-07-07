@@ -2,8 +2,8 @@ import {
   specimenOptionsSchema,
   type ResolvedSpecimenOptions,
 } from "@/generators/specimen/options";
-import { renderScene } from "@/generators/scene";
-import type { ResolvedSceneOptions } from "@/generators/scene/options";
+import { renderScene } from "@/scene-engine/render";
+import type { ResolvedSceneOptions } from "@/scene-engine/options";
 import type { Generator, PipelineContext } from "@/generators/types";
 import type { AssetRecord } from "@/manifest/schema";
 

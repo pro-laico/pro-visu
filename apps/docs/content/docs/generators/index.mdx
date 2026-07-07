@@ -8,22 +8,22 @@ the asset's own `options` (the asset wins). Each generator validates its own opt
 
 | Generator | Output | Needs `url`? | Key options |
 |---|---|---|---|
-| [`scroll-reel`](/docs/generators/scroll-reel) | mp4 (+ gif/webp/poster) | Yes | `width`/`height`/`fps`/`durationMs`, `capture`, `choreography`, `autoSections`, `kenBurns`, `loop`, clean-capture, `colorScheme`/`viewports`, `aspect`, `outputs`, `intro`/`outro`, `annotations`, `actions`, `focus`, `routes` |
+| [`scroll-reel`](/docs/generators/scroll-reel) | mp4 (+ gif/webp/poster) | Yes | `width`/`height`/`fps`/`durationMs`, `capture`, `choreography`, `autoSections`, `loop`, `colorScheme`/`viewports`, `aspect`, `outputs`, `routes` |
+| [`interaction`](/docs/generators/interaction) | mp4 | Yes | `actions[]`, `cursor`, `focus` |
 | [`screenshots`](/docs/generators/screenshots) | png / jpeg | Yes | `viewports[]`, `fullPage`, `format`, `elements[]`, `deviceScaleFactor` |
-| [`wall`](/docs/generators/wall) | mp4 | No | `columns[]` (tiles + per-column motion), `pulses`, `loops`, `pan`, `gap`/`tileAspect`, `test` |
-| [`image`](/docs/generators/image) | (passthrough) | No | `src`, `fileName` |
+| [`wall`](/docs/generators/wall) | mp4 | No | `columns[]` (tiles by name or `{ src }` + per-column motion), `pulses`, `loops`, `pan`, `gap`/`tileAspect`, `test` |
 | [`specimen`](/docs/generators/specimen) | mp4 | No | `font`, `template`, `pulses`, `colors`, `seed` |
 | [`palette`](/docs/generators/palette) | png | No | `colors[]`, `layout`, corner fields |
 | [`palette-reel`](/docs/generators/palette-reel) | mp4 | No | `colors[]`, `details`, timing |
 
 ## URL-based vs local generators
 
-- **URL-based** (`scroll-reel`, `screenshots`) capture a live page, so the asset needs a `url`
-  (and a running site or a [managed server](/docs/configuration/managed-server)). With a managed
-  server, an omitted `url` defaults to the server root.
-- **Local** (`wall`, `image`, `specimen`, `palette`, `palette-reel`) render from a font file, a
-  colour list, or other assets — no `url` required. A `wall` composites the assets its columns name
-  (deriving its dependencies from them); `image` registers a file for reuse.
+- **URL-based** (`scroll-reel`, `interaction`, `screenshots`) capture a live page, so the asset
+  needs a `url` (and a running site or a [managed server](/docs/configuration/managed-server)).
+  With a managed server, an omitted `url` defaults to the server root.
+- **Local** (`wall`, `specimen`, `palette`, `palette-reel`) render from a font file, a colour
+  list, or other assets — no `url` required. A `wall` composites the assets its columns name
+  (deriving its dependencies from them) plus local files via `{ src }` tiles.
 
 ## Video fidelity
 
@@ -31,4 +31,5 @@ The video generators capture **frame-stepped** by default: a virtual clock is dr
 frame is screenshotted, and frames are piped to ffmpeg — so output is frame-accurate,
 supersampled by `deviceScaleFactor`, parallelised across `workers`, and byte-identical
 run-to-run. `scroll-reel` can fall back to `capture: "realtime"` for time-based hero
-animations and scripted interactions; see the [scroll-reel](/docs/generators/scroll-reel) page.
+animations; scripted interactions are always realtime — that's the
+[interaction](/docs/generators/interaction) generator.

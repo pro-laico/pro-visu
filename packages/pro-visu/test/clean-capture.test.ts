@@ -3,7 +3,7 @@ import {
   buildCleanCss,
   shouldBlockRequest,
   DEFAULT_TRACKER_HOSTS,
-} from "@/generators/scroll-reel/clean-capture";
+} from "@/pipeline/clean-capture";
 
 const NONE = {
   hideSelectors: [] as string[],

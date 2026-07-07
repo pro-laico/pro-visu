@@ -9,10 +9,9 @@ import { captureScrollFrames } from "@/generators/scroll-reel/capture-frames";
 import { scrollTimelineTotalMs } from "@/generators/scroll-reel/timeline";
 import { buildVariants } from "@/generators/scroll-reel/variants";
 import { produceOutputs } from "@/generators/scroll-reel/outputs";
-import { captureFocusWebm, captureInteractionWebm } from "@/generators/scroll-reel/interaction";
 import { requireUrl } from "@/generators/require-url";
 import { concatMp4, transcodeToMp4 } from "@/media/ffmpeg";
-import { autoWorkers } from "@/media/frame-capture";
+import { autoWorkers } from "@/recorder/frame-capture";
 import { sha256File } from "@/utils/hash";
 import { slugify } from "@/utils/paths";
 import type { Generator, PipelineContext } from "@/generators/types";
@@ -27,113 +26,6 @@ async function run(
   const url = requireUrl(ctx);
   const draft = ctx.quality === "draft";
   const preset = draft ? "ultrafast" : "medium";
-
-  // Element-focused clip: realtime capture of one component, cropped to its box — single asset.
-  if (options.focus) {
-    const scheme =
-      options.colorScheme === "dark" ? "dark" : options.colorScheme === "light" ? "light" : undefined;
-    const fileName = options.fileName ?? `${slugify(ctx.target.name)}.mp4`;
-    const outPath = ctx.resolveOutPath(fileName);
-    ctx.logger.info(`recording ${url} (focus: ${options.focus.selector})`);
-    const { webmPath, leadSeconds, durationSeconds, cropBox } = await captureFocusWebm({
-      browser: ctx.browser,
-      capture: ctx.capture,
-      url,
-      options,
-      colorScheme: scheme,
-      tmpDir: ctx.tmpDir,
-      logger: ctx.logger,
-    });
-    ctx.logger.debug("transcoding to mp4 (cropped)");
-    await transcodeToMp4({
-      inputPath: webmPath,
-      outputPath: outPath,
-      fps: options.fps,
-      width: cropBox.width,
-      height: cropBox.height,
-      crf: options.crf,
-      preset,
-      startOffsetSeconds: leadSeconds,
-      durationSeconds,
-      crop: cropBox,
-      logger: ctx.logger,
-      signal: ctx.signal,
-    });
-    const [stats, contentHash] = await Promise.all([stat(outPath), sha256File(outPath)]);
-    const record: AssetRecord = {
-      id: ctx.target.name,
-      generator: SCROLL_REEL_ID,
-      sourceUrl: url,
-      file: ctx.toManifestPath(outPath),
-      format: "mp4",
-      width: cropBox.width,
-      height: cropBox.height,
-      durationMs: Math.round(durationSeconds * 1000),
-      bytes: stats.size,
-      contentHash,
-      createdAt: new Date().toISOString(),
-      toolVersion: ctx.toolVersion,
-    };
-    await ctx.writeAsset(record);
-    ctx.logger.success(`${ctx.target.name} → ${record.file}`);
-    return { assets: [record] };
-  }
-
-  // Interaction: a scripted realtime "tour" with a synthetic cursor — single asset, always realtime.
-  if (options.actions && options.actions.length > 0) {
-    if (options.viewports?.length || options.colorScheme === "both") {
-      ctx.logger.warn('viewports / colorScheme:"both" are not expanded for interaction reels');
-    }
-    if (options.intro || options.outro || options.annotations?.length) {
-      ctx.logger.warn("intro/outro/annotations are not applied to interaction reels");
-    }
-    const scheme =
-      options.colorScheme === "dark" ? "dark" : options.colorScheme === "light" ? "light" : undefined;
-    const fileName = options.fileName ?? `${slugify(ctx.target.name)}.mp4`;
-    const outPath = ctx.resolveOutPath(fileName);
-    ctx.logger.info(`recording ${url} (interaction, ${options.actions.length} action(s))`);
-    const { webmPath, leadSeconds, durationSeconds } = await captureInteractionWebm({
-      browser: ctx.browser,
-      capture: ctx.capture,
-      url,
-      options,
-      colorScheme: scheme,
-      tmpDir: ctx.tmpDir,
-      logger: ctx.logger,
-    });
-    ctx.logger.debug("transcoding to mp4");
-    await transcodeToMp4({
-      inputPath: webmPath,
-      outputPath: outPath,
-      fps: options.fps,
-      width: options.width,
-      height: options.height,
-      crf: options.crf,
-      preset,
-      startOffsetSeconds: leadSeconds,
-      durationSeconds,
-      logger: ctx.logger,
-      signal: ctx.signal,
-    });
-    const [stats, contentHash] = await Promise.all([stat(outPath), sha256File(outPath)]);
-    const record: AssetRecord = {
-      id: ctx.target.name,
-      generator: SCROLL_REEL_ID,
-      sourceUrl: url,
-      file: ctx.toManifestPath(outPath),
-      format: "mp4",
-      width: options.width,
-      height: options.height,
-      durationMs: Math.round(durationSeconds * 1000),
-      bytes: stats.size,
-      contentHash,
-      createdAt: new Date().toISOString(),
-      toolVersion: ctx.toolVersion,
-    };
-    await ctx.writeAsset(record);
-    ctx.logger.success(`${ctx.target.name} → ${record.file}`);
-    return { assets: [record] };
-  }
 
   // Multi-page tour: capture each route as a frame-stepped segment, then concatenate into one reel.
   if (options.routes && options.routes.length > 0) {
@@ -196,7 +88,6 @@ async function run(
       sourceUrl: url,
       width: options.width,
       height: options.height,
-      deviceScaleFactor: options.deviceScaleFactor,
       durationMs: totalMs,
       options,
       preset,
@@ -212,9 +103,6 @@ async function run(
     }
     if (options.viewports?.length || options.colorScheme === "both") {
       ctx.logger.warn('viewports / colorScheme:"both" are ignored for capture:"realtime"');
-    }
-    if (options.intro || options.outro || options.annotations?.length) {
-      ctx.logger.warn('intro/outro/annotations are not applied to capture:"realtime"');
     }
     const fileName = options.fileName ?? `${slugify(ctx.target.name)}.mp4`;
     const outPath = ctx.resolveOutPath(fileName);
@@ -317,7 +205,6 @@ async function run(
       sourceUrl: url,
       width: v.width,
       height: v.height,
-      deviceScaleFactor: v.deviceScaleFactor,
       durationMs: scrollTimelineTotalMs(vopts),
       options,
       preset,

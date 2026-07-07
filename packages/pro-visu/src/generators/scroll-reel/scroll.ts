@@ -1,32 +1,8 @@
-export type EasingName =
-  | "linear"
-  | "ease-in-out-cubic"
-  | "ease-in-out-quad"
-  | "ease-out-cubic"
-  | "ease-in-out-sine"
-  | "ease-in-out-expo"
-  | "ease-out-quint";
+import { EASINGS, type Easing } from "@/generators/easing";
 
-/**
- * Pure easing functions, t in [0,1] -> [0,1]. Unit-tested on the Node side; the formula inside
- * `pageScroll` below MUST stay in sync with these.
- */
-export const EASINGS: Record<EasingName, (t: number) => number> = {
-  linear: (t) => t,
-  "ease-in-out-cubic": (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
-  "ease-in-out-quad": (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2),
-  "ease-out-cubic": (t) => 1 - Math.pow(1 - t, 3),
-  "ease-in-out-sine": (t) => -(Math.cos(Math.PI * t) - 1) / 2,
-  "ease-in-out-expo": (t) =>
-    t === 0
-      ? 0
-      : t === 1
-        ? 1
-        : t < 0.5
-          ? Math.pow(2, 20 * t - 10) / 2
-          : (2 - Math.pow(2, -20 * t + 10)) / 2,
-  "ease-out-quint": (t) => 1 - Math.pow(1 - t, 5),
-};
+/** The shared easing vocabulary, re-exported under the name this module's callers use. */
+export type EasingName = Easing;
+export { EASINGS };
 
 export interface PageScrollArgs {
   durationMs: number;
@@ -43,12 +19,6 @@ export interface PrepareScrollArgs {
 export interface SeekScrollArgs {
   /** Normalized scroll position to jump to (0 = top, 1 = bottom). */
   normalizedY: number;
-  /** Optional Ken Burns zoom scale for this frame (omit for no zoom). */
-  scale?: number;
-  /** Zoom origin X within the viewport (0 = left, 1 = right). Default 0.5. */
-  originX?: number;
-  /** Zoom origin Y within the viewport (0 = top, 1 = bottom). Default 0.5. */
-  originY?: number;
 }
 
 export interface MeasureOffsetsArgs {
@@ -477,11 +447,6 @@ export async function measureTopInset(args: MeasureTopInsetArgs): Promise<number
 
 export interface SeekFrameArgs extends SeekScrollArgs {
   /**
-   * Annotation runtime state for this frame — applied via the installed `__scAnno` runtime.
-   * Omit when the capture has no annotations.
-   */
-  annotationState?: unknown;
-  /**
    * Settle the CURRENT viewport's content before returning — wait for fonts and in-view image
    * decode, each capped IN-PAGE at this many ms so the evaluate always resolves (a stuck decode
    * must not stack pending protocol calls). Omit to skip settling (draft mode).
@@ -491,11 +456,10 @@ export interface SeekFrameArgs extends SeekScrollArgs {
 
 /**
  * Runs INSIDE the page. The per-frame step for frame-stepped site capture, combined into ONE
- * evaluate: scroll-seek (+ optional Ken Burns scale) → optional annotation update → optional
- * in-view settle. These used to be up to three separate `page.evaluate` round-trips per frame;
- * over thousands of frames × parallel workers the protocol overhead was a real slice of capture
- * time. Must be self-contained (serialized via page.evaluate); helpers are inlined as elsewhere
- * in this file.
+ * evaluate: scroll-seek → optional in-view settle. These used to be separate `page.evaluate`
+ * round-trips per frame; over thousands of frames × parallel workers the protocol overhead was a
+ * real slice of capture time. Must be self-contained (serialized via page.evaluate); helpers are
+ * inlined as elsewhere in this file.
  */
 export async function seekFrame(args: SeekFrameArgs): Promise<void> {
   // 1. Scroll-seek (same semantics as seekScrollTo).
@@ -505,40 +469,12 @@ export async function seekFrame(args: SeekFrameArgs): Promise<void> {
   const distance = maxScrollOf(target);
   const clamped = args.normalizedY < 0 ? 0 : args.normalizedY > 1 ? 1 : args.normalizedY;
   scrollTargetTo(target, clamped * distance);
-  if (typeof args.scale === "number") {
-    try {
-      const vw = window.innerWidth || document.documentElement.clientWidth || 0;
-      const vh = window.innerHeight || document.documentElement.clientHeight || 0;
-      const sx = window.pageXOffset || 0;
-      const sy = window.pageYOffset || document.documentElement.scrollTop || 0;
-      const ox = sx + (args.originX ?? 0.5) * vw;
-      const oy = sy + (args.originY ?? 0.5) * vh;
-      const body = document.body;
-      if (body && body.style) {
-        body.style.transformOrigin = `${ox}px ${oy}px`;
-        body.style.transform = `scale(${args.scale})`;
-      }
-    } catch {
-      /* ignore */
-    }
-  }
   // Two rAF ticks: let scroll handlers run (frame 1) and the resulting paint commit (frame 2).
   await new Promise<void>((resolve) =>
     requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
   );
 
-  // 2. Annotation state for this frame (the runtime was installed during prepare).
-  if (args.annotationState !== undefined) {
-    try {
-      await (
-        globalThis as { __scAnno?: { update(s: unknown): Promise<void> } }
-      ).__scAnno?.update(args.annotationState);
-    } catch {
-      /* annotation runtime unavailable */
-    }
-  }
-
-  // 3. Settle in-view content (fonts + visible image decode), each await capped at settleMaxMs.
+  // 2. Settle in-view content (fonts + visible image decode), each await capped at settleMaxMs.
   if (args.settleMaxMs != null) {
     const maxMs = args.settleMaxMs;
     const sleep = (ms: number): Promise<void> =>
@@ -643,24 +579,16 @@ export async function pageScroll(args: PageScrollArgs): Promise<number> {
 
   const ease = (t: number): number => {
     switch (easing) {
-      case "ease-in-out-cubic":
-        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      case "ease-in-out-quad":
-        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-      case "ease-out-cubic":
+      case "ease-in":
+        return t * t * t;
+      case "ease-out":
         return 1 - Math.pow(1 - t, 3);
-      case "ease-in-out-sine":
-        return -(Math.cos(Math.PI * t) - 1) / 2;
-      case "ease-in-out-expo":
-        return t === 0
-          ? 0
-          : t === 1
-            ? 1
-            : t < 0.5
-              ? Math.pow(2, 20 * t - 10) / 2
-              : (2 - Math.pow(2, -20 * t + 10)) / 2;
-      case "ease-out-quint":
+      case "ease-in-out":
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      case "ease-out-strong":
         return 1 - Math.pow(1 - t, 5);
+      case "ease-in-out-strong":
+        return t < 0.5 ? 16 * Math.pow(t, 5) : 1 - Math.pow(-2 * t + 2, 5) / 2;
       default:
         return t;
     }

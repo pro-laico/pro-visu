@@ -22,7 +22,7 @@ interface WallPanOpt {
 /** A faux tile spec for `test` preview mode. */
 interface FauxTileOpt {
   color?: string;
-  size?: string;
+  caption?: string;
   aspect?: number;
 }
 
@@ -30,7 +30,7 @@ interface FauxTileOpt {
  *  own aspect so the preview shows the same mixed-height layout the real (natural-sized) media will. */
 type Cell =
   | { kind: "asset"; url: string }
-  | { kind: "faux"; color: string; label: string; size?: string; aspect: number };
+  | { kind: "faux"; color: string; label: string; caption?: string; aspect: number };
 
 /**
  * A wall of media tiles. Every tile fills its column's WIDTH and takes its OWN height from its media's
@@ -71,6 +71,7 @@ interface Layout {
 function computeLayout(
   width: number,
   inputs: Record<string, string>,
+  files: Record<string, string>,
   o: Record<string, unknown>,
 ): Layout {
   const num = (k: string, d: number): number => (typeof o[k] === "number" ? (o[k] as number) : d);
@@ -114,11 +115,12 @@ function computeLayout(
             kind: "faux",
             color: f.color ?? autoColor(name),
             label: name,
-            size: f.size,
+            caption: f.caption,
             aspect: typeof f.aspect === "number" && f.aspect > 0 ? f.aspect : fallbackAspect,
           };
         })
-      : (names.map((name) => inputs[name]).filter(Boolean) as string[]).map((url) => ({
+      : // Slot names resolve to asset inputs, or served files (`{ src }` tiles).
+        (names.map((name) => inputs[name] ?? files[name]).filter(Boolean) as string[]).map((url) => ({
           kind: "asset" as const,
           url,
         }));
@@ -180,8 +182,8 @@ function Tile({
         <span style={{ fontWeight: 700, fontSize: Math.max(12, Math.round(w * 0.1)), lineHeight: 1.1 }}>
           {cell.label}
         </span>
-        {cell.size ? (
-          <span style={{ fontSize: Math.max(10, Math.round(w * 0.065)), opacity: 0.8 }}>{cell.size}</span>
+        {cell.caption ? (
+          <span style={{ fontSize: Math.max(10, Math.round(w * 0.065)), opacity: 0.8 }}>{cell.caption}</span>
         ) : null}
       </div>
     );
@@ -263,10 +265,11 @@ export function Wall({
   background,
   durationSeconds,
   inputs,
+  files,
   options,
 }: SceneProps): React.ReactElement {
-  const layoutKey = `${width}x${height}|${JSON.stringify(options)}|${JSON.stringify(inputs)}`;
-  const layout = useMemo(() => computeLayout(width, inputs, options), [layoutKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const layoutKey = `${width}x${height}|${JSON.stringify(options)}|${JSON.stringify(inputs)}|${JSON.stringify(files)}`;
+  const layout = useMemo(() => computeLayout(width, inputs, files, options), [layoutKey]); // eslint-disable-line react-hooks/exhaustive-deps
   // Backdrop shown in the padding gaps and behind tiles — the wall sceneOption overrides the
   // scene's background prop when set.
   const bg = typeof options.background === "string" ? options.background : background;

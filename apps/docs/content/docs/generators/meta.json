@@ -3,9 +3,9 @@
   "pages": [
     "index",
     "scroll-reel",
+    "interaction",
     "screenshots",
     "wall",
-    "image",
     "specimen",
     "palette",
     "palette-reel"

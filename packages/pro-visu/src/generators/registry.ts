@@ -1,11 +1,11 @@
 import type { Generator } from "@/generators/types";
 import { scrollReelGenerator } from "@/generators/scroll-reel";
+import { interactionGenerator } from "@/generators/interaction";
 import { screenshotsGenerator } from "@/generators/screenshots";
 import { wallGenerator } from "@/generators/wall";
 import { specimenGenerator } from "@/generators/specimen";
 import { paletteGenerator } from "@/generators/palette";
 import { paletteReelGenerator } from "@/generators/palette-reel";
-import { imageGenerator } from "@/generators/image";
 
 const registry = new Map<string, Generator<unknown>>();
 
@@ -27,9 +27,9 @@ export function generatorIds(): string[] {
 
 // Register built-in generators. New asset types add a line here.
 register(scrollReelGenerator);
+register(interactionGenerator);
 register(screenshotsGenerator);
 register(wallGenerator);
 register(specimenGenerator);
 register(paletteGenerator);
 register(paletteReelGenerator);
-register(imageGenerator);
