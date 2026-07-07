@@ -6,34 +6,28 @@ export const films = [
     name: "home", // auto-sections down the whole home page
     generator: "scroll-reel",
     options: {
-      waitForSelector: ".hero-media img",
-      autoSections: { durationMs: 14000 },
+      page: { waitForSelector: ".hero-media img" },
+      motion: { autoSections: { durationMs: 14000 } },
     },
   },
   {
     name: "home-vertical", // 9:16 social cut — mp4 for paid, gif + poster for organic
     generator: "scroll-reel",
     options: {
-      width: 430,
-      height: 932,
-      deviceScaleFactor: 2,
-      durationMs: 5000,
-      aspect: "9:16",
-      outputs: ["mp4", "gif", "poster"],
-      waitForSelector: ".hero-media img",
+      output: { width: 430, height: 932, deviceScaleFactor: 2, outputs: ["mp4", "gif", "poster"] },
+      motion: { durationMs: 5000 },
+      reframe: { aspect: "9:16" },
+      page: { waitForSelector: ".hero-media img" },
     },
   },
   {
     name: "home-square", // 1:1 feed cut — mp4 + animated WebP (smaller than gif)
     generator: "scroll-reel",
     options: {
-      width: 1080,
-      height: 1080,
-      deviceScaleFactor: 2,
-      durationMs: 5000,
-      aspect: "1:1",
-      outputs: ["mp4", "webp"],
-      waitForSelector: ".hero-media img",
+      output: { width: 1080, height: 1080, deviceScaleFactor: 2, outputs: ["mp4", "webp"] },
+      motion: { durationMs: 5000 },
+      reframe: { aspect: "1:1" },
+      page: { waitForSelector: ".hero-media img" },
     },
   },
   {
@@ -41,12 +35,14 @@ export const films = [
     generator: "scroll-reel",
     url: "/shop",
     options: {
-      waitForSelector: ".product img",
-      autoSections: { durationMs: 11000 },
-      viewports: [
-        { name: "desktop", width: 1440, height: 900 },
-        { name: "tablet", width: 834, height: 1112 },
-      ],
+      page: { waitForSelector: ".product img" },
+      motion: { autoSections: { durationMs: 11000 } },
+      variants: {
+        viewports: [
+          { name: "desktop", width: 1440, height: 900 },
+          { name: "tablet", width: 834, height: 1112 },
+        ],
+      },
     },
   },
   {
@@ -54,8 +50,8 @@ export const films = [
     generator: "scroll-reel",
     url: "/products/the-camel-coat",
     options: {
-      waitForSelector: ".mini-gallery img",
-      autoSections: { durationMs: 10000 },
+      page: { waitForSelector: ".mini-gallery img" },
+      motion: { autoSections: { durationMs: 10000 } },
     },
   },
   {
@@ -63,8 +59,8 @@ export const films = [
     generator: "scroll-reel",
     url: "/products/silk-slip-dress",
     options: {
-      waitForSelector: ".mini-gallery img",
-      autoSections: { durationMs: 10000 },
+      page: { waitForSelector: ".mini-gallery img" },
+      motion: { autoSections: { durationMs: 10000 } },
     },
   },
   {
@@ -72,8 +68,8 @@ export const films = [
     generator: "scroll-reel",
     url: "/about",
     options: {
-      waitForSelector: ".about-hero-media img",
-      autoSections: { durationMs: 10000 },
+      page: { waitForSelector: ".about-hero-media img" },
+      motion: { autoSections: { durationMs: 10000 } },
     },
   },
   {
@@ -81,8 +77,8 @@ export const films = [
     generator: "scroll-reel",
     url: "/lookbook",
     options: {
-      waitForSelector: "#lb-editorial img",
-      autoSections: { durationMs: 11000 },
+      page: { waitForSelector: "#lb-editorial img" },
+      motion: { autoSections: { durationMs: 11000 } },
     },
   },
 ] satisfies AssetSpecInput[];

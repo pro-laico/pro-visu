@@ -52,8 +52,8 @@ export async function produceOutputs(job: OutputJob): Promise<AssetRecord[]> {
   let videoMp4 = job.sourceMp4;
   let outW = job.width;
   let outH = job.height;
-  if (options.aspect) {
-    const target = aspectTarget(options.aspect);
+  if (options.reframe.aspect) {
+    const target = aspectTarget(options.reframe.aspect);
     outW = target.width;
     outH = target.height;
     const reframed = path.join(ctx.tmpDir, `${slugify(job.assetId)}-aspect.mp4`);
@@ -63,10 +63,10 @@ export async function produceOutputs(job: OutputJob): Promise<AssetRecord[]> {
         outputPath: reframed,
         width: outW,
         height: outH,
-        fit: options.fit,
-        padColor: options.padColor,
-        fps: options.fps,
-        crf: options.crf,
+        fit: options.reframe.fit,
+        padColor: options.reframe.padColor,
+        fps: options.output.fps,
+        crf: options.output.crf,
         preset: job.preset,
       }),
       logger,
@@ -78,8 +78,8 @@ export async function produceOutputs(job: OutputJob): Promise<AssetRecord[]> {
   // Probe the real container duration (mux can drift a little from the computed sum).
   const videoMs = (await probeVideoDurationMs(videoMp4)) ?? job.durationMs;
 
-  const gifFps = options.gifFps ?? Math.min(options.fps, 15);
-  const want = new Set(options.outputs);
+  const gifFps = options.output.gifFps ?? Math.min(options.output.fps, 15);
+  const want = new Set(options.output.outputs);
   const records: AssetRecord[] = [];
 
   for (const fmt of FORMAT_ORDER) {

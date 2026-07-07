@@ -19,8 +19,8 @@ describe("screenshots generator", () => {
     expect(opts.viewports.map((b) => b.name)).toEqual(["desktop", "mobile"]);
     expect(opts.viewports[0]!.height).toBe(900); // default desktop viewport
     expect(opts.fullPage).toBe(true);
-    expect(opts.format).toBe("png");
-    expect(opts.deviceScaleFactor).toBe(2);
+    expect(opts.output.format).toBe("png");
+    expect(opts.output.deviceScaleFactor).toBe(2);
     expect(opts.elements).toEqual([]);
   });
 
@@ -29,18 +29,22 @@ describe("screenshots generator", () => {
   });
 
   it("rejects `quality` on a png (it would be silently ignored otherwise)", () => {
-    expect(screenshotsOptionsSchema.safeParse({ format: "png", quality: 80 }).success).toBe(false);
-    expect(screenshotsOptionsSchema.safeParse({ format: "jpeg", quality: 80 }).success).toBe(true);
+    const png = screenshotsOptionsSchema.safeParse({ output: { format: "png", quality: 80 } });
+    expect(png.success).toBe(false);
+    expect(png.error?.issues[0]?.path).toEqual(["output", "quality"]);
+    expect(
+      screenshotsOptionsSchema.safeParse({ output: { format: "jpeg", quality: 80 } }).success,
+    ).toBe(true);
   });
 
   it("merges defaults keyed by generator id", () => {
     const merged = mergeGeneratorOptions(
-      { screenshots: { format: "jpeg", quality: 80 } },
+      { screenshots: { output: { format: "jpeg", quality: 80 } } },
       { name: "a", url: "https://example.com", generator: "screenshots", options: {}, inputs: {} },
     );
     const opts = screenshotsOptionsSchema.parse(merged);
-    expect(opts.format).toBe("jpeg");
-    expect(opts.quality).toBe(80);
+    expect(opts.output.format).toBe("jpeg");
+    expect(opts.output.quality).toBe(80);
   });
 
   it("persists each shot as it is captured (buffers are not held until the end)", async () => {

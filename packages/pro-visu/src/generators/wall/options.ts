@@ -75,73 +75,97 @@ const wallColumnSchema = z
  */
 export const wallOptionsSchema = z
   .object({
-    // --- output ---
-    ...videoOutputShape({ width: 1920, height: 1080, deviceScaleFactor: 2 }),
-    /** Clip length (ms) — the whole loop. Tile videos should loop within a length dividing this. */
-    durationMs: z
-      .number()
-      .positive()
-      .default(16_000)
-      .describe("Clip length in ms — the whole loop. Default 16000."),
-    ...captureStrategyShape(),
-    ...frameCaptureShape(),
-    /** Backdrop shown in the gutters between tiles. */
-    background: z
-      .string()
-      .default("#0b0b0f")
-      .describe('Backdrop shown in the gutters between tiles. Default "#0b0b0f".'),
+    // --- output (size + encoding) ---
+    output: z
+      .object({ ...videoOutputShape({ width: 1920, height: 1080, deviceScaleFactor: 2 }) })
+      .strict()
+      .default({}),
 
-    // --- columns (System 2 + layout): each column = its tiles + its own motion ---
+    // --- render (capture strategy + frame format) ---
+    render: z
+      .object({ ...captureStrategyShape(), ...frameCaptureShape() })
+      .strict()
+      .default({}),
+
+    // --- columns (System 2): each column = its tiles + its own motion ---
     /** The columns (≥3) — each its own tiles + motion. Count = array length (fewer = larger tiles). */
     columns: z
       .array(wallColumnSchema)
       .min(3)
       .describe("The columns (≥3) — each lists its stacked `tiles` (asset names and/or { src } files) and may carry its own motion. Count = columns.length."),
-    /** Gap between columns and between tiles (px). */
-    gap: z.number().nonnegative().default(8).describe("Gap between columns and between tiles (px). Default 8."),
-    /** Default/fallback tile aspect (width / height). Tiles fit the column width and take their OWN
-     *  height from their media's aspect (16:9 → short, 9:16 → tall); this is only used for faux
-     *  (`test`) tiles that don't set their own `aspect`. 0.75 = 3:4 portrait. */
-    tileAspect: z
-      .number()
-      .positive()
-      .default(0.75)
-      .describe("Default/fallback tile aspect (w/h) — only for faux (test) tiles without their own `aspect`. 0.75 = 3:4 portrait. Default 0.75."),
-    /** Tile corner radius (px). */
-    cornerRadius: z.number().nonnegative().default(6).describe("Tile corner radius (px). Default 6."),
+
+    // --- layout ---
+    layout: z
+      .object({
+        /** Backdrop shown in the gutters between tiles. */
+        background: z
+          .string()
+          .default("#0b0b0f")
+          .describe('Backdrop shown in the gutters between tiles. Default "#0b0b0f".'),
+        /** Gap between columns and between tiles (px). */
+        gap: z.number().nonnegative().default(8).describe("Gap between columns and between tiles (px). Default 8."),
+        /** Default/fallback tile aspect (width / height). Tiles fit the column width and take their OWN
+         *  height from their media's aspect (16:9 → short, 9:16 → tall); this is only used for faux
+         *  (`preview`) tiles that don't set their own `aspect`. 0.75 = 3:4 portrait. */
+        tileAspect: z
+          .number()
+          .positive()
+          .default(0.75)
+          .describe("Default/fallback tile aspect (w/h) — only for faux (preview) tiles without their own `aspect`. 0.75 = 3:4 portrait. Default 0.75."),
+        /** Tile corner radius (px). */
+        cornerRadius: z.number().nonnegative().default(6).describe("Tile corner radius (px). Default 6."),
+      })
+      .strict()
+      .default({}),
 
     // --- motion (uniform pulse model) ---
-    /** System 1 — the whole-wall X pan. */
-    pan: wallPanSchema
-      .default({})
-      .describe("System 1 — the whole wall's horizontal pan (`direction` / `loops` / `pulses`). Default: no pan."),
-    /** Default continuous whole-clip loops for columns that omit their own `loops` (0 = static unless
-     *  a pulse moves it; one pulse then rounds the total up to a single loop). */
-    loops: z
-      .number()
-      .nonnegative()
-      .default(0)
-      .describe("Default continuous whole-clip loops for columns that omit their own `loops`. Default 0 (static unless a pulse moves it)."),
-    /** Default pulses for columns that omit their own `pulses` (the uniform wall-level motion). */
-    pulses: z
-      .array(wallPulseSchema)
-      .default([])
-      .describe("Default pulses for columns that omit their own `pulses` (the uniform wall-level motion). Default none."),
+    motion: z
+      .object({
+        /** Clip length (ms) — the whole loop. Tile videos should loop within a length dividing this. */
+        durationMs: z
+          .number()
+          .positive()
+          .default(16_000)
+          .describe("Clip length in ms — the whole loop. Default 16000."),
+        /** System 1 — the whole-wall X pan. */
+        pan: wallPanSchema
+          .default({})
+          .describe("System 1 — the whole wall's horizontal pan (`direction` / `loops` / `pulses`). Default: no pan."),
+        /** Default continuous whole-clip loops for columns that omit their own `loops` (0 = static unless
+         *  a pulse moves it; one pulse then rounds the total up to a single loop). */
+        loops: z
+          .number()
+          .nonnegative()
+          .default(0)
+          .describe("Default continuous whole-clip loops for columns that omit their own `loops`. Default 0 (static unless a pulse moves it)."),
+        /** Default pulses for columns that omit their own `pulses` (the uniform wall-level motion). */
+        pulses: z
+          .array(wallPulseSchema)
+          .default([])
+          .describe("Default pulses for columns that omit their own `pulses` (the uniform wall-level motion). Default none."),
+      })
+      .strict()
+      .default({}),
 
-    // --- test / preview ---
-    /** Preview mode: render every tile as a flat labeled color box (see `testTiles`) instead of the
-     *  real assets. No producer assets run, so the wall renders in seconds — use it to dial in
-     *  layout + motion, then turn it off for the real render. */
-    test: z
-      .boolean()
-      .default(false)
-      .describe("Preview mode: render every tile as a flat labeled color box instead of real assets, so the wall renders in seconds. Default false."),
-    /** Per-tile faux appearance for `test` mode, keyed by tile name. Tiles not listed get an
-     *  auto-derived color and their name as the label. */
-    testTiles: z
-      .record(z.string(), fauxTileSchema)
-      .default({})
-      .describe("Per-tile faux appearance for `test` mode, keyed by tile name (color + caption). Default {} (auto colors + names)."),
+    // --- preview (fast faux-tile mode) ---
+    preview: z
+      .object({
+        /** Preview mode: render every tile as a flat labeled color box (see `tiles`) instead of the
+         *  real assets. No producer assets run, so the wall renders in seconds — use it to dial in
+         *  layout + motion, then turn it off for the real render. */
+        enabled: z
+          .boolean()
+          .default(false)
+          .describe("Preview mode: render every tile as a flat labeled color box instead of real assets, so the wall renders in seconds. Default false."),
+        /** Per-tile faux appearance for preview mode, keyed by tile name. Tiles not listed get an
+         *  auto-derived color and their name as the label. */
+        tiles: z
+          .record(z.string(), fauxTileSchema)
+          .default({})
+          .describe("Per-tile faux appearance for preview mode, keyed by tile name (color + caption). Default {} (auto colors + names)."),
+      })
+      .strict()
+      .default({}),
   })
   .strict();
 
@@ -177,14 +201,8 @@ export interface WallColumnInput {
   pulses?: WallPulseInput[];
 }
 
-/**
- * Author-facing options for the `wall` generator. Each entry in `columns` is a self-contained unit
- * (its `tiles` + its own optional motion); everything else is optional, with defaults noted below.
- * Motion is the uniform pulse model: `loops` (continuous base) + `pulses` (eased moves), summed and
- * rounded up to a whole number of periods so the wall always loops seamlessly.
- */
-export interface WallOptionsInput {
-  // --- output ---
+/** Output block: size + encoding. */
+export interface WallOutputInput {
   /** Output width in CSS px. Default 1920. */
   width?: number;
   /** Output height in CSS px. Default 1080. */
@@ -197,8 +215,10 @@ export interface WallOptionsInput {
   crf?: number;
   /** Output filename; defaults to "<slug(asset name)>.mp4". */
   fileName?: string;
-  /** Clip length in ms — the whole loop. Default 16000. */
-  durationMs?: number;
+}
+
+/** Render block: capture strategy + frame format. */
+export interface WallRenderInput {
   /**
    * Capture strategy. "frames" (default) steps a virtual clock per frame — frame-accurate, crisp,
    * reproducible; "realtime" records the live session. Default "frames".
@@ -212,27 +232,26 @@ export interface WallOptionsInput {
   workers?: number;
   /** Intermediate frame format for "frames". "jpeg" (default) is faster; "png" is lossless. */
   frameFormat?: "jpeg" | "png";
+}
+
+/** Layout block: backdrop, gaps, tile aspect + corners. */
+export interface WallLayoutInput {
   /** Backdrop shown in the gutters between tiles. Default "#0b0b0f". */
   background?: string;
-
-  // --- columns: each its own tiles + motion ---
-  /**
-   * The columns (≥3). Each column lists the tiles stacked in it (asset names and/or `{ src }`
-   * files — cycled to fill the height) and may carry its own motion (`direction` / `loops` /
-   * `pulses`); omitted `loops` / `pulses` inherit the wall-level defaults below. Column count =
-   * `columns.length`.
-   */
-  columns: WallColumnInput[];
   /** Gap between columns and between tiles (px). Default 8. */
   gap?: number;
   /** Default/fallback tile aspect (width / height). Tiles fit the column width and take their OWN
    *  height from their media's aspect (16:9 → short, 9:16 → tall); this is only used for faux
-   *  (`test`) tiles that don't set their own `aspect`. 0.75 = 3:4 portrait. Default 0.75. */
+   *  (`preview`) tiles that don't set their own `aspect`. 0.75 = 3:4 portrait. Default 0.75. */
   tileAspect?: number;
   /** Tile corner radius (px). Default 6. */
   cornerRadius?: number;
+}
 
-  // --- motion (uniform pulse model) ---
+/** Motion block: clip length + the uniform pulse model (pan / loops / pulses). */
+export interface WallMotionInput {
+  /** Clip length in ms — the whole loop. Default 16000. */
+  durationMs?: number;
   /** The whole wall's horizontal pan (`direction` / `loops` / `pulses`). Default: no pan. */
   pan?: WallPanInput;
   /** Default continuous whole-clip loops for columns that omit their own `loops`. Default 0 (static
@@ -240,16 +259,44 @@ export interface WallOptionsInput {
   loops?: number;
   /** Default pulses for columns that omit their own `pulses` (the uniform wall-level motion). Default none. */
   pulses?: WallPulseInput[];
+}
 
-  // --- test / preview ---
+/** Preview block: fast faux-tile mode. */
+export interface WallPreviewInput {
   /**
    * Preview mode: render every tile as a flat labeled color box instead of the real assets. No
    * producer assets run, so the wall renders in seconds — flip it on to dial in layout + motion,
    * then off for the real render. Default false.
    */
-  test?: boolean;
-  /** Per-tile faux appearance for `test` mode, keyed by tile name (color + caption). Default {} (auto colors + names). */
-  testTiles?: Record<string, FauxTileInput>;
+  enabled?: boolean;
+  /** Per-tile faux appearance for preview mode, keyed by tile name (color + caption). Default {} (auto colors + names). */
+  tiles?: Record<string, FauxTileInput>;
+}
+
+/**
+ * Author-facing options for the `wall` generator. Each entry in `columns` is a self-contained unit
+ * (its `tiles` + its own optional motion); everything else is grouped and optional, with defaults
+ * noted below. Motion is the uniform pulse model: `loops` (continuous base) + `pulses` (eased moves),
+ * summed and rounded up to a whole number of periods so the wall always loops seamlessly.
+ */
+export interface WallOptionsInput {
+  /** Output block: size + encoding (width / height / deviceScaleFactor / fps / crf / fileName). */
+  output?: WallOutputInput;
+  /** Render block: capture strategy + frame format (capture / workers / frameFormat). */
+  render?: WallRenderInput;
+  /**
+   * The columns (≥3). Each column lists the tiles stacked in it (asset names and/or `{ src }`
+   * files — cycled to fill the height) and may carry its own motion (`direction` / `loops` /
+   * `pulses`); omitted `loops` / `pulses` inherit the wall-level defaults below. Column count =
+   * `columns.length`.
+   */
+  columns: WallColumnInput[];
+  /** Layout block: backdrop, gaps, tile aspect + corners (background / gap / tileAspect / cornerRadius). */
+  layout?: WallLayoutInput;
+  /** Motion block: clip length + the uniform pulse model (durationMs / pan / loops / pulses). */
+  motion?: WallMotionInput;
+  /** Preview block: fast faux-tile mode (enabled / tiles). */
+  preview?: WallPreviewInput;
 }
 
 /** Author-facing input (documented for editor hover; the schema validates it at run time). */

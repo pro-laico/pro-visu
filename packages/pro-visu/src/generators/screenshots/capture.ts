@@ -52,7 +52,7 @@ async function captureViewport<T>(
   {
     const context = await browser.newContext({
       viewport: { width: bp.width, height: bp.height },
-      deviceScaleFactor: bp.deviceScaleFactor ?? options.deviceScaleFactor,
+      deviceScaleFactor: bp.deviceScaleFactor ?? options.output.deviceScaleFactor,
     });
     await applyCapture(context, args.capture, url);
     const page = await context.newPage();
@@ -60,9 +60,9 @@ async function captureViewport<T>(
       await installNetworkHygiene(page, args.capture);
       await installPreNav(page, args.capture);
       logger.debug(`[${bp.name}] navigating to ${url}`);
-      await page.goto(url, { waitUntil: options.waitUntil });
-      if (options.waitForSelector) {
-        await page.waitForSelector(options.waitForSelector, { state: "visible" });
+      await page.goto(url, { waitUntil: options.page.waitUntil });
+      if (options.page.waitForSelector) {
+        await page.waitForSelector(options.page.waitForSelector, { state: "visible" });
       }
       // Suppress capture noise (hide banners/scrollbars, inject CSS, dismiss consent overlays).
       await applyPostNav(page, args.capture, logger);
@@ -70,18 +70,18 @@ async function captureViewport<T>(
       // are done before we shoot — otherwise fullPage shots capture blank/placeholder regions and
       // fallback fonts. Returns to the top when finished.
       await page.evaluate(prepareScroll, {
-        settleMs: Math.max(options.settleMs, MIN_PREPARE_SETTLE_MS),
+        settleMs: Math.max(options.page.settleMs, MIN_PREPARE_SETTLE_MS),
       });
 
       const pageShotOptions: PageShotOptions = {
-        type: options.format,
+        type: options.output.format,
         fullPage: options.fullPage,
       };
-      if (options.format === "png" && options.omitBackground) {
+      if (options.output.format === "png" && options.output.omitBackground) {
         pageShotOptions.omitBackground = true;
       }
-      if (options.format === "jpeg" && options.quality != null) {
-        pageShotOptions.quality = options.quality;
+      if (options.output.format === "jpeg" && options.output.quality != null) {
+        pageShotOptions.quality = options.output.quality;
       }
       shots.push(await args.persist(bp.name, await page.screenshot(pageShotOptions)));
 
@@ -91,12 +91,12 @@ async function captureViewport<T>(
           logger.warn(`[${bp.name}] selector not found, skipping: ${element.selector}`);
           continue;
         }
-        const elShotOptions: PageShotOptions = { type: options.format };
-        if (options.format === "png" && options.omitBackground) {
+        const elShotOptions: PageShotOptions = { type: options.output.format };
+        if (options.output.format === "png" && options.output.omitBackground) {
           elShotOptions.omitBackground = true;
         }
-        if (options.format === "jpeg" && options.quality != null) {
-          elShotOptions.quality = options.quality;
+        if (options.output.format === "jpeg" && options.output.quality != null) {
+          elShotOptions.quality = options.output.quality;
         }
         // A present-but-hidden element (display:none until interaction) makes locator.screenshot
         // throw; warn + skip it instead of aborting the whole viewport loop. Only the capture is

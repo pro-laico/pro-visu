@@ -13,6 +13,6 @@ export const settings = {
     readyTimeoutMs: 180_000,
   },
   defaults: {
-    "scroll-reel": { width: 1280, height: 800, fps: 30 },
+    "scroll-reel": { output: { width: 1280, height: 800, fps: 30 } },
   },
 } satisfies ShowcaseSettingsInput;

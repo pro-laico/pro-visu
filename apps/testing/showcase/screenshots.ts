@@ -10,7 +10,7 @@ export const screenshots = [
         { name: "desktop", width: 1440, height: 900 },
         { name: "mobile", width: 390, height: 844 },
       ],
-      waitForSelector: ".hero-media img",
+      page: { waitForSelector: ".hero-media img" },
       elements: [
         { selector: "#hero", name: "hero" },
         { selector: "#new-arrivals", name: "arrivals" },

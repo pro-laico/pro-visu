@@ -24,7 +24,7 @@ async function run(
 ): Promise<{ assets: AssetRecord[] }> {
   const url = requireUrl(ctx);
   const preset = ctx.quality === "draft" ? "ultrafast" : "medium";
-  const fileName = options.fileName ?? `${slugify(ctx.target.name)}.mp4`;
+  const fileName = options.output.fileName ?? `${slugify(ctx.target.name)}.mp4`;
   const outPath = ctx.resolveOutPath(fileName);
 
   ctx.logger.info(
@@ -49,17 +49,17 @@ async function run(
   } else {
     result = await captureInteractionWebm(args);
   }
-  const width = cropBox?.width ?? options.width;
-  const height = cropBox?.height ?? options.height;
+  const width = cropBox?.width ?? options.output.width;
+  const height = cropBox?.height ?? options.output.height;
 
   ctx.logger.debug(`transcoding to mp4${cropBox ? " (cropped)" : ""}`);
   await transcodeToMp4({
     inputPath: result.webmPath,
     outputPath: outPath,
-    fps: options.fps,
+    fps: options.output.fps,
     width,
     height,
-    crf: options.crf,
+    crf: options.output.crf,
     preset,
     // Drop the navigation + warm-up lead, then clamp to the intended length.
     startOffsetSeconds: result.leadSeconds,

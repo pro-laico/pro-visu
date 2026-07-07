@@ -13,13 +13,13 @@ const COLORS = [
 describe("palette options", () => {
   it("needs only colors, with defaults filled in", () => {
     const o = paletteOptionsSchema.parse({ colors: COLORS });
-    expect(o.layout).toBe("rows");
-    expect(o.width).toBe(1400);
-    expect(o.height).toBe(1750); // portrait 4:5
-    expect(o.deviceScaleFactor).toBe(2);
-    expect(o.topLeft).toEqual(["name", "hex"]);
-    expect(o.topRight).toEqual(["rgb", "oklch"]);
-    expect(o.fontWeight).toBe(700);
+    expect(o.layout.layout).toBe("rows");
+    expect(o.output.width).toBe(1400);
+    expect(o.output.height).toBe(1750); // portrait 4:5
+    expect(o.output.deviceScaleFactor).toBe(2);
+    expect(o.fields.topLeft).toEqual(["name", "hex"]);
+    expect(o.fields.topRight).toEqual(["rgb", "oklch"]);
+    expect(o.text.fontWeight).toBe(700);
   });
 
   it("normalizes/validates hex and rejects bad colors + typos", () => {
@@ -52,7 +52,10 @@ describe("buildPaletteHtml", () => {
 
   it("uses a flex column for rows and a grid for grid layout", () => {
     expect(buildPaletteHtml(o)).toContain("flex-direction:column");
-    const grid = paletteOptionsSchema.parse({ colors: COLORS, layout: "grid", gridColumns: 2 });
+    const grid = paletteOptionsSchema.parse({
+      colors: COLORS,
+      layout: { layout: "grid", gridColumns: 2 },
+    });
     expect(buildPaletteHtml(grid)).toContain("grid-template-columns:repeat(2,1fr)");
   });
 
@@ -67,7 +70,7 @@ describe("palette generator", () => {
     expect(generatorIds()).toContain(PALETTE_ID);
     const gen = getGenerator(PALETTE_ID);
     expect(gen?.id).toBe(PALETTE_ID);
-    const o = paletteOptionsSchema.parse({ colors: COLORS, fontFile: "fonts/X.woff2" });
+    const o = paletteOptionsSchema.parse({ colors: COLORS, text: { fontFile: "fonts/X.woff2" } });
     expect(gen?.fileDependencies?.(o)).toEqual(["fonts/X.woff2"]);
     expect(gen?.fileDependencies?.(paletteOptionsSchema.parse({ colors: COLORS }))).toEqual([]);
   });

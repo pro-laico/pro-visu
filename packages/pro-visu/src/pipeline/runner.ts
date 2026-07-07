@@ -65,7 +65,8 @@ export interface RunOptions {
 
 /**
  * Draft trades fidelity for iteration speed: fewer frames, no retina scale, looser quality.
- * Applied to the common video-option names shared across generators before validation.
+ * Applied to the shared `output` group (fps / deviceScaleFactor / crf) across generators before
+ * validation — only clamps fields that are explicitly set.
  */
 export function applyQuality(
   options: Record<string, unknown>,
@@ -73,9 +74,12 @@ export function applyQuality(
 ): Record<string, unknown> {
   if (quality !== "draft") return options;
   const o = { ...options };
-  if (typeof o.fps === "number") o.fps = Math.min(o.fps as number, 15);
-  if (typeof o.deviceScaleFactor === "number") o.deviceScaleFactor = 1;
-  if (typeof o.crf === "number") o.crf = Math.max(o.crf as number, 30);
+  if (!isPlainObject(o.output)) return o;
+  const out = { ...o.output };
+  if (typeof out.fps === "number") out.fps = Math.min(out.fps as number, 15);
+  if (typeof out.deviceScaleFactor === "number") out.deviceScaleFactor = 1;
+  if (typeof out.crf === "number") out.crf = Math.max(out.crf as number, 30);
+  o.output = out;
   return o;
 }
 

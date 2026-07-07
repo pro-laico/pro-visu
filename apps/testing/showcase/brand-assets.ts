@@ -10,9 +10,9 @@ export const brandAssets = [
     options: {
       colors: VESPER,
       details: ["hex", "oklch"],
-      uppercase: true,
-      background: INK,
-      textLight: PAPER,
+      text: { uppercase: true },
+      layout: { background: INK },
+      contrast: { textLight: PAPER },
     },
   },
 
@@ -24,7 +24,7 @@ export const brandAssets = [
       font: "public/fonts/InterVariable.woff2",
       name: "Inter",
       template: "sweep",
-      lines: 4,
+      type: { lines: 4 },
     },
   },
   {
@@ -33,9 +33,8 @@ export const brandAssets = [
     options: {
       font: "public/fonts/Fraunces.woff2",
       name: "Fraunces",
-      demo: true,
-      lines: 3,
-      weight: 480,
+      type: { lines: 3, weight: 500 },
+      animation: { demo: true },
       colors: { background: PAPER, foreground: INK, muted: CAMEL, accent: COGNAC },
       label: { anchor: "bottom-left", padding: 2, size: 0.26, weight: 600, color: COGNAC },
       pulses: [
@@ -54,8 +53,7 @@ export const brandAssets = [
     options: {
       font: "public/fonts/JetBrainsMono.woff2",
       name: "JetBrains Mono",
-      lines: 6,
-      weight: 500,
+      type: { lines: 6, weight: 500 },
       colors: { background: "#0b0f10", foreground: "#cdd6d3", muted: "#586460", accent: "#6ee7a8" },
       pulses: [
         { name: "idle", durationMs: 1000 },

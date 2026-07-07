@@ -26,7 +26,7 @@ async function run(
   ctx: PipelineContext,
   options: ResolvedScreenshotsOptions,
 ): Promise<{ assets: AssetRecord[] }> {
-  const ext = options.format === "jpeg" ? "jpg" : "png";
+  const ext = options.output.format === "jpeg" ? "jpg" : "png";
   const url = requireUrl(ctx);
   ctx.logger.info(`capturing ${url}`);
 
@@ -45,7 +45,7 @@ async function run(
       // Chromium caps screenshots near ~32767px; a very tall fullPage shot may be clipped/huge.
       if (width > 16000 || height > 16000) {
         ctx.logger.warn(
-          `${fileName} is very large (${width}×${height}); a fullPage shot at deviceScaleFactor ${options.deviceScaleFactor} may be clipped or slow — consider a lower scale.`,
+          `${fileName} is very large (${width}×${height}); a fullPage shot at deviceScaleFactor ${options.output.deviceScaleFactor} may be clipped or slow — consider a lower scale.`,
         );
       }
     }

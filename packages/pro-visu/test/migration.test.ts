@@ -72,8 +72,7 @@ describe("legacyOptionHint", () => {
 
     const wall = wallOptionsSchema.safeParse({
       columns: [{ tiles: ["a"] }, { tiles: ["b"] }, { tiles: ["c"] }],
-      test: true,
-      testTiles: { a: { size: "16:9" } },
+      preview: { tiles: { a: { size: "16:9" } } },
     });
     expect(wall.success).toBe(false);
     if (!wall.success) {

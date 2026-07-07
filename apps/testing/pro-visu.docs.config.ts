@@ -23,7 +23,7 @@ export default defineConfig({
     },
     // Freeze time/randomness so every docs capture is perfectly repeatable.
     capture: { freezeClock: true },
-    defaults: { "scroll-reel": { width: 1280, height: 800, fps: 30 } },
+    defaults: { "scroll-reel": { output: { width: 1280, height: 800, fps: 30 } } },
   },
   assets: [
     // The landing hero: auto-sections tuned to kill stop/start jitter (dsf 3 supersample) +
@@ -32,13 +32,9 @@ export default defineConfig({
       name: "docs-home",
       generator: "scroll-reel",
       options: {
-        width: 1280,
-        height: 800,
-        deviceScaleFactor: 3,
-        easing: "ease-in-out",
-        loop: "boomerang",
-        autoSections: { durationMs: 22000, holdMs: 1600 },
-        waitForSelector: ".hero-media img",
+        output: { width: 1280, height: 800, deviceScaleFactor: 3 },
+        motion: { easing: "ease-in-out", loop: "boomerang", autoSections: { durationMs: 22000, holdMs: 1600 } },
+        page: { waitForSelector: ".hero-media img" },
       },
     },
     // Actual scrolling: a clean auto-sections pan/hold down the home page.
@@ -46,8 +42,8 @@ export default defineConfig({
       name: "docs-scroll",
       generator: "scroll-reel",
       options: {
-        waitForSelector: ".hero-media img",
-        autoSections: { durationMs: 9000 },
+        page: { waitForSelector: ".hero-media img" },
+        motion: { autoSections: { durationMs: 9000 } },
       },
     },
     // UI in a state: phone viewport, scripted cursor opens the menu and holds it.
@@ -55,9 +51,7 @@ export default defineConfig({
       name: "docs-menu",
       generator: "interaction",
       options: {
-        width: 390,
-        height: 844,
-        deviceScaleFactor: 2,
+        output: { width: 390, height: 844, deviceScaleFactor: 2 },
         cursor: { color: CURSOR },
         actions: [{ do: "click", selector: "#menu-button", holdMs: 2600 }],
       },
@@ -70,7 +64,7 @@ export default defineConfig({
         font: "public/fonts/Fraunces.woff2",
         name: "Fraunces",
         template: "demo",
-        durationMs: 16_000,
+        animation: { durationMs: 16_000 },
       },
     },
     { name: "docs-palette", generator: "palette", options: { colors: VESPER } },
@@ -81,7 +75,7 @@ export default defineConfig({
       options: {
         viewports: [{ name: "desktop", width: 1440, height: 900 }],
         fullPage: true,
-        waitForSelector: ".hero-media img",
+        page: { waitForSelector: ".hero-media img" },
       },
     },
     // Phone, above the fold only.
@@ -91,7 +85,7 @@ export default defineConfig({
       options: {
         viewports: [{ name: "mobile", width: 390, height: 844 }],
         fullPage: false,
-        waitForSelector: ".hero-media img",
+        page: { waitForSelector: ".hero-media img" },
       },
     },
     // A very simple real wall: 3 columns of photos as direct `{ src }` tiles (no producer
@@ -100,14 +94,9 @@ export default defineConfig({
       name: "docs-wall",
       generator: "wall",
       options: {
-        width: 960,
-        height: 540,
-        fps: 30,
-        durationMs: 8000,
-        background: INK,
-        gap: 4,
-        cornerRadius: 4,
-        loops: 1,
+        output: { width: 960, height: 540, fps: 30 },
+        motion: { durationMs: 8000, loops: 1 },
+        layout: { background: INK, gap: 4, cornerRadius: 4 },
         columns: [
           {
             tiles: [{ src: "public/img/products/the-camel-coat.jpg" }, { src: "public/img/editorial.jpg" }],
@@ -132,17 +121,11 @@ export default defineConfig({
       name: "docs-wall-test",
       generator: "wall",
       options: {
-        width: 960,
-        height: 540,
-        fps: 30,
-        durationMs: 8000,
-        capture: "realtime",
-        test: true,
-        background: INK,
-        gap: 4,
-        cornerRadius: 4,
-        tileAspect: 0.5625, // 9:16 phone clips
-        loops: 1,
+        output: { width: 960, height: 540, fps: 30 },
+        render: { capture: "realtime" },
+        motion: { durationMs: 8000, loops: 1 },
+        preview: { enabled: true },
+        layout: { background: INK, gap: 4, cornerRadius: 4, tileAspect: 0.5625 }, // 9:16 phone clips
         columns: [
           { tiles: ["home", "pricing"], direction: "down" },
           { tiles: ["product", "lookbook"], direction: "up", stagger: 0.4 },

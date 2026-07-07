@@ -72,10 +72,10 @@ async function buildScrollTimeline(
   totalSeconds: number,
   logger: Logger,
 ): Promise<ResolvedTimeline> {
-  const steps = options.choreography;
+  const steps = options.motion.choreography;
   // Apply the loop transform (boomerang mirrors the spec) before binding to wall-clock time.
   const finalize = (spec: TimelineSpec): ResolvedTimeline =>
-    resolveTimeline(options.loop === "boomerang" ? boomerangSpec(spec) : spec, totalSeconds);
+    resolveTimeline(options.motion.loop === "boomerang" ? boomerangSpec(spec) : spec, totalSeconds);
 
   // 1. Explicit choreography wins: resolve selector targets in one in-page pass (numbers/% in Node).
   if (steps && steps.length > 0) {
@@ -110,22 +110,22 @@ async function buildScrollTimeline(
         toY,
         durationMs: s.durationMs ?? DEFAULT_STEP_DURATION_MS,
         holdMs: s.holdMs ?? DEFAULT_STEP_HOLD_MS,
-        easing: s.easing ?? options.easing,
+        easing: s.easing ?? options.motion.easing,
       };
     });
 
     return finalize(
       choreographyTimelineSpec({
-        startDelayMs: options.startDelayMs,
-        endDwellMs: options.endDwellMs,
+        startDelayMs: options.page.startDelayMs,
+        endDwellMs: options.page.endDwellMs,
         steps: resolved,
       }),
     );
   }
 
   // 2. Auto-sections: detect the page's sections and pan/hold through them within a fixed budget.
-  if (options.autoSections) {
-    const cfg = options.autoSections === true ? {} : options.autoSections;
+  if (options.motion.autoSections) {
+    const cfg = options.motion.autoSections === true ? {} : options.motion.autoSections;
     const headerInsetPx = await page.evaluate(measureTopInset, {});
     const offsets = await page.evaluate(detectSectionOffsets, {
       minHeightFraction: cfg.minHeightFraction ?? DEFAULT_AUTO_MIN_HEIGHT_FRACTION,
@@ -135,19 +135,19 @@ async function buildScrollTimeline(
     });
     const autoSteps = autoSectionSteps({
       offsets,
-      budgetMs: autoSectionsBudgetMs(options.autoSections),
-      startDelayMs: options.startDelayMs,
-      endDwellMs: options.endDwellMs,
+      budgetMs: autoSectionsBudgetMs(options.motion.autoSections),
+      startDelayMs: options.page.startDelayMs,
+      endDwellMs: options.page.endDwellMs,
       holdMs: cfg.holdMs ?? DEFAULT_AUTO_HOLD_MS,
       constantVelocity: cfg.constantVelocity ?? true,
-      easing: options.easing,
+      easing: options.motion.easing,
     });
     if (autoSteps.length > 0) {
       logger.debug(`autoSections: ${autoSteps.length} section(s) detected`);
       return finalize(
         choreographyTimelineSpec({
-          startDelayMs: options.startDelayMs,
-          endDwellMs: options.endDwellMs,
+          startDelayMs: options.page.startDelayMs,
+          endDwellMs: options.page.endDwellMs,
           steps: autoSteps,
         }),
       );
@@ -158,10 +158,10 @@ async function buildScrollTimeline(
   // 3. Default: a single eased top→bottom sweep.
   return finalize(
     defaultTimelineSpec({
-      startDelayMs: options.startDelayMs,
-      durationMs: options.durationMs,
-      endDwellMs: options.endDwellMs,
-      easing: options.easing,
+      startDelayMs: options.page.startDelayMs,
+      durationMs: options.motion.durationMs,
+      endDwellMs: options.page.endDwellMs,
+      easing: options.motion.easing,
     }),
   );
 }
@@ -176,19 +176,26 @@ async function buildScrollTimeline(
  */
 export async function captureScrollFrames(a: ScrollFramesArgs): Promise<void> {
   const { options } = a;
-  const totalSeconds = scrollTimelineTotalMs(options) / 1000;
+  const totalSeconds =
+    scrollTimelineTotalMs({
+      startDelayMs: options.page.startDelayMs,
+      durationMs: options.motion.durationMs,
+      endDwellMs: options.page.endDwellMs,
+      choreography: options.motion.choreography,
+      autoSections: options.motion.autoSections,
+    }) / 1000;
   // With parallel workers, share one response cache across their isolated contexts: the site is
   // fetched once instead of once per worker (identical bytes in every worker — which the
   // deterministic capture wants anyway). Single worker keeps the unrouted fast path.
   const netCache = a.workers > 1 ? createSharedNetworkCache({ logger: a.logger }) : null;
   await captureFramedVideo<ResolvedTimeline>({
     browser: a.browser,
-    width: options.width,
-    height: options.height,
-    deviceScaleFactor: options.deviceScaleFactor,
-    fps: options.fps,
+    width: options.output.width,
+    height: options.output.height,
+    deviceScaleFactor: options.output.deviceScaleFactor,
+    fps: options.output.fps,
     durationSeconds: totalSeconds,
-    crf: options.crf,
+    crf: options.output.crf,
     outPath: a.outPath,
     preset: a.preset,
     frameFormat: a.frameFormat,
@@ -209,15 +216,15 @@ export async function captureScrollFrames(a: ScrollFramesArgs): Promise<void> {
       if (netCache) await netCache.install(page);
       await installNetworkHygiene(page, a.capture);
       // Pre-navigation hooks (e.g. freeze the clock, theme class) must be installed before page scripts.
-      await installPreNav(page, a.capture, { themeClass: options.themeClass });
-      logger.debug(`navigating to ${a.url} (waitUntil=${options.waitUntil})`);
-      await page.goto(a.url, { waitUntil: options.waitUntil });
-      if (options.waitForSelector) {
-        logger.debug(`waiting for selector ${options.waitForSelector}`);
-        await page.waitForSelector(options.waitForSelector, { state: "visible" });
+      await installPreNav(page, a.capture, { themeClass: options.variants.themeClass });
+      logger.debug(`navigating to ${a.url} (waitUntil=${options.page.waitUntil})`);
+      await page.goto(a.url, { waitUntil: options.page.waitUntil });
+      if (options.page.waitForSelector) {
+        logger.debug(`waiting for selector ${options.page.waitForSelector}`);
+        await page.waitForSelector(options.page.waitForSelector, { state: "visible" });
       }
       // Suppress capture noise (hide banners/scrollbars, inject CSS, dismiss consent overlays).
-      await applyPostNav(page, a.capture, logger, { themeClass: options.themeClass });
+      await applyPostNav(page, a.capture, logger, { themeClass: options.variants.themeClass });
       // Warm-up (not recorded): load lazy content, fonts and images, then settle back at the top.
       await page.evaluate(prepareScroll, { settleMs: PREWARM_SETTLE_MS });
       // Resolve the timeline against the (now stable) page; deterministic across workers.

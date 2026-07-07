@@ -16,23 +16,23 @@ describe("wall generator", () => {
 
   it("applies friendly wall defaults", () => {
     const o = wallOptionsSchema.parse({ columns: threeColumns });
-    expect(o.width).toBe(1920);
-    expect(o.height).toBe(1080);
+    expect(o.output.width).toBe(1920);
+    expect(o.output.height).toBe(1080);
     expect(o.columns).toHaveLength(3); // count = array length
-    expect(o.gap).toBe(8);
-    expect(o.loops).toBe(0); // static by default — a pulse (or explicit loops) makes a column move
-    expect(o.pulses).toEqual([]); // no wall-level default pulses
-    expect(o.pan.loops).toBe(0); // System 1: no pan unless configured
-    expect(o.tileAspect).toBeCloseTo(0.75);
-    expect(o.capture).toBe("frames");
-    expect(o.durationMs).toBe(16_000);
-    expect(o.test).toBe(false); // preview mode off by default
-    expect(o.testTiles).toEqual({});
+    expect(o.layout.gap).toBe(8);
+    expect(o.motion.loops).toBe(0); // static by default — a pulse (or explicit loops) makes a column move
+    expect(o.motion.pulses).toEqual([]); // no wall-level default pulses
+    expect(o.motion.pan.loops).toBe(0); // System 1: no pan unless configured
+    expect(o.layout.tileAspect).toBeCloseTo(0.75);
+    expect(o.render.capture).toBe("frames");
+    expect(o.motion.durationMs).toBe(16_000);
+    expect(o.preview.enabled).toBe(false); // preview mode off by default
+    expect(o.preview.tiles).toEqual({});
   });
 
   it("in test mode derives no inputs (faux tiles → no producers run)", () => {
     const o = wallOptionsSchema.parse({
-      test: true,
+      preview: { enabled: true },
       columns: [{ tiles: ["a", "b"] }, { tiles: ["c"] }, { tiles: ["d"] }],
     });
     expect(getGenerator(WALL_ID)?.deriveInputs?.(o)).toEqual({});

@@ -54,21 +54,21 @@ describe("generator file dependencies", () => {
 
 describe("applyQuality", () => {
   it("passes options through unchanged in final", () => {
-    expect(applyQuality({ fps: 30, deviceScaleFactor: 2, crf: 18 }, "final")).toEqual({
-      fps: 30,
-      deviceScaleFactor: 2,
-      crf: 18,
+    expect(applyQuality({ output: { fps: 30, deviceScaleFactor: 2, crf: 18 } }, "final")).toEqual({
+      output: { fps: 30, deviceScaleFactor: 2, crf: 18 },
     });
   });
 
   it("lowers fps + scale and loosens crf in draft", () => {
-    const o = applyQuality({ fps: 30, deviceScaleFactor: 2, crf: 18 }, "draft");
-    expect(o.fps).toBe(15);
-    expect(o.deviceScaleFactor).toBe(1);
-    expect(o.crf).toBe(30);
+    const o = applyQuality({ output: { fps: 30, deviceScaleFactor: 2, crf: 18 } }, "draft");
+    const out = o.output as { fps: number; deviceScaleFactor: number; crf: number };
+    expect(out.fps).toBe(15);
+    expect(out.deviceScaleFactor).toBe(1);
+    expect(out.crf).toBe(30);
   });
 
   it("never raises crf above what was set", () => {
-    expect(applyQuality({ crf: 40 }, "draft").crf).toBe(40);
+    const o = applyQuality({ output: { crf: 40 } }, "draft");
+    expect((o.output as { crf: number }).crf).toBe(40);
   });
 });

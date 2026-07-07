@@ -34,16 +34,16 @@ async function run(
   ctx: PipelineContext,
   o: ResolvedPaletteOptions,
 ): Promise<{ assets: AssetRecord[] }> {
-  const fileName = o.fileName ?? `${slugify(ctx.target.name)}.png`;
+  const fileName = o.output.fileName ?? `${slugify(ctx.target.name)}.png`;
   const outPath = ctx.resolveOutPath(fileName);
 
-  const dataUrl = o.fontFile ? await fontDataUrl(o.fontFile) : undefined;
+  const dataUrl = o.text.fontFile ? await fontDataUrl(o.text.fontFile) : undefined;
   const html = buildPaletteHtml(o, dataUrl);
 
-  ctx.logger.info(`rendering palette (${o.colors.length} colors, ${o.layout})`);
+  ctx.logger.info(`rendering palette (${o.colors.length} colors, ${o.layout.layout})`);
   const context = await ctx.browser.newContext({
-    viewport: { width: o.width, height: o.height },
-    deviceScaleFactor: o.deviceScaleFactor,
+    viewport: { width: o.output.width, height: o.output.height },
+    deviceScaleFactor: o.output.deviceScaleFactor,
   });
   let buffer: Buffer;
   try {
@@ -72,8 +72,8 @@ async function run(
     sourceUrl: `palette:${o.colors.length}`,
     file: ctx.toManifestPath(outPath),
     format: "png",
-    width: dims.width ?? o.width * o.deviceScaleFactor,
-    height: dims.height ?? o.height * o.deviceScaleFactor,
+    width: dims.width ?? o.output.width * o.output.deviceScaleFactor,
+    height: dims.height ?? o.output.height * o.output.deviceScaleFactor,
     bytes: buffer.length,
     contentHash: sha256Buffer(buffer),
     createdAt: new Date().toISOString(),
@@ -88,6 +88,6 @@ export const paletteGenerator: Generator<ResolvedPaletteOptions> = {
   id: PALETTE_ID,
   optionsSchema: paletteOptionsSchema,
   // A custom font's content shapes the output — hash it into the cache key.
-  fileDependencies: (o) => (o.fontFile ? [o.fontFile] : []),
+  fileDependencies: (o) => (o.text.fontFile ? [o.text.fontFile] : []),
   run,
 };

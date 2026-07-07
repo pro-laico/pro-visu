@@ -19,22 +19,24 @@ const hexString = z.string().refine(
   { message: "must be a hex color like #D7DBDE" },
 );
 
-/**
- * Author-facing options for the `palette-reel` generator — a looping reveal *video* of a color
- * palette (the moving counterpart of the still `palette` generator). The colors start as thin
- * slivers showing only their name; one at a time a sliver expands into a band that reveals its
- * configured `details` (hex / oklch / rgb …), holds, then collapses before the next opens — sweeping
- * every color and looping seamlessly. Only `colors` is required; everything else has a default.
- */
-export interface PaletteReelOptionsInput {
-  /** The colors to reveal (at least one). */
-  colors: PaletteColorInput[];
-  /** Sliver arrangement: horizontal bands (names upright) or full-height vertical strips. Default "rows". */
-  orientation?: "rows" | "columns";
-  /** Fields revealed when a color expands (the name is always shown, so it's ignored here). Default hex + oklch + rgb. */
-  details?: FieldId[];
+/** Output frame / encode settings for the reel video. */
+export interface PaletteReelOutputInput {
+  /** Output frame width in px. Default 1920. */
+  width?: number;
+  /** Output frame height in px. Default 1080. */
+  height?: number;
+  /** Render scale (higher = crisper capture, downscaled into the video). Default 1. */
+  deviceScaleFactor?: number;
+  /** Output frames per second. Default 30. */
+  fps?: number;
+  /** x264 quality, 0–51 (lower = better quality / larger file). Default 18. */
+  crf?: number;
+  /** Output filename; defaults to "<slug(asset name)>.mp4". */
+  fileName?: string;
+}
 
-  // --- timing (ms) ---
+/** Reveal timing for the reel (all durations in milliseconds). */
+export interface PaletteReelTimingInput {
   /** How long each color stays fully open before handing off to the next (ms). Default 2000. */
   holdMs?: number;
   /** Crossfade length from one open color to the next (ms). Default 700. */
@@ -49,28 +51,34 @@ export interface PaletteReelOptionsInput {
   easing?: Easing;
   /** Clip length override (ms). Omit to derive (count × (hold + transition)) for a clean loop. */
   durationMs?: number;
+}
 
-  // --- layout / sizing ---
+/** Sliver arrangement and sizing for the bands. */
+export interface PaletteReelLayoutInput {
+  /** Sliver arrangement: horizontal bands (names upright) or full-height vertical strips. Default "rows". */
+  orientation?: "rows" | "columns";
   /** How many times a sliver's share a fully-open band takes (a collapsed sliver is the baseline). Default 12. */
   grownFlex?: number;
   /** Minimum cross-size of a sliver in px so its name stays legible. Default 0 (derive from height). */
   minCrossPx?: number;
   /** Keep the name fully visible even in a collapsed sliver (else it fades with the band). Default true. */
   nameAlwaysVisible?: boolean;
+  /** Backdrop behind the bands (shown in `gap` between them). Default "#ffffff". */
+  background?: string;
+  /** Gap between bands (px). Default 0 (bands abut). */
+  gap?: number;
+  /** Band corner radius (px). Default 0 (square). */
+  cornerRadius?: number;
+}
 
-  // --- styling (carried from the still palette) ---
+/** Label typography and formatting (carried from the still palette). */
+export interface PaletteReelTextInput {
   /** Uppercase the color names. Default false. */
   uppercase?: boolean;
   /** RGB string style. Default "labeled". */
   rgbStyle?: "labeled" | "css" | "plain";
   /** OKLCH string style. Default "css". */
   oklchStyle?: "css" | "labeled";
-  /** Light text color, used on dark bands (picked by contrast). Default "#ffffff". */
-  textLight?: string;
-  /** Dark text color, used on light bands (picked by contrast). Default "#141414". */
-  textDark?: string;
-  /** Luminance above which the dark text is used (0..1). Default 0.5. */
-  contrastThreshold?: number;
   /** Custom font file (woff2/woff/ttf/otf), served into the render. Omit for a system bold sans. */
   fontFile?: string;
   /** Label font weight. Default 700. */
@@ -79,26 +87,40 @@ export interface PaletteReelOptionsInput {
   fontSize?: number;
   /** Detail-line font size as a fraction of the name size. Default 0.62. */
   detailFontScale?: number;
-  /** Backdrop behind the bands (shown in `gap` between them). Default "#ffffff". */
-  background?: string;
-  /** Gap between bands (px). Default 0 (bands abut). */
-  gap?: number;
-  /** Band corner radius (px). Default 0 (square). */
-  cornerRadius?: number;
+}
 
-  // --- output ---
-  /** Output frame width in px. Default 1920. */
-  width?: number;
-  /** Output frame height in px. Default 1080. */
-  height?: number;
-  /** Render scale (higher = crisper capture, downscaled into the video). Default 1. */
-  deviceScaleFactor?: number;
-  /** Output frames per second. Default 30. */
-  fps?: number;
-  /** x264 quality, 0–51 (lower = better quality / larger file). Default 18. */
-  crf?: number;
-  /** Output filename; defaults to "<slug(asset name)>.mp4". */
-  fileName?: string;
+/** Text-color selection by band contrast. */
+export interface PaletteReelContrastInput {
+  /** Light text color, used on dark bands (picked by contrast). Default "#ffffff". */
+  textLight?: string;
+  /** Dark text color, used on light bands (picked by contrast). Default "#141414". */
+  textDark?: string;
+  /** Luminance above which the dark text is used (0..1). Default 0.5. */
+  contrastThreshold?: number;
+}
+
+/**
+ * Author-facing options for the `palette-reel` generator — a looping reveal *video* of a color
+ * palette (the moving counterpart of the still `palette` generator). The colors start as thin
+ * slivers showing only their name; one at a time a sliver expands into a band that reveals its
+ * configured `details` (hex / oklch / rgb …), holds, then collapses before the next opens — sweeping
+ * every color and looping seamlessly. Only `colors` is required; everything else has a default.
+ */
+export interface PaletteReelOptionsInput {
+  /** The colors to reveal (at least one). */
+  colors: PaletteColorInput[];
+  /** Fields revealed when a color expands (the name is always shown, so it's ignored here). Default hex + oklch + rgb. */
+  details?: FieldId[];
+  /** Output frame / encode settings. */
+  output?: PaletteReelOutputInput;
+  /** Reveal timing (milliseconds). */
+  timing?: PaletteReelTimingInput;
+  /** Sliver arrangement and sizing. */
+  layout?: PaletteReelLayoutInput;
+  /** Label typography and formatting. */
+  text?: PaletteReelTextInput;
+  /** Text-color selection by band contrast. */
+  contrast?: PaletteReelContrastInput;
 }
 
 const paletteReelObjectSchema = z
@@ -114,12 +136,6 @@ const paletteReelObjectSchema = z
       )
       .min(1)
       .describe("The colors to reveal (at least one)."),
-    orientation: z
-      .enum(["rows", "columns"])
-      .default("rows")
-      .describe(
-        'Sliver arrangement: horizontal bands (names upright) or full-height vertical strips. Default "rows".',
-      ),
     details: z
       .array(fieldEnum)
       .default(["hex", "oklch", "rgb"])
@@ -127,110 +143,142 @@ const paletteReelObjectSchema = z
         "Fields revealed when a color expands (the name is always shown, so it's ignored here). Default hex + oklch + rgb.",
       ),
 
-    holdMs: z
-      .number()
-      .positive()
-      .default(2000)
-      .describe("How long each color stays fully open before handing off to the next (ms). Default 2000."),
-    transitionMs: z
-      .number()
-      .positive()
-      .default(700)
-      .describe("Crossfade length from one open color to the next (ms). Default 700."),
-    bounce: z
-      .boolean()
-      .default(true)
-      .describe(
-        "Ping-pong the sweep so each handoff is between neighbouring bands; off wraps directly (last to first). Default true.",
-      ),
-    easing: easingSchema
-      .default("ease-in-out")
-      .describe('Easing applied to the crossfade ramp. Default "ease-in-out".'),
-    durationMs: z
-      .number()
-      .positive()
-      .optional()
-      .describe("Clip length override (ms). Omit to derive (count x (hold + transition)) for a clean loop."),
+    output: z
+      .object({
+        ...videoOutputShape({ width: 1920, height: 1080, deviceScaleFactor: 1 }),
+      })
+      .strict()
+      .default({}),
 
-    grownFlex: z
-      .number()
-      .min(1)
-      .default(12)
-      .describe(
-        "How many times a sliver's share a fully-open band takes (a collapsed sliver is the baseline). Default 12.",
-      ),
-    minCrossPx: z
-      .number()
-      .nonnegative()
-      .default(0)
-      .describe("Minimum cross-size of a sliver in px so its name stays legible. Default 0 (derive from height)."),
-    nameAlwaysVisible: z
-      .boolean()
-      .default(true)
-      .describe(
-        "Keep the name fully visible even in a collapsed sliver (else it fades with the band). Default true.",
-      ),
+    timing: z
+      .object({
+        holdMs: z
+          .number()
+          .positive()
+          .default(2000)
+          .describe("How long each color stays fully open before handing off to the next (ms). Default 2000."),
+        transitionMs: z
+          .number()
+          .positive()
+          .default(700)
+          .describe("Crossfade length from one open color to the next (ms). Default 700."),
+        bounce: z
+          .boolean()
+          .default(true)
+          .describe(
+            "Ping-pong the sweep so each handoff is between neighbouring bands; off wraps directly (last to first). Default true.",
+          ),
+        easing: easingSchema
+          .default("ease-in-out")
+          .describe('Easing applied to the crossfade ramp. Default "ease-in-out".'),
+        durationMs: z
+          .number()
+          .positive()
+          .optional()
+          .describe("Clip length override (ms). Omit to derive (count x (hold + transition)) for a clean loop."),
+      })
+      .strict()
+      .default({}),
 
-    uppercase: z.boolean().default(false).describe("Uppercase the color names. Default false."),
-    rgbStyle: z
-      .enum(["labeled", "css", "plain"])
-      .default("labeled")
-      .describe('RGB string style. Default "labeled".'),
-    oklchStyle: z
-      .enum(["css", "labeled"])
-      .default("css")
-      .describe('OKLCH string style. Default "css".'),
-    textLight: z
-      .string()
-      .default("#ffffff")
-      .describe('Light text color, used on dark bands (picked by contrast). Default "#ffffff".'),
-    textDark: z
-      .string()
-      .default("#141414")
-      .describe('Dark text color, used on light bands (picked by contrast). Default "#141414".'),
-    contrastThreshold: z
-      .number()
-      .min(0)
-      .max(1)
-      .default(0.5)
-      .describe("Luminance above which the dark text is used (0..1). Default 0.5."),
-    fontFile: z
-      .string()
-      .optional()
-      .describe("Custom font file (woff2/woff/ttf/otf), served into the render. Omit for a system bold sans."),
-    fontWeight: z
-      .number()
-      .int()
-      .min(1)
-      .max(1000)
-      .default(700)
-      .describe("Label font weight. Default 700."),
-    fontSize: z
-      .number()
-      .positive()
-      .optional()
-      .describe("Name font size in px. Omit to derive from the frame size."),
-    detailFontScale: z
-      .number()
-      .positive()
-      .default(0.62)
-      .describe("Detail-line font size as a fraction of the name size. Default 0.62."),
-    background: z
-      .string()
-      .default("#ffffff")
-      .describe('Backdrop behind the bands (shown in `gap` between them). Default "#ffffff".'),
-    gap: z
-      .number()
-      .nonnegative()
-      .default(0)
-      .describe("Gap between bands (px). Default 0 (bands abut)."),
-    cornerRadius: z
-      .number()
-      .nonnegative()
-      .default(0)
-      .describe("Band corner radius (px). Default 0 (square)."),
+    layout: z
+      .object({
+        orientation: z
+          .enum(["rows", "columns"])
+          .default("rows")
+          .describe(
+            'Sliver arrangement: horizontal bands (names upright) or full-height vertical strips. Default "rows".',
+          ),
+        grownFlex: z
+          .number()
+          .min(1)
+          .default(12)
+          .describe(
+            "How many times a sliver's share a fully-open band takes (a collapsed sliver is the baseline). Default 12.",
+          ),
+        minCrossPx: z
+          .number()
+          .nonnegative()
+          .default(0)
+          .describe("Minimum cross-size of a sliver in px so its name stays legible. Default 0 (derive from height)."),
+        nameAlwaysVisible: z
+          .boolean()
+          .default(true)
+          .describe(
+            "Keep the name fully visible even in a collapsed sliver (else it fades with the band). Default true.",
+          ),
+        background: z
+          .string()
+          .default("#ffffff")
+          .describe('Backdrop behind the bands (shown in `gap` between them). Default "#ffffff".'),
+        gap: z
+          .number()
+          .nonnegative()
+          .default(0)
+          .describe("Gap between bands (px). Default 0 (bands abut)."),
+        cornerRadius: z
+          .number()
+          .nonnegative()
+          .default(0)
+          .describe("Band corner radius (px). Default 0 (square)."),
+      })
+      .strict()
+      .default({}),
 
-    ...videoOutputShape({ width: 1920, height: 1080, deviceScaleFactor: 1 }),
+    text: z
+      .object({
+        uppercase: z.boolean().default(false).describe("Uppercase the color names. Default false."),
+        rgbStyle: z
+          .enum(["labeled", "css", "plain"])
+          .default("labeled")
+          .describe('RGB string style. Default "labeled".'),
+        oklchStyle: z
+          .enum(["css", "labeled"])
+          .default("css")
+          .describe('OKLCH string style. Default "css".'),
+        fontFile: z
+          .string()
+          .optional()
+          .describe("Custom font file (woff2/woff/ttf/otf), served into the render. Omit for a system bold sans."),
+        fontWeight: z
+          .number()
+          .int()
+          .min(1)
+          .max(1000)
+          .default(700)
+          .describe("Label font weight. Default 700."),
+        fontSize: z
+          .number()
+          .positive()
+          .optional()
+          .describe("Name font size in px. Omit to derive from the frame size."),
+        detailFontScale: z
+          .number()
+          .positive()
+          .default(0.62)
+          .describe("Detail-line font size as a fraction of the name size. Default 0.62."),
+      })
+      .strict()
+      .default({}),
+
+    contrast: z
+      .object({
+        textLight: z
+          .string()
+          .default("#ffffff")
+          .describe('Light text color, used on dark bands (picked by contrast). Default "#ffffff".'),
+        textDark: z
+          .string()
+          .default("#141414")
+          .describe('Dark text color, used on light bands (picked by contrast). Default "#141414".'),
+        contrastThreshold: z
+          .number()
+          .min(0)
+          .max(1)
+          .default(0.5)
+          .describe("Luminance above which the dark text is used (0..1). Default 0.5."),
+      })
+      .strict()
+      .default({}),
   })
   .strict();
 

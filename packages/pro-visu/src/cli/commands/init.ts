@@ -122,7 +122,7 @@ export default defineConfig({
     // },
     defaults: {
       // Keyed by generator id. Merged underneath each asset's own options.
-      "scroll-reel": { width: 1440, height: 900, fps: 30 },
+      "scroll-reel": { output: { width: 1440, height: 900, fps: 30 } },
     },
   },
   assets: [
@@ -130,7 +130,7 @@ export default defineConfig({
       name: "home-reel",
       url: URL,
       generator: "scroll-reel",
-      // options: { durationMs: 7000, waitForSelector: "main" },
+      // options: { motion: { durationMs: 7000 }, page: { waitForSelector: "main" } },
     },
     // A looping type-specimen from a font file (no URL needed):
     // {
@@ -154,7 +154,7 @@ function jsonConfigTemplate(info: ProjectInfo): string {
     "concurrency": 2,
     "browser": { "headless": true },
     "defaults": {
-      "scroll-reel": { "width": 1440, "height": 900, "fps": 30 }
+      "scroll-reel": { "output": { "width": 1440, "height": 900, "fps": 30 } }
     }
   },
   "assets": [

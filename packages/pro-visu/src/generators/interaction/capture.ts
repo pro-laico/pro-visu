@@ -281,9 +281,12 @@ export async function captureInteractionWebm(args: InteractionArgs): Promise<Int
   await ensureDir(tmpDir);
   const recordDir = await mkdtemp(path.join(tmpDir, "rec-"));
   const context = await browser.newContext({
-    viewport: { width: options.width, height: options.height },
-    deviceScaleFactor: options.deviceScaleFactor,
-    recordVideo: { dir: recordDir, size: { width: options.width, height: options.height } },
+    viewport: { width: options.output.width, height: options.output.height },
+    deviceScaleFactor: options.output.deviceScaleFactor,
+    recordVideo: {
+      dir: recordDir,
+      size: { width: options.output.width, height: options.output.height },
+    },
   });
   await applyCapture(context, args.capture, url);
   const page = await context.newPage();
@@ -297,10 +300,10 @@ export async function captureInteractionWebm(args: InteractionArgs): Promise<Int
     if (options.colorScheme) await page.emulateMedia({ colorScheme: options.colorScheme });
     await installNetworkHygiene(page, args.capture);
     await installPreNav(page, args.capture);
-    logger.debug(`navigating to ${url} (waitUntil=${options.waitUntil})`);
-    await page.goto(url, { waitUntil: options.waitUntil });
-    if (options.waitForSelector) {
-      await page.waitForSelector(options.waitForSelector, { state: "visible" });
+    logger.debug(`navigating to ${url} (waitUntil=${options.page.waitUntil})`);
+    await page.goto(url, { waitUntil: options.page.waitUntil });
+    if (options.page.waitForSelector) {
+      await page.waitForSelector(options.page.waitForSelector, { state: "visible" });
     }
     // Keep media playing: an interaction records live, and the page may be mid-demo on purpose.
     await applyPostNav(page, args.capture, logger, { pauseMedia: false });
@@ -320,7 +323,7 @@ export async function captureInteractionWebm(args: InteractionArgs): Promise<Int
 
     // Everything above is blank/churn in the recording; the scripted interaction starts now.
     leadSeconds = (Date.now() - recStart) / 1000;
-    await sleep(options.startDelayMs);
+    await sleep(options.page.startDelayMs);
     for (const a of actions) {
       const durationMs = a.durationMs ?? DEFAULT_ACTION_DURATION_MS;
       try {
@@ -330,7 +333,7 @@ export async function captureInteractionWebm(args: InteractionArgs): Promise<Int
       }
       await sleep(a.holdMs ?? DEFAULT_ACTION_HOLD_MS);
     }
-    await sleep(options.endDwellMs);
+    await sleep(options.page.endDwellMs);
   } finally {
     await context.close();
   }
@@ -341,7 +344,8 @@ export async function captureInteractionWebm(args: InteractionArgs): Promise<Int
   return {
     webmPath: await video.path(),
     leadSeconds,
-    durationSeconds: interactionTotalMs(actions, options.startDelayMs, options.endDwellMs) / 1000,
+    durationSeconds:
+      interactionTotalMs(actions, options.page.startDelayMs, options.page.endDwellMs) / 1000,
   };
 }
 
@@ -362,9 +366,12 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
   await ensureDir(tmpDir);
   const recordDir = await mkdtemp(path.join(tmpDir, "rec-"));
   const context = await browser.newContext({
-    viewport: { width: options.width, height: options.height },
-    deviceScaleFactor: options.deviceScaleFactor,
-    recordVideo: { dir: recordDir, size: { width: options.width, height: options.height } },
+    viewport: { width: options.output.width, height: options.output.height },
+    deviceScaleFactor: options.output.deviceScaleFactor,
+    recordVideo: {
+      dir: recordDir,
+      size: { width: options.output.width, height: options.output.height },
+    },
   });
   await applyCapture(context, args.capture, url);
   const page = await context.newPage();
@@ -384,14 +391,14 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
 
   const recStart = Date.now();
   let leadSeconds = 0;
-  let cropBox = { x: 0, y: 0, width: options.width, height: options.height };
+  let cropBox = { x: 0, y: 0, width: options.output.width, height: options.output.height };
   try {
     if (options.colorScheme) await page.emulateMedia({ colorScheme: options.colorScheme });
     await installNetworkHygiene(page, args.capture);
     await installPreNav(page, args.capture);
-    await page.goto(url, { waitUntil: options.waitUntil });
-    if (options.waitForSelector) {
-      await page.waitForSelector(options.waitForSelector, { state: "visible" });
+    await page.goto(url, { waitUntil: options.page.waitUntil });
+    if (options.page.waitForSelector) {
+      await page.waitForSelector(options.page.waitForSelector, { state: "visible" });
     }
     await applyPostNav(page, args.capture, logger, { pauseMedia: false });
     await page.evaluate(installCursorRuntime, {
@@ -414,7 +421,7 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
     await twoFrames();
 
     leadSeconds = (Date.now() - recStart) / 1000;
-    await sleep(options.startDelayMs);
+    await sleep(options.page.startDelayMs);
     for (const a of actions) {
       const durationMs = a.durationMs ?? DEFAULT_ACTION_DURATION_MS;
       try {
@@ -433,12 +440,12 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
       return { x: r.left, y: r.top, w: r.width, h: r.height };
     }, focus.selector);
     if (box && box.w > 0 && box.h > 0) {
-      cropBox = clampCrop(box, padding, options.width, options.height);
+      cropBox = clampCrop(box, padding, options.output.width, options.output.height);
     } else {
       logger.warn(`focus: selector "${focus.selector}" not found — capturing the full viewport`);
     }
     await sleep(holdMs);
-    await sleep(options.endDwellMs);
+    await sleep(options.page.endDwellMs);
   } finally {
     await context.close();
   }
@@ -447,6 +454,7 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
     throw new Error("Playwright did not record a video (recordVideo inactive).");
   }
   const durationSeconds =
-    (options.startDelayMs + interactionTotalMs(actions, 0, 0) + holdMs + options.endDwellMs) / 1000;
+    (options.page.startDelayMs + interactionTotalMs(actions, 0, 0) + holdMs + options.page.endDwellMs) /
+    1000;
   return { webmPath: await video.path(), leadSeconds, durationSeconds, cropBox };
 }

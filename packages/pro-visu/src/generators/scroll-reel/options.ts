@@ -75,19 +75,30 @@ const autoSectionsSchema = z
   })
   .strict();
 
-export const scrollReelOptionsSchema = z
+/** Pixel size, encoding, and output formats. */
+const outputGroupSchema = z
   .object({
     ...videoOutputShape({ width: 1280, height: 800, deviceScaleFactor: 2 }),
-    /** Time to scroll from top to bottom (ms). */
-    durationMs: z
+    /** Files to emit per variant; each becomes its own asset. */
+    outputs: z
+      .array(z.enum(["mp4", "gif", "webp", "poster"]))
+      .default(["mp4"])
+      .describe('Files to emit per variant; each becomes its own asset. Default ["mp4"].'),
+    /** GIF / animated-WebP frame rate. Defaults to min(fps, 15). */
+    gifFps: z
       .number()
       .int()
       .positive()
-      .default(6000)
-      .describe("Time to scroll from top to bottom (ms). Default 6000."),
-    easing: easingSchema
-      .default("ease-in-out")
-      .describe('Easing for the default top→bottom scroll. Default "ease-in-out".'),
+      .max(50)
+      .optional()
+      .describe("GIF / animated-WebP frame rate. Defaults to min(fps, 15)."),
+  })
+  .strict()
+  .default({});
+
+/** Page-load waiting + dwell at the ends of the scroll. */
+const pageGroupSchema = z
+  .object({
     /** Dwell at the top before scrolling (ms). */
     startDelayMs: z
       .number()
@@ -111,8 +122,54 @@ export const scrollReelOptionsSchema = z
       .string()
       .optional()
       .describe("Optional element to wait for before recording (e.g. a hero section). Omit to skip."),
-    ...frameCaptureShape(),
+  })
+  .strict()
+  .default({});
 
+/** Frame-stepped render tuning (parallelism, frame format, per-frame settling). */
+const renderGroupSchema = z
+  .object({
+    ...frameCaptureShape(),
+    /** Wait for fonts + in-view images before each frame's screenshot. Defaults on (off in draft). */
+    settlePerFrame: z
+      .boolean()
+      .optional()
+      .describe(
+        "Wait for fonts + in-view images before each frame's screenshot. Defaults on (off in draft).",
+      ),
+    /** Max time (ms) to wait per frame for settling before screenshotting anyway. */
+    settleMaxMs: z
+      .number()
+      .int()
+      .nonnegative()
+      .default(250)
+      .describe(
+        "Max time (ms) to wait per frame for settling before screenshotting anyway. Default 250.",
+      ),
+  })
+  .strict()
+  .default({});
+
+/** How the scroll moves: duration/easing, loop, and choreography. */
+const motionGroupSchema = z
+  .object({
+    /** Time to scroll from top to bottom (ms). */
+    durationMs: z
+      .number()
+      .int()
+      .positive()
+      .default(6000)
+      .describe("Time to scroll from top to bottom (ms). Default 6000."),
+    easing: easingSchema
+      .default("ease-in-out")
+      .describe('Easing for the default top→bottom scroll. Default "ease-in-out".'),
+    /** Loop style. "boomerang" plays the scroll forward then back within the clip for a seamless loop. */
+    loop: z
+      .enum(["none", "boomerang"])
+      .default("none")
+      .describe(
+        'Loop style. "boomerang" plays the scroll forward then back for a seamless loop. Default "none".',
+      ),
     /**
      * Choreographed scroll: an ordered list of steps instead of one top→bottom sweep. Each step scrolls
      * to a target (a 0..1 number, an "NN%" string, or a CSS selector to bring into view), then holds —
@@ -125,7 +182,6 @@ export const scrollReelOptionsSchema = z
       .describe(
         "Choreographed scroll: an ordered list of steps instead of one top→bottom sweep. Omit for the default single eased sweep.",
       ),
-
     /**
      * Auto-choreograph: detect the page's sections and pan/hold through them automatically (no manual
      * selectors). `true` for defaults, or an object to tune. The clip is a fixed budget (`durationMs`,
@@ -137,16 +193,13 @@ export const scrollReelOptionsSchema = z
       .describe(
         "Auto-choreograph: detect sections and pan/hold through them. `true` for defaults, or an object to tune. Ignored if `choreography` is set.",
       ),
+  })
+  .strict()
+  .default({});
 
-    /** Loop style. "boomerang" plays the scroll forward then back within the clip for a seamless loop. */
-    loop: z
-      .enum(["none", "boomerang"])
-      .default("none")
-      .describe(
-        'Loop style. "boomerang" plays the scroll forward then back for a seamless loop. Default "none".',
-      ),
-
-    // --- variants (each emitted as its own asset; "frames" path) ---
+/** Variant matrix: each cell (color scheme × viewport) is emitted as its own asset. */
+const variantsGroupSchema = z
+  .object({
     /** Force a color scheme. "both" emits a light AND a dark asset (<name>-light / <name>-dark). */
     colorScheme: z
       .enum(["light", "dark", "both"])
@@ -168,26 +221,13 @@ export const scrollReelOptionsSchema = z
       .describe(
         "Also capture the reel at these viewports; each emits an asset (<name>-<viewport name>).",
       ),
+  })
+  .strict()
+  .default({});
 
-    // --- per-frame settling ---
-    /** Wait for fonts + in-view images before each frame's screenshot. Defaults on (off in draft). */
-    settlePerFrame: z
-      .boolean()
-      .optional()
-      .describe(
-        "Wait for fonts + in-view images before each frame's screenshot. Defaults on (off in draft).",
-      ),
-    /** Max time (ms) to wait per frame for settling before screenshotting anyway. */
-    settleMaxMs: z
-      .number()
-      .int()
-      .nonnegative()
-      .default(250)
-      .describe(
-        "Max time (ms) to wait per frame for settling before screenshotting anyway. Default 250.",
-      ),
-
-    // --- output formats & reframing ---
+/** Reframe the output to a target aspect. */
+const reframeGroupSchema = z
+  .object({
     /** Reframe the output to a target aspect: a preset ("16:9"|"9:16"|"1:1") or explicit {width,height}. */
     aspect: z
       .union([
@@ -210,19 +250,18 @@ export const scrollReelOptionsSchema = z
       .string()
       .default("#0b0b0f")
       .describe('Pad color used by "contain". Default "#0b0b0f".'),
-    /** Files to emit per variant; each becomes its own asset. */
-    outputs: z
-      .array(z.enum(["mp4", "gif", "webp", "poster"]))
-      .default(["mp4"])
-      .describe('Files to emit per variant; each becomes its own asset. Default ["mp4"].'),
-    /** GIF / animated-WebP frame rate. Defaults to min(fps, 15). */
-    gifFps: z
-      .number()
-      .int()
-      .positive()
-      .max(50)
-      .optional()
-      .describe("GIF / animated-WebP frame rate. Defaults to min(fps, 15)."),
+  })
+  .strict()
+  .default({});
+
+export const scrollReelOptionsSchema = z
+  .object({
+    output: outputGroupSchema,
+    page: pageGroupSchema,
+    render: renderGroupSchema,
+    motion: motionGroupSchema,
+    variants: variantsGroupSchema,
+    reframe: reframeGroupSchema,
   })
   .strict();
 
@@ -264,16 +303,8 @@ export interface AutoSectionsInput {
 /** Target output aspect: a preset, or an explicit pixel box. */
 export type AspectInput = "16:9" | "9:16" | "1:1" | { width: number; height: number };
 
-/**
- * Author-facing options for the `scroll-reel` generator — a frame-stepped video of a page
- * scrolling. By default it eases a single top→bottom scroll; the options below switch it into
- * choreographed / auto-section motion and reframe / re-encode the output. Site-cleanup toggles
- * (hide the cookie banner, block trackers, freeze the clock, …) live in `settings.capture`,
- * applied to every URL capture. For a realtime recording of the live page (scripted cursor,
- * time-based animation) use the `interaction` generator instead. Everything is optional, with
- * the defaults noted below.
- */
-export interface ScrollReelOptionsInput {
+/** Pixel size, encoding, and output formats. */
+export interface ScrollReelOutputInput {
   /** Output width in CSS px. Default 1280. */
   width?: number;
   /** Output height in CSS px. Default 800. */
@@ -286,10 +317,14 @@ export interface ScrollReelOptionsInput {
   crf?: number;
   /** Output filename; defaults to "<slug(asset name)>.mp4". */
   fileName?: string;
-  /** Time to scroll from top to bottom (ms). Default 6000. */
-  durationMs?: number;
-  /** Easing for the default top→bottom scroll. Default "ease-in-out". */
-  easing?: Easing;
+  /** Files to emit per variant; each becomes its own asset. Default ["mp4"]. */
+  outputs?: ("mp4" | "gif" | "webp" | "poster")[];
+  /** GIF / animated-WebP frame rate. Defaults to min(fps, 15). */
+  gifFps?: number;
+}
+
+/** Page-load waiting + dwell at the ends of the scroll. */
+export interface ScrollReelPageInput {
   /** Dwell at the top before scrolling (ms). Default 500. */
   startDelayMs?: number;
   /** Dwell at the bottom after scrolling (ms). Default 800. */
@@ -298,10 +333,28 @@ export interface ScrollReelOptionsInput {
   waitUntil?: "load" | "domcontentloaded" | "networkidle" | "commit";
   /** Optional element to wait for before recording (e.g. a hero section). Omit to skip. */
   waitForSelector?: string;
+}
+
+/** Frame-stepped render tuning (parallelism, frame format, per-frame settling). */
+export interface ScrollReelRenderInput {
   /** Parallel render workers (each its own browser context). Omit to auto-pick from cores + free memory. */
   workers?: number;
   /** Intermediate frame format. "jpeg" (default) is faster; "png" is lossless. Default "jpeg". */
   frameFormat?: "jpeg" | "png";
+  /** Wait for fonts + in-view images before each frame's screenshot. Defaults on (off in draft). */
+  settlePerFrame?: boolean;
+  /** Max time (ms) to wait per frame for settling before screenshotting anyway. Default 250. */
+  settleMaxMs?: number;
+}
+
+/** How the scroll moves: duration/easing, loop, and choreography. */
+export interface ScrollReelMotionInput {
+  /** Time to scroll from top to bottom (ms). Default 6000. */
+  durationMs?: number;
+  /** Easing for the default top→bottom scroll. Default "ease-in-out". */
+  easing?: Easing;
+  /** Loop style. "boomerang" plays the scroll forward then back for a seamless loop. Default "none". */
+  loop?: "none" | "boomerang";
   /**
    * Choreographed scroll: an ordered list of steps instead of one top→bottom sweep. Omit for the
    * default single eased sweep.
@@ -312,28 +365,50 @@ export interface ScrollReelOptionsInput {
    * or an object to tune. Ignored if `choreography` is set. Omit to disable.
    */
   autoSections?: boolean | AutoSectionsInput;
-  /** Loop style. "boomerang" plays the scroll forward then back for a seamless loop. Default "none". */
-  loop?: "none" | "boomerang";
+}
+
+/** Variant matrix: each cell (color scheme × viewport) is emitted as its own asset. */
+export interface ScrollReelVariantsInput {
   /** Force a color scheme. "both" emits a light AND a dark asset (<name>-light / <name>-dark). Omit to leave as-is. */
   colorScheme?: "light" | "dark" | "both";
   /** Add this class to <html> before capture (e.g. to trigger a CSS-class dark theme). Omit for none. */
   themeClass?: string;
   /** Also capture the reel at these viewports; each emits an asset (<name>-<viewport name>). */
   viewports?: ViewportInput[];
-  /** Wait for fonts + in-view images before each frame's screenshot. Defaults on (off in draft). */
-  settlePerFrame?: boolean;
-  /** Max time (ms) to wait per frame for settling before screenshotting anyway. Default 250. */
-  settleMaxMs?: number;
+}
+
+/** Reframe the output to a target aspect. */
+export interface ScrollReelReframeInput {
   /** Reframe the output to a target aspect: a preset ("16:9"|"9:16"|"1:1") or explicit {width,height}. Omit to keep the capture aspect. */
   aspect?: AspectInput;
   /** How to fit the capture into `aspect`: "cover" (scale + center-crop) or "contain" (scale + pad). Default "cover". */
   fit?: "cover" | "contain";
   /** Pad color used by "contain". Default "#0b0b0f". */
   padColor?: string;
-  /** Files to emit per variant; each becomes its own asset. Default ["mp4"]. */
-  outputs?: ("mp4" | "gif" | "webp" | "poster")[];
-  /** GIF / animated-WebP frame rate. Defaults to min(fps, 15). */
-  gifFps?: number;
+}
+
+/**
+ * Author-facing options for the `scroll-reel` generator — a frame-stepped video of a page
+ * scrolling. By default it eases a single top→bottom scroll; the options below switch it into
+ * choreographed / auto-section motion and reframe / re-encode the output. Site-cleanup toggles
+ * (hide the cookie banner, block trackers, freeze the clock, …) live in `settings.capture`,
+ * applied to every URL capture. For a realtime recording of the live page (scripted cursor,
+ * time-based animation) use the `interaction` generator instead. Everything is optional, with
+ * the defaults noted below.
+ */
+export interface ScrollReelOptionsInput {
+  /** Pixel size, encoding, and output formats. */
+  output?: ScrollReelOutputInput;
+  /** Page-load waiting + dwell at the ends of the scroll. */
+  page?: ScrollReelPageInput;
+  /** Frame-stepped render tuning (parallelism, frame format, per-frame settling). */
+  render?: ScrollReelRenderInput;
+  /** How the scroll moves: duration/easing, loop, and choreography. */
+  motion?: ScrollReelMotionInput;
+  /** Variant matrix: each cell (color scheme × viewport) is emitted as its own asset. */
+  variants?: ScrollReelVariantsInput;
+  /** Reframe the output to a target aspect. */
+  reframe?: ScrollReelReframeInput;
 }
 
 /** Author-facing input (documented for editor hover; the schema validates it at run time). */

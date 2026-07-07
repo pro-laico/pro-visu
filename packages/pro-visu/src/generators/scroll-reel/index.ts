@@ -30,14 +30,14 @@ async function run(
   const preset = draft ? "ultrafast" : "medium";
 
   const variants = buildVariants({
-    width: options.width,
-    height: options.height,
-    deviceScaleFactor: options.deviceScaleFactor,
-    viewports: options.viewports,
-    colorScheme: options.colorScheme,
+    width: options.output.width,
+    height: options.output.height,
+    deviceScaleFactor: options.output.deviceScaleFactor,
+    viewports: options.variants.viewports,
+    colorScheme: options.variants.colorScheme,
   });
-  const baseName = (options.fileName ?? `${slugify(ctx.target.name)}.mp4`).replace(/\.mp4$/i, "");
-  const workers = options.workers ?? autoWorkers();
+  const baseName = (options.output.fileName ?? `${slugify(ctx.target.name)}.mp4`).replace(/\.mp4$/i, "");
+  const workers = options.render.workers ?? autoWorkers();
   const assets: AssetRecord[] = [];
 
   for (const v of variants) {
@@ -46,9 +46,12 @@ async function run(
     const captureMp4 = path.join(ctx.tmpDir, `${slugify(assetId)}-capture.mp4`);
     const vopts = {
       ...options,
-      width: v.width,
-      height: v.height,
-      deviceScaleFactor: v.deviceScaleFactor,
+      output: {
+        ...options.output,
+        width: v.width,
+        height: v.height,
+        deviceScaleFactor: v.deviceScaleFactor,
+      },
     };
     const label = v.suffix ? ` [${v.suffix}]` : "";
     ctx.logger.info(`recording ${url}${label} (frame-stepped, ${workers} worker(s))`);
@@ -61,11 +64,11 @@ async function run(
       preset,
       workers,
       // Draft always uses fast jpeg intermediates; final uses the configured format (png = lossless).
-      frameFormat: draft ? "jpeg" : options.frameFormat,
+      frameFormat: draft ? "jpeg" : options.render.frameFormat,
       jpegQuality: draft ? 70 : 90,
       // Per-frame settling defaults on, off in draft for speed (override with the explicit option).
-      settlePerFrame: options.settlePerFrame ?? !draft,
-      settleMaxMs: options.settleMaxMs,
+      settlePerFrame: options.render.settlePerFrame ?? !draft,
+      settleMaxMs: options.render.settleMaxMs,
       colorScheme: v.colorScheme,
       tmpDir: ctx.tmpDir,
       logger: ctx.logger,
@@ -82,7 +85,13 @@ async function run(
       sourceUrl: url,
       width: v.width,
       height: v.height,
-      durationMs: scrollTimelineTotalMs(vopts),
+      durationMs: scrollTimelineTotalMs({
+        startDelayMs: vopts.page.startDelayMs,
+        durationMs: vopts.motion.durationMs,
+        endDwellMs: vopts.page.endDwellMs,
+        choreography: vopts.motion.choreography,
+        autoSections: vopts.motion.autoSections,
+      }),
       options,
       preset,
     });

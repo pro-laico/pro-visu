@@ -31,30 +31,30 @@ async function run(ctx: PipelineContext, o: ResolvedWallOptions): Promise<{ asse
 
   const sceneOptions: ResolvedSceneOptions = {
     scene: "wall",
-    width: o.width,
-    height: o.height,
-    background: o.background,
-    deviceScaleFactor: o.deviceScaleFactor,
-    fps: o.fps,
+    width: o.output.width,
+    height: o.output.height,
+    background: o.layout.background,
+    deviceScaleFactor: o.output.deviceScaleFactor,
+    fps: o.output.fps,
     // The scene wire format keeps seconds internally; the authoring surface is milliseconds.
-    durationSeconds: o.durationMs / 1000,
-    capture: o.capture,
-    workers: o.workers,
-    frameFormat: o.frameFormat,
-    crf: o.crf,
-    fileName: o.fileName,
+    durationSeconds: o.motion.durationMs / 1000,
+    capture: o.render.capture,
+    workers: o.render.workers,
+    frameFormat: o.render.frameFormat,
+    crf: o.output.crf,
+    fileName: o.output.fileName,
     files,
     sceneOptions: {
       columns: wireColumns,
-      gap: o.gap,
-      tileAspect: o.tileAspect,
-      cornerRadius: o.cornerRadius,
-      background: o.background,
-      pan: o.pan,
-      loops: o.loops,
-      pulses: o.pulses,
-      test: o.test,
-      testTiles: o.testTiles,
+      gap: o.layout.gap,
+      tileAspect: o.layout.tileAspect,
+      cornerRadius: o.layout.cornerRadius,
+      background: o.layout.background,
+      pan: o.motion.pan,
+      loops: o.motion.loops,
+      pulses: o.motion.pulses,
+      test: o.preview.enabled,
+      testTiles: o.preview.tiles,
     },
   };
   return renderScene(ctx, sceneOptions, WALL_ID);
@@ -68,7 +68,7 @@ async function run(ctx: PipelineContext, o: ResolvedWallOptions): Promise<{ asse
  * are NO dependencies and nothing has to be generated first.
  */
 function deriveInputs(o: ResolvedWallOptions): Record<string, string> {
-  if (o.test) return {};
+  if (o.preview.enabled) return {};
   const map: Record<string, string> = {};
   for (const col of o.columns) {
     for (const tile of col.tiles) {
@@ -80,7 +80,7 @@ function deriveInputs(o: ResolvedWallOptions): Record<string, string> {
 
 /** `{ src }` tiles are file dependencies: content-hashed into the cache key, missing files fail early. */
 function fileDependencies(o: ResolvedWallOptions): string[] {
-  if (o.test) return [];
+  if (o.preview.enabled) return [];
   const files: string[] = [];
   for (const col of o.columns) {
     for (const tile of col.tiles) {

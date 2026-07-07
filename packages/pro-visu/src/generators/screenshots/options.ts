@@ -29,51 +29,67 @@ export const screenshotsOptionsSchema = z
       .boolean()
       .default(true)
       .describe("Capture the entire scrollable page (vs. just the viewport). Default true."),
-    format: z.enum(["png", "jpeg"]).default("png").describe("Image format. Default \"png\"."),
-    /** jpeg only, 1–100. */
-    quality: z
-      .number()
-      .int()
-      .min(1)
-      .max(100)
-      .optional()
-      .describe("JPEG quality, 1–100 (jpeg only; rejected for png). Omit for the encoder default."),
-    deviceScaleFactor: z
-      .number()
-      .positive()
-      .max(4)
-      .default(2)
-      .describe("Render scale (2 = retina-crisp). Default 2."),
-    waitUntil: z
-      .enum(["load", "domcontentloaded", "networkidle", "commit"])
-      .default("networkidle")
-      .describe("Page-load milestone to wait for before capturing. Default \"networkidle\"."),
-    waitForSelector: z
-      .string()
-      .optional()
-      .describe("Optional element to wait for before capturing (e.g. a hero image). Omit to skip."),
+    /** Image output: format, quality, scale, transparency. */
+    output: z
+      .object({
+        format: z.enum(["png", "jpeg"]).default("png").describe("Image format. Default \"png\"."),
+        /** jpeg only, 1–100. */
+        quality: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe(
+            "JPEG quality, 1–100 (jpeg only; rejected for png). Omit for the encoder default.",
+          ),
+        deviceScaleFactor: z
+          .number()
+          .positive()
+          .max(4)
+          .default(2)
+          .describe("Render scale (2 = retina-crisp). Default 2."),
+        /** png only: capture with a transparent background. */
+        omitBackground: z
+          .boolean()
+          .default(false)
+          .describe("Capture with a transparent background (png only). Default false."),
+      })
+      .strict()
+      .default({}),
+    /** Page load & settle timing. */
+    page: z
+      .object({
+        waitUntil: z
+          .enum(["load", "domcontentloaded", "networkidle", "commit"])
+          .default("networkidle")
+          .describe("Page-load milestone to wait for before capturing. Default \"networkidle\"."),
+        waitForSelector: z
+          .string()
+          .optional()
+          .describe(
+            "Optional element to wait for before capturing (e.g. a hero image). Omit to skip.",
+          ),
+        /** Extra settle time after load before capturing (ms). */
+        settleMs: z
+          .number()
+          .int()
+          .nonnegative()
+          .default(0)
+          .describe("Extra settle time after load before capturing (ms). Default 0."),
+      })
+      .strict()
+      .default({}),
     /** Element captures taken at every viewport. */
     elements: z
       .array(elementShotSchema)
       .default([])
       .describe("Specific elements to crop (in addition to the page) at every viewport. Default none."),
-    /** png only: capture with a transparent background. */
-    omitBackground: z
-      .boolean()
-      .default(false)
-      .describe("Capture with a transparent background (png only). Default false."),
-    /** Extra settle time after load before capturing (ms). */
-    settleMs: z
-      .number()
-      .int()
-      .nonnegative()
-      .default(0)
-      .describe("Extra settle time after load before capturing (ms). Default 0."),
   })
   .strict()
-  .refine((o) => !(o.format === "png" && o.quality != null), {
+  .refine((o) => !(o.output.format === "png" && o.output.quality != null), {
     message: "`quality` only applies to jpeg; remove it or set format: \"jpeg\".",
-    path: ["quality"],
+    path: ["output", "quality"],
   });
 
 // ---------------------------------------------------------------------------
@@ -93,6 +109,28 @@ export interface ElementShotInput {
   name: string;
 }
 
+/** Image output: format, quality, scale, transparency. */
+export interface ScreenshotsOutputInput {
+  /** Image format. Default "png". */
+  format?: "png" | "jpeg";
+  /** JPEG quality, 1–100 (jpeg only; rejected for png). Omit for the encoder default. */
+  quality?: number;
+  /** Render scale (2 = retina-crisp). Default 2. */
+  deviceScaleFactor?: number;
+  /** Capture with a transparent background (png only). Default false. */
+  omitBackground?: boolean;
+}
+
+/** Page load & settle timing. */
+export interface ScreenshotsPageInput {
+  /** Page-load milestone to wait for before capturing. Default "networkidle". */
+  waitUntil?: "load" | "domcontentloaded" | "networkidle" | "commit";
+  /** Optional element to wait for before capturing (e.g. a hero image). Omit to skip. */
+  waitForSelector?: string;
+  /** Extra settle time after load before capturing (ms). Default 0. */
+  settleMs?: number;
+}
+
 /**
  * Author-facing options for the `screenshots` generator — responsive stills of a page (one per
  * viewport), plus optional per-element crops. Everything is optional; sensible defaults apply.
@@ -107,22 +145,12 @@ export interface ScreenshotsOptionsInput {
   viewports?: ViewportInput[];
   /** Capture the entire scrollable page (vs. just the viewport). Default true. */
   fullPage?: boolean;
-  /** Image format. Default "png". */
-  format?: "png" | "jpeg";
-  /** JPEG quality, 1–100 (jpeg only; rejected for png). Omit for the encoder default. */
-  quality?: number;
-  /** Render scale (2 = retina-crisp). Default 2. */
-  deviceScaleFactor?: number;
-  /** Page-load milestone to wait for before capturing. Default "networkidle". */
-  waitUntil?: "load" | "domcontentloaded" | "networkidle" | "commit";
-  /** Optional element to wait for before capturing (e.g. a hero image). Omit to skip. */
-  waitForSelector?: string;
+  /** Image output: format, quality, scale, transparency. */
+  output?: ScreenshotsOutputInput;
+  /** Page load & settle timing. */
+  page?: ScreenshotsPageInput;
   /** Specific elements to crop (in addition to the page) at every viewport. Default none. */
   elements?: ElementShotInput[];
-  /** Capture with a transparent background (png only). Default false. */
-  omitBackground?: boolean;
-  /** Extra settle time after load before capturing (ms). Default 0. */
-  settleMs?: number;
 }
 
 /** Author-facing input (documented for editor hover; the schema validates it at run time). */

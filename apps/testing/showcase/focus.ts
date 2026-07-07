@@ -18,7 +18,7 @@ export const focusClips = [
     name: "lb-editorial",
     generator: "interaction",
     url: "/lookbook",
-    options: { waitForSelector: "#lb-editorial img", focus: { selector: "#lb-editorial", padding: 0, holdMs: 2500 } },
+    options: { page: { waitForSelector: "#lb-editorial img" }, focus: { selector: "#lb-editorial", padding: 0, holdMs: 2500 } },
   },
   { name: "lb-spec", generator: "interaction", url: "/lookbook", options: { focus: { selector: "#lb-spec-coat", padding: 0, holdMs: 2500 } } },
   { name: "lb-swatch", generator: "interaction", url: "/lookbook", options: { focus: { selector: "#lb-swatch", padding: 0, holdMs: 2500 } } },
