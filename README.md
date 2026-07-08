@@ -23,33 +23,39 @@ drop into a portfolio, a landing-page hero, a social post, a launch thread, or a
 
 **These are full clips, and most generators loop seamlessly.** Press play on any of them.
 
-#### Scroll reels of any page: frame-stepped, supersampled, seamless
-
-https://github.com/user-attachments/assets/9a84d6aa-f433-4f41-8b52-40bbe5809f45
-
-#### Scripted interaction demos: a synthetic cursor drives your real UI
-
-A continuous take across pages: home → shop → The Edit → about → back home.
-
-https://github.com/user-attachments/assets/3ca5e8c5-5aa8-48e0-a723-c1fc4945dd7a
+#### `interaction` · search demo
 
 Typed, submitted, and edited queries, using the text-input actions (`type` / `erase` / `press`).
 
 https://github.com/user-attachments/assets/4deef562-3fa2-4b03-9390-1969fc9c8bcc
 
-#### Media walls that composite your assets into a seamless loop
+#### `interaction` · cross-page tour
+
+A synthetic cursor drives your real UI in one continuous take across pages: home → shop → The Edit → about → back home.
+
+https://github.com/user-attachments/assets/3ca5e8c5-5aa8-48e0-a723-c1fc4945dd7a
+
+#### `scroll-reel` · scroll reels of any page
+
+Frame-stepped, supersampled, seamless.
+
+https://github.com/user-attachments/assets/9a84d6aa-f433-4f41-8b52-40bbe5809f45
+
+#### `wall` · looping media walls
 
 Producer tiles (phone-sized interaction clips and campaign stills) composited into one loop.
 
 https://github.com/user-attachments/assets/08d7331a-5995-4662-9580-95dc5d6bda74
 
-#### Type specimens from any font file
+#### `specimen` · type specimens from any font file
 
 An accent-led recipe where colour, not letters, carries the motion. One of many specimen recipes.
 
 https://github.com/user-attachments/assets/59cac500-462f-4a4b-911a-f1af9383b147
 
-#### Colour-palette reveals
+#### `palette-reel` · colour-palette reveals
+
+A palette revealed one swatch at a time.
 
 https://github.com/user-attachments/assets/a067fde2-c398-43b7-a84b-1ff1dbf65cca
 
