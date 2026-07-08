@@ -9,19 +9,21 @@ const interactionActionSchema = z
       .describe("What this step does."),
     /** Target element for move/click/hover/type. */
     selector: z.string().optional().describe("Target element for move/click/hover/type."),
-    /** Viewport-relative target for `move` without a selector (0..1). */
+    /** Viewport-relative target for `move` without a selector (0..1). Also steers the real pointer. */
     x: z
       .number()
       .min(0)
       .max(1)
       .optional()
-      .describe("Viewport-relative X target for a selector-less `move` (0..1)."),
+      .describe(
+        "Viewport-relative X target for a selector-less `move` (0..1). Steers the real pointer too, so gliding into empty space lifts :hover off whatever was under it.",
+      ),
     y: z
       .number()
       .min(0)
       .max(1)
       .optional()
-      .describe("Viewport-relative Y target for a selector-less `move` (0..1)."),
+      .describe("Viewport-relative Y target for a selector-less `move` (0..1). Steers the real pointer too."),
     /** Text to type (for `type`). */
     text: z.string().optional().describe("Text to type (for `type`)."),
     /** Scroll target for `scrollTo`: a 0..1 number, an "NN%" string, or a CSS selector. */
@@ -97,6 +99,27 @@ export const interactionOptionsSchema = z
       .describe(
         "The scripted steps (move/click/hover/type/scrollTo/wait), performed live with a visible cursor.",
       ),
+    /**
+     * Off-camera steps run before recording starts — pre-position the cursor, scroll, or set UI state
+     * so frame 0 is exactly where you want it. Trimmed from the output. Key to a seamless loop: place
+     * the cursor on the first target here (`durationMs: 0`) so the clip doesn't open with a glide-in.
+     */
+    setup: z
+      .array(interactionActionSchema)
+      .default([])
+      .describe(
+        "Off-camera steps run before recording starts (position cursor, scroll, set UI state). Trimmed from the output.",
+      ),
+    /**
+     * Off-camera steps run after recording ends — reset the page to its opening state so a loop can
+     * cut cleanly. Trimmed from the output.
+     */
+    teardown: z
+      .array(interactionActionSchema)
+      .default([])
+      .describe(
+        "Off-camera steps run after recording ends (reset state for a clean loop). Trimmed from the output.",
+      ),
     /** The synthetic cursor shown during the recording. */
     cursor: z
       .object({
@@ -166,9 +189,9 @@ export interface InteractionActionInput {
   do: "move" | "click" | "hover" | "type" | "scrollTo" | "wait";
   /** Target element for move/click/hover/type. */
   selector?: string;
-  /** Viewport-relative X target for a selector-less `move` (0..1). */
+  /** Viewport-relative X target for a selector-less `move` (0..1). Steers the real pointer too (lifts :hover). */
   x?: number;
-  /** Viewport-relative Y target for a selector-less `move` (0..1). */
+  /** Viewport-relative Y target for a selector-less `move` (0..1). Steers the real pointer too. */
   y?: number;
   /** Text to type (for `type`). */
   text?: string;
@@ -247,6 +270,17 @@ export interface InteractionOptionsInput {
    * synthetic cursor. Omit only when `focus` alone (scroll-into-view + hold) is enough.
    */
   actions?: InteractionActionInput[];
+  /**
+   * Off-camera steps run before recording starts — pre-position the cursor, scroll, or set UI state
+   * so frame 0 is exactly where you want it. Trimmed from the output. For a seamless loop, place the
+   * cursor on the first target here (`durationMs: 0`) so the clip doesn't open with a glide-in.
+   */
+  setup?: InteractionActionInput[];
+  /**
+   * Off-camera steps run after recording ends — reset the page to its opening state so a loop cuts
+   * cleanly. Trimmed from the output.
+   */
+  teardown?: InteractionActionInput[];
   /** The synthetic cursor shown during the recording. Omit for the default cursor. */
   cursor?: CursorInput;
   /**

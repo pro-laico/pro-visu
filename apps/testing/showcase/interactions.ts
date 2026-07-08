@@ -4,14 +4,17 @@ import { CURSOR } from "./brand";
 // Scripted realtime tours with the synthetic cursor — slow + deliberate, in camel.
 export const interactions: AssetSpecInput[] = [
   {
-    name: "menu", // open the mega-menu, glide across a category link
+    name: "menu", // seamless loop: open the mega-menu, glide a link, return to the button and close
     generator: "interaction",
     options: {
       cursor: { color: CURSOR },
+      // Pre-place the cursor on the trigger (off-camera) so frame 0 has no glide-in from center.
+      setup: [{ do: "move", selector: "#menu-button", durationMs: 0, holdMs: 0 }],
       actions: [
-        { do: "click", selector: "#menu-button", holdMs: 700 },
-        { do: "hover", selector: "#menu-panel a", holdMs: 900 },
-        { do: "wait", holdMs: 600 },
+        { do: "click", selector: "#menu-button", holdMs: 700 }, // open
+        { do: "hover", selector: "#menu-panel a", holdMs: 900 }, // glide across a link
+        { do: "move", selector: "#menu-button", durationMs: 500, holdMs: 250 }, // travel back
+        { do: "click", selector: "#menu-button", holdMs: 900 }, // close → last frame matches the first
       ],
     },
   },

@@ -43,12 +43,18 @@ export const options = [
   { name: 'actions', type: 'Action[]', default: '[]', description: `The scripted steps, performed live with a visible synthetic cursor. Omit only when focus alone (scroll-into-view + hold) is enough — an interaction needs actions and/or focus.`, options: [
     { name: 'do', type: "'move' | 'click' | 'hover' | 'type' | 'scrollTo' | 'wait'", required: true, description: `What this step does.` },
     { name: 'selector', type: 'string', description: `Target element for move / click / hover / type.` },
-    { name: 'x', type: 'number', description: `Viewport-relative X target (0..1) for a selector-less move.` },
-    { name: 'y', type: 'number', description: `Viewport-relative Y target (0..1) for a selector-less move.` },
+    { name: 'x', type: 'number', description: `Viewport-relative X target (0..1) for a selector-less move. Steers the real pointer too, so gliding into empty space lifts :hover off whatever was under it.` },
+    { name: 'y', type: 'number', description: `Viewport-relative Y target (0..1) for a selector-less move. Steers the real pointer too.` },
     { name: 'text', type: 'string', description: `Text to type (for type).` },
     { name: 'to', type: 'number | string', description: `Scroll target for scrollTo: a 0..1 number, an "NN%" string, or a CSS selector.` },
     { name: 'durationMs', type: 'number', description: `Cursor travel / scroll animation time (ms). Defaults to 700.` },
     { name: 'holdMs', type: 'number', description: `Pause after the step (ms). Defaults to 600.` },
+  ] },
+  { name: 'setup', type: 'Action[]', default: '[]', description: `Off-camera steps run before recording starts — pre-position the cursor, scroll, or set UI state so frame 0 is exactly where you want it. Trimmed from the output. Key to a seamless loop: place the cursor on the first target here with durationMs 0 so the clip doesn't open with a glide-in from center.`, options: [
+    { name: 'do', type: "'move' | 'click' | 'hover' | 'type' | 'scrollTo' | 'wait'", required: true, description: `What this step does (same Action shape as actions).` },
+  ] },
+  { name: 'teardown', type: 'Action[]', default: '[]', description: `Off-camera steps run after recording ends — reset the page to its opening state. Trimmed from the output. (For a visible return-to-start that closes the loop on screen, put those steps at the end of actions instead — teardown never appears in the clip.)`, options: [
+    { name: 'do', type: "'move' | 'click' | 'hover' | 'type' | 'scrollTo' | 'wait'", required: true, description: `What this step does (same Action shape as actions).` },
   ] },
   { name: 'cursor', type: 'Cursor', description: `The synthetic cursor shown during the recording. Omit for the default cursor.`, options: [
     { name: 'show', type: 'boolean', description: `Show the cursor. Defaults to true. Set false for hands-off UI-state clips (e.g. media wall tiles).` },
@@ -105,6 +111,8 @@ interactive view; **TypeScript** is the same shape in code, every option at its 
     actions: [
       { do: "click", selector: "#menu-button" }, // per action: durationMs 700, holdMs 600
     ],
+    // setup:    [], // off-camera steps before recording (pre-position cursor / scroll); trimmed out
+    // teardown: [], // off-camera steps after recording (reset state); trimmed out
     // cursor: { show: true, size: 22, color: "#0b0b0f" }, // optional; default white-with-shadow
 
     // --- element-focused clip (alternative / addition to actions) ---
@@ -128,70 +136,114 @@ interactive view; **TypeScript** is the same shape in code, every option at its 
 ### Scripted tour
 
 `actions` scripts a live click-through with a visible cursor — UI in a state you could never
-screenshot from a static page. Here an eased `scrollTo` frames a shop-the-edit module, then each
-tap swaps the featured piece.
+screenshot from a static page. Clicks can navigate: the synthetic cursor survives page changes, so a
+tour can move across the whole site. This one loops the journey — start on the home page, open the
+shop and browse a module, hop to the About page for its hero, then click the wordmark home again and
+pin the scroll to the top, landing exactly where it began.
 
 <Example
   clip="docs-browse"
-  portrait
-  caption="A phone-sized tour: scroll to the module, then browse the pieces — every tap crossfades the visual above."
+  caption="A multi-page tour, looped: home → shop (browse The Edit) → About hero → back home, one continuous take that cuts cleanly into its own start."
   code={`{
-  name: "browse-demo",
-  url: "https://your-site.com/shop",
+  name: "site-tour",
+  url: "https://your-site.com",
   generator: "interaction",
   options: {
-    output: { width: 390, height: 844 },
+    setup: [{ do: "move", selector: ".wordmark", durationMs: 0, holdMs: 0 }], // park where the tour ends
     actions: [
-      {
-        do: "scrollTo",
-        to: "#edit",
-        durationMs: 1200,
-        holdMs: 800,
-      },
-      {
-        do: "click",
-        selector: ".edit-thumb:nth-child(2)",
-        holdMs: 1600,
-      },
-      {
-        do: "click",
-        selector: ".edit-thumb:nth-child(3)",
-        holdMs: 1600,
-      },
-      {
-        do: "click",
-        selector: ".edit-thumb:nth-child(4)",
-        holdMs: 2000,
-      },
+      { do: "click", selector: ".nav-inline a:nth-child(1)", holdMs: 1300 }, // → /shop
+      { do: "scrollTo", to: "#edit", durationMs: 1000, holdMs: 700 },
+      { do: "click", selector: ".edit-thumb:nth-child(2)", holdMs: 900 },
+      { do: "click", selector: ".edit-thumb:nth-child(3)", holdMs: 900 },
+      { do: "click", selector: ".edit-thumb:nth-child(4)", holdMs: 1000 },
+      { do: "click", selector: ".nav-inline a:nth-child(3)", holdMs: 1500 }, // → /about (hero)
+      { do: "wait", holdMs: 900 },
+      { do: "click", selector: ".wordmark", holdMs: 400 },                    // → home
+      { do: "scrollTo", to: 0, durationMs: 0, holdMs: 1400 },                 // pin to the top → loops
     ],
   },
 }`}
 />
 
+### Seamless loop
+
+An interaction can't loop automatically — the tool doesn't know what your clicks did to the UI — but
+`setup` and `teardown` give you the two off-camera windows to build one yourself. Both run the same
+`Action` steps as `actions`, but neither appears in the output: `setup` is folded into the head trim
+(before recording), `teardown` runs past the tail (after recording), so both are cut from the clip.
+
+For a loop the **last frame must match the first**. Two moves get you there:
+
+1. **`setup` pre-positions the cursor** on the first target (`durationMs: 0`), so frame 0 opens with the
+   cursor already in place instead of gliding in from the center — cleaner even for non-looping clips.
+2. **The last on-camera steps return to that opening state** — travel back to the first element and undo
+   whatever the tour changed (reselect the default, close the menu or drawer). This is what actually
+   closes the loop; `teardown` is only for off-camera cleanup, since it never shows.
+
+Below, a size selector cropped with `focus`: `setup` selects **XS** off-camera so the clip opens on the
+first size, the tour works up S → M → L → XL, and the final tap returns to **XS** — so the last frame
+(XS selected, cursor resting on it) is identical to the first. Cropping to `.addbag` keeps the button
+below the sizes in frame, so the whole component reads as one unit.
+
+<Example
+  clip="docs-loop"
+  caption="A self-contained component loop: start on XS, work up to XL, then land back on XS — the clip cuts seamlessly into its own start."
+  code={`{
+  name: "size-loop",
+  url: "https://your-site.com/products/the-camel-coat",
+  generator: "interaction",
+  options: {
+    // off-camera: select XS so the loop opens on the first size
+    setup: [{ do: "click", selector: ".size-options button:nth-of-type(1)", durationMs: 0, holdMs: 0 }],
+    focus: {
+      selector: ".addbag",
+      padding: 24,
+      actions: [
+        { do: "click", selector: ".size-options button:nth-of-type(2)", holdMs: 600 }, // S
+        { do: "click", selector: ".size-options button:nth-of-type(3)", holdMs: 600 }, // M
+        { do: "click", selector: ".size-options button:nth-of-type(4)", holdMs: 600 }, // L
+        { do: "click", selector: ".size-options button:nth-of-type(5)", holdMs: 600 }, // XL
+        { do: "click", selector: ".size-options button:nth-of-type(1)", holdMs: 900 }, // back to XS → loops
+      ],
+      holdMs: 300,
+    },
+  },
+}`}
+/>
+
+A clean loop is realistic mainly for click / hover / scroll tours whose state you can fully restore.
+Autoplaying video, running CSS animations, or late-loading content won't line up frame-to-frame.
+
 ### Element focus
 
 `focus` scrolls one component into view, optionally triggers it, holds, and crops the output to its
-box — the crop is measured after the trigger actions, so an expanded state stays in frame.
+box — the crop is measured after the trigger actions, so an expanded state stays in frame. This one
+opens at rest with the cursor parked just off the card (a selector-less `move` steers the real pointer
+too, so nothing is hovered). The cursor glides on — the controls reveal and the image zooms — the
+wishlist fills, the button confirms **Added to bag**, the heart clears, then the cursor glides back off
+the card, which lifts the hover and settles it to rest again: an exact match for the opening frame.
 
 <Example
   clip="docs-focus"
   portrait
-  caption="Cropped to one product card: hovering reveals the quick-add, the wishlist heart fills, and the button confirms 'Added to bag' — a live micro-interaction, no page chrome."
+  caption="Cropped to one product card, looped: glide in to reveal the controls, fill the wishlist, add to bag, then glide off — the hover lifts and the card resets to where it started."
   code={`{
-  name: "quick-add",
+  name: "card-demo",
   url: "https://your-site.com/shop",
   generator: "interaction",
   options: {
+    setup: [{ do: "move", x: 0.16, y: 0.87, durationMs: 0, holdMs: 0 }], // rest: cursor just off the card
     focus: {
       selector: "#feature-card",
-      padding: 24,
-      // the controls are hover-revealed, so keep the cursor on the card throughout
+      padding: 26,
       actions: [
-        { do: "hover", selector: "#feature-card .product-media", holdMs: 1000 },
-        { do: "click", selector: "#feature-card .wishlist", holdMs: 1000 },   // heart fills
-        { do: "click", selector: "#feature-card .quick-add", holdMs: 1200 },  // → "Added to bag"
+        { do: "hover", selector: "#feature-card .product-media", holdMs: 900 }, // reveal + zoom
+        { do: "click", selector: "#feature-card .wishlist", holdMs: 1000 },      // heart fills
+        { do: "click", selector: "#feature-card .quick-add", holdMs: 1300 },     // → "Added to bag"
+        { do: "click", selector: "#feature-card .wishlist", holdMs: 700 },       // heart clears
+        { do: "move", x: 0.16, y: 0.87, durationMs: 600, holdMs: 1100 },         // glide off → card resets → frame 0
       ],
-      holdMs: 2200,
+      holdMs: 300,
     },
   },
 }`}

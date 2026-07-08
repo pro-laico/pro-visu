@@ -55,28 +55,62 @@ export default defineConfig({
         motion: { loop: "straight", autoSections: { durationMs: 14000 } },
       },
     },
-    // Scripted tour: phone viewport, eased scroll to "The Edit" module, then taps browse the
-    // pieces — each tap crossfades the stage visual. Thumbs share a row, so no scroll between taps.
+    // Scripted tour (seamless loop) across pages: start on the home page, navigate to the shop, browse
+    // "The Edit" module, hop to the About page to take in its hero, then click the wordmark home again —
+    // landing exactly where it began (home top, cursor resting on the wordmark). The synthetic cursor
+    // survives the client-side navigations, so the whole journey is one continuous take.
     {
       name: "docs-browse",
       generator: "interaction",
-      url: "/shop",
+      url: "/",
       options: {
-        output: { width: 390, height: 844, deviceScaleFactor: 2 },
+        output: { width: 1280, height: 800, deviceScaleFactor: 2 },
         cursor: { color: CURSOR },
-        page: { waitForSelector: "#edit-stage img" },
+        page: { waitForSelector: ".hero-media img" },
+        setup: [{ do: "move", selector: ".wordmark", durationMs: 0, holdMs: 0 }], // park where the tour ends
         actions: [
-          { do: "scrollTo", to: "#edit", durationMs: 1200, holdMs: 800 },
-          { do: "click", selector: ".edit-thumb:nth-child(2)", holdMs: 1600 },
-          { do: "click", selector: ".edit-thumb:nth-child(3)", holdMs: 1600 },
-          { do: "click", selector: ".edit-thumb:nth-child(4)", holdMs: 2000 },
+          { do: "click", selector: ".nav-inline a:nth-child(1)", durationMs: 600, holdMs: 1300 }, // → /shop
+          { do: "scrollTo", to: "#edit", durationMs: 1000, holdMs: 700 }, // frame The Edit
+          { do: "click", selector: ".edit-thumb:nth-child(2)", durationMs: 550, holdMs: 900 },
+          { do: "click", selector: ".edit-thumb:nth-child(3)", durationMs: 550, holdMs: 900 },
+          { do: "click", selector: ".edit-thumb:nth-child(4)", durationMs: 550, holdMs: 1000 },
+          { do: "click", selector: ".nav-inline a:nth-child(3)", durationMs: 700, holdMs: 1500 }, // → /about (hero)
+          { do: "wait", holdMs: 900 }, // dwell on the About hero
+          { do: "click", selector: ".wordmark", durationMs: 700, holdMs: 400 }, // → / home
+          { do: "scrollTo", to: 0, durationMs: 0, holdMs: 1400 }, // pin to the top so it matches frame 0 → loops
         ],
       },
     },
-    // Element focus: crop to a product card and drive it live — hover reveals the quick-add +
-    // wishlist, the heart fills, the button confirms "Added to bag". The cursor stays over the
-    // card (the controls are hover-gated); the crop is measured after the triggers, so the
-    // changed state stays framed.
+    // Seamless loop, cropped to a component: the PDP add-to-bag block (size row + button). Setup
+    // selects XS off-camera so the loop opens on the first size; the tour then works up S → M → L → XL
+    // and the final tap returns to XS — so the last frame (XS selected, cursor on it) matches the first.
+    {
+      name: "docs-loop",
+      generator: "interaction",
+      url: "/products/the-camel-coat",
+      options: {
+        cursor: { color: CURSOR },
+        page: { waitForSelector: ".size-options button" },
+        setup: [{ do: "click", selector: ".size-options button:nth-of-type(1)", durationMs: 0, holdMs: 0 }], // start on XS
+        focus: {
+          selector: ".addbag",
+          padding: 24,
+          actions: [
+            { do: "click", selector: ".size-options button:nth-of-type(2)", durationMs: 420, holdMs: 600 }, // S
+            { do: "click", selector: ".size-options button:nth-of-type(3)", durationMs: 420, holdMs: 600 }, // M
+            { do: "click", selector: ".size-options button:nth-of-type(4)", durationMs: 420, holdMs: 600 }, // L
+            { do: "click", selector: ".size-options button:nth-of-type(5)", durationMs: 420, holdMs: 600 }, // XL
+            { do: "click", selector: ".size-options button:nth-of-type(1)", durationMs: 560, holdMs: 900 }, // back to XS → loops
+          ],
+          holdMs: 300,
+        },
+      },
+    },
+    // Element focus (seamless loop): crop to a product card with room around it, and drive it live.
+    // The clip opens at rest (cursor parked off the card, so nothing is hovered); then the cursor
+    // glides in — the hover-gated controls reveal and the image zooms — the wishlist heart fills, the
+    // button confirms "Added to bag", the heart clears, and the cursor glides back off the card, which
+    // lifts the hover so the card settles to rest again — an exact match for the opening frame.
     {
       name: "docs-focus",
       generator: "interaction",
@@ -84,15 +118,18 @@ export default defineConfig({
       options: {
         cursor: { color: CURSOR },
         page: { waitForSelector: "#feature-card img" },
+        setup: [{ do: "move", x: 0.16, y: 0.87, durationMs: 0, holdMs: 0 }], // rest: cursor just below the card
         focus: {
           selector: "#feature-card",
-          padding: 24,
+          padding: 26,
           actions: [
-            { do: "hover", selector: "#feature-card .product-media", durationMs: 700, holdMs: 1000 },
-            { do: "click", selector: "#feature-card .wishlist", durationMs: 500, holdMs: 1000 },
-            { do: "click", selector: "#feature-card .quick-add", durationMs: 550, holdMs: 1200 },
+            { do: "hover", selector: "#feature-card .product-media", durationMs: 600, holdMs: 900 }, // reveal + zoom
+            { do: "click", selector: "#feature-card .wishlist", durationMs: 450, holdMs: 1000 }, // heart fills
+            { do: "click", selector: "#feature-card .quick-add", durationMs: 500, holdMs: 1300 }, // → "Added to bag"
+            { do: "click", selector: "#feature-card .wishlist", durationMs: 450, holdMs: 700 }, // heart clears (reset)
+            { do: "move", x: 0.16, y: 0.87, durationMs: 600, holdMs: 1100 }, // glide off → card deselects → frame 0
           ],
-          holdMs: 2200,
+          holdMs: 300,
         },
       },
     },
