@@ -42,6 +42,8 @@ interface Opt {
   required?: boolean;
   description?: string;
   options?: Opt[];
+  variants?: Array<{ name?: string; description?: string; options?: Opt[] }>;
+  variantKey?: string;
 }
 
 // Evaluate a static JS expression — our docs data is pure literals (strings, template literals,
@@ -102,6 +104,14 @@ function configTable(items: unknown): string {
       const desc = cell(o.description) + (o.required ? " _(required)_" : "");
       rows.push(`| ${code(name)} | ${code(o.type)} | ${code(o.default)} | ${desc} |`);
       if (Array.isArray(o.options)) walk(o.options, name);
+      // Array-of-union field: one sub-group per variant, keyed by the discriminant, e.g. actions[do="click"].
+      if (Array.isArray(o.variants)) {
+        for (const v of o.variants) {
+          const vname = o.variantKey ? `${name}[${o.variantKey}="${v.name}"]` : `${name}.${v.name}`;
+          if (v.description) rows.push(`| ${code(vname)} | | | ${cell(v.description)} |`);
+          if (Array.isArray(v.options)) walk(v.options, vname);
+        }
+      }
     }
   };
   walk(items as Opt[], "");
