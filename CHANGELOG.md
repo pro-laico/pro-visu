@@ -6,6 +6,8 @@ All notable changes to `pro-visu` are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-08
+
 A surface-trim release built from a usability audit: fewer commands, fewer options, one easing
 vocabulary, and site cleanup in one place — with the trimmed paths replaced by automation
 (heap sizing, interrupted-run cleanup, JSON Schema refresh) instead of knobs. Every removal
@@ -99,21 +101,6 @@ fails loudly with a pointed migration hint, never silently.
   under `src/recorder/`, the scene engine (serving + capture + `renderScene`, with a
   contributor README on adding scenes) under `src/scene-engine/`, and the Chromium/ffmpeg
   bootstrap under `src/binaries/`. No behavior change.
-
-### Upgrade notes
-
-1. Move any `hideSelectors` / `blockTrackers` / `freezeClock` / … keys from `scroll-reel`
-   options into `settings.capture`.
-2. Change assets using `actions` / `cursor` / `focus` to `generator: "interaction"`.
-3. Replace `image` assets with `{ src }` tiles in the wall's `columns`, and delete any `inputs`
-   maps and `settings.maxMemoryMB`.
-4. Rename easings to the new vocabulary and `testTiles.*.size` to `caption`.
-5. Drop `kenBurns` / `annotations` / `intro` / `outro` from reels (re-create in your editor).
-6. Every remaining mismatch fails validation with a pointed hint — run `pro-visu doctor` to see
-   them all at once.
-
-### Changed
-
 - **Frame-capture workers now share one run-wide budget and size themselves to free memory.**
   Previously every frame-stepped asset picked its worker count as if it owned the machine, so
   `settings.concurrency` multiplied it into far more supersampled Chromium contexts + encoders
@@ -188,6 +175,18 @@ fails loudly with a pointed migration hint, never silently.
   force lining figures (`font-variant-numeric: lining-nums`), so digits sit on the baseline in
   every font. Relatedly documented: a custom `characterPool` with lowercase needs `leading` raised
   to ~1, or its descenders (g j p q y) are clipped by the default `0.78`.
+
+### Upgrade notes
+
+1. Move any `hideSelectors` / `blockTrackers` / `freezeClock` / … keys from `scroll-reel`
+   options into `settings.capture`.
+2. Change assets using `actions` / `cursor` / `focus` to `generator: "interaction"`.
+3. Replace `image` assets with `{ src }` tiles in the wall's `columns`, and delete any `inputs`
+   maps and `settings.maxMemoryMB`.
+4. Rename easings to the new vocabulary and `testTiles.*.size` to `caption`.
+5. Drop `kenBurns` / `annotations` / `intro` / `outro` from reels (re-create in your editor).
+6. Every remaining mismatch fails validation with a pointed hint — run `pro-visu doctor` to see
+   them all at once.
 
 ## [0.5.0] - 2026-07-02
 
