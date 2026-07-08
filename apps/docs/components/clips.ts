@@ -8,6 +8,15 @@ import docsScroll from "@videos/docs-scroll.mp4";
 import docsBrowse from "@videos/docs-browse.mp4";
 import docsLoop from "@videos/docs-loop.mp4";
 import docsTypeDemo from "@videos/docs-type-demo.mp4";
+import docsSpecPortrait from "@videos/docs-spec-portrait.mp4";
+import docsSpecBanner from "@videos/docs-spec-banner.mp4";
+import docsSpecHairline from "@videos/docs-spec-hairline.mp4";
+import docsSpecHeavy from "@videos/docs-spec-heavy.mp4";
+import docsSpecNeon from "@videos/docs-spec-neon.mp4";
+import docsSpecMono from "@videos/docs-spec-mono.mp4";
+import docsSpecLowercase from "@videos/docs-spec-lowercase.mp4";
+import docsSpecSymbols from "@videos/docs-spec-symbols.mp4";
+import docsSpecOneshot from "@videos/docs-spec-oneshot.mp4";
 import docsWall from "@videos/docs-wall.mp4";
 import docsWallTest from "@videos/docs-wall-test.mp4";
 import docsHome from "@videos/docs-home.mp4";
@@ -36,6 +45,15 @@ export const clips = {
   "docs-vertical": docsVertical,
   "docs-wall-test": docsWallTest,
   "docs-type-demo": docsTypeDemo,
+  "docs-spec-portrait": docsSpecPortrait,
+  "docs-spec-banner": docsSpecBanner,
+  "docs-spec-hairline": docsSpecHairline,
+  "docs-spec-heavy": docsSpecHeavy,
+  "docs-spec-neon": docsSpecNeon,
+  "docs-spec-mono": docsSpecMono,
+  "docs-spec-lowercase": docsSpecLowercase,
+  "docs-spec-symbols": docsSpecSymbols,
+  "docs-spec-oneshot": docsSpecOneshot,
 } as const;
 
 export type ClipName = keyof typeof clips;

@@ -179,7 +179,13 @@ in code, every option at its default.
 
 ## Examples
 
-### The sweep template
+Start from a `template` for an instant look, or compose the options into your own. The settings
+reinforce one another, so a handful of decisions tend to travel together — each recipe below
+foregrounds one such decision and lets the rest fall in behind it.
+
+### Templates
+
+A `template` loads a named preset; your explicit options still override what it sets.
 
 `template: "sweep"` is a seamless-looping showcase of even per-character colour sweeps
 (muted → accent → foreground) on a dark palette chosen so the accent reads.
@@ -199,8 +205,6 @@ in code, every option at its default.
 }`}
 />
 
-### The demo template
-
 `template: "demo"` walks through every pulse behaviour one beat at a time with demo mode on, so it
 overlays each beat's name as it plays — you can see exactly what every pulse setting does.
 
@@ -214,6 +218,206 @@ overlays each beat's name as it plays — you can see exactly what every pulse s
     font: "public/fonts/Fraunces.woff2",
     name: "Fraunces",
     template: "demo",
+  },
+}`}
+/>
+
+### Aspect ratio
+
+The frame's shape decides how the type is set. A tall **9:16** frame has vertical room for many
+`lines` at a high `fill`; a wide letterbox wants a single big line. Tabular digits in a monospaced
+face lock to a flawless grid.
+
+<Example
+  clip="docs-spec-portrait"
+  portrait
+  caption="9:16 numeric ticker: 12 lines at fill 0.94 fill the height, and mono digits render as an even grid."
+  code={`{
+  name: "numeric-ticker",
+  generator: "specimen",
+  options: {
+    font: "public/fonts/JetBrainsMono.woff2",
+    name: "0–9",
+    output: { width: 1080, height: 1920 },   // 9:16 — vertical room for the rows
+    type: {
+      lines: 12,                              // many rows…
+      fill: 0.94,                             // …want a high fill to use the height
+      characterPool: "0123456789",            // mono digits ⇒ a flawless grid
+      weight: 500,
+    },
+    colors: { background: "#0b0b0f", foreground: "#e8e8ea", muted: "#4b5563", accent: "#6ee7a8" },
+    label: { anchor: "bottom-center", size: 0.16 },
+    pulses: [
+      { name: "flip", durationMs: 1400, chars: 0.6, pacing: "random" },
+      { name: "accent", durationMs: 800, colors: 0.2, color: "accent" },
+    ],
+  },
+}`}
+/>
+
+<Example
+  clip="docs-spec-banner"
+  caption="4:1 ultrawide banner: a single heavy line is the only thing that suits the letterbox strip."
+  code={`{
+  name: "wordmark-banner",
+  generator: "specimen",
+  options: {
+    font: "public/fonts/Inter.woff2",
+    name: "Inter",
+    output: { width: 2560, height: 640 },        // 4:1 letterbox
+    type: { lines: 1, fill: 0.72, weight: 800 }, // one fat line suits the strip
+    label: { anchor: "bottom-right" },
+  },
+}`}
+/>
+
+### Weight & density
+
+Glyph `weight` reads best at a matching density. A hairline only holds up **large** — few lines,
+airy `leading`, calm motion. A black weight wants the opposite: pack the rows tight and let it churn.
+
+<Example
+  clip="docs-spec-hairline"
+  caption="Weight 100: few lines, airy leading and calm motion make a spacious, elegant wall."
+  code={`{
+  name: "hairline",
+  generator: "specimen",
+  options: {
+    font: "public/fonts/Inter.woff2",
+    name: "Inter Thin",
+    type: { weight: 100, lines: 4, leading: 1.15 },              // thin + airy = spacious
+    label: { anchor: "bottom-left", weight: 300 },
+    animation: { characterIntensity: 0.4, colorIntensity: 0.3 }, // calm, to match
+  },
+}`}
+/>
+
+<Example
+  clip="docs-spec-heavy"
+  caption="Weight 900: ten tight lines and a busy churn on a dark palette — loud and kinetic."
+  code={`{
+  name: "heavy",
+  generator: "specimen",
+  options: {
+    font: "public/fonts/Inter.woff2",
+    name: "Inter Black",
+    type: { weight: 900, lines: 10, leading: 0.72 },             // black wants dense, tight rows
+    colors: { background: "#0b0b0f", foreground: "#f4f4f5", accent: "#7c9cff" },
+    label: { anchor: "bottom-right" },
+    animation: { characterIntensity: 1.8, colorIntensity: 1.3 }, // busy churn
+  },
+}`}
+/>
+
+### Colour
+
+`colorWeights` and `colorIntensity` decide how much colour carries the piece. Bias the accent and run
+colour hot — while keeping the glyphs calm — and colour leads. Omit the accent (it falls back to the
+background, so pops vanish) and let muted dominate for a restrained, single-hue wall.
+
+<Example
+  clip="docs-spec-neon"
+  caption="Accent-led: the accent is 4× as likely and colour runs hot while the glyphs stay calm."
+  code={`{
+  name: "accent-led",
+  generator: "specimen",
+  options: {
+    font: "public/fonts/Inter.woff2",
+    name: "accent-led",
+    colors: { background: "#07070a", foreground: "#e8e8ea", muted: "#2a2a33", accent: "#6ee7a8" },
+    colorWeights: { foreground: 1, muted: 1, accent: 4 },        // accent 4× as likely
+    label: { anchor: "bottom-left", color: "#6ee7a8" },
+    animation: { characterIntensity: 0.5, colorIntensity: 1.8 }, // colour moves, glyphs rest
+  },
+}`}
+/>
+
+<Example
+  clip="docs-spec-mono"
+  caption="Monochrome: accent omitted (so pops blend into the background) and muted dominates — restrained."
+  code={`{
+  name: "monochrome",
+  generator: "specimen",
+  options: {
+    font: "public/fonts/Inter.woff2",
+    name: "monochrome",
+    colors: { background: "#f6f3ed", foreground: "#1a1714", muted: "#b49a77" }, // no accent ⇒ = background
+    colorWeights: { foreground: 1, muted: 3, accent: 0 },        // pops disabled; muted leads
+    label: { anchor: "bottom-left", color: "#b49a77" },
+    animation: { characterIntensity: 0.4, colorIntensity: 0.5 },
+  },
+}`}
+/>
+
+### Glyph pool
+
+Swap `characterPool` and the specimen changes character — but the pool couples to `leading`. A
+lowercase pool has descenders (g j p q y) that the tight default clips, so raise `leading` toward 1.
+A symbol pool locks to an even grid in a monospaced face.
+
+<Example
+  clip="docs-spec-lowercase"
+  caption="Lowercase text face: a–z brings descenders, so leading rises to 1.0 to keep g j p q y from clipping."
+  code={`{
+  name: "text-face",
+  generator: "specimen",
+  options: {
+    font: "public/fonts/Fraunces.woff2",
+    name: "Fraunces text",
+    type: {
+      characterPool: "abcdefghijklmnopqrstuvwxyz", // lowercase ⇒ descenders
+      leading: 1.0,                                // raised so g j p q y don't clip
+      lines: 4,
+    },
+    colors: { background: "#f6f3ed", foreground: "#1a1714", muted: "#b49a77", accent: "#8a5a3c" },
+    label: { anchor: "bottom-left", color: "#8a5a3c" },
+  },
+}`}
+/>
+
+<Example
+  clip="docs-spec-symbols"
+  caption="Punctuation pool in a monospaced face — the odd-shaped glyphs still lock to an even grid."
+  code={`{
+  name: "symbols",
+  generator: "specimen",
+  options: {
+    font: "public/fonts/JetBrainsMono.woff2",
+    name: "JetBrains Mono · symbols",
+    type: {
+      characterPool: "!@#$%^&*()_+-=[]{};:,.<>/?", // punctuation set
+      lines: 6,                                     // mono ⇒ even grid
+    },
+    colors: { background: "#0b0f10", foreground: "#cdd6d3", muted: "#586460", accent: "#6ee7a8" },
+    label: { anchor: "bottom-right" },
+  },
+}`}
+/>
+
+### Motion
+
+`mirror` (on by default) plays the storyboard out and back for a seamless loop. Turn it **off** for a
+one-shot that ends on its final state — write the `pulses` to assemble from near-blank and hold, like
+an intro sting.
+
+<Example
+  clip="docs-spec-oneshot"
+  caption="mirror: false — the clip assembles from near-blank and holds composed instead of looping back."
+  code={`{
+  name: "one-shot",
+  generator: "specimen",
+  options: {
+    font: "public/fonts/Inter.woff2",
+    name: "one-shot",
+    type: { lines: 3 },
+    label: { anchor: "bottom-left" },
+    animation: { mirror: false },   // ends on the last state instead of looping back
+    pulses: [
+      { name: "sparse", durationMs: 600 },
+      { name: "assemble", durationMs: 2200, chars: 0.9, pacing: "ease-out" },
+      { name: "colour in", durationMs: 1600, colors: 0.7, pacing: "ease-in-out" },
+      { name: "hold final", durationMs: 1600 },
+    ],
   },
 }`}
 />

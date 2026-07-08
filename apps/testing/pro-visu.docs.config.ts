@@ -1,5 +1,5 @@
 import { defineConfig } from "pro-visu";
-import { CAMEL, CURSOR, INK, LODEN, PAPER, VESPER } from "./showcase/brand";
+import { CAMEL, COGNAC, CURSOR, INK, LODEN, PAPER, VESPER } from "./showcase/brand";
 
 // DOCS EXAMPLE ASSETS — the clips/stills embedded in the pro-visu docs (apps/docs), dogfooding
 // the VESPER storefront. Separate from the main showcase config (pro-visu.config.ts).
@@ -144,6 +144,202 @@ export default defineConfig({
         animation: { durationMs: 16_000 },
       },
     },
+
+    // ── Specimen recipes ─────────────────────────────────────────────────────────────────────
+    // Each of these is a *coherent composition*: the settings reinforce one intent rather than
+    // isolating a single knob. Grouped by the lever that drives the whole recipe.
+
+    // A · ASPECT RATIO drives the layout.
+    // 9:16 numeral ticker: many rows only pay off with vertical room + a high fill, and tabular
+    // mono digits (uniform width) render as a flawless grid. Random flip-churn = departure board.
+    {
+      name: "docs-spec-portrait",
+      generator: "specimen",
+      options: {
+        font: "public/fonts/JetBrainsMono.woff2",
+        name: "0–9",
+        output: { width: 1080, height: 1920 },
+        type: { lines: 12, fill: 0.94, weight: 500, leading: 0.9, characterPool: "0123456789" },
+        colors: { background: "#0b0b0f", foreground: "#e8e8ea", muted: "#4b5563", accent: "#6ee7a8" },
+        colorWeights: { foreground: 2, muted: 2, accent: 1 },
+        label: { anchor: "bottom-center", size: 0.16, weight: 600 },
+        pulses: [
+          { name: "hold", durationMs: 500 },
+          { name: "flip", durationMs: 1400, chars: 0.6, pacing: "random" },
+          { name: "accent", durationMs: 800, colors: 0.2, color: "accent", pacing: "random" },
+          { name: "flip", durationMs: 1400, chars: 0.6, pacing: "random" },
+          { name: "hold", durationMs: 500 },
+        ],
+      },
+    },
+    // 4:1 ultrawide banner: a single fat line is the only thing that suits the letterbox shape.
+    {
+      name: "docs-spec-banner",
+      generator: "specimen",
+      options: {
+        font: "public/fonts/InterVariable.woff2",
+        name: "Inter",
+        output: { width: 2560, height: 640 },
+        type: { lines: 1, fill: 0.72, weight: 800 },
+        label: { anchor: "bottom-right", size: 0.22, weight: 600 },
+        pulses: [
+          { name: "hold", durationMs: 600 },
+          { name: "run", durationMs: 1600, chars: 0.5, pacing: "linear" },
+          { name: "colour", durationMs: 1000, colors: 0.4, pacing: "ease-in-out" },
+          { name: "hold", durationMs: 600 },
+        ],
+      },
+    },
+
+    // B · WEIGHT + DENSITY set the mood together.
+    // Hairline: weight 100 stays elegant with airy leading + calm motion — a spacious, luxe take.
+    // Every knob points the same way (quiet, roomy).
+    {
+      name: "docs-spec-hairline",
+      generator: "specimen",
+      options: {
+        font: "public/fonts/InterVariable.woff2",
+        name: "Inter Thin",
+        type: { weight: 100, lines: 4, fill: 0.72, leading: 1.15 },
+        label: { anchor: "bottom-left", size: 0.2, weight: 300 },
+        animation: { characterIntensity: 0.4, colorIntensity: 0.3 },
+        pulses: [
+          { name: "still", durationMs: 1600 },
+          { name: "breathe", durationMs: 2000, chars: 0.3, pacing: "ease-in-out" },
+          { name: "soft tint", durationMs: 1600, colors: 0.25, color: "muted", pacing: "ease-out" },
+          { name: "still", durationMs: 1400 },
+        ],
+      },
+    },
+    // Heavy mosaic: weight 900 wants density, so pack 10 tight lines and let it churn busily on a
+    // dark palette with an accent flash — loud and kinetic, the opposite of the hairline.
+    {
+      name: "docs-spec-heavy",
+      generator: "specimen",
+      options: {
+        font: "public/fonts/InterVariable.woff2",
+        name: "Inter Black",
+        type: { weight: 900, lines: 10, fill: 0.9, leading: 0.72 },
+        colors: { background: "#0b0b0f", foreground: "#f4f4f5", muted: "#6b7280", accent: "#7c9cff" },
+        label: { anchor: "bottom-right", size: 0.3, weight: 800 },
+        animation: { characterIntensity: 1.8, colorIntensity: 1.3 },
+        pulses: [
+          { name: "churn", durationMs: 1400, chars: 0.7, pacing: "random" },
+          { name: "flash", durationMs: 700, colors: 0.4, color: "accent", pacing: "random" },
+          { name: "churn", durationMs: 1400, chars: 0.7, pacing: "random" },
+          { name: "hold", durationMs: 500 },
+        ],
+      },
+    },
+
+    // C · COLOR is the subject.
+    // Accent-led: colorWeights makes accent 4× more likely and colorIntensity runs hot, while the
+    // glyphs stay calm — so colour, not letters, is what moves. Neon pops on near-black.
+    {
+      name: "docs-spec-neon",
+      generator: "specimen",
+      options: {
+        font: "public/fonts/InterVariable.woff2",
+        name: "accent-led",
+        type: { lines: 5, weight: 600, fill: 0.82 },
+        colors: { background: "#07070a", foreground: "#e8e8ea", muted: "#2a2a33", accent: "#6ee7a8" },
+        colorWeights: { foreground: 1, muted: 1, accent: 4 },
+        label: { anchor: "bottom-left", size: 0.24, weight: 600, color: "#6ee7a8" },
+        animation: { characterIntensity: 0.5, colorIntensity: 1.8 },
+        pulses: [
+          { name: "hold", durationMs: 600 },
+          { name: "recolour", durationMs: 1800, colors: 0.8, pacing: "random" },
+          { name: "drift", durationMs: 1200, chars: 0.2, pacing: "even" },
+          { name: "recolour", durationMs: 1800, colors: 0.8, pacing: "random" },
+          { name: "hold", durationMs: 600 },
+        ],
+      },
+    },
+    // Monochrome: accent is omitted (so it equals the background and every "pop" blends away), muted
+    // dominates the weights, and intensity is low — a restrained, single-hue piece.
+    {
+      name: "docs-spec-mono",
+      generator: "specimen",
+      options: {
+        font: "public/fonts/InterVariable.woff2",
+        name: "monochrome",
+        type: { lines: 4, weight: 400, fill: 0.8 },
+        colors: { background: PAPER, foreground: INK, muted: CAMEL },
+        colorWeights: { foreground: 1, muted: 3, accent: 0 },
+        label: { anchor: "bottom-left", size: 0.22, weight: 500, color: CAMEL },
+        animation: { characterIntensity: 0.4, colorIntensity: 0.5 },
+        pulses: [
+          { name: "rest", durationMs: 1600 },
+          { name: "soft shuffle", durationMs: 1800, chars: 0.25, pacing: "ease-in-out" },
+          { name: "to camel", durationMs: 1600, colors: 0.6, color: "muted", pacing: "ease-out" },
+          { name: "rest", durationMs: 1400 },
+        ],
+      },
+    },
+
+    // D · GLYPH POOL defines the specimen.
+    // Lowercase text face: the pool is a–z, which means descenders (g j p q y) — so leading must rise
+    // to 1.0 or they clip. Pool + leading are one coupled decision. Editorial serif on paper.
+    {
+      name: "docs-spec-lowercase",
+      generator: "specimen",
+      options: {
+        font: "public/fonts/Fraunces.woff2",
+        name: "Fraunces text",
+        type: { lines: 4, weight: 400, fill: 0.78, leading: 1.0, characterPool: "abcdefghijklmnopqrstuvwxyz" },
+        colors: { background: PAPER, foreground: INK, muted: CAMEL, accent: COGNAC },
+        label: { anchor: "bottom-left", size: 0.24, weight: 500, color: COGNAC },
+        animation: { characterIntensity: 0.6 },
+        pulses: [
+          { name: "rest", durationMs: 1400 },
+          { name: "read", durationMs: 1800, chars: 0.35, pacing: "linear" },
+          { name: "cognac", durationMs: 1200, colors: 0.3, color: "accent", pacing: "random" },
+          { name: "settle", durationMs: 1200 },
+        ],
+      },
+    },
+    // Symbols & punctuation: a symbol pool paired with a monospaced face so the odd-shaped glyphs
+    // still lock to an even grid. Terminal palette.
+    {
+      name: "docs-spec-symbols",
+      generator: "specimen",
+      options: {
+        font: "public/fonts/JetBrainsMono.woff2",
+        name: "JetBrains Mono · symbols",
+        type: { lines: 6, weight: 500, fill: 0.82, characterPool: "!@#$%^&*()_+-=[]{};:,.<>/?" },
+        colors: { background: "#0b0f10", foreground: "#cdd6d3", muted: "#586460", accent: "#6ee7a8" },
+        label: { anchor: "bottom-right", size: 0.2, weight: 500 },
+        pulses: [
+          { name: "idle", durationMs: 900 },
+          { name: "type", durationMs: 1500, chars: 0.5, pacing: "ease-out" },
+          { name: "accent", durationMs: 900, colors: 0.3, color: "accent", pacing: "random" },
+          { name: "type", durationMs: 1300, chars: 0.4, pacing: "ease-in" },
+          { name: "rest", durationMs: 700 },
+        ],
+      },
+    },
+
+    // E · MOTION character.
+    // One-shot: mirror off means the clip ends on its final state instead of looping back — so the
+    // storyboard is written to assemble from near-blank and hold composed, like an intro sting.
+    {
+      name: "docs-spec-oneshot",
+      generator: "specimen",
+      options: {
+        font: "public/fonts/InterVariable.woff2",
+        name: "one-shot",
+        type: { lines: 3, weight: 500, fill: 0.8 },
+        label: { anchor: "bottom-left", size: 0.22, weight: 500 },
+        animation: { mirror: false },
+        pulses: [
+          { name: "sparse", durationMs: 600 },
+          { name: "assemble", durationMs: 2200, chars: 0.9, pacing: "ease-out" },
+          { name: "colour in", durationMs: 1600, colors: 0.7, pacing: "ease-in-out" },
+          { name: "hold final", durationMs: 1600 },
+        ],
+      },
+    },
+
     { name: "docs-palette", generator: "palette", options: { colors: VESPER } },
     // Grid layout with per-corner fields and an embedded brand font.
     {

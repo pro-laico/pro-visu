@@ -149,6 +149,7 @@ pin the scroll to the top, landing exactly where it began.
   url: "https://your-site.com",
   generator: "interaction",
   options: {
+    cursor: { color: "#8c7355" }, // the tinted synthetic cursor on screen
     setup: [{ do: "move", selector: ".wordmark", durationMs: 0, holdMs: 0 }], // park where the tour ends
     actions: [
       { do: "click", selector: ".nav-inline a:nth-child(1)", holdMs: 1300 }, // → /shop
@@ -193,6 +194,7 @@ below the sizes in frame, so the whole component reads as one unit.
   url: "https://your-site.com/products/the-camel-coat",
   generator: "interaction",
   options: {
+    cursor: { color: "#8c7355" }, // the tinted synthetic cursor on screen
     // off-camera: select XS so the loop opens on the first size
     setup: [{ do: "click", selector: ".size-options button:nth-of-type(1)", durationMs: 0, holdMs: 0 }],
     focus: {
@@ -232,6 +234,7 @@ the card, which lifts the hover and settles it to rest again: an exact match for
   url: "https://your-site.com/shop",
   generator: "interaction",
   options: {
+    cursor: { color: "#8c7355" }, // the tinted synthetic cursor on screen
     setup: [{ do: "move", x: 0.16, y: 0.87, durationMs: 0, holdMs: 0 }], // rest: cursor just off the card
     focus: {
       selector: "#feature-card",

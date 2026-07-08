@@ -198,7 +198,7 @@ drift, looping seamlessly.
   generator: "wall",
   options: {
     output: { width: 960, height: 540 },
-    layout: { background: "#1a1714" },
+    layout: { background: "#1a1714", gap: 4, cornerRadius: 4 },
     // one gentle drift over the clip
     motion: { durationMs: 8000, loops: 1 },
     columns: [
@@ -286,8 +286,8 @@ layout and motion here, then drop `preview`/`realtime` for the real frame-steppe
     // record the scene once
     render: { capture: "realtime" },
     output: { width: 960, height: 540 },
-    // 9:16, matches phone-clip tiles
-    layout: { tileAspect: 0.5625 },
+    // 9:16 tiles on a dark ground, small gaps + rounded corners
+    layout: { background: "#1a1714", gap: 4, cornerRadius: 4, tileAspect: 0.5625 },
     motion: { durationMs: 8000, loops: 1 },
     columns: [
       {
