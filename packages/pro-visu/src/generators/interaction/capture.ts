@@ -5,6 +5,7 @@ import { ensureDir } from "@/utils/fs";
 import { applyCapture } from "@/pipeline/capture";
 import { applyPostNav, installNetworkHygiene, installPreNav } from "@/pipeline/clean-capture";
 import type { ResolvedCaptureSettings } from "@/config/schema";
+import { EASINGS, type Easing } from "@/generators/easing";
 import type { ResolvedInteractionOptions } from "@/generators/interaction/options";
 import type { Logger } from "@/utils/logger";
 
@@ -12,6 +13,39 @@ import type { Logger } from "@/utils/logger";
 export const DEFAULT_ACTION_DURATION_MS = 700;
 /** Default pause after a step that omits `holdMs`. */
 export const DEFAULT_ACTION_HOLD_MS = 600;
+/** Default per-keystroke pace for `type` (ms). */
+export const DEFAULT_TYPE_DELAY_MS = 55;
+/** Default per-keystroke pace for `erase` (ms). */
+export const DEFAULT_ERASE_DELAY_MS = 80;
+/** How far each keystroke gap is randomized (±fraction) so the cadence reads human, not metronomic. */
+const KEYSTROKE_JITTER = 0.3;
+
+/**
+ * Pure: the nominal (pre-jitter) gap before each of `count` keystrokes, given a base per-key `delayMs`
+ * and an `easing`. The gaps always sum to `delayMs * count` — easing only redistributes them (e.g.
+ * "ease-out" front-loads the speed, so early gaps are short and later ones long) without changing the
+ * total run time. Unit-tested.
+ */
+export function keystrokeGaps(count: number, delayMs: number, easing: Easing): number[] {
+  if (count <= 0 || delayMs <= 0) return new Array(Math.max(0, count)).fill(0);
+  const ease = EASINGS[easing];
+  const total = delayMs * count;
+  const gaps: number[] = [];
+  let prev = 0;
+  for (let i = 1; i <= count; i++) {
+    const at = ease(i / count) * total; // cumulative time the i-th keystroke lands at
+    gaps.push(at - prev);
+    prev = at;
+  }
+  return gaps;
+}
+
+/** Pure: total keystroke time a `type`/`erase` step adds (0 for other steps). `erase`-all counts 0 (length is only known at run time). */
+export function writeDurationMs(a: { do: string; text?: string; count?: number; delayMs?: number }): number {
+  if (a.do === "type") return (a.text?.length ?? 0) * (a.delayMs ?? DEFAULT_TYPE_DELAY_MS);
+  if (a.do === "erase") return (a.count ?? 0) * (a.delayMs ?? DEFAULT_ERASE_DELAY_MS);
+  return 0;
+}
 /** Default dwell on the focused element. */
 const DEFAULT_FOCUS_HOLD_MS = 2000;
 /** Default padding around a focused element when cropping. */
@@ -50,15 +84,22 @@ export function clampCrop(
 
 type InteractionAction = ResolvedInteractionOptions["actions"][number];
 
-/** Pure: total interaction clip length in ms (start delay + each step's travel + hold + end dwell). */
+/**
+ * Pure: estimated interaction clip length in ms (start delay + each step's travel + keystroke time +
+ * hold + end dwell). An estimate only — the actual kept-window length is measured at run time (jitter
+ * and `erase`-all length aren't known statically), so this is a lower bound used for tests/sanity.
+ */
 export function interactionTotalMs(
-  actions: Array<{ durationMs?: number; holdMs?: number }>,
+  actions: Array<{ do?: string; text?: string; count?: number; delayMs?: number; durationMs?: number; holdMs?: number }>,
   startDelayMs: number,
   endDwellMs: number,
 ): number {
   let total = startDelayMs + endDwellMs;
   for (const a of actions) {
-    total += (a.durationMs ?? DEFAULT_ACTION_DURATION_MS) + (a.holdMs ?? DEFAULT_ACTION_HOLD_MS);
+    total +=
+      (a.durationMs ?? DEFAULT_ACTION_DURATION_MS) +
+      writeDurationMs({ do: a.do ?? "", text: a.text, count: a.count, delayMs: a.delayMs }) +
+      (a.holdMs ?? DEFAULT_ACTION_HOLD_MS);
   }
   return total;
 }
@@ -157,46 +198,45 @@ function installCursorRuntime(opts: { show: boolean; size: number; color: string
       moveToSelector: async (sel: string, ms: number): Promise<void> => {
         const el = doc.querySelector(sel);
         if (!el) return;
-        // Only scroll when the target isn't fully in view — an instant recentre on an
-        // already-visible element reads as a glitch cut in the recording.
-        const r0 = el.getBoundingClientRect();
-        const fullyVisible =
-          r0.top >= 0 && r0.left >= 0 && r0.bottom <= (g.innerHeight || 0) && r0.right <= (g.innerWidth || 0);
-        if (!fullyVisible) {
-          try {
-            el.scrollIntoView({ behavior: "instant", block: "center" });
-          } catch {
-            try {
-              el.scrollIntoView();
-            } catch {
-              /* ignore */
-            }
-          }
-          await new Promise<void>((r) => g.requestAnimationFrame(() => g.requestAnimationFrame(() => r())));
-        }
+        // The cursor never scrolls the page — the viewport is managed only by the `scrollTo` action
+        // (a separate, explicit camera move). We glide to wherever the target currently sits; a caller
+        // is responsible for scrolling it into view first. `runAction` warns if it's off-screen.
         const rect = el.getBoundingClientRect();
         await tween(rect.left + rect.width / 2, rect.top + rect.height / 2, ms);
       },
-      scrollTo: async (to: any, ms: number): Promise<void> => {
+      scrollTo: async (to: any, ms: number, align?: string, offset?: number, headerH?: number): Promise<void> => {
         const se = doc.scrollingElement || doc.documentElement;
         const max = Math.max(0, se.scrollHeight - se.clientHeight);
+        // `offset` nudges the final resting position: for a top-aligned scroll a positive offset leaves
+        // that many px of room above the target; negative scrolls past it. Applies to every `to` form.
+        const off = offset || 0;
         let target = 0;
-        if (typeof to === "number") target = to * max;
-        else if (typeof to === "string" && to.trim().endsWith("%")) target = (parseFloat(to) / 100) * max;
+        if (typeof to === "number") target = to * max - off;
+        else if (typeof to === "string" && to.trim().endsWith("%")) target = (parseFloat(to) / 100) * max - off;
         else if (typeof to === "string") {
           const el = doc.querySelector(to);
           if (el) {
-            // Honor scroll-margin-top (like native scrollIntoView) so a sticky header
-            // declared via CSS doesn't swallow the top of the scrolled-to element.
-            let margin = 0;
-            try {
-              margin = parseFloat(g.getComputedStyle(el).scrollMarginTop) || 0;
-            } catch {
-              /* ignore */
+            const rect = el.getBoundingClientRect();
+            const elTopDoc = rect.top + (g.pageYOffset || 0);
+            const vh = se.clientHeight || g.innerHeight || 0;
+            // center: centre within the VISIBLE band [headerH, vh], i.e. shift down by half the header.
+            // bottom: the target sits against the viewport bottom, which a top header never covers — no adjustment.
+            if (align === "center") target = elTopDoc - (vh - rect.height) / 2 - (headerH || 0) / 2 - off;
+            else if (align === "bottom") target = elTopDoc - (vh - rect.height) - off;
+            else {
+              // top (default): honor scroll-margin-top, and drop below a sticky/fixed header so the
+              // target isn't parked behind it. The configured header height stacks with `offset`.
+              let margin = 0;
+              try {
+                margin = parseFloat(g.getComputedStyle(el).scrollMarginTop) || 0;
+              } catch {
+                /* ignore */
+              }
+              target = elTopDoc - margin - off - (headerH || 0);
             }
-            target = Math.max(0, Math.min(max, el.getBoundingClientRect().top + (g.pageYOffset || 0) - margin));
           }
         }
+        target = Math.max(0, Math.min(max, target));
         const from = g.pageYOffset || se.scrollTop || 0;
         if (ms <= 0) {
           g.scrollTo(0, target);
@@ -232,15 +272,87 @@ function installCursorRuntime(opts: { show: boolean; size: number; color: string
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+/** Jitter a keystroke gap by ±KEYSTROKE_JITTER so the cadence reads human, clamped to ≥0. */
+function jitter(ms: number): number {
+  if (ms <= 0) return 0;
+  return Math.max(0, ms * (1 + (Math.random() * 2 - 1) * KEYSTROKE_JITTER));
+}
+
+/**
+ * Play a keystroke sequence on the focused field: `count` presses of `send()`, paced by the easing-
+ * shaped gaps and humanized with jitter. Used by both `type` (send each character) and `erase` (send
+ * Backspace). A gap of 0 (delayMs 0) plays the whole run in one tick — the "instant" mode.
+ */
+async function playKeystrokes(
+  count: number,
+  delayMs: number,
+  easing: Easing,
+  send: (i: number) => Promise<void>,
+): Promise<void> {
+  const gaps = keystrokeGaps(count, delayMs, easing);
+  for (let i = 0; i < count; i++) {
+    const gap = gaps[i] ?? 0;
+    if (gap > 0) await sleep(jitter(gap));
+    await send(i);
+  }
+}
+
+/**
+ * Is the element actually visible/clickable right now — its centre inside the viewport AND not covered
+ * by anything (a sticky header, an overlay)? Used to warn about a missing `scrollTo`. Tests real
+ * occlusion via `elementFromPoint` (which ignores the pointer-events:none synthetic cursor), so it
+ * passes header controls that live in the header band yet correctly flags content tucked behind it.
+ */
+async function isOnScreen(page: Page, selector: string): Promise<boolean> {
+  try {
+    return await page.evaluate((sel: string) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const g = globalThis as any;
+      const el = g.document?.querySelector(sel);
+      if (!el) return true; // missing element is a different problem — don't also cry "off-screen"
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) return false;
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      if (cx < 0 || cy < 0 || cx > g.innerWidth || cy > g.innerHeight) return false; // centre off-screen
+      const top = g.document.elementFromPoint(cx, cy);
+      // Visible if the centre resolves to the element (or a node it contains / is contained by) —
+      // i.e. nothing is painted over it there.
+      return !!top && (top === el || el.contains(top) || top.contains(el));
+    }, selector);
+  } catch {
+    return true;
+  }
+}
+
 /** Drive one interaction step: animate the cursor, then perform the real Playwright action. */
-async function runAction(page: Page, a: InteractionAction, durationMs: number): Promise<void> {
+async function runAction(
+  page: Page,
+  a: InteractionAction,
+  durationMs: number,
+  logger: Logger,
+  stickyHeaderHeight: number,
+): Promise<void> {
   // Selector-targeted steps wait for their element first — this also lets a step that follows a
   // navigation (a clicked link) block until the destination page has rendered the target.
-  if (a.selector && (a.do === "move" || a.do === "hover" || a.do === "click" || a.do === "type")) {
+  if (
+    a.selector &&
+    (a.do === "move" || a.do === "hover" || a.do === "click" || a.do === "type" || a.do === "erase")
+  ) {
     try {
       await page.waitForSelector(a.selector, { state: "visible", timeout: 15000 });
     } catch {
       /* fall through — the real action below surfaces a clearer error, or a `move` simply no-ops */
+    }
+    // The cursor never scrolls the page (that's the `scrollTo` action's job). If the target sits
+    // off-screen — or is covered (e.g. tucked behind a sticky header) — gliding to it and letting
+    // Playwright hard-scroll to act on it reads as a jarring jump. Warn so the author adds a `scrollTo`.
+    if (!(await isOnScreen(page, a.selector))) {
+      logger.warn(
+        `${a.do} target "${a.selector}" is off-screen or covered — add a \`scrollTo\` before this step (the cursor never auto-scrolls).`,
+      );
     }
   }
   switch (a.do) {
@@ -248,12 +360,21 @@ async function runAction(page: Page, a: InteractionAction, durationMs: number): 
       return; // the per-step hold provides the pause
     case "scrollTo":
       await page.evaluate(
-        (p: { to: number | string; ms: number }) =>
-          (globalThis as { __sc?: { scrollTo(to: number | string, ms: number): Promise<void> } }).__sc?.scrollTo(
-            p.to,
-            p.ms,
-          ),
-        { to: a.to ?? a.selector ?? 0, ms: durationMs },
+        (p: { to: number | string; ms: number; align: string; offset: number; headerH: number }) =>
+          (
+            globalThis as {
+              __sc?: {
+                scrollTo(to: number | string, ms: number, align: string, offset: number, headerH: number): Promise<void>;
+              };
+            }
+          ).__sc?.scrollTo(p.to, p.ms, p.align, p.offset, p.headerH),
+        {
+          to: a.to ?? a.selector ?? 0,
+          ms: durationMs,
+          align: a.align ?? "top",
+          offset: a.offset ?? 0,
+          headerH: stickyHeaderHeight,
+        },
       );
       return;
     case "move":
@@ -295,12 +416,49 @@ async function runAction(page: Page, a: InteractionAction, durationMs: number): 
       await page.evaluate(() => (globalThis as { __sc?: { pulse(): void } }).__sc?.pulse());
       await page.click(a.selector);
       return;
-    case "type":
-      if (!a.selector) return;
-      await moveCursorToSelector(page, a.selector, durationMs);
-      await page.click(a.selector);
-      if (a.text) await page.type(a.selector, a.text, { delay: 60 });
+    case "type": {
+      // Focus the field: glide the cursor over and click it (a selector-less type assumes it's
+      // already focused — e.g. following an earlier type/click on the same field).
+      if (a.selector) {
+        await moveCursorToSelector(page, a.selector, durationMs);
+        await page.click(a.selector);
+      }
+      const text = a.text ?? "";
+      await playKeystrokes(
+        text.length,
+        a.delayMs ?? DEFAULT_TYPE_DELAY_MS,
+        a.easing ?? "linear",
+        (i) => page.keyboard.type(text.charAt(i)),
+      );
       return;
+    }
+    case "erase": {
+      if (a.selector) {
+        await moveCursorToSelector(page, a.selector, durationMs);
+        await page.click(a.selector);
+      }
+      // Snap the caret to the end so we backspace from the tail, then remove `count` chars (or the
+      // whole current value when `count` is omitted).
+      await page.keyboard.press("End");
+      const count =
+        a.count ??
+        (a.selector
+          ? await page.$eval(a.selector, (el) => (el as unknown as { value?: string }).value?.length ?? 0)
+          : 0);
+      await playKeystrokes(
+        count,
+        a.delayMs ?? DEFAULT_ERASE_DELAY_MS,
+        a.easing ?? "linear",
+        () => page.keyboard.press("Backspace"),
+      );
+      return;
+    }
+    case "press": {
+      if (!a.key) return;
+      const combo = [...(a.modifiers ?? []), a.key].join("+");
+      await page.keyboard.press(combo);
+      return;
+    }
   }
 }
 
@@ -310,12 +468,12 @@ async function runActionList(
   actions: InteractionAction[],
   label: string,
   logger: Logger,
+  stickyHeaderHeight: number,
 ): Promise<void> {
-  const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
   for (const a of actions) {
     const durationMs = a.durationMs ?? DEFAULT_ACTION_DURATION_MS;
     try {
-      await runAction(page, a, durationMs);
+      await runAction(page, a, durationMs, logger, stickyHeaderHeight);
     } catch (e) {
       logger.warn(
         `${label} step "${a.do}"${a.selector ? ` (${a.selector})` : ""} failed: ${(e as Error).message}`,
@@ -373,10 +531,10 @@ export async function captureInteractionWebm(args: InteractionArgs): Promise<Int
   const page = await context.newPage();
   const video = page.video();
   const actions = options.actions;
-  const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
   const recStart = Date.now();
   let leadSeconds = 0;
+  let keptMs = 0;
   try {
     if (options.colorScheme) await page.emulateMedia({ colorScheme: options.colorScheme });
     await installNetworkHygiene(page, args.capture);
@@ -406,16 +564,19 @@ export async function captureInteractionWebm(args: InteractionArgs): Promise<Int
     await page.evaluate(installCursorRuntime, cursorOpts);
 
     // Off-camera setup (pre-position cursor / scroll / seed UI state) — folded into the head trim.
-    await runActionList(page, options.setup, "setup", logger);
+    await runActionList(page, options.setup, "setup", logger, options.page.stickyHeaderHeight);
 
-    // Everything above is blank/churn in the recording; the scripted interaction starts now.
-    leadSeconds = (Date.now() - recStart) / 1000;
+    // Everything above is blank/churn in the recording; the scripted interaction starts now. Measure
+    // the kept window off the wall clock so typing jitter and erase-all length are captured exactly.
+    const keptStart = Date.now();
+    leadSeconds = (keptStart - recStart) / 1000;
     await sleep(options.page.startDelayMs);
-    await runActionList(page, actions, "interaction", logger);
+    await runActionList(page, actions, "interaction", logger, options.page.stickyHeaderHeight);
     await sleep(options.page.endDwellMs);
+    keptMs = Date.now() - keptStart;
 
     // Off-camera teardown — runs past the kept window, so it's clamped off by durationSeconds.
-    await runActionList(page, options.teardown, "teardown", logger);
+    await runActionList(page, options.teardown, "teardown", logger, options.page.stickyHeaderHeight);
   } finally {
     await context.close();
   }
@@ -423,12 +584,7 @@ export async function captureInteractionWebm(args: InteractionArgs): Promise<Int
   if (!video) {
     throw new Error("Playwright did not record a video (recordVideo inactive).");
   }
-  return {
-    webmPath: await video.path(),
-    leadSeconds,
-    durationSeconds:
-      interactionTotalMs(actions, options.page.startDelayMs, options.page.endDwellMs) / 1000,
-  };
+  return { webmPath: await video.path(), leadSeconds, durationSeconds: keptMs / 1000 };
 }
 
 export interface FocusResult extends InteractionResult {
@@ -461,7 +617,6 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
   const actions = focus.actions ?? [];
   const holdMs = focus.holdMs ?? DEFAULT_FOCUS_HOLD_MS;
   const padding = focus.padding ?? DEFAULT_FOCUS_PADDING;
-  const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
   const twoFrames = (): Promise<void> =>
     page.evaluate(
       () =>
@@ -473,6 +628,7 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
 
   const recStart = Date.now();
   let leadSeconds = 0;
+  let keptMs = 0;
   let cropBox = { x: 0, y: 0, width: options.output.width, height: options.output.height };
   try {
     if (options.colorScheme) await page.emulateMedia({ colorScheme: options.colorScheme });
@@ -506,11 +662,12 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
     await twoFrames();
 
     // Off-camera setup (pre-position cursor / scroll / seed UI state) — folded into the head trim.
-    await runActionList(page, options.setup, "setup", logger);
+    await runActionList(page, options.setup, "setup", logger, options.page.stickyHeaderHeight);
 
-    leadSeconds = (Date.now() - recStart) / 1000;
+    const keptStart = Date.now();
+    leadSeconds = (keptStart - recStart) / 1000;
     await sleep(options.page.startDelayMs);
-    await runActionList(page, actions, "focus", logger);
+    await runActionList(page, actions, "focus", logger, options.page.stickyHeaderHeight);
     // Measure the element's final box (covers any expansion from the trigger) for the crop.
     const box = await page.evaluate((sel: string) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -526,9 +683,10 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
     }
     await sleep(holdMs);
     await sleep(options.page.endDwellMs);
+    keptMs = Date.now() - keptStart;
 
     // Off-camera teardown — runs past the kept window, so it's clamped off by durationSeconds.
-    await runActionList(page, options.teardown, "teardown", logger);
+    await runActionList(page, options.teardown, "teardown", logger, options.page.stickyHeaderHeight);
   } finally {
     await context.close();
   }
@@ -536,8 +694,5 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
   if (!video) {
     throw new Error("Playwright did not record a video (recordVideo inactive).");
   }
-  const durationSeconds =
-    (options.page.startDelayMs + interactionTotalMs(actions, 0, 0) + holdMs + options.page.endDwellMs) /
-    1000;
-  return { webmPath: await video.path(), leadSeconds, durationSeconds, cropBox };
+  return { webmPath: await video.path(), leadSeconds, durationSeconds: keptMs / 1000, cropBox };
 }

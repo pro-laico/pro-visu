@@ -14,5 +14,7 @@ export const settings: ShowcaseSettingsInput = {
   },
   defaults: {
     "scroll-reel": { output: { width: 1280, height: 800, fps: 30 } },
+    // The storefront's sticky header is ~100px tall; top-aligned scrollTo drops targets below it.
+    interaction: { page: { stickyHeaderHeight: 100 } },
   },
 };

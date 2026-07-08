@@ -6,6 +6,7 @@ import colorsReel from "@videos/colors-reel.mp4";
 import docsFocus from "@videos/docs-focus.mp4";
 import docsScroll from "@videos/docs-scroll.mp4";
 import docsBrowse from "@videos/docs-browse.mp4";
+import docsSearch from "@videos/docs-search.mp4";
 import docsLoop from "@videos/docs-loop.mp4";
 import docsTypeDemo from "@videos/docs-type-demo.mp4";
 import docsSpecPortrait from "@videos/docs-spec-portrait.mp4";
@@ -39,6 +40,7 @@ export const clips = {
   "colors-reel": colorsReel,
   "docs-scroll": docsScroll,
   "docs-browse": docsBrowse,
+  "docs-search": docsSearch,
   "docs-loop": docsLoop,
   "lookbook-wall": lookbookWall,
   "docs-straight": docsStraight,

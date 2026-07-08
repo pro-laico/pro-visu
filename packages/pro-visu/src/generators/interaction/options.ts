@@ -1,14 +1,18 @@
 import { z } from "zod";
+import { easingSchema, type Easing } from "@/generators/easing";
 import { videoOutputShape } from "@/generators/shared-options";
 
 /** One step of a scripted interaction (see `actions` below). */
 const interactionActionSchema = z
   .object({
     do: z
-      .enum(["move", "click", "hover", "type", "scrollTo", "wait"])
+      .enum(["move", "click", "hover", "type", "erase", "press", "scrollTo", "wait"])
       .describe("What this step does."),
-    /** Target element for move/click/hover/type. */
-    selector: z.string().optional().describe("Target element for move/click/hover/type."),
+    /** Target element for move/click/hover/type/erase. */
+    selector: z
+      .string()
+      .optional()
+      .describe("Target element for move/click/hover/type/erase (erase/type may omit it to act on the focused field)."),
     /** Viewport-relative target for `move` without a selector (0..1). Also steers the real pointer. */
     x: z
       .number()
@@ -26,11 +30,56 @@ const interactionActionSchema = z
       .describe("Viewport-relative Y target for a selector-less `move` (0..1). Steers the real pointer too."),
     /** Text to type (for `type`). */
     text: z.string().optional().describe("Text to type (for `type`)."),
+    /** Chars to remove from the caret (for `erase`). Omit to erase the whole field. */
+    count: z
+      .number()
+      .int()
+      .nonnegative()
+      .optional()
+      .describe("For `erase`: how many characters to remove from the caret. Omit to erase the whole field."),
+    /** Per-keystroke pace for `type`/`erase` (ms). 0 = instant. */
+    delayMs: z
+      .number()
+      .int()
+      .nonnegative()
+      .optional()
+      .describe(
+        "For `type`/`erase`: milliseconds between keystrokes (0 = instant). Default 55 (type) / 80 (erase). Humanized with mild jitter.",
+      ),
+    /** Eases the per-keystroke cadence across a `type`/`erase` run. */
+    easing: easingSchema
+      .optional()
+      .describe(
+        'For `type`/`erase`: eases the keystroke cadence across the run — "ease-in" starts quick and trails off, "ease-out" starts measured and quickens — without changing the total time. Default "linear".',
+      ),
+    /** Key to press (for `press`), e.g. "Enter", "Escape", "ArrowDown", "f". */
+    key: z
+      .string()
+      .optional()
+      .describe('For `press`: the key to press, e.g. "Enter", "Escape", "ArrowDown", or "f".'),
+    /** Modifier keys held during a `press` (chord), e.g. ["Control"] for Ctrl+F. */
+    modifiers: z
+      .array(z.enum(["Control", "Shift", "Alt", "Meta"]))
+      .optional()
+      .describe('For `press`: modifier keys held during the press, e.g. ["Control"] for Ctrl+F.'),
     /** Scroll target for `scrollTo`: a 0..1 number, an "NN%" string, or a CSS selector. */
     to: z
       .union([z.number(), z.string()])
       .optional()
       .describe('Scroll target for `scrollTo`: a 0..1 number, an "NN%" string, or a CSS selector.'),
+    /** For `scrollTo` to a selector: where the target lands in the viewport. */
+    align: z
+      .enum(["top", "center", "bottom"])
+      .optional()
+      .describe('For `scrollTo` to a selector: where the target lands in the viewport. Default "top".'),
+    /** For `scrollTo`: px to nudge the resting position (top-align: +N leaves N px above the target; −N scrolls past it). */
+    offset: z
+      .number()
+      .int()
+      .optional()
+      .describe(
+        "For `scrollTo`: px to nudge the final scroll position. Top-aligned, a positive offset leaves that many px of room above the target; negative scrolls past it.",
+      ),
     /** Cursor travel / scroll animation time (ms). Default 700. */
     durationMs: z
       .number()
@@ -81,6 +130,15 @@ export const interactionOptionsSchema = z
           .string()
           .optional()
           .describe("Optional element to wait for before recording. Omit to skip."),
+        /** Height (px) of a sticky/fixed header. `scrollTo` keeps targets clear of it (see align). */
+        stickyHeaderHeight: z
+          .number()
+          .int()
+          .nonnegative()
+          .default(0)
+          .describe(
+            "Height (px) of a sticky/fixed header. `scrollTo` keeps targets clear of it: top-align drops them fully below it (the step's `offset` stacks on top), center-align uses half of it, bottom-align is unaffected. Default 0.",
+          ),
       })
       .strict()
       .default({}),
@@ -90,14 +148,15 @@ export const interactionOptionsSchema = z
       .optional()
       .describe("Force a color scheme for the capture. Omit to leave as-is."),
     /**
-     * The scripted steps (move / click / hover / type / scrollTo / wait), performed live with a
-     * visible synthetic cursor. Omit only when `focus` alone (scroll-into-view + hold) is enough.
+     * The scripted steps (move / click / hover / type / erase / press / scrollTo / wait), performed
+     * live with a visible synthetic cursor. Omit only when `focus` alone (scroll-into-view + hold) is
+     * enough.
      */
     actions: z
       .array(interactionActionSchema)
       .default([])
       .describe(
-        "The scripted steps (move/click/hover/type/scrollTo/wait), performed live with a visible cursor.",
+        "The scripted steps (move/click/hover/type/erase/press/scrollTo/wait), performed live with a visible cursor.",
       ),
     /**
      * Off-camera steps run before recording starts — pre-position the cursor, scroll, or set UI state
@@ -186,8 +245,8 @@ export const interactionOptionsSchema = z
 /** One step of a scripted interaction (`actions` / `focus.actions`). */
 export interface InteractionActionInput {
   /** What this step does. */
-  do: "move" | "click" | "hover" | "type" | "scrollTo" | "wait";
-  /** Target element for move/click/hover/type. */
+  do: "move" | "click" | "hover" | "type" | "erase" | "press" | "scrollTo" | "wait";
+  /** Target element for move/click/hover/type/erase (erase/type may omit it to act on the focused field). */
   selector?: string;
   /** Viewport-relative X target for a selector-less `move` (0..1). Steers the real pointer too (lifts :hover). */
   x?: number;
@@ -195,8 +254,22 @@ export interface InteractionActionInput {
   y?: number;
   /** Text to type (for `type`). */
   text?: string;
+  /** For `erase`: how many characters to remove from the caret. Omit to erase the whole field. */
+  count?: number;
+  /** For `type`/`erase`: ms between keystrokes (0 = instant). Default 55 (type) / 80 (erase). Jittered. */
+  delayMs?: number;
+  /** For `type`/`erase`: eases the keystroke cadence across the run (total time unchanged). Default "linear". */
+  easing?: Easing;
+  /** For `press`: the key to press, e.g. "Enter", "Escape", "ArrowDown", "f". */
+  key?: string;
+  /** For `press`: modifier keys held during the press, e.g. ["Control"] for Ctrl+F. */
+  modifiers?: ("Control" | "Shift" | "Alt" | "Meta")[];
   /** Scroll target for `scrollTo`: a 0..1 number, an "NN%" string, or a CSS selector. */
   to?: number | string;
+  /** For `scrollTo` to a selector: where the target lands in the viewport. Default "top". */
+  align?: "top" | "center" | "bottom";
+  /** For `scrollTo`: px to nudge the resting position (top-align: +N leaves N px above the target; −N scrolls past it). */
+  offset?: number;
   /** Cursor travel / scroll animation time (ms). Default 700. */
   durationMs?: number;
   /** Pause after the step (ms). Default 600. */
@@ -251,6 +324,8 @@ export interface InteractionPageInput {
   waitUntil?: "load" | "domcontentloaded" | "networkidle" | "commit";
   /** Optional element to wait for before recording. Omit to skip. */
   waitForSelector?: string;
+  /** Height (px) of a sticky/fixed header; `scrollTo` keeps targets clear of it (top: fully below, center: half, bottom: none). Default 0. */
+  stickyHeaderHeight?: number;
 }
 
 /**
@@ -266,8 +341,8 @@ export interface InteractionOptionsInput {
   /** Force a color scheme for the capture. Omit to leave as-is. */
   colorScheme?: "light" | "dark";
   /**
-   * The scripted steps (move/click/hover/type/scrollTo/wait), performed live with a visible
-   * synthetic cursor. Omit only when `focus` alone (scroll-into-view + hold) is enough.
+   * The scripted steps (move/click/hover/type/erase/press/scrollTo/wait), performed live with a
+   * visible synthetic cursor. Omit only when `focus` alone (scroll-into-view + hold) is enough.
    */
   actions?: InteractionActionInput[];
   /**

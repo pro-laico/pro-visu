@@ -23,7 +23,11 @@ export default defineConfig({
     },
     // Freeze time/randomness so every docs capture is perfectly repeatable.
     capture: { cleanup: { freezeClock: true } },
-    defaults: { "scroll-reel": { output: { width: 1280, height: 800, fps: 30 } } },
+    defaults: {
+      "scroll-reel": { output: { width: 1280, height: 800, fps: 30 } },
+      // The storefront's sticky header is ~100px tall; top-aligned scrollTo drops targets below it.
+      interaction: { page: { stickyHeaderHeight: 100 } },
+    },
   },
   assets: [
     // The landing hero: auto-sections tuned to kill stop/start jitter (dsf 3 supersample) +
@@ -131,6 +135,40 @@ export default defineConfig({
           ],
           holdMs: 300,
         },
+      },
+    },
+    // Search flow (the write actions), as a seamless loop. The search filters on SUBMIT (Enter), not
+    // per keystroke. Setup lands the camera on the search field (top-aligned, 40px of headroom below
+    // the sticky header). Then: search "trousers" → Enter → glance at the result; edit the query —
+    // erase, type "knitwear" → Enter → glance across the two results and open the second; dwell on the
+    // product, then navigate back to the list so the last frame matches the first. Exercises `type`,
+    // `press`, `erase`, and `scrollTo` (align + offset + header height).
+    {
+      name: "docs-search",
+      generator: "interaction",
+      url: "/shop",
+      options: {
+        cursor: { color: CURSOR },
+        page: { waitForSelector: "#search-input" },
+        setup: [
+          { do: "scrollTo", to: "#search-input", align: "top", offset: 40, durationMs: 0, holdMs: 0 }, // start on the search field
+          { do: "move", selector: "#search-input", durationMs: 0, holdMs: 0 }, // park the cursor on it (frame 0)
+        ],
+        actions: [
+          { do: "click", selector: "#search-input", holdMs: 400 },
+          { do: "type", selector: "#search-input", text: "trousers", delayMs: 55, easing: "ease-out", holdMs: 300 },
+          { do: "press", key: "Enter", holdMs: 800 }, // submit → the list updates to the match
+          { do: "hover", selector: "#shop-grid .product:first-child .product-media", durationMs: 550, holdMs: 1000 }, // ~1s on the result
+          { do: "erase", selector: "#search-input", delayMs: 80, easing: "ease-in", holdMs: 300 }, // back to the field, clear it
+          { do: "type", selector: "#search-input", text: "knitwear", delayMs: 55, holdMs: 300 }, // edit the query
+          { do: "press", key: "Enter", holdMs: 800 }, // submit → two results
+          { do: "hover", selector: "#shop-grid .product:first-child .product-media", durationMs: 550, holdMs: 1000 }, // ~1s on the first
+          { do: "hover", selector: "#shop-grid .product:nth-child(2) .product-media", durationMs: 550, holdMs: 1000 }, // ~1s on the second
+          { do: "click", selector: "#shop-grid .product:nth-child(2) .product-link", durationMs: 500, holdMs: 2000 }, // open the second, dwell 2s
+          { do: "click", selector: ".nav-inline a:nth-child(1)", durationMs: 700, holdMs: 900 }, // → back to the list (/shop)
+          { do: "scrollTo", to: "#search-input", align: "top", offset: 40, durationMs: 800, holdMs: 500 }, // glide to the start position
+          { do: "move", selector: "#search-input", durationMs: 600, holdMs: 1000 }, // cursor back on the field → matches frame 0 → loops
+        ],
       },
     },
     // The "demo" specimen template on a serif — capped so the labelled walkthrough stays short.

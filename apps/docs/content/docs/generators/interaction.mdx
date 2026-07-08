@@ -39,22 +39,30 @@ export const options = [
     { name: 'endDwellMs', type: 'number', default: '800', description: `Dwell after the last step (ms).` },
     { name: 'waitUntil', type: "'load' | 'domcontentloaded' | 'networkidle' | 'commit'", default: "'networkidle'", description: `Page-load milestone to wait for before recording.` },
     { name: 'waitForSelector', type: 'string', description: `Optional element to wait for before recording, e.g. a hero section. Omit to skip.` },
+    { name: 'stickyHeaderHeight', type: 'number', default: '0', description: `Height (px) of a sticky/fixed header. scrollTo keeps targets clear of it: top-align drops them fully below it (offset stacks on top), center-align uses half of it, bottom-align is unaffected.` },
   ] },
   { name: 'actions', type: 'Action[]', default: '[]', description: `The scripted steps, performed live with a visible synthetic cursor. Omit only when focus alone (scroll-into-view + hold) is enough — an interaction needs actions and/or focus.`, options: [
-    { name: 'do', type: "'move' | 'click' | 'hover' | 'type' | 'scrollTo' | 'wait'", required: true, description: `What this step does.` },
-    { name: 'selector', type: 'string', description: `Target element for move / click / hover / type.` },
+    { name: 'do', type: "'move' | 'click' | 'hover' | 'type' | 'erase' | 'press' | 'scrollTo' | 'wait'", required: true, description: `What this step does.` },
+    { name: 'selector', type: 'string', description: `Target element for move / click / hover / type / erase. type and erase may omit it to act on the already-focused field.` },
     { name: 'x', type: 'number', description: `Viewport-relative X target (0..1) for a selector-less move. Steers the real pointer too, so gliding into empty space lifts :hover off whatever was under it.` },
     { name: 'y', type: 'number', description: `Viewport-relative Y target (0..1) for a selector-less move. Steers the real pointer too.` },
     { name: 'text', type: 'string', description: `Text to type (for type).` },
+    { name: 'count', type: 'number', description: `For erase: how many characters to remove from the caret. Omit to erase the whole field.` },
+    { name: 'delayMs', type: 'number', description: `For type / erase: ms between keystrokes (0 = instant). Defaults to 55 (type) / 80 (erase). Humanized with mild jitter.` },
+    { name: 'easing', type: "Easing", description: `For type / erase: eases the keystroke cadence across the run — "ease-in" starts quick and trails off, "ease-out" starts measured and quickens — without changing total time. Defaults to "linear".` },
+    { name: 'key', type: 'string', description: `For press: the key to press, e.g. "Enter", "Escape", "ArrowDown", "f".` },
+    { name: 'modifiers', type: "('Control' | 'Shift' | 'Alt' | 'Meta')[]", description: `For press: modifier keys held during the press, e.g. ["Control"] for Ctrl+F.` },
     { name: 'to', type: 'number | string', description: `Scroll target for scrollTo: a 0..1 number, an "NN%" string, or a CSS selector.` },
+    { name: 'align', type: "'top' | 'center' | 'bottom'", description: `For scrollTo to a selector: where the target lands in the viewport. Defaults to "top".` },
+    { name: 'offset', type: 'number', description: `For scrollTo: px to nudge the resting position. Top-aligned, a positive offset leaves that many px of room above the target; negative scrolls past it.` },
     { name: 'durationMs', type: 'number', description: `Cursor travel / scroll animation time (ms). Defaults to 700.` },
     { name: 'holdMs', type: 'number', description: `Pause after the step (ms). Defaults to 600.` },
   ] },
   { name: 'setup', type: 'Action[]', default: '[]', description: `Off-camera steps run before recording starts — pre-position the cursor, scroll, or set UI state so frame 0 is exactly where you want it. Trimmed from the output. Key to a seamless loop: place the cursor on the first target here with durationMs 0 so the clip doesn't open with a glide-in from center.`, options: [
-    { name: 'do', type: "'move' | 'click' | 'hover' | 'type' | 'scrollTo' | 'wait'", required: true, description: `What this step does (same Action shape as actions).` },
+    { name: 'do', type: "'move' | 'click' | 'hover' | 'type' | 'erase' | 'press' | 'scrollTo' | 'wait'", required: true, description: `What this step does (same Action shape as actions).` },
   ] },
   { name: 'teardown', type: 'Action[]', default: '[]', description: `Off-camera steps run after recording ends — reset the page to its opening state. Trimmed from the output. (For a visible return-to-start that closes the loop on screen, put those steps at the end of actions instead — teardown never appears in the clip.)`, options: [
-    { name: 'do', type: "'move' | 'click' | 'hover' | 'type' | 'scrollTo' | 'wait'", required: true, description: `What this step does (same Action shape as actions).` },
+    { name: 'do', type: "'move' | 'click' | 'hover' | 'type' | 'erase' | 'press' | 'scrollTo' | 'wait'", required: true, description: `What this step does (same Action shape as actions).` },
   ] },
   { name: 'cursor', type: 'Cursor', description: `The synthetic cursor shown during the recording. Omit for the default cursor.`, options: [
     { name: 'show', type: 'boolean', description: `Show the cursor. Defaults to true. Set false for hands-off UI-state clips (e.g. media wall tiles).` },
@@ -215,6 +223,67 @@ below the sizes in frame, so the whole component reads as one unit.
 
 A clean loop is realistic mainly for click / hover / scroll tours whose state you can fully restore.
 Autoplaying video, running CSS animations, or late-loading content won't line up frame-to-frame.
+
+### Typing, editing & keys
+
+Three actions drive form input, and they read as a real person at the keyboard:
+
+- **`type`** enters `text` a key at a time. `delayMs` sets the per-keystroke pace (default 55ms) and
+  `easing` shapes the cadence across the word — `ease-in` starts quick and trails off, `ease-out`
+  starts measured and quickens — without changing the total time. A little jitter is always mixed in
+  so it never taps like a metronome.
+- **`erase`** removes characters. Omit `count` to clear the whole field, or set it to edit just the
+  tail (`count: 6`). It backspaces at `delayMs` (default 80ms) so the deletion is visible; `delayMs: 0`
+  blanks it instantly.
+- **`press`** sends one key (`key: "Enter"`), with optional `modifiers` for chords
+  (`{ key: "f", modifiers: ["Control"] }` → Ctrl+F).
+
+Below, a seamless loop over a search that filters **on submit** (Enter). `setup` lands the camera on
+the search field (top-aligned, 40px below the sticky header). Search "trousers" → Enter → glance at
+the result; then edit the query — erase, type "knitwear" → Enter → glance across the two results and
+open the second; dwell on the product, then navigate back to the list so the last frame matches the
+first.
+
+<Example
+  clip="docs-search"
+  caption="A search loop: submit a query with Enter, glance at the result, edit the query and submit again, open a result, then return to the list where it began — hand-driven typing and backspacing, and the camera set once via setup."
+  code={`{
+  name: "search-demo",
+  url: "https://your-site.com/shop",
+  generator: "interaction",
+  options: {
+    cursor: { color: "#8c7355" }, // the tinted synthetic cursor on screen
+    page: { waitForSelector: "#search-input", stickyHeaderHeight: 100 }, // header height → scrollTo lands below it
+    setup: [
+      { do: "scrollTo", to: "#search-input", align: "top", offset: 40, durationMs: 0, holdMs: 0 }, // start on the field (40px below the header)
+      { do: "move", selector: "#search-input", durationMs: 0, holdMs: 0 },                          // park the cursor (frame 0)
+    ],
+    actions: [
+      { do: "click", selector: "#search-input", holdMs: 400 },
+      { do: "type",  selector: "#search-input", text: "trousers", delayMs: 55, easing: "ease-out", holdMs: 300 },
+      { do: "press", key: "Enter", holdMs: 800 },                                     // submit → the list updates
+      { do: "hover", selector: ".product:first-child .product-media", holdMs: 1000 }, // ~1s on the result
+      { do: "erase", selector: "#search-input", delayMs: 80, easing: "ease-in", holdMs: 300 }, // clear the field
+      { do: "type",  selector: "#search-input", text: "knitwear", delayMs: 55, holdMs: 300 },   // edit the query
+      { do: "press", key: "Enter", holdMs: 800 },                                     // submit → two results
+      { do: "hover", selector: ".product:first-child .product-media", holdMs: 1000 }, // ~1s on the first
+      { do: "hover", selector: ".product:nth-child(2) .product-media", holdMs: 1000 }, // ~1s on the second
+      { do: "click", selector: ".product:nth-child(2) .product-link", holdMs: 2000 }, // open the second, dwell 2s
+      { do: "click", selector: ".nav-inline a:nth-child(1)", holdMs: 900 },           // → back to the list
+      { do: "scrollTo", to: "#search-input", align: "top", offset: 40, durationMs: 800, holdMs: 500 }, // glide to the start
+      { do: "move", selector: "#search-input", durationMs: 600, holdMs: 1000 },       // cursor back on the field → loops
+    ],
+  },
+}`}
+/>
+
+> **The cursor never scrolls the page.** Moving, hovering, clicking or typing on a target assumes it's
+> already in view — the viewport is a camera you drive **only** with `scrollTo` (an eased, explicit
+> move). Here `setup` frames the search field once (`align: "top"`, `offset: 40`), and because its
+> results sit just below, nothing needs to scroll again until the loop returns to that same start.
+> Set `page.stickyHeaderHeight` to your header's height and top-aligned scrolls land **below** it —
+> `offset` then stacks on top (here, 40px under the header). If an action's target is off-screen, the
+> tool warns you to add a `scrollTo` rather than silently hard-jumping to it.
 
 ### Element focus
 

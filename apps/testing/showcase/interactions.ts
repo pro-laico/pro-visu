@@ -56,4 +56,24 @@ export const interactions: AssetSpecInput[] = [
       ],
     },
   },
+  {
+    name: "search", // shop search: type a query, submit with Enter, open the result
+    generator: "interaction",
+    url: "/shop",
+    options: {
+      cursor: { color: CURSOR },
+      page: { waitForSelector: "#search-input" },
+      // Start framed on the search field (top-aligned, 40px headroom) so its results are in view too.
+      setup: [
+        { do: "scrollTo", to: "#search-input", align: "top", offset: 40, durationMs: 0, holdMs: 0 },
+        { do: "move", selector: "#search-input", durationMs: 0, holdMs: 0 },
+      ],
+      actions: [
+        { do: "click", selector: "#search-input", holdMs: 500 },
+        { do: "type", selector: "#search-input", text: "cashmere", delayMs: 60, easing: "ease-out", holdMs: 700 },
+        { do: "press", key: "Enter", holdMs: 900 },
+        { do: "click", selector: "#shop-grid .product:first-child .product-link", durationMs: 600, holdMs: 1400 },
+      ],
+    },
+  },
 ];

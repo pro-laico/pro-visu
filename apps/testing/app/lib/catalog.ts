@@ -57,7 +57,7 @@ export const PRODUCTS: Product[] = [
   },
   {
     slug: "pleated-wool-trouser",
-    name: "Pleated Wool Trouser",
+    name: "Pleated Wool Trousers",
     category: "Tailoring",
     price: 390,
     tone: "charcoal",
