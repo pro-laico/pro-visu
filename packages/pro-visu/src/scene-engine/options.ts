@@ -21,8 +21,10 @@ const sceneOptionsSchema = z
     fps: z.number().int().positive().max(120).default(30),
     /** Capture length (seconds). */
     durationSeconds: z.number().positive().default(6),
-    /** Capture strategy. "realtime" records live; "frames" steps deterministically. */
-    capture: z.enum(["realtime", "frames"]).default("realtime"),
+    /** Capture strategy. "realtime" records live; "frames" steps deterministically; "still" grabs one PNG frame. */
+    capture: z.enum(["realtime", "frames", "still"]).default("realtime"),
+    /** For "still" capture: the clip time (seconds) to freeze the scene at before the screenshot. Default 0. */
+    stillTimeSeconds: z.number().nonnegative().optional(),
     /** Parallel frame-render workers (frames capture only). Omit to auto-pick from cores + free memory. */
     workers: z.number().int().positive().optional(),
     /** Intermediate frame format (frames capture only). "jpeg" (default) is fast; "png" is lossless. */

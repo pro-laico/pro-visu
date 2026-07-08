@@ -1,6 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { copyFile, rename, stat } from "node:fs/promises";
+import { copyFile, rename, stat, writeFile } from "node:fs/promises";
+import { imageSize } from "image-size";
 import type { ResolvedSceneOptions } from "@/scene-engine/options";
 import { SCENE_OPTION_SCHEMAS } from "@/scene-engine/scene-options";
 import { startSceneServer } from "@/scene-engine/serve";
@@ -9,7 +10,7 @@ import { captureSceneFrames } from "@/scene-engine/capture-frames";
 import { autoWorkers } from "@/recorder/frame-capture";
 import { probeVideoDimensions, transcodeToMp4 } from "@/media/ffmpeg";
 import { ensureDir } from "@/utils/fs";
-import { sha256File } from "@/utils/hash";
+import { sha256Buffer, sha256File } from "@/utils/hash";
 import { slugify } from "@/utils/paths";
 import type { PipelineContext } from "@/generators/types";
 import type { AssetRecord } from "@/manifest/schema";
@@ -41,7 +42,8 @@ export async function renderScene(
   }
   const sceneOptions = sceneSchema.parse(options.sceneOptions);
 
-  const fileName = options.fileName ?? `${slugify(ctx.target.name)}.mp4`;
+  const defaultExt = options.capture === "still" ? "png" : "mp4";
+  const fileName = options.fileName ?? `${slugify(ctx.target.name)}.${defaultExt}`;
   const outPath = ctx.resolveOutPath(fileName);
 
   // Resolve served files (e.g. fonts) to absolute paths (relative to the working dir).
@@ -78,6 +80,54 @@ export async function renderScene(
     const sceneUrl = new URL(`${server.origin}/`);
     sceneUrl.searchParams.set("scene", options.scene);
     sceneUrl.searchParams.set("props", JSON.stringify(props));
+
+    // Still-image output: load the scene, freeze it at `stillTimeSeconds`, and screenshot one PNG.
+    // The scene is a pure function of time, so a single seeked frame is a clean, deterministic still.
+    if (options.capture === "still") {
+      const stillTime = options.stillTimeSeconds ?? 0;
+      await ensureDir(path.dirname(outPath));
+      ctx.logger.info(`rendering scene "${options.scene}" (still @ ${stillTime}s)`);
+      const context = await ctx.browser.newContext({
+        viewport: { width: options.width, height: options.height },
+        deviceScaleFactor: options.deviceScaleFactor,
+      });
+      let buffer: Buffer;
+      try {
+        const page = await context.newPage();
+        await page.goto(sceneUrl.toString(), { waitUntil: "load" });
+        await page.waitForFunction(
+          () => (globalThis as { __showcaseReady?: boolean }).__showcaseReady === true,
+          undefined,
+          { timeout: 30_000 },
+        );
+        await page.evaluate(
+          (t) =>
+            (globalThis as { __showcase?: { seek(t: number): Promise<void> } }).__showcase?.seek(t),
+          stillTime,
+        );
+        buffer = await page.screenshot({ type: "png" });
+      } finally {
+        await context.close();
+      }
+      await writeFile(outPath, buffer);
+      const dims = imageSize(buffer);
+      const stillRecord: AssetRecord = {
+        id: ctx.target.name,
+        generator: generatorId,
+        sourceUrl: ctx.target.url ?? `scene:${options.scene}`,
+        file: ctx.toManifestPath(outPath),
+        format: "png",
+        width: dims.width ?? options.width * options.deviceScaleFactor,
+        height: dims.height ?? options.height * options.deviceScaleFactor,
+        bytes: buffer.length,
+        contentHash: sha256Buffer(buffer),
+        createdAt: new Date().toISOString(),
+        toolVersion: ctx.toolVersion,
+      };
+      await ctx.writeAsset(stillRecord);
+      ctx.logger.success(`${ctx.target.name} → ${stillRecord.file}`);
+      return { assets: [stillRecord] };
+    }
 
     await ensureDir(path.dirname(outPath));
     const composedTmp = path.join(ctx.tmpDir, `${slugify(ctx.target.name)}-scene.mp4`);

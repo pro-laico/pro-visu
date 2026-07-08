@@ -4,6 +4,7 @@ import { interactionGenerator } from "@/generators/interaction";
 import { screenshotsGenerator } from "@/generators/screenshots";
 import { wallGenerator } from "@/generators/wall";
 import { specimenGenerator } from "@/generators/specimen";
+import { iconsGenerator } from "@/generators/icons";
 import { paletteGenerator } from "@/generators/palette";
 import { paletteReelGenerator } from "@/generators/palette-reel";
 
@@ -31,5 +32,6 @@ register(interactionGenerator);
 register(screenshotsGenerator);
 register(wallGenerator);
 register(specimenGenerator);
+register(iconsGenerator);
 register(paletteGenerator);
 register(paletteReelGenerator);

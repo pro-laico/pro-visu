@@ -18,6 +18,10 @@ import docsSpecMono from "@videos/docs-spec-mono.mp4";
 import docsSpecLowercase from "@videos/docs-spec-lowercase.mp4";
 import docsSpecSymbols from "@videos/docs-spec-symbols.mp4";
 import docsSpecOneshot from "@videos/docs-spec-oneshot.mp4";
+import docsIconsShowcase from "@videos/docs-icons-showcase.mp4";
+import docsIconsOneatatime from "@videos/docs-icons-oneatatime.mp4";
+import docsIconsPattern from "@videos/docs-icons-pattern.mp4";
+import docsIconsLayered from "@videos/docs-icons-layered.mp4";
 import docsWall from "@videos/docs-wall.mp4";
 import docsWallTest from "@videos/docs-wall-test.mp4";
 import docsHome from "@videos/docs-home.mp4";
@@ -56,6 +60,10 @@ export const clips = {
   "docs-spec-lowercase": docsSpecLowercase,
   "docs-spec-symbols": docsSpecSymbols,
   "docs-spec-oneshot": docsSpecOneshot,
+  "docs-icons-showcase": docsIconsShowcase,
+  "docs-icons-oneatatime": docsIconsOneatatime,
+  "docs-icons-pattern": docsIconsPattern,
+  "docs-icons-layered": docsIconsLayered,
 } as const;
 
 export type ClipName = keyof typeof clips;

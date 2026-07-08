@@ -6,7 +6,7 @@ into any website repo, point it at a URL, and it writes assets into a gitignored
 folder.
 
 > Status: **pre-1.0** (the option surface may still shift). Generators: `scroll-reel`,
-> `interaction`, `screenshots`, `wall`, `specimen`, `palette`, `palette-reel` — see the
+> `interaction`, `screenshots`, `wall`, `specimen`, `icons`, `palette`, `palette-reel` — see the
 > [Generators](#generators) table. The pipeline is a plugin contract, so new asset types slot in
 > without core changes.
 
@@ -113,6 +113,7 @@ and are merged beneath each asset's own `options`.
 | `interaction` | mp4 — scripted realtime demos with a synthetic cursor, or a clip cropped to one component | `actions[]`, `cursor`, `focus`, `output`, `page` |
 | `screenshots` | png/jpeg page + element captures per viewport | `viewports[]`, `fullPage`, `elements[]`, `output.{format,deviceScaleFactor}` |
 | `wall` | mp4 media wall — columns of your assets (and local `{ src }` files), each scrolling on its own, looping seamlessly | `columns[]` (tiles + per-column motion), `motion.{pulses,loops,pan,durationMs}`, `layout.{gap,tileAspect,cornerRadius}`, `preview` |
+| `icons` | mp4 / png showcase of an icon set — a tinted grid animated by order/stagger sweeps (scale/recolour one-at-a-time, patterns, ripples) | `icons`/`dir`, `template`, `steps[]`, `layout.{columns,gap,recolor}`, `base`/`accent`, `output.format` |
 | `specimen` / `palette` / `palette-reel` | type specimen / colour palette (still + reel) | see the [docs](https://pro-visu.com/docs) |
 
 ```ts

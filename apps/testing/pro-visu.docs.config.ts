@@ -378,6 +378,81 @@ export default defineConfig({
       },
     },
 
+    // ── Icon-set showcase ────────────────────────────────────────────────────────────────────
+    // A cohesive 16-icon storefront set (public/icons), tinted on ink so it can recolour live.
+    // Square, short, frame-stepped — each demonstrates one facet of the step primitive.
+
+    // The default "showcase" preset: a radial scale ripple, then a forward recolour sweep to cognac.
+    {
+      name: "docs-icons-showcase",
+      generator: "icons",
+      options: {
+        dir: "public/icons",
+        template: "showcase",
+        accent: COGNAC,
+        output: { width: 800, height: 800, durationMs: 6000 },
+        layout: { background: INK, gap: 40, padding: 80 },
+        base: { color: PAPER },
+      },
+    },
+    // One at a time: stagger 1 walks the scale through the grid in reading order.
+    {
+      name: "docs-icons-oneatatime",
+      generator: "icons",
+      options: {
+        dir: "public/icons",
+        output: { width: 800, height: 800, durationMs: 6000 },
+        layout: { background: INK, gap: 40, padding: 80 },
+        base: { color: PAPER },
+        steps: [{ kind: "scale", at: 0.05, span: 0.9, order: "forward", stagger: 1, scale: 1.7, hold: 0.12 }],
+      },
+    },
+    // A pattern, all at once: stagger 0 fires a checkerboard together, then the alternate rows.
+    {
+      name: "docs-icons-pattern",
+      generator: "icons",
+      options: {
+        dir: "public/icons",
+        output: { width: 800, height: 800, durationMs: 6000 },
+        layout: { background: INK, gap: 40, padding: 80 },
+        base: { color: PAPER },
+        steps: [
+          { kind: "color", at: 0.05, span: 0.4, stagger: 0, targets: "checkerboard", color: COGNAC, hold: 0.45 },
+          { kind: "color", at: 0.52, span: 0.4, stagger: 0, targets: "rows-alt", color: CAMEL, hold: 0.45 },
+        ],
+      },
+    },
+    // Layered: a centre-out scale ripple, a diagonal colour sweep, and a scattered spin — folded
+    // together to show steps compose.
+    {
+      name: "docs-icons-layered",
+      generator: "icons",
+      options: {
+        dir: "public/icons",
+        output: { width: 800, height: 800, durationMs: 7000 },
+        layout: { background: INK, gap: 40, padding: 80 },
+        base: { color: PAPER },
+        steps: [
+          { kind: "scale", at: 0.02, span: 0.5, order: "radial-out", stagger: 0.75, scale: 1.45 },
+          { kind: "color", at: 0.3, span: 0.5, order: "diagonal", stagger: 0.6, color: COGNAC },
+          { kind: "spin", at: 0.55, span: 0.4, order: "random", stagger: 0.7, turns: 1 },
+        ],
+      },
+    },
+    // Still contact sheet (png): the "pattern" template frozen mid-flash — the whole set at a glance.
+    {
+      name: "docs-icons-sheet",
+      generator: "icons",
+      options: {
+        dir: "public/icons",
+        template: "pattern",
+        accent: COGNAC,
+        output: { format: "image", width: 900, height: 900, posterTime: 0.25 },
+        layout: { background: INK, gap: 44, padding: 84 },
+        base: { color: PAPER },
+      },
+    },
+
     { name: "docs-palette", generator: "palette", options: { colors: FASHION } },
     // Grid layout with per-corner fields and an embedded brand font.
     {

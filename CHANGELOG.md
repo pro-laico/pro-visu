@@ -6,6 +6,22 @@ All notable changes to `pro-visu` are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **The `icons` generator.** Showcase the icon set a project ships: point it at a folder (`dir`)
+  or a list of `icons` and it lays them out in a centred grid and animates them, as a looping
+  video (mp4) or a single still (`output.format: "image"`). Icons are tinted through a CSS mask by
+  default (`layout.recolor`), so single-colour glyphs recolour live. Every interaction — scale or
+  recolour one-at-a-time, checkerboard/striped patterns, ripples from the centre, spins — is one
+  `steps` primitive: an effect (`scale`/`color`/`opacity`/`rotate`/`spin`) swept across the grid by
+  an `order` (forward, diagonal, radial, spiral, random, …) and a `stagger` (0 = all at once → 1 =
+  one at a time). Steps fold in order, so they compose into layered sequences. The animation is a
+  pure function of time — the video is frame-stepped (crisp, reproducible) and the still is that
+  timeline frozen at `output.posterTime`. Built-in `template`s: `showcase`, `scale-sweep`,
+  `color-sweep`, `ripple`, `pattern`.
+- **Still-image scene output.** The scene engine can now freeze a scene at one moment and capture a
+  PNG (`capture: "still"`), the path the `icons` image format uses.
+
 ## [0.6.0] - 2026-07-08
 
 A surface-trim release built from a usability audit: fewer commands, fewer options, one easing

@@ -278,8 +278,117 @@ const paletteReelSceneOptionsSchema = z
   })
   .strict();
 
+/**
+ * One eased sweep of an effect across the icon grid — the single motion primitive of the `icons`
+ * scene, shared with the friendly `icons` generator (which owns the authoring surface). A step's
+ * `order` sets each icon's PHASE across the grid and `stagger` sets how much of `span` that phase
+ * spreads over: `stagger: 0` fires every targeted icon at once (a pattern), `stagger: 1` walks them
+ * one-at-a-time. So every preset interaction is this one primitive with different `order`/`stagger`.
+ */
+export const iconEffectSchema = z
+  .object({
+    /** What to animate. */
+    kind: z
+      .enum(["scale", "color", "opacity", "rotate", "spin"])
+      .describe("What to animate: scale, color, opacity, rotate (to an angle), or spin (full turns)."),
+    /** When the step starts, as a fraction of the clip (0..1). */
+    at: z.number().min(0).max(1).describe("When the step starts, as a fraction of the clip (0..1)."),
+    /** How long the step lasts, as a fraction of the clip (0..1). */
+    span: z.number().positive().max(1).describe("How long the step lasts, as a fraction of the clip (0..1)."),
+    /** Sweep order across the grid (each icon's phase). */
+    order: z
+      .enum([
+        "forward",
+        "reverse",
+        "random",
+        "rows",
+        "columns",
+        "diagonal",
+        "radial-in",
+        "radial-out",
+        "spiral",
+      ])
+      .default("forward")
+      .describe("Sweep order across the grid (each icon's phase). Default 'forward'."),
+    /** How much of `span` the phase spreads over: 0 = all at once (a pattern), 1 = one-at-a-time. */
+    stagger: z
+      .number()
+      .min(0)
+      .max(1)
+      .default(0.6)
+      .describe("How much of `span` the phase spreads over: 0 = all at once (a pattern), 1 = one-at-a-time. Default 0.6."),
+    /** Which icons participate. */
+    targets: z
+      .enum(["all", "even", "odd", "checkerboard", "rows-alt", "cols-alt"])
+      .default("all")
+      .describe("Which icons participate ('all' or a pattern: even/odd/checkerboard/rows-alt/cols-alt). Default 'all'."),
+    /** Easing of each icon's ramp. */
+    easing: easingSchema.default("ease-in-out").describe("Easing of each icon's ramp. Default 'ease-in-out'."),
+    /** Bounce back to base by the end of the icon's slice (true) or latch at the target (false). */
+    return: z
+      .boolean()
+      .default(true)
+      .describe("Bounce back to base by the end of the icon's slice (true) or latch at the target (false). Default true."),
+    /** Fraction of each icon's slice held at the peak before it returns (0..1). Ignored when `return` is false. */
+    hold: z
+      .number()
+      .min(0)
+      .max(1)
+      .default(0.3)
+      .describe("Fraction of each icon's slice held at the peak before returning (0..1). Default 0.3."),
+    /** Scales the effect's strength (0..1). */
+    intensity: z.number().min(0).max(1).default(1).describe("Scales the effect's strength (0..1). Default 1."),
+    /** scale: target size multiplier (1 = base). */
+    scale: z.number().positive().optional().describe("scale: target size multiplier (1 = base). Default 1.6."),
+    /** color / spin colour: target colour (any hex or rgb()). */
+    color: z.string().optional().describe("color: target colour (any hex or rgb())."),
+    /** opacity: target opacity (0..1). */
+    opacity: z.number().min(0).max(1).optional().describe("opacity: target opacity (0..1). Default 1."),
+    /** rotate: target angle in degrees. */
+    angle: z.number().optional().describe("rotate: target angle in degrees. Default 90."),
+    /** spin: full turns over the icon's slice. */
+    turns: z.number().optional().describe("spin: full turns over the icon's slice. Default 1."),
+  })
+  .strict();
+
+/**
+ * The "icons" scene: a centred grid of uniform icons on a solid backdrop, animated by a list of
+ * effect steps (see {@link iconEffectSchema}). Icons are tinted via a CSS mask (recolourable) unless
+ * `recolor` is false. Produced by the friendly `icons` *generator* (its options are the authoring
+ * surface); the ordered `icons` here are served-file slot names.
+ */
+export const iconsSceneOptionsSchema = z
+  .object({
+    /** Ordered served-file slot names for the icons (the generator populates the matching `files`). */
+    icons: z.array(z.string().min(1)).min(1),
+    /** Fixed column count. Omit to auto-pick a near-square grid from the count + frame aspect. */
+    columns: z.number().int().positive().optional(),
+    /** Gap between icons (px). */
+    gap: z.number().nonnegative().default(32),
+    /** Padding around the grid (px). */
+    padding: z.number().nonnegative().default(64),
+    /** Icon cell size (px). Omit to fit the grid to the frame. */
+    iconSize: z.number().positive().optional(),
+    /** Backdrop behind the grid. Defaults to the scene's `background`. */
+    background: z.string().optional(),
+    /** Tint icons via a CSS mask (recolourable). False renders them natively (original colours). */
+    recolor: z.boolean().default(true),
+    /** Resting icon colour (tint mode). */
+    baseColor: z.string().default("#f4f4f5"),
+    /** Resting icon scale multiplier. */
+    baseScale: z.number().positive().default(1),
+    /** Resting icon opacity (0..1). */
+    baseOpacity: z.number().min(0).max(1).default(1),
+    /** The animation: an ordered list of effect steps (folded in order). */
+    steps: z.array(iconEffectSchema).default([]),
+    /** Seed for `random` sweep orders — same seed ⇒ identical animation. */
+    seed: z.number().int().default(1),
+  })
+  .strict();
+
 /** Scene id → its sceneOptions validator. The single source of truth for known scenes. */
 export const SCENE_OPTION_SCHEMAS = {
+  icons: iconsSceneOptionsSchema,
   specimen: specimenSceneOptionsSchema,
   wall: wallSceneOptionsSchema,
   "palette-reel": paletteReelSceneOptionsSchema,
@@ -411,6 +520,76 @@ export interface PaletteReelSceneOptionsInput {
   cornerRadius?: number;
 }
 
+/** One eased sweep of an effect across the icon grid — the icon scene's motion primitive. */
+export interface IconEffectInput {
+  /** What to animate: scale, color, opacity, rotate (to an angle), or spin (full turns). */
+  kind: "scale" | "color" | "opacity" | "rotate" | "spin";
+  /** When the step starts, as a fraction of the clip (0..1). */
+  at: number;
+  /** How long the step lasts, as a fraction of the clip (0..1). */
+  span: number;
+  /** Sweep order across the grid (each icon's phase). Default "forward". */
+  order?:
+    | "forward"
+    | "reverse"
+    | "random"
+    | "rows"
+    | "columns"
+    | "diagonal"
+    | "radial-in"
+    | "radial-out"
+    | "spiral";
+  /** How much of `span` the phase spreads over: 0 = all at once (a pattern), 1 = one-at-a-time. Default 0.6. */
+  stagger?: number;
+  /** Which icons participate ('all' or a pattern). Default "all". */
+  targets?: "all" | "even" | "odd" | "checkerboard" | "rows-alt" | "cols-alt";
+  /** Easing of each icon's ramp. Default "ease-in-out". */
+  easing?: WallEasing;
+  /** Bounce back to base by the end of the icon's slice (true) or latch at the target (false). Default true. */
+  return?: boolean;
+  /** Fraction of each icon's slice held at the peak before returning (0..1). Default 0.3. */
+  hold?: number;
+  /** Scales the effect's strength (0..1). Default 1. */
+  intensity?: number;
+  /** scale: target size multiplier (1 = base). Default 1.6. */
+  scale?: number;
+  /** color: target colour (any hex or rgb()). */
+  color?: string;
+  /** opacity: target opacity (0..1). Default 1. */
+  opacity?: number;
+  /** rotate: target angle in degrees. Default 90. */
+  angle?: number;
+  /** spin: full turns over the icon's slice. Default 1. */
+  turns?: number;
+}
+
+export interface IconsSceneOptionsInput {
+  /** Ordered served-file slot names for the icons (the generator populates the matching `files`). */
+  icons: string[];
+  /** Fixed column count. Omit to auto-pick a near-square grid from the count + frame aspect. */
+  columns?: number;
+  /** Gap between icons (px). Default 32. */
+  gap?: number;
+  /** Padding around the grid (px). Default 64. */
+  padding?: number;
+  /** Icon cell size (px). Omit to fit the grid to the frame. */
+  iconSize?: number;
+  /** Backdrop behind the grid. Defaults to the scene's `background`. */
+  background?: string;
+  /** Tint icons via a CSS mask (recolourable). False renders them natively (original colours). Default true. */
+  recolor?: boolean;
+  /** Resting icon colour (tint mode). Default "#f4f4f5". */
+  baseColor?: string;
+  /** Resting icon scale multiplier. Default 1. */
+  baseScale?: number;
+  /** Resting icon opacity (0..1). Default 1. */
+  baseOpacity?: number;
+  /** The animation: an ordered list of effect steps (folded in order). Default none. */
+  steps?: IconEffectInput[];
+  /** Seed for `random` sweep orders — same seed ⇒ identical animation. Default 1. */
+  seed?: number;
+}
+
 // Compile-time guards: the documented authoring types must stay in sync with the schemas.
 type Exact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
 const _wallInSync: Exact<WallSceneOptionsInput, z.input<typeof wallSceneOptionsSchema>> = true;
@@ -418,5 +597,9 @@ const _paletteReelInSync: Exact<
   PaletteReelSceneOptionsInput,
   z.input<typeof paletteReelSceneOptionsSchema>
 > = true;
+const _iconEffectInSync: Exact<IconEffectInput, z.input<typeof iconEffectSchema>> = true;
+const _iconsInSync: Exact<IconsSceneOptionsInput, z.input<typeof iconsSceneOptionsSchema>> = true;
 void _wallInSync;
 void _paletteReelInSync;
+void _iconEffectInSync;
+void _iconsInSync;

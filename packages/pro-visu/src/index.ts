@@ -60,6 +60,18 @@ export type {
   SpecimenTemplate,
 } from "@/generators/specimen/options";
 
+// icons
+export type {
+  IconsOptions,
+  IconsOptionsInput,
+  IconSourceInput,
+  IconsTemplate,
+  IconsOutputInput,
+  IconsLayoutInput,
+  IconsBaseInput,
+  IconEffectInput,
+} from "@/generators/icons/options";
+
 // palette + palette-reel
 export type { PaletteOptions, PaletteColorInput } from "@/generators/palette/options";
 export type { FieldId as PaletteFieldId } from "@/generators/palette/color";

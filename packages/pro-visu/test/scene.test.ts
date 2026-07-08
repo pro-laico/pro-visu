@@ -89,7 +89,7 @@ describe("wall generator", () => {
 
 describe("scene option schemas (the shared engine)", () => {
   it("exposes a schema per remaining built-in scene", () => {
-    expect(Object.keys(SCENE_OPTION_SCHEMAS).sort()).toEqual(["palette-reel", "specimen", "wall"]);
+    expect(Object.keys(SCENE_OPTION_SCHEMAS).sort()).toEqual(["icons", "palette-reel", "specimen", "wall"]);
   });
 
   it("fills wall scene defaults (uniform pulse model) and rejects a typo", () => {
