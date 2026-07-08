@@ -33,8 +33,9 @@ Two ways, same CLI and generators:
 A TS config needs the dev dependency — its `defineConfig` import must resolve from `node_modules`.
 JSON works either way, with autocomplete + validation from a generated `pro-visu.schema.json`.
 
-> **Unreleased builds:** install from GitHub (`pnpm add -D github:pro-laico/pro-visu`), a
-> `pnpm link`, or a `file:` path — see the [README](https://github.com/pro-laico/pro-visu).
+> **Unreleased builds:** build the package from a clone, then use a `pnpm link` or a `file:` path.
+> A plain `github:pro-laico/pro-visu` install has no binary, since the package lives in the
+> `packages/pro-visu` subdir of the monorepo. See the [README](https://github.com/pro-laico/pro-visu).
 
 ## Initialise
 

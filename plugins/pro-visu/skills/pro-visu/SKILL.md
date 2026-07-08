@@ -1,6 +1,6 @@
 ---
 name: pro-visu
-description: Set up and run pro-visu in a project to generate marketing/showcase assets of a website — scroll-reel videos, responsive screenshots, media walls, and type/colour specimens. Use when the user wants to showcase a site, create a reel / screenshots / portfolio capture, or scaffold and run a pro-visu config for the project they're working in.
+description: Set up and run pro-visu in a project to generate marketing/showcase assets of a website — scroll-reel videos, scripted interaction demos, responsive screenshots, media walls, and type/colour specimens. Use when the user wants to showcase a site, create a reel / interaction demo / screenshots / portfolio capture, or scaffold and run a pro-visu config for the project they're working in.
 ---
 
 # Setting up pro-visu
@@ -150,5 +150,7 @@ session cookie in `capture.signals.cookies` also gets captures past a login.
   capture as gaps/zeros; see *Capture-safe animations* above.
 - Node ≥ 18.18 + a package manager. The first generate downloads a managed Chromium (one-time,
   cached and shared across projects); ffmpeg is fetched the same way on first use.
-- Unreleased / pinned build: `pnpm add -D github:pro-laico/pro-visu`
-  (see https://pro-visu.com/docs/getting-started).
+- Unreleased / pinned build: build the package from a clone and add it as a `file:` dependency (or
+  `pnpm link` it). A plain `github:pro-laico/pro-visu` install has no binary — the repo is a
+  monorepo and the package lives in the `packages/pro-visu` subdir. See
+  https://pro-visu.com/docs/getting-started.
