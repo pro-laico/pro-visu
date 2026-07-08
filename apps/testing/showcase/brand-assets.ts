@@ -1,14 +1,14 @@
 import type { AssetSpecInput } from "pro-visu";
-import { CAMEL, COGNAC, INK, PAPER, VESPER } from "./brand";
+import { CAMEL, COGNAC, INK, PAPER, FASHION } from "./brand";
 
 // Colour + type pieces (no URL needed).
 export const brandAssets: AssetSpecInput[] = [
-  { name: "colors", generator: "palette", options: { colors: VESPER } },
+  { name: "colors", generator: "palette", options: { colors: FASHION } },
   {
     name: "colors-reel", // the same palette as a looping reveal video
     generator: "palette-reel",
     options: {
-      colors: VESPER,
+      colors: FASHION,
       details: ["hex", "oklch"],
       text: { uppercase: true },
       layout: { background: INK },

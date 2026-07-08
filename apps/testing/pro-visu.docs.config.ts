@@ -1,8 +1,8 @@
 import { defineConfig } from "pro-visu";
-import { CAMEL, COGNAC, CURSOR, INK, LODEN, PAPER, VESPER } from "./showcase/brand";
+import { CAMEL, COGNAC, CURSOR, INK, LODEN, PAPER, FASHION } from "./showcase/brand";
 
 // DOCS EXAMPLE ASSETS — the clips/stills embedded in the pro-visu docs (apps/docs), dogfooding
-// the VESPER storefront. Separate from the main showcase config (pro-visu.config.ts).
+// the FASHION storefront. Separate from the main showcase config (pro-visu.config.ts).
 //
 //   pnpm --filter testing exec pro-visu generate --config pro-visu.docs.config.ts
 //
@@ -340,7 +340,7 @@ export default defineConfig({
       },
     },
 
-    { name: "docs-palette", generator: "palette", options: { colors: VESPER } },
+    { name: "docs-palette", generator: "palette", options: { colors: FASHION } },
     // Grid layout with per-corner fields and an embedded brand font.
     {
       name: "docs-palette-grid",

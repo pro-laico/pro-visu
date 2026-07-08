@@ -3,7 +3,7 @@ import { TheEdit } from "@/app/components/TheEdit";
 import { CATEGORIES, PRODUCTS } from "@/app/lib/catalog";
 
 export const metadata = {
-  title: "The Collection — VESPER",
+  title: "The Collection — FASHION",
   description: "Autumn / Winter 2026 ready-to-wear.",
 };
 

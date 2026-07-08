@@ -1,6 +1,6 @@
 # Storefront imagery
 
-The VESPER storefront ships with tasteful **tonal placeholders** so it looks art-directed
+The FASHION storefront ships with tasteful **tonal placeholders** so it looks art-directed
 out of the box. To swap in real photography, drop files here and point the code at them — no
 component changes needed.
 

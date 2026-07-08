@@ -1,6 +1,6 @@
 import type { PaletteColorInput } from "pro-visu";
 
-// VESPER brand. Authoring feel: "quiet & slow" — ~10s clips, gentle easing (sine/cubic),
+// FASHION brand. Authoring feel: "quiet & slow" — ~10s clips, gentle easing (sine/cubic),
 // Ken Burns ≤ 1.04, cards in ink+paper, restrained copy, generous negative space.
 export const INK = "#1a1714";
 export const PAPER = "#f6f3ed";
@@ -9,7 +9,7 @@ export const LODEN = "#5c5e4c";
 export const COGNAC = "#8a5a3c";
 export const CURSOR = "#8c7355";
 
-export const VESPER: PaletteColorInput[] = [
+export const FASHION: PaletteColorInput[] = [
   { name: "Ink", hex: INK },
   { name: "Paper", hex: PAPER },
   { name: "Camel", hex: CAMEL },

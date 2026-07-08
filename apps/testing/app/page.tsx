@@ -99,7 +99,7 @@ export default function Home() {
         <blockquote className="journal-quote">
           “We make a little, and we make it well. Nothing here is designed to be replaced next season.”
         </blockquote>
-        <p className="journal-attr">— Hélène Vesper, Founder</p>
+        <p className="journal-attr">— Hélène Fashion, Founder</p>
       </section>
     </main>
   );

@@ -1,4 +1,4 @@
-// Catalog data for the VESPER storefront (the pro-visu capture target).
+// Catalog data for the FASHION storefront (the pro-visu capture target).
 // Swap a CSS placeholder for a real photo by setting `image` on a product (e.g.
 // "/img/products/the-camel-coat.jpg") and dropping the file in `public/img/`.
 

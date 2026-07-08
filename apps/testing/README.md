@@ -1,7 +1,7 @@
-# testing — VESPER storefront
+# testing — FASHION storefront
 
 A sample target website + harness for **pro-visu**: it's both the site the generators
-capture and the viewer for the results. The site is **VESPER**, a fictional upscale fashion
+capture and the viewer for the results. The site is **FASHION**, a fictional upscale fashion
 house (outerwear, knitwear, tailoring) — a realistic ecommerce surface to exercise every generator.
 
 ```bash

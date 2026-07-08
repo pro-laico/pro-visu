@@ -7,7 +7,7 @@ import { getProduct } from "@/app/lib/catalog";
 import { MEDIA } from "@/app/lib/media";
 
 export const metadata = {
-  title: "The Lookbook — VESPER",
+  title: "The Lookbook — FASHION",
   description: "Autumn / Winter 2026 — the house essentials, the cloth, the making.",
 };
 
@@ -38,7 +38,7 @@ export default function Lookbook() {
           Each panel carries a stable id so pro-visu.config.ts can focus-capture it as a 3:4 tile. */}
       <section className="lb-grid section-flush" aria-label="Lookbook">
         <div className="lb-panel lb-type" id="lb-wordmark">
-          <span className="lb-wordmark">VESPER</span>
+          <span className="lb-wordmark">FASHION</span>
           <span className="lb-kicker">Maison · since 1994</span>
         </div>
 
@@ -81,7 +81,7 @@ export default function Lookbook() {
 
         <div className="lb-panel lb-type lb-quote" id="lb-quote">
           <p className="lb-display lb-display-sm">“We make a little, and we make it well.”</p>
-          <span className="lb-kicker">Hélène Vesper, Founder</span>
+          <span className="lb-kicker">Hélène Fashion, Founder</span>
         </div>
 
         <div className="lb-panel" id="lb-spec-tote">{tote ? <ProductSpecCard product={tote} /> : null}</div>

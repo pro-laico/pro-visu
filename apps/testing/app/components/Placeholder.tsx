@@ -39,7 +39,7 @@ export function Placeholder({ tone, ratio = "3 / 4", label, className, src, alt 
       }}
       aria-hidden="true"
     >
-      <span className="ph-mark">VESPER</span>
+      <span className="ph-mark">FASHION</span>
       {label ? <span className="ph-label">{label}</span> : null}
     </div>
   );

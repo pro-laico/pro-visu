@@ -20,7 +20,7 @@ export function Footer() {
     <footer className="site-footer" id="footer">
       <div className="footer-top">
         <div className="footer-brand">
-          <p className="wordmark wordmark-lg">VESPER</p>
+          <p className="wordmark wordmark-lg">FASHION</p>
           <p className="footer-tag">Considered tailoring, quietly made. Paris &amp; Porto, since 1994.</p>
         </div>
 
@@ -52,7 +52,7 @@ export function Footer() {
       </div>
 
       <div className="footer-bottom">
-        <p>© 2026 Maison Vesper. All rights reserved.</p>
+        <p>© 2026 Maison Fashion. All rights reserved.</p>
         <div className="footer-social">
           <Link href="/">Instagram</Link>
           <Link href="/">Pinterest</Link>

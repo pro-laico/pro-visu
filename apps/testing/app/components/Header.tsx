@@ -83,8 +83,8 @@ export function Header() {
           </nav>
         </div>
 
-        <Link href="/" className="wordmark" aria-label="Vesper — home">
-          VESPER
+        <Link href="/" className="wordmark" aria-label="Fashion — home">
+          FASHION
         </Link>
 
         <div className="nav-right">

@@ -1,5 +1,5 @@
 /* ============================================================================
-   VESPER — design system for the pro-visu storefront target
+   FASHION — design system for the pro-visu storefront target
    ========================================================================== */
 
 :root {
@@ -1311,20 +1311,20 @@ p.lead {
 
 /* ----- Count-up: a pure-CSS @property counter (no JS), so it bakes cleanly
    into a realtime tile capture and loops seamlessly on the wall ------------- */
-@property --vesper-stat {
+@property --fashion-stat {
   syntax: "<integer>";
   initial-value: 0;
   inherits: false;
 }
-@keyframes vesper-count {
+@keyframes fashion-count {
   0% {
-    --vesper-stat: 0;
+    --fashion-stat: 0;
   }
   78% {
-    --vesper-stat: var(--to, 0);
+    --fashion-stat: var(--to, 0);
   }
   100% {
-    --vesper-stat: var(--to, 0);
+    --fashion-stat: var(--to, 0);
   }
 }
 
@@ -1356,8 +1356,8 @@ p.lead {
   text-transform: uppercase;
 }
 .stat-count {
-  counter-reset: c var(--vesper-stat);
-  animation: vesper-count 2s linear infinite;
+  counter-reset: c var(--fashion-stat);
+  animation: fashion-count 2s linear infinite;
 }
 .stat-count::after {
   content: counter(c);

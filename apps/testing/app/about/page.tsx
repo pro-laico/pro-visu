@@ -4,8 +4,8 @@ import { StatTile } from "@/app/components/StatTile";
 import { MEDIA } from "@/app/lib/media";
 
 export const metadata = {
-  title: "The House — VESPER",
-  description: "Maison Vesper: considered tailoring, quietly made in Europe since 1994.",
+  title: "The House — FASHION",
+  description: "Maison Fashion: considered tailoring, quietly made in Europe since 1994.",
 };
 
 const PILLARS = [
@@ -32,7 +32,7 @@ export default function About() {
         </div>
         <div className="about-hero-overlay">
           <p className="eyebrow eyebrow-light">The House</p>
-          <h1 className="about-title">Maison Vesper</h1>
+          <h1 className="about-title">Maison Fashion</h1>
           <p className="about-lede">Considered tailoring, quietly made. Paris &amp; Porto, since 1994.</p>
         </div>
       </section>
@@ -40,7 +40,7 @@ export default function About() {
       <section id="about-statement" className="about-statement">
         <p className="eyebrow">Our Story</p>
         <p className="statement-text">
-          Vesper began in a single Paris atelier with a simple brief: make a small number of beautifully resolved
+          Fashion began in a single Paris atelier with a simple brief: make a small number of beautifully resolved
           clothes, and make them properly. Thirty years on, the brief has not changed.
         </p>
       </section>
@@ -70,7 +70,7 @@ export default function About() {
           <p className="eyebrow">The Atelier</p>
           <h2 className="editorial-title">Made by hand, made to last</h2>
           <p className="editorial-text">
-            Every Vesper piece is built to be repaired, not retired. Our lifetime care programme re-tailors, re-knits
+            Every Fashion piece is built to be repaired, not retired. Our lifetime care programme re-tailors, re-knits
             and re-soles the garments you already own — because the most sustainable coat is the one you keep.
           </p>
           <Link href="/shop" className="btn btn-outline">

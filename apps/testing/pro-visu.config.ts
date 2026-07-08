@@ -7,7 +7,7 @@ import { screenshots } from "./showcase/screenshots";
 import { settings } from "./showcase/settings";
 import { wallAssets } from "./showcase/wall";
 
-// The complete VESPER showcase, split into modules under showcase/ (one file per asset family).
+// The complete FASHION showcase, split into modules under showcase/ (one file per asset family).
 // Render everything with `pnpm generate`, or a subset with `pnpm generate --asset <name>`
 // (repeatable — dependencies are pulled in automatically).
 export default defineConfig({
