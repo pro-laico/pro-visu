@@ -25,53 +25,33 @@ drop into a portfolio, a landing-page hero, a social post, a launch thread, or a
 
 #### Scroll reels of any page: frame-stepped, supersampled, seamless
 
-<div align="center">
-  <video src="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/docs-home.mp4" controls muted playsinline width="700">
-    <a href="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/docs-home.mp4">▶ Watch the scroll reel</a>
-  </video>
-</div>
+https://github.com/user-attachments/assets/9a84d6aa-f433-4f41-8b52-40bbe5809f45
 
 #### Scripted interaction demos: a synthetic cursor drives your real UI
 
-<div align="center">
-  <video src="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/docs-browse.mp4" controls muted playsinline width="700">
-    <a href="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/docs-browse.mp4">▶ Watch the cross-page tour</a>
-  </video>
-  <br /><sub>One continuous take across pages: home → shop → The Edit → about → back home.</sub>
-</div>
+A continuous take across pages: home → shop → The Edit → about → back home.
 
-<div align="center">
-  <video src="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/docs-search.mp4" controls muted playsinline width="700">
-    <a href="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/docs-search.mp4">▶ Watch the search demo</a>
-  </video>
-  <br /><sub>Typed, submitted, and edited queries, using the text-input actions (<code>type</code> / <code>erase</code> / <code>press</code>).</sub>
-</div>
+https://github.com/user-attachments/assets/3ca5e8c5-5aa8-48e0-a723-c1fc4945dd7a
+
+Typed, submitted, and edited queries, using the text-input actions (`type` / `erase` / `press`).
+
+https://github.com/user-attachments/assets/4deef562-3fa2-4b03-9390-1969fc9c8bcc
 
 #### Media walls that composite your assets into a seamless loop
 
-<div align="center">
-  <video src="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/lookbook-wall.mp4" controls muted playsinline width="700">
-    <a href="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/lookbook-wall.mp4">▶ Watch the media wall</a>
-  </video>
-  <br /><sub>Producer tiles (phone-sized interaction clips and campaign stills) composited into one loop.</sub>
-</div>
+Producer tiles (phone-sized interaction clips and campaign stills) composited into one loop.
+
+https://github.com/user-attachments/assets/08d7331a-5995-4662-9580-95dc5d6bda74
 
 #### Type specimens from any font file
 
-<div align="center">
-  <video src="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/docs-spec-neon.mp4" controls muted playsinline width="700">
-    <a href="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/docs-spec-neon.mp4">▶ Watch the type specimen</a>
-  </video>
-  <br /><sub>An accent-led recipe where colour, not letters, carries the motion. One of many specimen recipes.</sub>
-</div>
+An accent-led recipe where colour, not letters, carries the motion. One of many specimen recipes.
+
+https://github.com/user-attachments/assets/59cac500-462f-4a4b-911a-f1af9383b147
 
 #### Colour-palette reveals
 
-<div align="center">
-  <video src="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/colors-reel.mp4" controls muted playsinline width="700">
-    <a href="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/colors-reel.mp4">▶ Watch the palette reel</a>
-  </video>
-</div>
+https://github.com/user-attachments/assets/a067fde2-c398-43b7-a84b-1ff1dbf65cca
 
 …plus responsive **screenshots** (full-page and per-element, at every breakpoint) and social **9:16
 reframes**. See the [generator docs](https://pro-visu.com/docs/generators) for the full set.
