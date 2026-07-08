@@ -320,14 +320,15 @@ assets: [
   number so it loops seamlessly. `loops` defaults to `0` (static unless a pulse moves it); `stagger`
   (0–1) phase-shifts a column so similar tiles don't line up.
 - **Tile sizing:** tiles fit the column width and take their height from the media's aspect, so
-  columns scroll as a masonry. `tileAspect` is only a **fallback** for faux (`test`) tiles that don't
-  set their own `aspect` — real tiles ignore it.
-- **Test mode:** `test: true` renders faux labeled colour boxes instead of real assets — no
-  producers run and the managed server is auto-skipped, so it previews in seconds. Give a faux tile
-  an `aspect` (w/h) to mirror the real tile's height. Pair with `capture: "realtime"` while
-  iterating; drop both for the final render.
-- **Capture modes:** `capture: "frames"` (default) steps deterministically (frame-accurate, exact
-  duration, parallelized by `workers`); `capture: "realtime"` records the scene live (faster).
+  columns scroll as a masonry. `tileAspect` is only a **fallback** for faux (`preview`) tiles that
+  don't set their own `aspect` — real tiles ignore it.
+- **Test mode:** `preview: { enabled: true }` renders faux labeled colour boxes instead of real
+  assets — no producers run and the managed server is auto-skipped, so it previews in seconds. Give a
+  faux tile an `aspect` (w/h) via `preview.tiles` to mirror the real tile's height. Pair with
+  `render: { capture: "realtime" }` while iterating; drop both for the final render.
+- **Capture modes:** `render.capture: "frames"` (default) steps deterministically (frame-accurate,
+  exact duration, parallelized by `render.workers`); `render.capture: "realtime"` records the scene
+  live (faster).
 
 ## Commands
 
@@ -353,28 +354,25 @@ output; disable it with `NO_UPDATE_NOTIFIER=1` or `--no-update-notifier`.
 ## Using an unreleased build (from source)
 
 The published package covers the modes above. To use an **unreleased** build — while contributing,
-or to pin `main` — pick one:
+or to pin `main` — build from a clone. `pro-visu` lives in the `packages/pro-visu` subdirectory of a
+monorepo, so a plain `github:pro-laico/pro-visu` install resolves the private repo root (no binary)
+rather than the package; build from source instead:
 
-**A — From this GitHub repo (simplest):**
-```bash
-pnpm add -D github:pro-laico/pro-visu
-```
-pnpm builds it on install (via the `prepare` script), so the `pro-visu` binary is ready.
-
-**B — From a local clone with `pnpm link` (best while iterating on the tool):**
+**A — From a local clone with `pnpm link` (best while iterating on the tool):**
 ```bash
 # in the pro-visu repo
-pnpm install && pnpm build && pnpm link --global
+pnpm install && pnpm build
+cd packages/pro-visu && pnpm link --global
 # in your website repo
 pnpm link --global pro-visu
 ```
 Re-run `pnpm build` in the tool repo after changes; the link picks them up.
 
-**C — As a local `file:` dependency (pinned path):**
+**B — As a local `file:` dependency (pinned path):**
 ```bash
 pnpm -C /path/to/pro-visu install && pnpm -C /path/to/pro-visu build
 # then in your website repo's package.json:
-#   "devDependencies": { "pro-visu": "file:/path/to/pro-visu" }
+#   "devDependencies": { "pro-visu": "file:/path/to/pro-visu/packages/pro-visu" }
 pnpm install
 ```
 

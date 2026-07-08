@@ -2,7 +2,7 @@
 
 # pro-visu (For Show)
 
-**Turn the websites you build into marketing & showcase assets — scroll reels, screenshots, media walls, and type/colour specimens — from a single config. Works well with letting ai take the wheel.**
+**Turn the websites you build into marketing & showcase assets (scroll reels, screenshots, media walls, and type/colour specimens) from a single config. Works well with letting ai take the wheel.**
 
 [![npm](https://img.shields.io/npm/v/pro-visu.svg)](https://www.npmjs.com/package/pro-visu)
 [![license](https://img.shields.io/npm/l/pro-visu.svg)](LICENSE)
@@ -13,46 +13,68 @@
 
 ---
 
-**pro-visu** is a portable CLI for showing off the websites you build. Point it at a URL — a local
-dev server or a deployed site — and it captures **scroll reels, responsive screenshots, looping
+**pro-visu** is a portable CLI for showing off the websites you build. Point it at a URL, whether a
+local dev server or a deployed site, and it captures **scroll reels, responsive screenshots, looping
 media walls, and type/colour specimens**, all from one `pro-visu.config.ts`. Output is deterministic
-(byte-identical run-to-run) and crisp, written into a gitignored `pro-visu/` folder — ready to drop
-into a portfolio, a landing-page hero, a social post, a launch thread, or a README (like this one).
+(byte-identical run-to-run) and crisp, written into a gitignored `pro-visu/` folder that's ready to
+drop into a portfolio, a landing-page hero, a social post, a launch thread, or a README (like this one).
 
 ## Output Examples
 
-**Note These Are Cut Short. Most Generators Automatically Loop Seamlessly**
+**These are full clips, and most generators loop seamlessly.** Press play on any of them.
 
-#### Scroll reels of any page — frame-stepped, supersampled, seamless
+#### Scroll reels of any page: frame-stepped, supersampled, seamless
 
-<p align="center">
-  <img alt="A scroll reel touring a storefront home page" width="600"
-    src="https://image.mux.com/mLuLBYSOyGdKzYqQ01R4LkJpCyhq6LTrtPvRIC01qjNL4/animated.gif?width=600&fps=12&start=2&end=8" />
-</p>
+<div align="center">
+  <video src="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/docs-home.mp4" controls muted playsinline width="700">
+    <a href="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/docs-home.mp4">▶ Watch the scroll reel</a>
+  </video>
+</div>
+
+#### Scripted interaction demos: a synthetic cursor drives your real UI
+
+<div align="center">
+  <video src="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/docs-browse.mp4" controls muted playsinline width="700">
+    <a href="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/docs-browse.mp4">▶ Watch the cross-page tour</a>
+  </video>
+  <br /><sub>One continuous take across pages: home → shop → The Edit → about → back home.</sub>
+</div>
+
+<div align="center">
+  <video src="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/docs-search.mp4" controls muted playsinline width="700">
+    <a href="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/docs-search.mp4">▶ Watch the search demo</a>
+  </video>
+  <br /><sub>Typed, submitted, and edited queries, using the text-input actions (<code>type</code> / <code>erase</code> / <code>press</code>).</sub>
+</div>
 
 #### Media walls that composite your assets into a seamless loop
 
-<p align="center">
-  <img alt="A looping media wall of storefront clips and photos" width="600"
-    src="https://image.mux.com/d02IEGUvLPvUWYW6YMP00DMTxzxkybmvRLam01IR2hMExM/animated.gif?width=480&fps=10&start=2&end=6" />
-</p>
+<div align="center">
+  <video src="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/lookbook-wall.mp4" controls muted playsinline width="700">
+    <a href="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/lookbook-wall.mp4">▶ Watch the media wall</a>
+  </video>
+  <br /><sub>Producer tiles (phone-sized interaction clips and campaign stills) composited into one loop.</sub>
+</div>
 
 #### Type specimens from any font file
 
-<p align="center">
-  <img alt="A looping type specimen of Inter" width="600"
-    src="https://image.mux.com/p01bVlO200NQ00eUD3BRJqHpXhoMqco9FBKTwfC3vnnCaM/animated.gif?width=600&fps=12&start=0&end=6" />
-</p>
+<div align="center">
+  <video src="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/docs-spec-neon.mp4" controls muted playsinline width="700">
+    <a href="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/docs-spec-neon.mp4">▶ Watch the type specimen</a>
+  </video>
+  <br /><sub>An accent-led recipe where colour, not letters, carries the motion. One of many specimen recipes.</sub>
+</div>
 
 #### Colour-palette reveals
 
-<p align="center">
-  <img alt="A colour-palette reveal reel" width="600"
-    src="https://image.mux.com/vveEYPufqAjFcfOJhJyULELF5xDc2zXnfePyv01fyBwQ/animated.gif?width=600&fps=12&start=0&end=8" />
-</p>
+<div align="center">
+  <video src="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/colors-reel.mp4" controls muted playsinline width="700">
+    <a href="https://github.com/pro-laico/pro-visu/raw/main/apps/docs/videos/colors-reel.mp4">▶ Watch the palette reel</a>
+  </video>
+</div>
 
-…plus responsive **screenshots** — full-page and per-element, at every breakpoint. See the
-[generator docs](https://pro-visu.com/docs/generators) for the full set.
+…plus responsive **screenshots** (full-page and per-element, at every breakpoint) and social **9:16
+reframes**. See the [generator docs](https://pro-visu.com/docs/generators) for the full set.
 
 ## Getting started
 
@@ -72,7 +94,7 @@ npx pro-visu generate
 ```
 
 > Requires Node ≥ 18.18. The first run downloads a managed Chromium and a static ffmpeg (both
-> cached and shared across projects) — no global installs required.
+> cached and shared across projects), so no global installs are required.
 
 ## Documentation
 
@@ -80,4 +102,4 @@ Full generator and option reference, recipes, and configuration: **[pro-visu.com
 
 ---
 
-<sub>This repository is a pnpm + Turborepo monorepo; the library lives in [`packages/pro-visu`](packages/pro-visu/README.md). Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). MIT licensed.</sub>
+<sub>This repository is a pnpm + Turborepo monorepo; the library lives in [`packages/pro-visu`](packages/pro-visu/README.md). Contributions welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). MIT licensed.</sub>
