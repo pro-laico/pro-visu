@@ -4,7 +4,8 @@ description: The pro-visu commands — init, generate, doctor, and list — and 
 ---
 
 The CLI is `pro-visu` (available as `npx pro-visu` once installed). Every command accepts
-`--cwd <dir>` to run against a different working directory.
+`--cwd <dir>` to run against a different working directory. `pro-visu --version` prints the
+version; `--help`, alone or after any command, prints usage.
 
 ## `pro-visu init`
 
@@ -34,7 +35,7 @@ Run the generators defined in your config; writes assets and `manifest.json` int
 | `--asset <name>` | Only generate this asset. Repeatable. Dependencies of selected assets are pulled in automatically. |
 | `--concurrency <n>` | Override `settings.concurrency`. |
 | `--skip-browser` | Skip the Chromium check/install. |
-| `--skip-server` | Skip the [managed server](/docs/configuration/managed-server) — capture an already-running site. |
+| `--skip-server` | Skip the [managed server](/docs/configuration#managed-server) — capture an already-running site. |
 | `--skip-build` | Keep the managed server but skip its build step (fast iteration when the site is unchanged). |
 | `--draft` | Draft quality: faster, lower-fidelity renders for iteration. |
 | `--cache` | Skip assets whose inputs + options + tool fingerprint are unchanged. |
@@ -52,7 +53,7 @@ larger Node heap sized from your machine's RAM, so big renders don't hit Node's 
 
 On an interactive terminal, a live dashboard shows setup (build/server) and per-asset progress —
 bar, current step, ETA where determinate — with a `done/total` header rollup, windowed to the
-terminal height. Keys: **Esc**/**Ctrl+C** cancel (again to force-quit), **↑/↓** scroll,
+terminal height. Keys: **Esc**/**Ctrl+C** cancel (again to force-quit), **↑/↓** or **PgUp**/**PgDn** scroll,
 **f** resume following the running rows. A summary panel with dimensions/sizes prints at the end.
 Set `PRO_VISU_LIVE=0` to force plain logs or `PRO_VISU_LIVE=1` to force the dashboard.
 

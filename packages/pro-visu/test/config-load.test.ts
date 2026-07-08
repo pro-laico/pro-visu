@@ -33,7 +33,7 @@ describe("config discovery", () => {
     const { config } = await loadShowcaseConfig({ cwd: dir });
     expect(config.assets[0]!.name).toBe("a");
     expect(config.settings.outDir).toBe("pro-visu");
-    expect(config.settings.concurrency).toBe(2);
+    expect(config.settings.concurrency).toBe(1);
     expect(config.settings.browser.headless).toBe(true);
   });
 

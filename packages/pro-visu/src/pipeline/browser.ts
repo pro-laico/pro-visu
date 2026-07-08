@@ -9,6 +9,6 @@ export async function launchBrowser(settings: ResolvedBrowserSettings): Promise<
     channel: settings.channel,
     executablePath: settings.executablePath,
     args: settings.args,
-    timeout: settings.timeout,
+    timeout: settings.launchTimeoutMs,
   });
 }

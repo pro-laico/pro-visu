@@ -59,7 +59,7 @@ import { defineConfig } from "pro-visu";
 export default defineConfig({
   settings: {
     outDir: "pro-visu",
-    concurrency: 2,
+    concurrency: 1,
     browser: { headless: true },
     defaults: {
       "scroll-reel": {

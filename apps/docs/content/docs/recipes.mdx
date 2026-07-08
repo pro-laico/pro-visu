@@ -3,7 +3,8 @@ title: Recipes
 description: Practical configs for common showcase tasks.
 ---
 
-Copy-paste starting points. Each is an entry in your `assets` array (or `settings`).
+Copy-paste starting points — each is an entry in your `assets` array (or a `settings` block, or the
+command to run it).
 
 ## A vertical social reel
 
@@ -79,6 +80,26 @@ Drive the UI with a synthetic cursor (the `interaction` generator; records realt
 }
 ```
 
+## Responsive screenshots
+
+Full-page captures at several breakpoints, plus a cropped element shot — each viewport (and each
+named element) writes its own file:
+
+```ts
+{
+  name: "shots",
+  url: "https://your-site.com",
+  generator: "screenshots",
+  options: {
+    viewports: [
+      { name: "desktop", width: 1440, height: 900 },
+      { name: "mobile", width: 390, height: 844 },
+    ],
+    elements: [{ selector: "header", name: "nav" }],
+  },
+}
+```
+
 ## A media wall
 
 Composite several captures into a seamless-looping [wall](/docs/generators/wall) — each column
@@ -135,6 +156,54 @@ assets: [
   },
 ]
 ```
+
+## Capture mode: render a settled page
+
+Reveal-on-scroll, count-ups, and scroll-snap capture as blank gaps, zeros, or the wrong frame —
+the animation is caught mid-flight. The fix is a flag pro-visu delivers and your app reads, so the
+page renders its **final, settled** state during capture only. Two halves:
+
+**1. pro-visu sends the signal.** A cookie is the best fit for reels — SSR-readable and persisted
+across in-app navigation:
+
+```ts
+settings: {
+  capture: {
+    signals: { cookies: [{ name: "pv_capture", value: "1" }] },
+  },
+}
+```
+
+**2. Your app reads it and settles.** Read the flag server-side so the very first paint is already
+settled, and expose it as an attribute — then gate the animations in CSS:
+
+```tsx title="app/layout.tsx (Next.js)"
+import { cookies } from "next/headers";
+
+export default async function RootLayout({ children }) {
+  const capture = (await cookies()).get("pv_capture")?.value === "1";
+  return (
+    <html lang="en" data-capture={capture ? "" : undefined}>
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+```css
+/* reveals rendered visible, snap relaxed, transitions off */
+[data-capture] [data-reveal] { opacity: 1 !important; transform: none !important; }
+[data-capture] * { scroll-snap-type: none !important; transition: none !important; animation: none !important; }
+```
+
+For count-ups and other JS-driven values, read the same flag and render the final number outright
+(`document.documentElement.hasAttribute("data-capture")`). Any signal channel works the same way —
+`query`, `localStorage`, or an `initScript` global instead of a cookie; see
+[`capture`](/docs/configuration#capture).
+
+> Prefer not to touch the app? `capture.cleanup` hides headers, banners, and widgets tool-side
+> (`hideSelectors`, `injectCss`) with no app changes — but only the **signals** above can settle
+> animations gated in your own JS.
 
 ## Capture a deployed URL in CI
 

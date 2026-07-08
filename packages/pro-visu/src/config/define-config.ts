@@ -23,8 +23,8 @@ export interface BrowserSettingsInput {
   executablePath?: string;
   /** Extra launch args, e.g. ["--no-sandbox"] on CI. */
   args?: string[];
-  /** Browser launch timeout (ms). */
-  timeout?: number;
+  /** Browser launch timeout (ms). Default 30000. */
+  launchTimeoutMs?: number;
 }
 
 export interface ServerSettingsInput {
@@ -52,11 +52,10 @@ export interface ServerSettingsInput {
 }
 
 /**
- * Capture-mode settings applied to every URL-based capture: signals INTO the site (query /
- * cookies / localStorage / init script) plus cleanup applied BY the tool (hide/click selectors,
- * injected CSS, tracker blocking, clock freeze, …).
+ * Signals INTO the site — a "capture mode" flag delivered four ways. The site must READ one and
+ * render capture-friendly (reveals settled, count-ups final). A cookie can also carry auth.
  */
-export interface CaptureSettingsInput {
+export interface CaptureSignalsInput {
   /** Query params appended to every URL-based asset, e.g. `{ capture: "1" }` → `?capture=1`. */
   query?: Record<string, string>;
   /** Cookies set on every capture context before navigation (scoped to the asset's origin). */
@@ -65,6 +64,10 @@ export interface CaptureSettingsInput {
   localStorage?: Record<string, string>;
   /** JS run in every page before its own scripts, e.g. `window.__PV_CAPTURE__ = true`. */
   initScript?: string;
+}
+
+/** Cleanup applied BY the tool — needs no site cooperation. */
+export interface CaptureCleanupInput {
   /** Hide elements matching these CSS selectors before capture (cookie banners, chat widgets, …). Default none. */
   hideSelectors?: string[];
   /** Extra CSS injected before capture (e.g. a brand backdrop, or hiding a sticky header). Omit for none. */
@@ -85,23 +88,37 @@ export interface CaptureSettingsInput {
   blockResourceTypes?: string[];
 }
 
+/**
+ * Capture-mode settings applied to every URL-based capture, split into the two halves of the
+ * mental model: `signals` into the site, and `cleanup` the tool applies itself.
+ */
+export interface CaptureSettingsInput {
+  /** Capture-mode flags delivered into the site (the site must read one). */
+  signals?: CaptureSignalsInput;
+  /** Noise the tool removes itself (no site cooperation needed). */
+  cleanup?: CaptureCleanupInput;
+}
+
 export interface ShowcaseSettingsInput {
+  // --- output & run behavior ---
   /** Output directory for generated assets, relative to the repo root (default "pro-visu"). */
   outDir?: string;
   /** How many assets to generate in parallel (shared browser, separate contexts). */
   concurrency?: number;
-  /** CLI log verbosity. */
+  /** Log verbosity for `generate` and `list`. (Render quality is set with --draft, not here.) */
   logLevel?: LogLevel;
+  /** Skip assets whose inputs+options+tool fingerprint is unchanged (opt-in). */
+  cache?: boolean;
+
+  // --- capture environment ---
   /** Playwright launch controls. */
   browser?: BrowserSettingsInput;
   /** Build → start → wait → capture → stop a server automatically. */
   server?: ServerSettingsInput;
+
+  // --- capture-mode + generator defaults ---
   /** Capture-mode settings applied to every URL-based asset (hide the cookie banner, block trackers, seed cookies, …). */
   capture?: CaptureSettingsInput;
-  /** "draft" lowers fps/scale and speeds the encoder for fast iteration. */
-  quality?: "draft" | "final";
-  /** Skip assets whose inputs+options+tool fingerprint is unchanged (opt-in). */
-  cache?: boolean;
   /** Per-generator option defaults, keyed by generator id, merged under each asset. */
   defaults?: {
     "scroll-reel"?: ScrollReelOptions;

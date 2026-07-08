@@ -10,10 +10,10 @@ export function withCaptureQuery(
   url: string | undefined,
   capture: ResolvedCaptureSettings | undefined,
 ): string | undefined {
-  if (!url || !capture?.query) return url;
+  if (!url || !capture?.signals.query) return url;
   try {
     const u = new URL(url);
-    for (const [k, v] of Object.entries(capture.query)) u.searchParams.set(k, v);
+    for (const [k, v] of Object.entries(capture.signals.query)) u.searchParams.set(k, v);
     return u.toString();
   } catch {
     return url;
@@ -32,12 +32,13 @@ export async function applyCapture(
   url: string | undefined,
 ): Promise<void> {
   if (!capture) return;
+  const { cookies, localStorage, initScript } = capture.signals;
 
-  if (capture.cookies?.length && url) {
+  if (cookies?.length && url) {
     try {
       const origin = new URL(url).origin;
       await context.addCookies(
-        capture.cookies.map((c) => ({ name: c.name, value: c.value, url: origin })),
+        cookies.map((c) => ({ name: c.name, value: c.value, url: origin })),
       );
     } catch {
       /* non-absolute url → can't scope cookies; skip them */
@@ -45,12 +46,12 @@ export async function applyCapture(
   }
 
   const scripts: string[] = [];
-  if (capture.localStorage) {
+  if (localStorage) {
     // Runs before the page's own scripts (addInitScript), so values are present on first read.
     scripts.push(
-      `try{var e=${JSON.stringify(capture.localStorage)};for(var k in e)localStorage.setItem(k,e[k]);}catch(_){}`,
+      `try{var e=${JSON.stringify(localStorage)};for(var k in e)localStorage.setItem(k,e[k]);}catch(_){}`,
     );
   }
-  if (capture.initScript) scripts.push(capture.initScript);
+  if (initScript) scripts.push(initScript);
   if (scripts.length) await context.addInitScript(scripts.join("\n"));
 }

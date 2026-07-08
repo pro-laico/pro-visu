@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEFAULT_OUTDIR, DEFAULT_CONCURRENCY } from "@/config/defaults";
 
 /** Friendly log levels surfaced in config + CLI. */
 const logLevelSchema = z.enum(["silent", "error", "warn", "info", "debug"]);
@@ -26,8 +27,8 @@ const browserSettingsSchema = z
       .array(z.string())
       .default([])
       .describe('Extra launch args, e.g. ["--no-sandbox"] on CI.'),
-    /** Launch timeout (ms). */
-    timeout: z
+    /** Browser launch timeout (ms). Named to match server.readyTimeoutMs. */
+    launchTimeoutMs: z
       .number()
       .int()
       .nonnegative()
@@ -99,17 +100,11 @@ export const serverSettingsSchema = z
 export type ResolvedServerSettings = z.infer<typeof serverSettingsSchema>;
 
 /**
- * "Capture mode" settings applied to every URL-based capture (scroll-reel, screenshots,
- * interaction), so a site renders a clean, settled snapshot (animations finished, no cookie
- * banner, no chat widget, …) while keeping that behavior for real users.
- *
- * Two halves, one home:
- * - Signals INTO the site (query / cookies / localStorage / initScript) — let the site itself
- *   render capture-friendly; a cookie can also carry a session/auth value for login-gated pages.
- * - Cleanup applied BY the tool (hide/click selectors, injected CSS, tracker blocking, clock
- *   freeze, …) — suppress noise the site won't remove on its own.
+ * Signals INTO the site — a "capture mode" flag delivered four ways (query / cookies /
+ * localStorage / initScript). The site must READ one and render capture-friendly (reveals
+ * settled, count-ups final, …). A cookie can also carry a session/auth value for login-gated pages.
  */
-export const captureSettingsSchema = z
+const captureSignalsSchema = z
   .object({
     /** Query params appended to every URL-based asset (e.g. `{ capture: "1" }` → `?capture=1`). */
     query: z
@@ -131,6 +126,15 @@ export const captureSettingsSchema = z
       .string()
       .optional()
       .describe("JS run in every page before its own scripts (e.g. `window.__PV_CAPTURE__ = true`)."),
+  })
+  .strict();
+
+/**
+ * Cleanup applied BY the tool — needs no site cooperation. Suppression CSS, overlay dismissal,
+ * scrollbar/animation/clock control, and network blocking, applied uniformly before every capture.
+ */
+const captureCleanupSchema = z
+  .object({
     /** Hide elements matching these CSS selectors before capture (cookie banners, chat widgets, …). */
     hideSelectors: z
       .array(z.string())
@@ -178,25 +182,63 @@ export const captureSettingsSchema = z
       .describe('Playwright resource types to block (e.g. "media", "font", "image"). Default none.'),
   })
   .strict();
+
+/**
+ * "Capture mode" settings applied to every URL-based capture (scroll-reel, screenshots,
+ * interaction), so a site renders a clean, settled snapshot while keeping that behavior for real
+ * users. Two halves, split so the shape mirrors the mental model:
+ * - `signals` — flags INTO the site (the site must read one and render capture-friendly).
+ * - `cleanup` — noise the tool removes itself (needs no site cooperation).
+ */
+export const captureSettingsSchema = z
+  .object({
+    signals: captureSignalsSchema.default({}).describe("Capture-mode flags delivered into the site (the site must read one)."),
+    cleanup: captureCleanupSchema.default({}).describe("Noise the tool removes itself (no site cooperation needed)."),
+  })
+  .strict();
 export type ResolvedCaptureSettings = z.infer<typeof captureSettingsSchema>;
 
-/** Repo-level CLI behavior (the `settings` block). */
+/**
+ * Repo-level CLI behavior (the `settings` block). Fields are grouped: output & run behavior, then
+ * the capture environment (browser + managed server), then capture-mode settings and per-generator
+ * defaults. Render quality is not persisted here — it's an iteration-time choice, set with `--draft`.
+ */
 export const settingsSchema = z.object({
+  // --- output & run behavior ---
   /** Output directory, relative to the repo root. */
   outDir: z
     .string()
     .min(1)
-    .default("pro-visu")
-    .describe('Output directory for generated assets, relative to the repo root (default "pro-visu").'),
+    .default(DEFAULT_OUTDIR)
+    .describe(`Output directory for generated assets, relative to the repo root (default "${DEFAULT_OUTDIR}").`),
   /** How many assets to generate in parallel (shared browser, separate contexts). */
   concurrency: z
     .number()
     .int()
     .positive()
-    .default(2)
-    .describe("How many assets to generate in parallel, sharing one browser with separate contexts (default 2)."),
-  logLevel: logLevelSchema.default("info").describe("CLI log verbosity (default \"info\")."),
+    .default(DEFAULT_CONCURRENCY)
+    .describe(`How many assets to generate in parallel, sharing one browser with separate contexts (default ${DEFAULT_CONCURRENCY}).`),
+  logLevel: logLevelSchema
+    .default("info")
+    .describe('Log verbosity for `generate` and `list` (default "info"); --verbose forces "debug" on generate. `doctor` always reports in full.'),
+  /** Skip assets whose inputs+options+tool fingerprint is unchanged (opt-in; can be stale). */
+  cache: z
+    .boolean()
+    .default(false)
+    .describe("Skip assets whose inputs+options+tool fingerprint is unchanged (opt-in; can be stale). Default false."),
+
+  // --- capture environment ---
   browser: browserSettingsSchema.default({}).describe("Playwright launch controls."),
+  /** Optional managed dev/prod server lifecycle (build → start → wait → … → stop). */
+  server: serverSettingsSchema
+    .optional()
+    .describe("Build → start → wait → capture → stop a server automatically."),
+
+  // --- capture-mode + generator defaults ---
+  /** Capture-mode settings (site signals + tool-side cleanup) applied to every URL capture. */
+  capture: captureSettingsSchema
+    .default({})
+    .describe("Capture-mode settings applied to every URL-based asset (hide the cookie banner, block trackers, seed cookies, …)."),
   /**
    * Per-generator option defaults, keyed by generator id, merged underneath each asset's
    * own `options`. Validated loosely here; each generator validates its own option shape.
@@ -205,24 +247,6 @@ export const settingsSchema = z.object({
     .record(z.string(), z.record(z.string(), z.unknown()))
     .default({})
     .describe("Per-generator option defaults, keyed by generator id, merged underneath each asset's own options."),
-  /** Optional managed dev/prod server lifecycle (build → start → wait → … → stop). */
-  server: serverSettingsSchema
-    .optional()
-    .describe("Build → start → wait → capture → stop a server automatically."),
-  /** Capture-mode settings (site signals + tool-side cleanup) applied to every URL capture. */
-  capture: captureSettingsSchema
-    .default({})
-    .describe("Capture-mode settings applied to every URL-based asset (hide the cookie banner, block trackers, seed cookies, …)."),
-  /** Render quality. "draft" lowers fps/scale and speeds the encoder for fast iteration. */
-  quality: z
-    .enum(["draft", "final"])
-    .default("final")
-    .describe('Render quality; "draft" lowers fps/scale and speeds the encoder for fast iteration (default "final").'),
-  /** Skip assets whose inputs+options+tool fingerprint is unchanged (opt-in; can be stale). */
-  cache: z
-    .boolean()
-    .default(false)
-    .describe("Skip assets whose inputs+options+tool fingerprint is unchanged (opt-in; can be stale). Default false."),
 }).strict();
 export type ResolvedSettings = z.infer<typeof settingsSchema>;
 

@@ -22,7 +22,7 @@ export default defineConfig({
       readyTimeoutMs: 180_000,
     },
     // Freeze time/randomness so every docs capture is perfectly repeatable.
-    capture: { freezeClock: true },
+    capture: { cleanup: { freezeClock: true } },
     defaults: { "scroll-reel": { output: { width: 1280, height: 800, fps: 30 } } },
   },
   assets: [

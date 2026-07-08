@@ -1,0 +1,389 @@
+---
+title: Configuration
+description: The pro-visu.config file — settings (every field at its default), the managed server, assets, options merging, and the input graph.
+---
+
+`pro-visu init` writes a `pro-visu.config.ts` with two blocks: `settings` (repo-level CLI
+behaviour) and `assets` (what to generate).
+
+```ts
+import { defineConfig } from "pro-visu";
+
+export default defineConfig({
+  // repo-level behaviour — every field is optional (full reference below)
+  settings: { outDir: "pro-visu" },
+  // one entry per thing to generate
+  assets: [
+    { name: "home-reel", url: "https://your-site.com", generator: "scroll-reel" },
+  ],
+});
+```
+
+`defineConfig` is a typed identity helper — it gives you autocomplete and inline docs for every
+field, but the config is validated again at runtime.
+
+## File discovery
+
+Without `--config <path>`, the CLI discovers config in any of these forms:
+
+- `pro-visu.config.ts` · `.js` · `.mjs` · `.cjs` · `.json`
+- `.pro-visurc` / `.pro-visurc.json`
+- a `"pro-visu"` key in `package.json`
+
+A `.ts` config that imports `defineConfig` requires the `pro-visu` package to be
+resolvable from that folder; a `.json` config does not. A JSON config gets the same
+autocomplete + validation from a generated `pro-visu.schema.json` — `pro-visu init --json`
+writes it and points the config at it via `$schema`.
+
+## Settings
+
+The `settings` block controls repo-level CLI behaviour. Fields are ordered the way you'll reach
+for them: output & run behaviour, then the capture environment (browser + managed server), then
+capture-mode settings and per-generator defaults.
+
+export const serverFields = [
+  { name: 'command', type: 'string', required: true, description: 'Command that starts the server, run via the shell. The tool sets PORT/HOST in its environment to the readiness port/host, so frameworks that honour PORT (Next, Vite, …) bind it automatically — "next start" is enough. An explicit flag (e.g. next start -p 4000) still wins.' },
+  { name: 'build', type: 'string', description: 'Optional one-shot build to run first, e.g. "next build".' },
+  { name: 'url', type: 'string', description: 'Health-check URL polled until it responds. Defaults to http://127.0.0.1:<port>.' },
+  { name: 'port', type: 'number', default: '3101', description: 'Port the readiness check probes (and derives url from), also passed to the command as PORT so it binds the same port.' },
+  { name: 'cwd', type: 'string', default: 'config dir', description: 'Working directory for build + command, relative to the config.' },
+  { name: 'readyTimeoutMs', type: 'number', default: '120000', description: 'Max time to wait for the server to become reachable.' },
+  { name: 'reuseExisting', type: 'boolean', default: 'true', description: "If a server is already reachable at the URL, use it as-is (don't start or stop one)." },
+]
+
+export const settingsOptions = [
+  { name: 'outDir', type: 'string', default: '"pro-visu"', description: 'Output directory, relative to the repo root. Holds generated assets + manifest.json.' },
+  { name: 'concurrency', type: 'number', default: '1', description: 'How many assets to generate in parallel (shared browser, separate contexts). Raise it on a machine with RAM headroom for faster runs.' },
+  { name: 'logLevel', type: '"silent" | "error" | "warn" | "info" | "debug"', default: '"info"', description: 'Log verbosity for generate and list. --verbose forces "debug" on generate; doctor always reports in full. (Render quality is an iteration choice — set it with --draft, not here.)' },
+  { name: 'cache', type: 'boolean', default: 'false', description: 'Skip assets whose inputs + options + tool fingerprint are unchanged. Opt-in; can be stale. Same as --cache.' },
+  { name: 'browser', type: 'object', description: 'Playwright launch controls.', options: [
+    { name: 'headless', type: 'boolean', default: 'true', description: 'Run headless. Set false to watch captures in a visible window.' },
+    { name: 'channel', type: 'string', description: 'Use an installed browser channel, e.g. "chrome" or "msedge", instead of the managed Chromium. When set, the managed Chromium is not required or installed.' },
+    { name: 'executablePath', type: 'string', description: 'Absolute path to a browser executable (overrides channel and the managed Chromium).' },
+    { name: 'args', type: 'string[]', default: '[]', description: 'Extra launch args, e.g. ["--no-sandbox"] on CI.' },
+    { name: 'launchTimeoutMs', type: 'number', default: '30000', description: 'Browser launch timeout in ms.' },
+  ] },
+  { name: 'server', type: 'object', description: 'Optional managed server — the tool builds, starts, waits for, and stops your site (see below). Only command is required.', options: serverFields },
+  { name: 'capture', type: 'object', description: 'Applied to every URL-based asset (scroll-reel, screenshots, interaction) and folded into the cache key. Two halves: signals into the site, and cleanup the tool applies itself.', options: [
+    { name: 'signals', type: 'object', description: 'Capture-mode flags delivered into the site. The site must READ one and render settled (reveals shown, count-ups final).', options: [
+      { name: 'query', type: 'Record<string, string>', description: 'Query params appended to every URL-based asset, e.g. { capture: "1" } → ?capture=1.' },
+      { name: 'cookies', type: '{ name, value }[]', description: "Cookies set on every capture context before navigation (scoped to the asset's origin). SSR-readable and persisted across in-app navigation — the best fit for multi-route reels. Also carries auth (a session cookie) to reach login-gated pages." },
+      { name: 'localStorage', type: 'Record<string, string>', description: "Entries seeded per origin before the page's own scripts run." },
+      { name: 'initScript', type: 'string', description: 'JS run in every page before its own scripts, e.g. window.__PV_CAPTURE__ = true.' },
+    ] },
+    { name: 'cleanup', type: 'object', description: 'Noise the tool removes itself — no site cooperation needed.', options: [
+      { name: 'hideSelectors', type: 'string[]', default: '[]', description: 'Hide elements matching these CSS selectors before capture (cookie banners, chat widgets, …).' },
+      { name: 'clickSelectors', type: 'string[]', default: '[]', description: 'Click these selectors once after load to dismiss overlays (consent dialogs). Best-effort.' },
+      { name: 'injectCss', type: 'string', description: 'Extra CSS injected before capture — e.g. hide a sticky promo bar.' },
+      { name: 'hideScrollbars', type: 'boolean', default: 'true', description: "Hide scrollbars so they don't appear in captures." },
+      { name: 'pauseAnimations', type: 'boolean', default: 'false', description: 'Pause CSS animations/transitions for fully static, deterministic frames.' },
+      { name: 'freezeClock', type: 'boolean', default: 'false', description: 'Freeze Date.now / performance.now / Math.random (seeded) so time/random content is stable.' },
+      { name: 'blockTrackers', type: 'boolean', default: 'true', description: 'Abort common analytics/ads/session-replay requests during capture (cleaner, faster).' },
+      { name: 'blockHosts', type: 'string[]', default: '[]', description: 'Extra hostname substrings to block during capture.' },
+      { name: 'blockResourceTypes', type: 'string[]', default: '[]', description: 'Playwright resource types to block, e.g. ["media", "font"].' },
+    ] },
+  ] },
+  { name: 'defaults', type: 'object', default: '{}', description: "Per-generator option defaults, keyed by generator id, merged beneath each asset's options. Nested objects merge recursively; arrays and primitives replace wholesale." },
+]
+
+Every field has a default, so `settings` can be omitted entirely. **Reference** is the interactive
+view; **TypeScript** is the same shape in code, every field at its default.
+
+<Tabs items={['Reference', 'TypeScript']}>
+
+<Tab value="Reference" className="p-0!">
+
+<ConfigOptions items={settingsOptions} />
+
+</Tab>
+
+<Tab value="TypeScript">
+
+```ts
+settings: {
+  // output & run behaviour
+  outDir: "pro-visu",
+  concurrency: 1,
+  logLevel: "info",
+  cache: false,
+
+  // capture environment
+  browser: {
+    headless: true,
+    // channel: "chrome",              // use an installed browser instead of managed Chromium
+    // executablePath: "/path/to/chrome",
+    args: [],                          // e.g. ["--no-sandbox"] on CI
+    launchTimeoutMs: 30000,
+  },
+  // server: { command: "next start" }, // managed server — see below
+
+  // capture-mode + generator defaults
+  capture: {
+    // signals into the site (the site must read one and render settled)
+    signals: {
+      // query: { capture: "1" },      // → ?capture=1
+      // cookies: [{ name: "pv_capture", value: "1" }],   // SSR-readable; also carries auth
+      // localStorage: { pvCapture: "1" },
+      // initScript: "window.__PV_CAPTURE__ = true",
+    },
+    // cleanup applied by the tool (no site cooperation needed)
+    cleanup: {
+      hideSelectors: [],               // e.g. ["#cookie-banner", ".intercom-launcher"]
+      clickSelectors: [],              // e.g. ["#onetrust-accept-btn-handler"]
+      // injectCss: "…",
+      hideScrollbars: true,
+      pauseAnimations: false,
+      freezeClock: false,
+      blockTrackers: true,
+      blockHosts: [],
+      blockResourceTypes: [],
+    },
+  },
+
+  defaults: {},                        // per-generator; see below
+}
+```
+
+</Tab>
+
+</Tabs>
+
+> Memory is managed automatically: heavy frame-stepped plans (real media walls) re-exec the CLI
+> with a larger Node heap sized from your machine's RAM, and a watchdog stops a run gracefully
+> before an out-of-memory crash.
+
+### `capture`
+
+A page that animates in — reveal-on-scroll, count-ups, scroll-snap — or shows a cookie banner or
+chat widget captures as gaps, zeros, or the wrong frame. `capture` makes every URL capture clean
+and settled, in two complementary halves:
+
+- **`signals`** into the site (`query`, `cookies`, `localStorage`, `initScript`) deliver a "capture
+  mode" flag — but the **site has to read it** and render accordingly. Four channels, so a site can
+  use whichever fits its rendering model; `cookies` is the best fit for multi-route reels
+  (SSR-readable, persisted across navigation).
+- **`cleanup`** applied by the tool (`hideSelectors`, `freezeClock`, `blockTrackers`, …) needs no site
+  cooperation — pro-visu suppresses the noise itself.
+
+```ts
+settings: {
+  capture: {
+    signals: { query: { capture: "1" } },      // site reads ?capture=1 and renders settled
+    cleanup: {
+      hideSelectors: ["#cookie-banner", ".intercom-launcher"],
+      clickSelectors: ["#onetrust-accept-btn-handler"],
+      freezeClock: true,
+    },
+  },
+}
+```
+
+The site half — reading the signal and rendering settled (hide the header, show reveals, freeze
+count-ups) — is a copy-paste recipe: [Capture mode: render a settled
+page](/docs/recipes#capture-mode-render-a-settled-page).
+
+Realtime recordings (the `interaction` generator) apply the same cleanup but keep media
+playing — a live recording wants its motion.
+
+> **Auth:** `cookies` isn't limited to capture-mode signals — a session cookie carries auth, letting
+> captures reach login-gated pages. Keep the value in an env var, not the config; see
+> [Troubleshooting](/docs/troubleshooting#capturing-pages-behind-a-login).
+
+### `defaults`
+
+Repo-wide defaults per generator. Keys are [generator ids](/docs/generators) — a key that matches
+no generator is flagged at generate time; the value is an options object merged underneath each
+asset's own `options` (**the asset wins**). Nested objects merge recursively, while arrays and
+primitives replace wholesale — so a field set here can be omitted on every asset of that generator,
+and each asset overrides only what differs.
+
+```ts
+settings: {
+  defaults: {
+    "scroll-reel": {
+      output: {
+        width: 1440,
+        height: 900,
+        fps: 30,
+      },
+    },
+    "screenshots": { output: { format: "jpeg", quality: 90 } },
+  },
+}
+```
+
+## Managed server
+
+When `settings.server` is set, `pro-visu generate` builds your site (if a `build` is given),
+starts it, waits for it to respond, runs the capture, then shuts it down — so a project's npm
+script can be just `pro-visu generate`. (Every `server` field is in the reference above; only
+`command` is required.)
+
+```ts
+import { defineConfig } from "pro-visu";
+
+export default defineConfig({
+  settings: {
+    server: {
+      build: "next build",
+      command: "next start", // PORT is injected (defaults to 3101) — no -p needed
+    },
+  },
+  assets: [
+    // url omitted → captures the server root; relative paths resolve against it
+    { name: "home", generator: "scroll-reel" },
+    { name: "pricing", url: "/pricing", generator: "scroll-reel" },
+  ],
+});
+```
+
+The managed server's URL is the **default base** for capture targets: a url-based asset that
+omits `url` captures the server root, and any relative `url` (e.g. `/pricing`) resolves
+against it. Absolute URLs pass through unchanged.
+
+> Set a custom `port` (or `url`) only if your server can't read `PORT` from the environment, or
+> you need a non-default port. Otherwise leave both off — the tool keeps the command, the
+> readiness check, and your asset URLs in sync for you.
+
+### Lifecycle and flags
+
+A normal run is: **build → start → wait for ready → capture all assets → stop**.
+
+The server is **skipped automatically when nothing in the selection needs a URL** — i.e. every
+selected asset is a local generator (`wall`, `specimen`, `palette`, `palette-reel`). So a
+[`wall` in `test` mode](/docs/generators/wall#test-mode-fast-preview), or `pro-visu generate <a
+local asset>`, renders without paying for a site build/boot it never uses. (A real `wall` still
+pulls in its URL-based tile producers, so the server starts for it.)
+
+Two flags adjust the lifecycle explicitly:
+
+- `--skip-server` — don't manage a server at all; capture an already-running site at the asset
+  URLs. Pair this with a deployed URL or a dev server you started yourself. (Without a managed
+  server there's no base URL, so assets need absolute `url`s.)
+- `--skip-build` — keep the managed server but drop its `build` step, for fast iteration when
+  the site itself is unchanged.
+
+If a run is killed hard before teardown, the next `pro-visu generate` stops any
+orphaned server process tree and cleans up temp directories.
+
+## Assets
+
+Each entry in `assets` describes one thing to generate.
+
+export const assetFields = [
+  { name: 'name', type: 'string', required: true, description: 'Unique across the config — used in filenames and the manifest id.' },
+  { name: 'generator', type: 'string', required: true, description: 'One of the generator ids (/docs/generators).' },
+  { name: 'url', type: 'string', description: 'Page to capture. Required by URL-based generators (scroll-reel, interaction, screenshots) unless a managed server is configured — then omitting it captures the server root, and a relative "/path" resolves against it. Local generators (wall, palette, palette-reel, specimen) take no url.' },
+  { name: 'options', type: 'object', description: 'Generator-specific options, merged over settings.defaults for this generator (the asset wins). Validated by the target generator.' },
+]
+
+**Reference** is the interactive view; **TypeScript** is the same shape in code.
+
+<Tabs items={['Reference', 'TypeScript']}>
+
+<Tab value="Reference" className="p-0!">
+
+<ConfigOptions items={assetFields} />
+
+</Tab>
+
+<Tab value="TypeScript">
+
+```ts
+assets: [
+  {
+    name: "home-shots",
+    url: "https://your-site.com",   // required by URL-based generators (relative resolves against a managed server)
+    generator: "screenshots",
+    options: {
+      // generator-specific; see /docs/generators/<id>
+      viewports: [
+        {
+          name: "desktop",
+          width: 1440,
+          height: 900,
+        },
+      ],
+      elements: [{ selector: "header", name: "nav" }],
+    },
+  },
+]
+```
+
+</Tab>
+
+</Tabs>
+
+## The asset graph
+
+Assets can depend on other assets — but you never author the dependency map. A generator
+**derives** its dependencies from its own options: the [`wall`](/docs/generators/wall) treats
+each asset name in its columns as a producer that must run first (and local files ride in as
+`{ src }` tiles, no producer needed):
+
+```ts
+assets: [
+  {
+    name: "hero-shot",
+    url: "/",
+    generator: "screenshots",
+    options: { fullPage: false },
+  },
+  {
+    name: "wall",
+    generator: "wall",
+    // hero-shot runs first (named as a tile); the photo is used directly from disk
+    options: { columns: [{ tiles: ["hero-shot", { src: "public/img/coat.jpg" }] }, /* …≥3… */] },
+  },
+]
+```
+
+This forms a DAG; cycles and references to unknown assets are rejected at load time.
+Selecting an asset with `--asset` automatically pulls in its dependencies.
+
+## Splitting the config
+
+Nothing requires one monolithic file. As a showcase grows, split it into modules — settings in
+one file, each asset family in its own — and compose them in `pro-visu.config.ts`, the way a
+Payload config imports its collections:
+
+```ts title="showcase/settings.ts"
+import type { ShowcaseSettingsInput } from "pro-visu";
+
+export const settings: ShowcaseSettingsInput = {
+  outDir: "pro-visu",
+  server: { command: "next start" },
+};
+```
+
+```ts title="showcase/films.ts"
+import type { AssetSpecInput } from "pro-visu";
+
+export const films: AssetSpecInput[] = [
+  {
+    name: "home",
+    generator: "scroll-reel",
+    options: { motion: { autoSections: { durationMs: 14000 } } },
+  },
+  {
+    name: "shop",
+    url: "/shop",
+    generator: "scroll-reel",
+  },
+];
+```
+
+```ts title="pro-visu.config.ts"
+import { defineConfig } from "pro-visu";
+import { settings } from "./showcase/settings";
+import { films } from "./showcase/films";
+import { stills } from "./showcase/stills";
+
+export default defineConfig({ settings, assets: [...films, ...stills] });
+```
+
+Annotating each module with its input type keeps full type-checking and autocomplete on the
+value. Every author-facing type is exported from `pro-visu`, including per-generator option types
+(`ScrollReelOptions`, `WallOptions`, …) and their fragments (`WallColumnInput`,
+`ChoreographyStepInput`, `PulseInput`, `PaletteColorInput`, …), so shared recipes and helpers
+in those modules can be fully typed.

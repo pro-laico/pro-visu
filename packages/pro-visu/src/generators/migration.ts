@@ -7,7 +7,7 @@ import { RENAMED_EASINGS } from "@/generators/easing";
  * bare rejection. Prune entries a release or two after the change ships.
  */
 const MOVED_TO_CAPTURE =
-  "moved to settings.capture (applied to every URL capture — scroll-reel, screenshots, interaction)";
+  "moved to settings.capture.cleanup (applied to every URL capture — scroll-reel, screenshots, interaction)";
 const MOVED_TO_INTERACTION = 'moved to the "interaction" generator';
 
 const RENAMED_KEYS: Record<string, Record<string, string>> = {

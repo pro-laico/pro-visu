@@ -108,7 +108,7 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   // (e.g. a wall's tile producers) so the selection sees them.
   applyDerivedInputs(config);
   const selected = expandSelection(config.assets, requested);
-  const quality = options.draft ? "draft" : config.settings.quality;
+  const quality = options.draft ? "draft" : "final";
   if (!validatePlan(bootstrapLog, config, selected, quality)) {
     process.exitCode = 1;
     return;

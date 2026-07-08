@@ -3,9 +3,9 @@ import type { BrowserContext } from "playwright-core";
 import { applyCapture, withCaptureQuery } from "@/pipeline/capture";
 import { captureSettingsSchema, type ResolvedCaptureSettings } from "@/config/schema";
 
-/** Resolve a partial capture config through the schema (defaults applied), as the pipeline does. */
-const cap = (o: Record<string, unknown> = {}): ResolvedCaptureSettings =>
-  captureSettingsSchema.parse(o);
+/** Resolve capture signals through the schema (defaults applied), as the pipeline does. */
+const cap = (signals: Record<string, unknown> = {}): ResolvedCaptureSettings =>
+  captureSettingsSchema.parse({ signals });
 
 describe("withCaptureQuery", () => {
   it("appends query params to an absolute URL", () => {

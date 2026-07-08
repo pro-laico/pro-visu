@@ -9,6 +9,8 @@ export type {
   BrowserSettingsInput,
   ServerSettingsInput,
   CaptureSettingsInput,
+  CaptureSignalsInput,
+  CaptureCleanupInput,
   AssetSpecInput,
   AssetBaseInput,
   LogLevel,

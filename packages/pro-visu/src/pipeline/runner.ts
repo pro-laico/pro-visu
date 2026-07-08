@@ -51,7 +51,7 @@ export interface RunOptions {
   assetNames?: string[];
   /** Override settings.concurrency. */
   concurrency?: number;
-  /** Override settings.quality. */
+  /** Render quality for this run (from --draft); defaults to "final". */
   quality?: "draft" | "final";
   /** Override settings.cache (skip unchanged assets). */
   cache?: boolean;
@@ -105,7 +105,7 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
     (browserRef.current ??= launchBrowser(opts.config.settings.browser));
   opts.onResources?.({ tmpDir: tmpRoot });
   const concurrency = Math.max(1, opts.concurrency ?? opts.config.settings.concurrency);
-  const quality = opts.quality ?? opts.config.settings.quality;
+  const quality = opts.quality ?? "final";
   const cacheEnabled = opts.cache ?? opts.config.settings.cache;
   const reporter = opts.reporter;
   for (const s of specs) {

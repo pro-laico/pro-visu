@@ -120,17 +120,19 @@ Common offenders:
 
 **Fix at the SITE level: gate every such animation behind a toggle that renders the final/settled
 state, and toggle it OFF for captures.** pro-visu delivers that toggle for you via
-`settings.capture` — it appends a `query` param, sets `cookies`, seeds `localStorage`, and/or runs
-an `initScript` on every URL-based capture (and folds them into the cache key). The same block
-also carries tool-side cleanup — `hideSelectors`, `clickSelectors`, `freezeClock`,
-`blockTrackers`, … — for noise the site won't remove itself:
+`settings.capture`, split into two halves: `signals` into the site — a `query` param, `cookies`,
+`localStorage`, and/or an `initScript` on every URL-based capture (folded into the cache key) — and
+`cleanup` the tool applies itself — `hideSelectors`, `clickSelectors`, `freezeClock`,
+`blockTrackers`, … — for noise the site won't remove:
 
 ```ts
 settings: {
   capture: {
-    query: { capture: "1" },
-    cookies: [{ name: "pv_capture", value: "1" }],
-    hideSelectors: ["#cookie-banner"],
+    signals: {
+      query: { capture: "1" },
+      cookies: [{ name: "pv_capture", value: "1" }],
+    },
+    cleanup: { hideSelectors: ["#cookie-banner"] },
   },
 }
 ```
@@ -138,7 +140,7 @@ settings: {
 The site must read the signal — make reveals render visible, count-ups show their final number,
 scroll-snap relax to normal flow. Build the toggle in from the start on any site you intend to
 capture; it's far more reliable than trying to out-wait the animations from the capture side. A
-session cookie in `capture.cookies` also gets captures past a login.
+session cookie in `capture.signals.cookies` also gets captures past a login.
 
 ## Notes
 - Needs a **reachable URL or a managed server** — pro-visu won't boot a dev server unless

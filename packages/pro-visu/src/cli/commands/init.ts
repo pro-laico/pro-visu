@@ -108,7 +108,7 @@ const URL = "http://localhost:${port}";
 export default defineConfig({
   settings: {
     outDir: "pro-visu",
-    concurrency: 2,
+    concurrency: 1,
     // Uses Playwright's managed Chromium by default. Set channel: "chrome" to use your
     // installed Chrome, or args: ["--no-sandbox"] on CI.
     browser: { headless: true },
@@ -119,6 +119,13 @@ export default defineConfig({
     //   build: "${runCmd(info.pm, "build")}",
     //   command: "${start}",
     //   port: 3101,
+    // },
+    // Capture mode — cleanest captures. \`signals\` tell your site to render settled (kill
+    // reveal-on-scroll gaps and count-up zeros — the site must read the flag); \`cleanup\` is
+    // applied by the tool (no site changes needed). See /docs/configuration/settings#capture.
+    // capture: {
+    //   signals: { query: { capture: "1" } },        // your site reads ?capture=1 and renders settled
+    //   cleanup: { hideSelectors: ["#cookie-banner"], freezeClock: true },
     // },
     defaults: {
       // Keyed by generator id. Merged underneath each asset's own options.
@@ -151,7 +158,7 @@ function jsonConfigTemplate(info: ProjectInfo): string {
   "$schema": "./${DEFAULT_SCHEMA_FILE}",
   "settings": {
     "outDir": "pro-visu",
-    "concurrency": 2,
+    "concurrency": 1,
     "browser": { "headless": true },
     "defaults": {
       "scroll-reel": { "output": { "width": 1440, "height": 900, "fps": 30 } }

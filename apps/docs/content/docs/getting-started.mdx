@@ -13,7 +13,7 @@ pro-visu ships a **Claude Code plugin** — an agent installs it and writes the 
 ```
 
 Then just ask — e.g. _"set up pro-visu and capture the homepage."_ It installs the CLI, scaffolds
-config, points it at your site (or a [managed server](/docs/configuration/managed-server)), and
+config, points it at your site (or a [managed server](/docs/configuration#managed-server)), and
 runs the generate.
 
 Rest of the page = the manual path.
@@ -81,11 +81,5 @@ Assets → `outDir` + `manifest.json`; review with `npx pro-visu list`. `generat
 up front and fails fast when nothing's listening — so if the port doesn't match your dev server,
 fix `URL`.
 
-> **Don't want to start the site yourself?** A [managed server](/docs/configuration/managed-server)
+> **Don't want to start the site yourself?** A [managed server](/docs/configuration#managed-server)
 > builds → starts → captures → stops it, so `generate` is the only command you run.
-
-## Next
-
-- [CLI reference](/docs/cli) — every command + flag: `--draft`, `--asset`, `--cache`, `doctor`.
-- [Configuration](/docs/configuration) · [Generators](/docs/generators) ·
-  [Troubleshooting](/docs/troubleshooting).

@@ -73,7 +73,7 @@ describe("screenshots generator", () => {
       url: "https://example.com",
       options,
       // Tracker blocking / suppression CSS would need page.route / addStyleTag on the stub page.
-      capture: captureSettingsSchema.parse({ blockTrackers: false, hideScrollbars: false }),
+      capture: captureSettingsSchema.parse({ cleanup: { blockTrackers: false, hideScrollbars: false } }),
       logger: createLogger("silent"),
       persist: async (key, buffer) => {
         // Persist runs while capture is still in flight, not after everything is collected.

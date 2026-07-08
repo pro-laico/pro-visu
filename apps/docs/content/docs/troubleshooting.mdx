@@ -1,20 +1,47 @@
 ---
 title: Troubleshooting
-description: The common first-run failures — unreachable URLs, downloads behind proxies, CI sandboxing, memory — and their fixes.
+description: The common first-run failures — unreachable URLs, blank or mid-animation captures, downloads behind proxies, CI sandboxing, memory — and their fixes.
 ---
 
 Start with `pro-visu doctor` — it checks Node, the config (including every asset's options),
 Chromium, ffmpeg, and whether your asset URLs respond, without generating anything.
 
-## "Nothing is responding at http://localhost:…"
+## The config is rejected or an option isn't recognized
+
+`generate` (and `doctor`) validate the whole config before any heavy work, so mistakes fail in
+seconds with a pointed `path: message` for each issue — e.g. `options.motion.durationMs: Expected
+number`. Two cases get a specific hint instead of a bare rejection:
+
+- **Unknown generator** — misspelled or removed; the error lists the available ids, suggests the
+  closest for a typo, and explains a removal (e.g. the old `image` generator).
+- **A moved or renamed option** — pre-1.0 options that relocated (e.g. a scroll-reel's
+  `hideSelectors` → `settings.capture.cleanup`) report *where they went* rather than just
+  "unrecognized key". A `settings.defaults` key that matches no generator warns, too — it would
+  never apply.
+
+Run [`pro-visu doctor`](/docs/cli#pro-visu-doctor) to see every issue at once without generating.
+For the field-by-field shapes, see [Configuration](/docs/configuration) and each
+[generator](/docs/generators).
+
+## "Nothing is responding at `http://localhost:…`"
 
 The capture URLs must point at something that's actually running. Either:
 
 - **Start your site** on the port the config names (check the `URL` const in the scaffolded
   config — `init` guesses your dev port, but a custom setup may differ), or
 - **Point at a deployed URL** instead, or
-- **Configure a [managed server](/docs/configuration/managed-server)** so pro-visu builds,
+- **Configure a [managed server](/docs/configuration#managed-server)** so pro-visu builds,
   starts, captures, and stops the site itself — then you never have to pre-start anything.
+
+## Captures have blank gaps, zeros, or the wrong frame
+
+Reveal-on-scroll sections, count-ups, scroll-snap, and other JS-driven animations capture
+mid-flight — blank bands, `0`s, or the wrong moment — because the frame is grabbed before they
+settle. Disabling CSS transitions alone won't fix it: the visible state is gated in your JS, not
+CSS. Tell the page it's being captured and render the settled state — see [Capture mode: render a
+settled page](/docs/recipes#capture-mode-render-a-settled-page). For noise the site won't remove
+itself (cookie banners, chat widgets), `settings.capture.cleanup` hides it tool-side; see
+[`capture`](/docs/configuration#capture).
 
 ## Chromium download fails (offline / corporate proxy)
 
@@ -56,14 +83,16 @@ when `--cache` is on. If a run still stops, lower `settings.concurrency` or the 
 
 ## Capturing pages behind a login
 
-There's no dedicated auth option yet, but `settings.capture.cookies` sets cookies on every
+There's no dedicated auth option yet, but `settings.capture.signals.cookies` sets cookies on every
 capture context before navigation — a session cookie carries auth exactly like a logged-in
 browser would:
 
 ```ts
 settings: {
   capture: {
-    cookies: [{ name: "session", value: process.env.CAPTURE_SESSION! }],
+    signals: {
+      cookies: [{ name: "session", value: process.env.CAPTURE_SESSION! }],
+    },
   },
 }
 ```

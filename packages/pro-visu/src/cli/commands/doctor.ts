@@ -61,7 +61,7 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<void> {
   // Keep a scaffolded pro-visu.schema.json current with this tool version (best-effort).
   await refreshSchemaFile(configFile ? path.dirname(configFile) : cwd, log);
   if (config) {
-    if (validatePlan(log, config, config.assets, config.settings.quality)) {
+    if (validatePlan(log, config, config.assets, "final")) {
       log.success("Asset options OK.");
     } else {
       failed = true;
@@ -105,9 +105,7 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<void> {
     const resolved = resolveTargets(config.assets, serverBase, (id) =>
       Boolean(getGenerator(id)?.requiresUrl),
     );
-    log.info(
-      `Plan: ${resolved.length} asset(s), quality "${config.settings.quality}", concurrency ${config.settings.concurrency}`,
-    );
+    log.info(`Plan: ${resolved.length} asset(s), concurrency ${config.settings.concurrency}`);
     for (const a of resolved) {
       log.log(`  • ${a.name}  [${a.generator}]${a.url ? `  ${a.url}` : ""}`);
     }

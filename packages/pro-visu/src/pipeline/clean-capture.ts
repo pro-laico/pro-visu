@@ -116,8 +116,9 @@ export async function installNetworkHygiene(
   page: Page,
   capture: ResolvedCaptureSettings,
 ): Promise<void> {
-  const hosts = [...(capture.blockTrackers ? DEFAULT_TRACKER_HOSTS : []), ...capture.blockHosts];
-  const resourceTypes = capture.blockResourceTypes;
+  const { blockTrackers, blockHosts, blockResourceTypes } = capture.cleanup;
+  const hosts = [...(blockTrackers ? DEFAULT_TRACKER_HOSTS : []), ...blockHosts];
+  const resourceTypes = blockResourceTypes;
   if (hosts.length === 0 && resourceTypes.length === 0) return;
   await page.route("**/*", (route) => {
     const req = route.request();
@@ -171,7 +172,7 @@ export async function installPreNav(
   capture: ResolvedCaptureSettings,
   extras: PageVariantExtras = {},
 ): Promise<void> {
-  if (capture.freezeClock) {
+  if (capture.cleanup.freezeClock) {
     await page.addInitScript(freezeClockScript);
   }
   if (extras.themeClass) {
@@ -191,10 +192,10 @@ export async function applyPostNav(
   extras: PageVariantExtras & { pauseMedia?: boolean } = {},
 ): Promise<void> {
   const css = buildCleanCss({
-    hideSelectors: capture.hideSelectors,
-    hideScrollbars: capture.hideScrollbars,
-    pauseAnimations: capture.pauseAnimations,
-    injectCss: capture.injectCss,
+    hideSelectors: capture.cleanup.hideSelectors,
+    hideScrollbars: capture.cleanup.hideScrollbars,
+    pauseAnimations: capture.cleanup.pauseAnimations,
+    injectCss: capture.cleanup.injectCss,
   });
   if (css) {
     await page.addStyleTag({ content: css });
@@ -203,7 +204,7 @@ export async function applyPostNav(
   if (extras.themeClass) {
     await page.evaluate(applyThemeClass, extras.themeClass);
   }
-  for (const selector of capture.clickSelectors) {
+  for (const selector of capture.cleanup.clickSelectors) {
     try {
       await page.click(selector, { timeout: 1000 });
       logger.debug(`dismissed overlay via ${selector}`);
