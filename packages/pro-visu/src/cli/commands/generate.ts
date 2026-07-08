@@ -28,7 +28,7 @@ import {
   mergeGeneratorOptions,
   type AssetOutcome,
 } from "@/pipeline/runner";
-import { expandSelection, dependenciesOf } from "@/pipeline/graph";
+import { resolveSelection, dependenciesOf } from "@/pipeline/graph";
 import { createReporter } from "@/cli/dashboard";
 import type { Reporter } from "@/pipeline/reporter";
 import { TOOL_VERSION } from "@/version";
@@ -107,7 +107,24 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   // here in seconds — not after a minutes-long setup. Derive option-declared dependencies first
   // (e.g. a wall's tile producers) so the selection sees them.
   applyDerivedInputs(config);
-  const selected = expandSelection(config.assets, requested);
+  const selected = resolveSelection(config.assets, requested, config.settings.enabled);
+  if (selected.length === 0) {
+    // No requested names means the emptiness came from the enabled/group filter — say so plainly.
+    if (!requested) {
+      const { enabled } = config.settings;
+      const why =
+        enabled === false
+          ? "settings.enabled is false"
+          : typeof enabled === "string"
+            ? `no assets are tagged enabled: "${enabled}" (settings.enabled)`
+            : "no assets are enabled";
+      bootstrapLog.error(`No assets to generate — ${why}.`);
+    } else {
+      bootstrapLog.error("No matching assets to generate.");
+    }
+    process.exitCode = 1;
+    return;
+  }
   const quality = options.draft ? "draft" : "final";
   if (!validatePlan(bootstrapLog, config, selected, quality)) {
     process.exitCode = 1;

@@ -10,6 +10,7 @@ function spec(over: Partial<ResolvedAssetSpec> = {}): ResolvedAssetSpec {
     generator: "scroll-reel",
     options: {},
     inputs: {},
+    enabled: true,
     ...over,
   };
 }

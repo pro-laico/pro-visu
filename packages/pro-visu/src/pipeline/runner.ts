@@ -5,7 +5,7 @@ import { mkdtemp } from "node:fs/promises";
 import type { Browser } from "playwright-core";
 import { launchBrowser } from "@/pipeline/browser";
 import { createContext } from "@/pipeline/context";
-import { buildGraph, dependenciesOf, expandSelection } from "@/pipeline/graph";
+import { buildGraph, dependenciesOf, resolveSelection } from "@/pipeline/graph";
 import { computeCacheKey } from "@/pipeline/cache";
 import type { Reporter } from "@/pipeline/reporter";
 import { getGenerator } from "@/generators/registry";
@@ -92,7 +92,7 @@ export function applyQuality(
 export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
   applyDerivedInputs(opts.config); // generators that declare deps via options (e.g. wall columns)
   buildGraph(opts.config.assets); // validate refs + reject cycles up front
-  const specs = expandSelection(opts.config.assets, opts.assetNames);
+  const specs = resolveSelection(opts.config.assets, opts.assetNames, opts.config.settings.enabled);
   if (specs.length === 0) return [];
 
   await ensureDir(opts.outDir);

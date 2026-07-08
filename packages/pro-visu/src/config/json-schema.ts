@@ -42,6 +42,12 @@ export function generateConfigJsonSchema(): JsonObject {
         minLength: 1,
         description: "Unique id — also the output filename and manifest key.",
       },
+      enabled: {
+        type: ["boolean", "string"],
+        default: true,
+        description:
+          'Run this asset? true (default), false to skip it, or a group string (e.g. "quick-test") selected via settings.enabled.',
+      },
       url: {
         type: "string",
         description:

@@ -14,6 +14,12 @@ import type { PaletteReelOptions } from "@/generators/palette-reel/options";
 
 export type LogLevel = "silent" | "error" | "warn" | "info" | "debug";
 
+/**
+ * `enabled` toggle for an asset or the global `settings`. `true`/`false` switch on/off; a string
+ * tags an asset into a named group (e.g. "quick-test") that `settings.enabled` can select.
+ */
+export type EnabledFlag = boolean | string;
+
 export interface BrowserSettingsInput {
   /** Run the browser without a visible window (default true). Set false to watch captures. */
   headless?: boolean;
@@ -101,6 +107,12 @@ export interface CaptureSettingsInput {
 
 export interface ShowcaseSettingsInput {
   // --- output & run behavior ---
+  /**
+   * Which assets to run. `true` (default) runs every asset that isn't individually disabled;
+   * `false` runs none; a group string (e.g. "quick-test") runs only the assets whose own
+   * `enabled` matches it. Explicit `--asset` selection on the CLI overrides this.
+   */
+  enabled?: EnabledFlag;
   /** Output directory for generated assets, relative to the repo root (default "pro-visu"). */
   outDir?: string;
   /** How many assets to generate in parallel (shared browser, separate contexts). */
@@ -135,6 +147,11 @@ export interface ShowcaseSettingsInput {
 export interface AssetBaseInput {
   /** Unique id for this asset — also the output filename (`<slug(name)>.mp4`) and manifest key. */
   name: string;
+  /**
+   * Run this asset? `true` (default) includes it; `false` skips it without deleting or commenting
+   * it out; a group string (e.g. "quick-test") tags it for selection via `settings.enabled`.
+   */
+  enabled?: EnabledFlag;
 }
 
 /**

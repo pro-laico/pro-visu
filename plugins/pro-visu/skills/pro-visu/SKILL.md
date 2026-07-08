@@ -97,6 +97,22 @@ URL-based generators (`scroll-reel`, `interaction`, `screenshots`) take a `url`;
 `settings.defaults["<generator-id>"]`. See https://pro-visu.com/docs/generators for every option,
 and https://pro-visu.com/docs/recipes for ready-made configs (social reels, tours, media walls).
 
+**Enable / disable / group assets.** Every asset takes a top-level `enabled` (default `true`): set
+`false` to leave it out of a run without deleting it, or a group string (e.g. `"quick"`) to tag it.
+Flip `settings.enabled` to that string to run only that group — a one-line switch between quality
+passes (`quick` / `full` / …); `true` runs all-but-disabled, `false` runs none. `--asset <name>`
+still overrides the toggle, and a running asset's dependencies come along regardless. `pro-visu
+doctor` marks which assets will run.
+
+```ts
+settings: { enabled: "quick" },   // run only the "quick" group
+assets: [
+  { name: "hero-quick", url: "/", generator: "scroll-reel", enabled: "quick" },
+  { name: "hero-full",  url: "/", generator: "scroll-reel", enabled: "full", options: { output: { fps: 60 } } },
+  { name: "wip",        url: "/pricing", generator: "screenshots", enabled: false },   // never runs
+]
+```
+
 ## 4. Generate
 ```bash
 pnpm exec pro-visu doctor                   # verify config + env + URLs and print the plan first

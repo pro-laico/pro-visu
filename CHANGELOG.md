@@ -6,6 +6,17 @@ All notable changes to `pro-visu` are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Enable, disable & group assets with `enabled`.** Every asset now takes a top-level `enabled`
+  field (default `true`): set it to `false` to leave an asset out of a run without deleting or
+  commenting it, or to a group string (e.g. `"quick-test"`) to tag it. Set `settings.enabled` to
+  that same string to run only that group — a one-line switch between quality passes like
+  `quick-test` / `full-test` / `high-quality`. `settings.enabled: false` runs nothing, `true`
+  (default) runs everything not individually disabled. Explicit `--asset` selection still
+  overrides the toggle, and dependencies of a running asset are always pulled in. `pro-visu doctor`
+  marks which assets will run under the current setting.
+
 ## [0.6.0] - 2026-07-08
 
 A surface-trim release built from a usability audit: fewer commands, fewer options, one easing

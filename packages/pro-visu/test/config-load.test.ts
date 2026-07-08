@@ -150,7 +150,7 @@ describe("option precedence", () => {
     // per-asset options, and the schema fills whatever neither of them sets.
     const merged = mergeGeneratorOptions(
       { "scroll-reel": { output: { width: 100, fps: 24 } } },
-      { name: "a", url: "https://a.com", generator: "scroll-reel", options: { output: { width: 200 } }, inputs: {} },
+      { name: "a", url: "https://a.com", generator: "scroll-reel", options: { output: { width: 200 } }, inputs: {}, enabled: true },
     );
     const opts = scrollReelOptionsSchema.parse(merged);
     expect(opts.output.width).toBe(200); // asset option wins over settings.defaults

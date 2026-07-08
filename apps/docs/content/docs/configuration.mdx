@@ -52,6 +52,7 @@ export const serverFields = [
 ]
 
 export const settingsOptions = [
+  { name: 'enabled', type: 'boolean | string', default: 'true', description: 'Which assets to run. true runs every asset that is not individually disabled; false runs none; a group string (e.g. "quick-test") runs only the assets whose own enabled matches it — a fast way to swap between quality passes. Explicit --asset selection on the CLI overrides this.' },
   { name: 'outDir', type: 'string', default: '"pro-visu"', description: 'Output directory, relative to the repo root. Holds generated assets + manifest.json.' },
   { name: 'concurrency', type: 'number', default: '1', description: 'How many assets to generate in parallel (shared browser, separate contexts). Raise it on a machine with RAM headroom for faster runs.' },
   { name: 'logLevel', type: '"silent" | "error" | "warn" | "info" | "debug"', default: '"info"', description: 'Log verbosity for generate and list. --verbose forces "debug" on generate; doctor always reports in full. (Render quality is an iteration choice — set it with --draft, not here.)' },
@@ -102,6 +103,7 @@ view; **TypeScript** is the same shape in code, every field at its default.
 ```ts
 settings: {
   // output & run behaviour
+  enabled: true,                       // false = run none; "quick-test" = run only that group
   outDir: "pro-visu",
   concurrency: 1,
   logLevel: "info",
@@ -272,6 +274,7 @@ Each entry in `assets` describes one thing to generate.
 
 export const assetFields = [
   { name: 'name', type: 'string', required: true, description: 'Unique across the config — used in filenames and the manifest id.' },
+  { name: 'enabled', type: 'boolean | string', default: 'true', description: 'Run this asset? true includes it; false leaves it out without deleting or commenting it; a group string (e.g. "quick-test") tags it so settings.enabled set to the same string runs only that group. Dependencies of a running asset are pulled in regardless of their own enabled.' },
   { name: 'generator', type: 'string', required: true, description: 'One of the generator ids (/docs/generators).' },
   { name: 'url', type: 'string', description: 'Page to capture. Required by URL-based generators (scroll-reel, interaction, screenshots) unless a managed server is configured — then omitting it captures the server root, and a relative "/path" resolves against it. Local generators (wall, palette, palette-reel, specimen) take no url.' },
   { name: 'options', type: 'object', description: 'Generator-specific options, merged over settings.defaults for this generator (the asset wins). Validated by the target generator.' },
@@ -313,6 +316,35 @@ assets: [
 </Tab>
 
 </Tabs>
+
+### Enabling, disabling & grouping assets
+
+Every asset has an `enabled` field (default `true`). Set it to `false` to leave an asset out of the
+run without deleting or commenting it out. Set it to a **group name** to tag the asset, then flip
+`settings.enabled` to that same string to run only that group — a fast way to swap between quality
+passes without touching each asset:
+
+```ts
+export default defineConfig({
+  // Swap this one line to switch passes: true (everything), "quick", or "full".
+  settings: { enabled: "quick" },
+  assets: [
+    { name: "hero-quick", generator: "scroll-reel", url: "/", enabled: "quick" },
+    { name: "hero-full",  generator: "scroll-reel", url: "/", enabled: "full", options: { output: { fps: 60 } } },
+    { name: "wip",        generator: "screenshots", url: "/pricing", enabled: false }, // never runs
+  ],
+})
+```
+
+- `settings.enabled: true` (default) runs every asset except those set to `false`.
+- `settings.enabled: false` runs nothing.
+- `settings.enabled: "quick"` runs only assets whose own `enabled` is `"quick"`.
+- An explicit `--asset <name>` on the CLI overrides all of this and runs exactly what you name
+  (even a disabled one). Dependencies of a running asset are always pulled in, whatever their own
+  `enabled`.
+
+`pro-visu doctor` prints the resolved plan and marks which assets will run under the current
+`enabled` setting.
 
 ## The asset graph
 

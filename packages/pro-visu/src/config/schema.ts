@@ -5,6 +5,14 @@ import { DEFAULT_OUTDIR, DEFAULT_CONCURRENCY } from "@/config/defaults";
 const logLevelSchema = z.enum(["silent", "error", "warn", "info", "debug"]);
 export type LogLevel = z.infer<typeof logLevelSchema>;
 
+/**
+ * `enabled` toggle shared by each asset and the global `settings`. `true`/`false` switch an asset
+ * on/off; a string tags it into a named group (e.g. "quick-test"). Setting `settings.enabled` to a
+ * group string runs only the assets tagged with it — a fast way to swap between quality passes.
+ */
+const enabledSchema = z.union([z.boolean(), z.string().min(1)]);
+export type EnabledFlag = z.infer<typeof enabledSchema>;
+
 /** Playwright launch controls, settable per-repo. */
 const browserSettingsSchema = z
   .object({
@@ -205,6 +213,14 @@ export type ResolvedCaptureSettings = z.infer<typeof captureSettingsSchema>;
  */
 export const settingsSchema = z.object({
   // --- output & run behavior ---
+  /**
+   * Which assets to run. `true` (default) runs every asset that isn't individually disabled;
+   * `false` runs none; a group string (e.g. "quick-test") runs only the assets tagged with that
+   * same string in their own `enabled`. Explicit `--asset` selection on the CLI overrides this.
+   */
+  enabled: enabledSchema
+    .default(true)
+    .describe('Which assets to run: true (all not individually disabled), false (none), or a group string that runs only assets whose `enabled` matches (e.g. "quick-test").'),
   /** Output directory, relative to the repo root. */
   outDir: z
     .string()
@@ -260,6 +276,15 @@ export type ResolvedSettings = z.infer<typeof settingsSchema>;
 export const assetSpecSchema = z
   .object({
     name: z.string().min(1),
+    /**
+     * Whether to run this asset. `true` (default) includes it; `false` leaves it out without
+     * deleting or commenting it; a group string (e.g. "quick-test") tags it so `settings.enabled`
+     * set to the same string runs only that group. Dependencies of a running asset are pulled in
+     * regardless of their own `enabled`.
+     */
+    enabled: enabledSchema
+      .default(true)
+      .describe('Run this asset? true (default), false to skip it, or a group string (e.g. "quick-test") selected via settings.enabled.'),
     /**
      * Page to capture: an absolute `https://…` URL, or a path like `/shop` resolved against the
      * managed server's URL. Optional — with a managed server, a url-based asset that omits it

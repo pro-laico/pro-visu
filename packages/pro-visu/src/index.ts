@@ -13,6 +13,7 @@ export type {
   CaptureCleanupInput,
   AssetSpecInput,
   AssetBaseInput,
+  EnabledFlag,
   LogLevel,
 } from "@/config/define-config";
 

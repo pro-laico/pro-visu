@@ -1,4 +1,4 @@
-import type { ResolvedAssetSpec } from "@/config/schema";
+import type { EnabledFlag, ResolvedAssetSpec } from "@/config/schema";
 
 /** Unique dependency asset-names for a spec (the values of its `inputs` map). */
 export function dependenciesOf(spec: ResolvedAssetSpec): string[] {
@@ -55,15 +55,51 @@ function assertAcyclic(specs: ResolvedAssetSpec[]): void {
 }
 
 /**
+ * Names of the assets enabled by the `settings.enabled` group toggle, honoring each asset's own
+ * `enabled`. `false` (global or per-asset) selects nothing / drops that asset; a group string runs
+ * only the assets tagged with the same string; `true` (default) runs everything not individually
+ * disabled. Dependencies aren't resolved here — `expandSelection` pulls those in afterward.
+ */
+export function enabledAssetNames(
+  specs: ResolvedAssetSpec[],
+  settingsEnabled: EnabledFlag,
+): string[] {
+  if (settingsEnabled === false) return [];
+  const group = typeof settingsEnabled === "string" ? settingsEnabled : null;
+  return specs
+    .filter((s) => {
+      if (s.enabled === false) return false;
+      return group === null ? true : s.enabled === group;
+    })
+    .map((s) => s.name);
+}
+
+/**
+ * Resolve which assets to run: an explicit `--asset` selection (if given) wins over the
+ * `settings.enabled` group toggle. Either way the seed is expanded to include transitive
+ * dependencies via `expandSelection`.
+ */
+export function resolveSelection(
+  specs: ResolvedAssetSpec[],
+  requested: string[] | undefined,
+  settingsEnabled: EnabledFlag,
+): ResolvedAssetSpec[] {
+  const seed = requested ?? enabledAssetNames(specs, settingsEnabled);
+  return expandSelection(specs, seed);
+}
+
+/**
  * Given a user selection of asset names, expand it to include every transitive dependency
  * (you can't build an asset without its inputs). Preserves config order. Unknown selected
  * names are ignored here (the caller warns); unknown *dependencies* are caught by buildGraph.
+ * `undefined` means "no filter" (all assets); an empty array means "nothing selected".
  */
 export function expandSelection(
   specs: ResolvedAssetSpec[],
   names: string[] | undefined,
 ): ResolvedAssetSpec[] {
-  if (!names || names.length === 0) return specs;
+  if (!names) return specs;
+  if (names.length === 0) return [];
   const byName = new Map(specs.map((s) => [s.name, s]));
   const wanted = new Set<string>();
 

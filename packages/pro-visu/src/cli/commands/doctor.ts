@@ -11,7 +11,7 @@ import { ensureChromium } from "@/binaries/chromium";
 import { ensureFfmpeg } from "@/binaries/ensure-ffmpeg";
 import { ffmpegIsSupported } from "@/binaries/ffmpeg-binary";
 import { applyDerivedInputs } from "@/pipeline/runner";
-import { buildGraph } from "@/pipeline/graph";
+import { buildGraph, resolveSelection } from "@/pipeline/graph";
 import { getGenerator } from "@/generators/registry";
 import { reportConfigError } from "@/cli/ui";
 import { validatePlan, preflightUrls } from "@/cli/commands/generate";
@@ -105,9 +105,28 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<void> {
     const resolved = resolveTargets(config.assets, serverBase, (id) =>
       Boolean(getGenerator(id)?.requiresUrl),
     );
-    log.info(`Plan: ${resolved.length} asset(s), concurrency ${config.settings.concurrency}`);
+    const willRun = new Set(
+      resolveSelection(resolved, undefined, config.settings.enabled).map((a) => a.name),
+    );
+    const { enabled } = config.settings;
+    const enabledNote =
+      enabled === true
+        ? ""
+        : enabled === false
+          ? " — settings.enabled: false (nothing runs)"
+          : ` — settings.enabled: "${enabled}" (group)`;
+    log.info(
+      `Plan: ${willRun.size}/${resolved.length} asset(s) run, concurrency ${config.settings.concurrency}${enabledNote}`,
+    );
     for (const a of resolved) {
-      log.log(`  • ${a.name}  [${a.generator}]${a.url ? `  ${a.url}` : ""}`);
+      const tag =
+        typeof a.enabled === "string"
+          ? `  (group "${a.enabled}")`
+          : a.enabled === false
+            ? "  (disabled)"
+            : "";
+      const mark = willRun.has(a.name) ? "•" : "·";
+      log.log(`  ${mark} ${a.name}  [${a.generator}]${a.url ? `  ${a.url}` : ""}${tag}`);
     }
 
     // Capture targets: a managed server is started per run; otherwise the URLs must already respond.
