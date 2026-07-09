@@ -1,4 +1,5 @@
 import type { Page, Route } from "playwright-core";
+
 import type { Logger } from "@/utils/logger";
 
 /**
@@ -57,13 +58,7 @@ export function createSharedNetworkCache(args: SharedNetworkCacheArgs): SharedNe
   const handler = async (route: Route): Promise<void> => {
     const request = route.request();
     const url = request.url();
-    if (
-      request.method() !== "GET" ||
-      request.headers().range != null ||
-      request.resourceType() === "eventsource"
-    ) {
-      return route.fallback();
-    }
+    if (request.method() !== "GET" || request.headers().range != null || request.resourceType() === "eventsource") return route.fallback();
 
     const hit = entries.get(url);
     if (hit) return route.fulfill({ status: hit.status, headers: hit.headers, body: hit.body });
@@ -72,10 +67,9 @@ export function createSharedNetworkCache(args: SharedNetworkCacheArgs): SharedNe
     if (pending) {
       const entry = await pending;
       if (entry) return route.fulfill({ status: entry.status, headers: entry.headers, body: entry.body });
-      return route.fallback(); // the winner's response wasn't cacheable — fetch normally
+      return route.fallback();
     }
 
-    // Winner: fetch once, record if cacheable, and fulfill THIS route from the same response.
     let resolveEntry!: (entry: CacheEntry | null) => void;
     inflight.set(url, new Promise<CacheEntry | null>((resolve) => (resolveEntry = resolve)));
     let entry: CacheEntry | null = null;
@@ -93,22 +87,17 @@ export function createSharedNetworkCache(args: SharedNetworkCacheArgs): SharedNe
           totalBytes += body.length;
         } else if (!budgetWarned) {
           budgetWarned = true;
-          args.logger.debug(
-            `shared network cache full (${Math.round(maxTotalBytes / 1024 / 1024)}MB) — later responses fetch per worker`,
-          );
+          args.logger.debug(`shared network cache full (${Math.round(maxTotalBytes / 1024 / 1024)}MB) — later responses fetch per worker`);
         }
       }
       await route.fulfill({ response, body });
     } catch {
-      // Fetch or fulfill failed (server hiccup, page tearing down) — fail open to a plain fetch.
       try {
         await route.fallback();
-      } catch {
-        /* route already handled / page gone */
-      }
+      } catch {}
     } finally {
       resolveEntry(entry);
-      inflight.delete(url); // future requests hit `entries` (or refetch if it wasn't cacheable)
+      inflight.delete(url);
     }
   };
 

@@ -1,8 +1,3 @@
-// A brand proof-point tile — a big figure with a unit + caption. Reusable on the lookbook,
-// the About "by the numbers" band, PDP, footer trust strips, and email modules. When `animate`
-// is set on a numeric value it counts up via a pure-CSS @property counter (no JS state), so it
-// records cleanly and loops seamlessly when captured as a media-wall tile.
-
 interface StatTileProps {
   /** The headline figure. A number + `animate` enables the count-up; strings render as-is. */
   value: number | string;
@@ -25,8 +20,7 @@ export function StatTile({ value, unit, label, caption, animate = false }: StatT
         {isCount ? (
           <span
             className="stat-count"
-            // `--to` is the count-up target read by the @property keyframe in globals.css.
-            style={{ ["--to" as string]: value }}
+            style={{ ["--to" as string]: value }} //EXCUSE: sets a `--to` CSS custom property, which React.CSSProperties doesn't type
             role="img"
             aria-label={`${value}${unit ? ` ${unit}` : ""}`}
           />

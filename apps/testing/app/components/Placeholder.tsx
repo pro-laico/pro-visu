@@ -32,11 +32,7 @@ export function Placeholder({ tone, ratio = "3 / 4", label, className, src, alt 
   return (
     <div
       className={["ph", className].filter(Boolean).join(" ")}
-      style={{
-        aspectRatio: ratio,
-        background: `linear-gradient(155deg, ${t.from}, ${t.to})`,
-        color: t.ink,
-      }}
+      style={{ aspectRatio: ratio, background: `linear-gradient(155deg, ${t.from}, ${t.to})`, color: t.ink }}
       aria-hidden="true"
     >
       <span className="ph-mark">FASHION</span>

@@ -1,21 +1,12 @@
 import type { AssetSpecInput, InteractionOptions } from "pro-visu";
+
 import { INK } from "./brand";
 
-// The media wall and its tile producers: a quiet grid of mobile phone screens — most tiles sit
-// still, now and then one does a single thing (a drawer slides in, a heart fills). Clip lengths
-// (8s / 12s) divide the 24s wall so every tile loops cleanly. Full-res photo accents ride in as
-// direct `{ src }` tiles on the wall itself — no producer assets needed.
-
-// Shared clip recipe: 390×844 phone viewport, cursor hidden. Each clip is authored as
-// hold still → one interaction (held well past a second) → settle back to rest, so the loop is
-// seamless; page.startDelayMs + page.endDwellMs + Σ(durationMs + holdMs) sums to the clip length.
 const CLIP_VIEW: InteractionOptions = { output: { width: 390, height: 844, deviceScaleFactor: 2, fps: 30 }, cursor: { show: false } };
 
-// Six distinct clips (no tile reused → no synchronised "twins"), staggered action windows +
-// mixed lengths so the wall never goes "all still then all active" at once.
 export const clips: AssetSpecInput[] = [
   {
-    name: "clip-menu", // home: open the mega-menu, close it (acts early) — 8s
+    name: "clip-menu",
     url: "/",
     generator: "interaction",
     options: {
@@ -28,7 +19,7 @@ export const clips: AssetSpecInput[] = [
     },
   },
   {
-    name: "clip-wishlist", // shop: heart the coat, unheart it — 8s
+    name: "clip-wishlist",
     url: "/shop",
     generator: "interaction",
     options: {
@@ -42,7 +33,7 @@ export const clips: AssetSpecInput[] = [
     },
   },
   {
-    name: "clip-cart", // PDP coat: add to bag, drawer held open ~4s, close — 12s
+    name: "clip-cart",
     url: "/products/the-camel-coat",
     generator: "interaction",
     options: {
@@ -56,7 +47,7 @@ export const clips: AssetSpecInput[] = [
     },
   },
   {
-    name: "clip-cart-trouser", // PDP trouser: same flow, different bag, acts later — 12s
+    name: "clip-cart-trouser",
     url: "/products/pleated-wool-trouser",
     generator: "interaction",
     options: {
@@ -70,7 +61,7 @@ export const clips: AssetSpecInput[] = [
     },
   },
   {
-    name: "clip-size", // PDP slip: pick size L, back to M (acts late) — 8s
+    name: "clip-size",
     url: "/products/silk-slip-dress",
     generator: "interaction",
     options: {
@@ -84,7 +75,7 @@ export const clips: AssetSpecInput[] = [
     },
   },
   {
-    name: "clip-wishlist-slip", // shop: heart the slip — 8s
+    name: "clip-wishlist-slip",
     url: "/shop",
     generator: "interaction",
     options: {
@@ -104,16 +95,11 @@ export const wallAssets: AssetSpecInput[] = [
   {
     name: "lookbook-wall",
     generator: "wall",
-    // Each column lists its tiles: clip assets by name (the wall derives its dependencies) and
-    // full-res photos as direct { src } files. 5 columns × 2 tiles.
     options: {
       output: { width: 1920, height: 1080, fps: 30, deviceScaleFactor: 2, crf: 18 },
-      // frame-exact + crisp; for fast layout iteration set preview.enabled + render.capture "realtime"
       render: { capture: "frames" },
       layout: { background: INK, gap: 2, tileAspect: 0.75, cornerRadius: 0 },
-      // Quiet motion: each column does ONE gentle seamless drift over the 24s, neighbours
-      // alternating up/down with spread staggers. No X pan, no pulses.
-      motion: { durationMs: 24_000, loops: 1 }, // durationMs is a multiple of the 8s/12s tile clips, so every tile loops cleanly
+      motion: { durationMs: 24_000, loops: 1 },
       columns: [
         { tiles: ["clip-cart", { src: "public/img/hero.jpg" }], direction: "down", stagger: 0.0 },
         { tiles: ["clip-menu", { src: "public/img/editorial.jpg" }], direction: "up", stagger: 0.42 },

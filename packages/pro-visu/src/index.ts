@@ -1,7 +1,3 @@
-// Public API consumed by `pro-visu.config.ts` and any modules a config is split into.
-// Every author-facing type is exported so a config can be composed from many files
-// (settings in one, each asset family in its own, joined with `satisfies`).
-
 export { defineConfig } from "@/config/define-config";
 export type {
   ShowcaseUserConfig,
@@ -22,33 +18,16 @@ export type { Easing } from "@/generators/easing";
 export type { ViewportInput } from "@/generators/shared-options";
 
 // scroll-reel
-export type {
-  ScrollReelOptions,
-  ChoreographyStepInput,
-  AutoSectionsInput,
-  AspectInput,
-} from "@/generators/scroll-reel/options";
+export type { ScrollReelOptions, ChoreographyStepInput, AutoSectionsInput, AspectInput } from "@/generators/scroll-reel/options";
 
 // interaction
-export type {
-  InteractionOptions,
-  InteractionActionInput,
-  CursorInput,
-  FocusInput,
-} from "@/generators/interaction/options";
+export type { InteractionOptions, InteractionActionInput, CursorInput, FocusInput } from "@/generators/interaction/options";
 
 // screenshots
 export type { ScreenshotsOptions, ElementShotInput } from "@/generators/screenshots/options";
 
 // wall
-export type {
-  WallOptions,
-  WallColumnInput,
-  WallTileInput,
-  WallPanInput,
-  WallPulseInput,
-  FauxTileInput,
-} from "@/generators/wall/options";
+export type { WallOptions, WallColumnInput, WallTileInput, WallPanInput, WallPulseInput, FauxTileInput } from "@/generators/wall/options";
 
 // specimen
 export type {
@@ -60,6 +39,18 @@ export type {
   SpecimenLabelAnchor,
   SpecimenTemplate,
 } from "@/generators/specimen/options";
+
+// icons
+export type {
+  IconsOptions,
+  IconsOptionsInput,
+  IconSourceInput,
+  IconsTemplate,
+  IconsOutputInput,
+  IconsLayoutInput,
+  IconsBaseInput,
+  IconEffectInput,
+} from "@/generators/icons/options";
 
 // palette + palette-reel
 export type { PaletteOptions, PaletteColorInput } from "@/generators/palette/options";

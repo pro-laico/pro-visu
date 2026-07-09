@@ -1,5 +1,6 @@
-import { useEffect, useState, useSyncExternalStore, type ReactElement } from "react";
 import { Box, Static, Text, useInput, useStdin, useWindowSize } from "ink";
+import { useEffect, useState, useSyncExternalStore, type ReactElement } from "react";
+
 import type { DashboardStore } from "./store";
 import { buildView, type DashboardVM, type RowVM, type TallyCell } from "./view-model";
 
@@ -9,8 +10,6 @@ const TICK_MS = 90;
 const MAX_WIDTH = 100;
 
 function Row({ row, vm }: { row: RowVM; vm: DashboardVM }): ReactElement {
-  // Fixed columns are flexShrink={0} so only the step (flexGrow) absorbs overflow and truncates —
-  // otherwise Ink's flexbox shrinks the name/detail columns under a long step and they misalign.
   return (
     <Box paddingLeft={1}>
       <Box flexShrink={0} marginRight={1}>
@@ -121,7 +120,6 @@ export function Dashboard({
 }): ReactElement {
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   const [frame, setFrame] = useState(0);
-  // Manual scroll position; null = auto-follow the running rows (the default).
   const [viewStart, setViewStart] = useState<number | null>(null);
   useEffect(() => {
     const timer = setInterval(() => setFrame((f) => f + 1), TICK_MS);
@@ -131,27 +129,16 @@ export function Dashboard({
   const { isRawModeSupported } = useStdin();
   const { columns, rows } = useWindowSize();
   const width = columns > 0 ? Math.min(columns, MAX_WIDTH) : undefined;
-  const vm = buildView(
-    snapshot,
-    frame,
-    Date.now(),
-    columns > 0 ? width : undefined,
-    rows > 0 ? rows : undefined,
-    viewStart,
-  );
+  const vm = buildView(snapshot, frame, Date.now(), columns > 0 ? width : undefined, rows > 0 ? rows : undefined, viewStart);
 
   const scrollable = vm.assetsBefore > 0 || vm.assetsAfter > 0;
-  // Ink owns keyboard input while live (one keypress owner), so the caller's watcher handles only
-  // signals. Esc/Ctrl+C cancels; ↑/↓ + PgUp/PgDn scroll the asset window (which suspends auto-follow);
-  // `f` returns to following the running rows. Gated on raw-mode support so a forced dashboard on a
-  // non-TTY doesn't throw.
   useInput(
     (input, key) => {
       if (key.escape || (key.ctrl && input === "c")) {
         onInterrupt?.();
         return;
       }
-      const here = viewStart ?? vm.assetsBefore; // current top, whether auto or manual
+      const here = viewStart ?? vm.assetsBefore;
       const page = Math.max(1, vm.assets.length);
       if (key.upArrow) setViewStart(Math.max(0, here - 1));
       else if (key.downArrow) setViewStart(Math.min(vm.maxStart, here + 1));
@@ -164,13 +151,10 @@ export function Dashboard({
 
   const manual = viewStart !== null;
   let footerText = vm.footer.text;
-  if (!vm.cancelling && isRawModeSupported && scrollable) {
-    footerText += manual ? " · ↑↓ scroll · f follow" : " · ↑↓ scroll";
-  }
+  if (!vm.cancelling && isRawModeSupported && scrollable) footerText += manual ? " · ↑↓ scroll · f follow" : " · ↑↓ scroll";
 
   return (
     <>
-      {/* Committed above the live box, in scrollback — completed logs that won't change. */}
       <Static items={vm.logs}>
         {(line) => (
           <Text key={line.key} color={line.color} dimColor={line.dim}>

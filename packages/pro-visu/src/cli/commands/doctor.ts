@@ -1,19 +1,20 @@
 import { existsSync } from "node:fs";
-import { resolveCwd, resolveConfigDir } from "@/utils/paths";
-import { detectPackageManager, pmRun } from "@/utils/package-manager";
+
+import { reportConfigError } from "@/cli/ui";
 import { createLogger } from "@/utils/logger";
 import { loadShowcaseConfig } from "@/config/load";
+import { ensureChromium } from "@/binaries/chromium";
+import { getGenerator } from "@/generators/registry";
 import type { ResolvedConfig } from "@/config/schema";
+import { applyDerivedInputs } from "@/pipeline/runner";
+import { ensureFfmpeg } from "@/binaries/ensure-ffmpeg";
 import { refreshSchemaFile } from "@/config/json-schema";
 import { resolveTargets } from "@/config/resolve-targets";
 import { resolveServerUrl } from "@/server/manage-server";
-import { ensureChromium } from "@/binaries/chromium";
-import { ensureFfmpeg } from "@/binaries/ensure-ffmpeg";
+import { resolveCwd, resolveConfigDir } from "@/utils/paths";
 import { ffmpegIsSupported } from "@/binaries/ffmpeg-binary";
-import { applyDerivedInputs } from "@/pipeline/runner";
 import { buildGraph, resolveSelection } from "@/pipeline/graph";
-import { getGenerator } from "@/generators/registry";
-import { reportConfigError } from "@/cli/ui";
+import { detectPackageManager, pmRun } from "@/utils/package-manager";
 import { validatePlan, preflightUrls } from "@/cli/commands/generate";
 
 export interface DoctorOptions {
@@ -37,7 +38,6 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<void> {
     log.error(message);
   };
 
-  // Node version (mirrors package.json engines).
   const [major = 0, minor = 0] = process.versions.node.split(".").map(Number);
   if (major > 18 || (major === 18 && minor >= 18)) {
     log.success(`Node ${process.versions.node}`);
@@ -45,7 +45,6 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<void> {
     fail(`Node ${process.versions.node} — pro-visu requires >= 18.18.`);
   }
 
-  // Config: discovery, schema validation, per-asset options, and the dependency graph.
   let config: ResolvedConfig | undefined;
   let configFile: string | undefined;
   try {
@@ -58,7 +57,6 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<void> {
     failed = true;
     reportConfigError(log, err);
   }
-  // Keep a scaffolded pro-visu.schema.json current with this tool version (best-effort).
   await refreshSchemaFile(resolveConfigDir(cwd, configFile), log);
   if (config) {
     if (validatePlan(log, config, config.assets, "final")) {
@@ -70,11 +68,10 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<void> {
       applyDerivedInputs(config);
       buildGraph(config.assets);
     } catch (err) {
-      fail((err as Error).message);
+      fail(err instanceof Error ? err.message : String(err));
     }
   }
 
-  // Browser: verify whichever launch path the config selects.
   const browser = config?.settings.browser;
   if (browser?.executablePath) {
     if (existsSync(browser.executablePath)) log.success(`Browser executable: ${browser.executablePath}`);
@@ -87,27 +84,19 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<void> {
     fail("Chromium missing — run `pro-visu init` (or it installs on first `pro-visu generate`).");
   }
 
-  // ffmpeg: missing is self-healing on generate, so it's only fatal on unsupported platforms.
   if (await ensureFfmpeg({ logger: log, checkOnly: true })) {
     log.success(`ffmpeg OK${process.env.FFMPEG_BIN ? " (FFMPEG_BIN)" : ""}.`);
   } else if (ffmpegIsSupported()) {
     log.warn("ffmpeg not fetched yet — it downloads automatically on first `pro-visu generate`.");
   } else {
-    fail(
-      `No prebuilt ffmpeg for ${process.platform}/${process.arch} — set FFMPEG_BIN to a local ffmpeg binary.`,
-    );
+    fail(`No prebuilt ffmpeg for ${process.platform}/${process.arch} — set FFMPEG_BIN to a local ffmpeg binary.`);
   }
 
-  // The resolved plan: each asset, its target URL, and the server decision.
   if (config) {
     const serverCfg = config.settings.server;
     const serverBase = serverCfg ? resolveServerUrl(serverCfg) : undefined;
-    const resolved = resolveTargets(config.assets, serverBase, (id) =>
-      Boolean(getGenerator(id)?.requiresUrl),
-    );
-    const willRun = new Set(
-      resolveSelection(resolved, undefined, config.settings.enabled).map((a) => a.name),
-    );
+    const resolved = resolveTargets(config.assets, serverBase, (id) => Boolean(getGenerator(id)?.requiresUrl));
+    const willRun = new Set(resolveSelection(resolved, undefined, config.settings.enabled).map((a) => a.name));
     const { enabled } = config.settings;
     const enabledNote =
       enabled === true
@@ -119,19 +108,12 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<void> {
       `Plan: ${willRun.size}/${resolved.length} asset(s) run, concurrency ${config.settings.concurrency}${enabledNote}`,
     );
     for (const a of resolved) {
-      const tag =
-        typeof a.enabled === "string"
-          ? `  (group "${a.enabled}")`
-          : a.enabled === false
-            ? "  (disabled)"
-            : "";
+      const tag = typeof a.enabled === "string" ? `  (group "${a.enabled}")` : a.enabled === false ? "  (disabled)" : "";
       const mark = willRun.has(a.name) ? "•" : "·";
       log.log(`  ${mark} ${a.name}  [${a.generator}]${a.url ? `  ${a.url}` : ""}${tag}`);
     }
 
-    // Capture targets: a managed server is started per run; otherwise the URLs must already respond.
     if (serverCfg) {
-      // Report the commands that will actually run — build/command default to the project's scripts.
       const pm = detectPackageManager(cwd);
       const startCmd = serverCfg.command ?? pmRun(pm, "start");
       const buildCmd = serverCfg.build === false ? "skipped" : `\`${serverCfg.build ?? pmRun(pm, "build")}\``;

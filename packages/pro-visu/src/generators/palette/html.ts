@@ -1,18 +1,12 @@
-import { formatField, pickTextColor, type FieldId } from "@/generators/palette/color";
 import type { ResolvedPaletteOptions } from "@/generators/palette/options";
+import { formatField, pickTextColor, type FieldId } from "@/generators/palette/color";
 
-const esc = (s: string): string =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const esc = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 type Corner = "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
 
 /** One corner block of stacked field lines (empty string if no fields placed there). */
-function corner(
-  o: ResolvedPaletteOptions,
-  color: { name: string; hex: string },
-  which: Corner,
-  fields: FieldId[],
-): string {
+function corner(o: ResolvedPaletteOptions, color: { name: string; hex: string }, which: Corner, fields: FieldId[]): string {
   if (!fields.length) return "";
   const vert = which.startsWith("top") ? "top:0" : "bottom:0";
   const horiz = which.endsWith("Left") ? "left:0;text-align:left" : "right:0;text-align:right";
@@ -20,11 +14,7 @@ function corner(
     .map(
       (f) =>
         `<div>${esc(
-          formatField(color, f, {
-            uppercaseName: o.text.uppercase,
-            rgbStyle: o.text.rgbStyle,
-            oklchStyle: o.text.oklchStyle,
-          }),
+          formatField(color, f, { uppercaseName: o.text.uppercase, rgbStyle: o.text.rgbStyle, oklchStyle: o.text.oklchStyle }),
         )}</div>`,
     )
     .join("");
@@ -42,7 +32,6 @@ export function buildPaletteHtml(o: ResolvedPaletteOptions, fontDataUrl?: string
     ? `'PaletteFont', "Helvetica Neue", Arial, sans-serif`
     : `"Helvetica Neue", Arial, "Segoe UI", system-ui, sans-serif`;
 
-  // The container that arranges the swatches per layout.
   let container: string;
   if (o.layout.layout === "columns") {
     container = `display:flex;flex-direction:row;gap:${o.layout.gap}px`;
@@ -51,7 +40,6 @@ export function buildPaletteHtml(o: ResolvedPaletteOptions, fontDataUrl?: string
   } else {
     container = `display:flex;flex-direction:column;gap:${o.layout.gap}px`;
   }
-  // rows/columns share their long axis equally; grid cells fill their track.
   const swatchFlex = o.layout.layout === "grid" ? "" : "flex:1 1 0;min-width:0;min-height:0;";
 
   const swatches = o.colors

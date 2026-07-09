@@ -1,6 +1,7 @@
 import type { Page } from "playwright-core";
-import type { ResolvedCaptureSettings } from "@/config/schema";
+
 import type { Logger } from "@/utils/logger";
+import type { ResolvedCaptureSettings } from "@/config/schema";
 
 /**
  * Tool-side capture cleanup, driven by `settings.capture` and applied uniformly to every
@@ -13,12 +14,7 @@ export interface PageVariantExtras {
   themeClass?: string;
 }
 
-export interface CleanCssOptions {
-  hideSelectors: string[];
-  hideScrollbars: boolean;
-  pauseAnimations: boolean;
-  injectCss?: string;
-}
+export interface CleanCssOptions { hideSelectors: string[]; hideScrollbars: boolean; pauseAnimations: boolean; injectCss?: string }
 
 /**
  * Pure: assemble the CSS injected to suppress capture noise. Returns "" when nothing is requested, so
@@ -26,9 +22,7 @@ export interface CleanCssOptions {
  */
 export function buildCleanCss(opts: CleanCssOptions): string {
   const parts: string[] = [];
-  if (opts.hideSelectors.length > 0) {
-    parts.push(`${opts.hideSelectors.join(", ")} { display: none !important; }`);
-  }
+  if (opts.hideSelectors.length > 0) parts.push(`${opts.hideSelectors.join(", ")} { display: none !important; }`);
   if (opts.hideScrollbars) {
     parts.push(
       `::-webkit-scrollbar { width: 0 !important; height: 0 !important; display: none !important; }`,
@@ -36,13 +30,9 @@ export function buildCleanCss(opts: CleanCssOptions): string {
     );
   }
   if (opts.pauseAnimations) {
-    parts.push(
-      `*, *::before, *::after { animation-play-state: paused !important; transition: none !important; }`,
-    );
+    parts.push(`*, *::before, *::after { animation-play-state: paused !important; transition: none !important; }`);
   }
-  if (opts.injectCss && opts.injectCss.trim()) {
-    parts.push(opts.injectCss);
-  }
+  if (opts.injectCss && opts.injectCss.trim()) parts.push(opts.injectCss);
   return parts.join("\n");
 }
 
@@ -55,26 +45,20 @@ export function buildCleanCss(opts: CleanCssOptions): string {
  */
 function freezeClockScript(): void {
   try {
-    const FIXED = 1700000000000; // a fixed epoch (2023-11-14) so the page never sees time advance
+    const FIXED = 1700000000000;
     Date.now = () => FIXED;
-  } catch {
-    /* ignore */
-  }
+  } catch {}
   try {
     const perf = (globalThis as { performance?: { now: () => number } }).performance;
     if (perf) perf.now = () => 0;
-  } catch {
-    /* ignore */
-  }
+  } catch {}
   try {
     let seed = 1234567;
     Math.random = () => {
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;
       return seed / 0x7fffffff;
     };
-  } catch {
-    /* ignore */
-  }
+  } catch {}
 }
 
 /** Common analytics / ads / tag-manager / session-replay hosts, blocked by default for clean captures. */
@@ -112,21 +96,14 @@ export function shouldBlockRequest(
 }
 
 /** Abort tracker/denylisted/blocked-type requests during capture (must run BEFORE `page.goto`). */
-export async function installNetworkHygiene(
-  page: Page,
-  capture: ResolvedCaptureSettings,
-): Promise<void> {
+export async function installNetworkHygiene(page: Page, capture: ResolvedCaptureSettings): Promise<void> {
   const { blockTrackers, blockHosts, blockResourceTypes } = capture.cleanup;
   const hosts = [...(blockTrackers ? DEFAULT_TRACKER_HOSTS : []), ...blockHosts];
   const resourceTypes = blockResourceTypes;
   if (hosts.length === 0 && resourceTypes.length === 0) return;
   await page.route("**/*", (route) => {
     const req = route.request();
-    if (shouldBlockRequest(req.url(), { hosts, resourceTypes, resourceType: req.resourceType() })) {
-      return route.abort();
-    }
-    // fallback (not continue) so earlier-registered handlers — the shared network cache — still
-    // see requests that hygiene lets through. With no other handler it behaves like continue.
+    if (shouldBlockRequest(req.url(), { hosts, resourceTypes, resourceType: req.resourceType() })) return route.abort();
     return route.fallback();
   });
 }
@@ -146,13 +123,9 @@ function pauseAllMedia(): void {
         m.autoplay = false;
         m.pause?.();
         if (typeof m.currentTime === "number") m.currentTime = 0;
-      } catch {
-        /* ignore */
-      }
+      } catch {}
     }
-  } catch {
-    /* ignore */
-  }
+  } catch {}
 }
 
 /** Runs in the page: add a theme class to <html> (e.g. to force a dark variant). Self-contained. */
@@ -161,9 +134,7 @@ function applyThemeClass(cls: string): void {
     (
       globalThis as { document?: { documentElement?: { classList?: { add(c: string): void } } } }
     ).document?.documentElement?.classList?.add(cls);
-  } catch {
-    /* ignore */
-  }
+  } catch {}
 }
 
 /** Install pre-navigation hooks (must run BEFORE `page.goto`). */
@@ -172,12 +143,8 @@ export async function installPreNav(
   capture: ResolvedCaptureSettings,
   extras: PageVariantExtras = {},
 ): Promise<void> {
-  if (capture.cleanup.freezeClock) {
-    await page.addInitScript(freezeClockScript);
-  }
-  if (extras.themeClass) {
-    await page.addInitScript(applyThemeClass, extras.themeClass);
-  }
+  if (capture.cleanup.freezeClock) await page.addInitScript(freezeClockScript);
+  if (extras.themeClass) await page.addInitScript(applyThemeClass, extras.themeClass);
 }
 
 /**
@@ -197,22 +164,13 @@ export async function applyPostNav(
     pauseAnimations: capture.cleanup.pauseAnimations,
     injectCss: capture.cleanup.injectCss,
   });
-  if (css) {
-    await page.addStyleTag({ content: css });
-  }
-  // Re-apply the theme class after the (possibly client-rendered) app has mounted.
-  if (extras.themeClass) {
-    await page.evaluate(applyThemeClass, extras.themeClass);
-  }
+  if (css) await page.addStyleTag({ content: css });
+  if (extras.themeClass) await page.evaluate(applyThemeClass, extras.themeClass);
   for (const selector of capture.cleanup.clickSelectors) {
     try {
       await page.click(selector, { timeout: 1000 });
       logger.debug(`dismissed overlay via ${selector}`);
-    } catch {
-      // Not present / not clickable — fine, these are best-effort consent dismissals.
-    }
+    } catch {}
   }
-  if (extras.pauseMedia !== false) {
-    await page.evaluate(pauseAllMedia);
-  }
+  if (extras.pauseMedia !== false) await page.evaluate(pauseAllMedia);
 }

@@ -5,6 +5,7 @@ import { INTERACTION_ID } from "@/generators/interaction";
 import { SCREENSHOTS_ID } from "@/generators/screenshots";
 import { WALL_ID } from "@/generators/wall";
 import { SPECIMEN_ID } from "@/generators/specimen";
+import { ICONS_ID } from "@/generators/icons";
 import { PALETTE_ID } from "@/generators/palette";
 import { PALETTE_REEL_ID } from "@/generators/palette-reel";
 
@@ -16,6 +17,7 @@ const BUILT_INS = [
   SCREENSHOTS_ID,
   WALL_ID,
   SPECIMEN_ID,
+  ICONS_ID,
   PALETTE_ID,
   PALETTE_REEL_ID,
 ];

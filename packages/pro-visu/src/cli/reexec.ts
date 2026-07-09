@@ -1,6 +1,7 @@
 import os from "node:os";
-import { spawn } from "node:child_process";
 import v8 from "node:v8";
+import { spawn } from "node:child_process";
+
 import type { ResolvedAssetSpec } from "@/config/schema";
 
 /** Env flag set on the re-exec'd child so it doesn't try to re-exec again (infinite loop guard). */
@@ -23,7 +24,7 @@ export function autoHeapTargetMB(
   totalMemBytes: number = os.totalmem(),
 ): number | undefined {
   const heavy = selected.some(
-    (s) => s.generator === "wall" && (s.options as { test?: unknown }).test !== true,
+    (s) => s.generator === "wall" && (s.options as { test?: unknown }).test !== true, //EXCUSE: probing one field of a generator-specific options union
   );
   if (!heavy) return undefined;
   return Math.min(8192, Math.floor(totalMemBytes / (1024 * 1024) / 2));
@@ -34,11 +35,7 @@ export function autoHeapTargetMB(
  * meaningfully above the current limit (5% slack avoids a pointless re-exec for a near-match).
  * Pure — unit-tested.
  */
-export function shouldReexec(
-  targetMB: number | undefined,
-  currentLimitMB: number,
-  alreadyReexec: boolean,
-): boolean {
+export function shouldReexec(targetMB: number | undefined, currentLimitMB: number, alreadyReexec: boolean): boolean {
   if (!targetMB || targetMB <= 0) return false;
   if (alreadyReexec) return false;
   return currentLimitMB < targetMB * 0.95;
@@ -51,9 +48,7 @@ export function shouldReexec(
  * caller should simply return. Signals are forwarded to the child so Esc/Ctrl+C still work.
  */
 export async function reexecWithMemory(targetMB: number | undefined): Promise<boolean> {
-  if (!shouldReexec(targetMB, currentHeapLimitMB(), process.env[REEXEC_FLAG] === "1")) {
-    return false;
-  }
+  if (!shouldReexec(targetMB, currentHeapLimitMB(), process.env[REEXEC_FLAG] === "1")) return false;
   const args = [`--max-old-space-size=${targetMB}`, process.argv[1]!, ...process.argv.slice(2)];
   const child = spawn(process.execPath, args, {
     stdio: "inherit",
@@ -62,9 +57,7 @@ export async function reexecWithMemory(targetMB: number | undefined): Promise<bo
   const forward = (sig: NodeJS.Signals): void => {
     try {
       child.kill(sig);
-    } catch {
-      /* already gone */
-    }
+    } catch {}
   };
   process.on("SIGINT", forward);
   process.on("SIGTERM", forward);

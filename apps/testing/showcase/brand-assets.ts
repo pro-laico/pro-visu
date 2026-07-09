@@ -1,11 +1,11 @@
 import type { AssetSpecInput } from "pro-visu";
+
 import { CAMEL, COGNAC, INK, PAPER, FASHION } from "./brand";
 
-// Colour + type pieces (no URL needed).
 export const brandAssets: AssetSpecInput[] = [
   { name: "colors", generator: "palette", options: { colors: FASHION } },
   {
-    name: "colors-reel", // the same palette as a looping reveal video
+    name: "colors-reel",
     generator: "palette-reel",
     options: {
       colors: FASHION,
@@ -16,9 +16,8 @@ export const brandAssets: AssetSpecInput[] = [
     },
   },
 
-  // Type specimens: three width-stable glyph walls across sans / serif / mono.
   {
-    name: "type-sans", // the "sweep" preset: a seamless dark loop of even per-glyph colour sweeps
+    name: "type-sans",
     generator: "specimen",
     options: {
       font: "public/fonts/InterVariable.woff2",
@@ -28,7 +27,7 @@ export const brandAssets: AssetSpecInput[] = [
     },
   },
   {
-    name: "type-serif", // custom editorial storyboard on the paper palette, name tucked bottom-left in cognac
+    name: "type-serif",
     generator: "specimen",
     options: {
       font: "public/fonts/Fraunces.woff2",
@@ -48,7 +47,7 @@ export const brandAssets: AssetSpecInput[] = [
     },
   },
   {
-    name: "type-mono", // terminal-green storyboard; uniform glyph widths render as a perfect grid
+    name: "type-mono",
     generator: "specimen",
     options: {
       font: "public/fonts/JetBrainsMono.woff2",

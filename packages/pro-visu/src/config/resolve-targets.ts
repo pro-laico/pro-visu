@@ -18,12 +18,7 @@ export function resolveTargets(
 ): ResolvedAssetSpec[] {
   if (!base) return assets;
   return assets.map((asset) => {
-    const url =
-      asset.url == null
-        ? requiresUrl(asset.generator)
-          ? base
-          : asset.url
-        : resolveAgainst(asset.url, base);
+    const url = asset.url == null ? (requiresUrl(asset.generator) ? base : asset.url) : resolveAgainst(asset.url, base);
     return { ...asset, url };
   });
 }

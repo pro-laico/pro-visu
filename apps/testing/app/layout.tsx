@@ -1,9 +1,11 @@
-import "./globals.css";
 import type { ReactNode } from "react";
 import { Cormorant_Garamond, Jost } from "next/font/google";
-import { CartProvider } from "@/app/components/cart";
+
 import { Header } from "@/app/components/Header";
 import { Footer } from "@/app/components/Footer";
+import { CartProvider } from "@/app/components/cart";
+
+import "./globals.css";
 
 const serif = Cormorant_Garamond({
   subsets: ["latin"],

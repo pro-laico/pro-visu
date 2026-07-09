@@ -1,15 +1,13 @@
 import { stat } from "node:fs/promises";
-import {
-  interactionOptionsSchema,
-  type ResolvedInteractionOptions,
-} from "@/generators/interaction/options";
-import { captureFocusWebm, captureInteractionWebm } from "@/generators/interaction/capture";
-import { requireUrl } from "@/generators/require-url";
-import { transcodeToMp4 } from "@/media/ffmpeg";
-import { sha256File } from "@/utils/hash";
+
 import { slugify } from "@/utils/paths";
-import type { Generator, PipelineContext } from "@/generators/types";
+import { sha256File } from "@/utils/hash";
+import { transcodeToMp4 } from "@/media/ffmpeg";
 import type { AssetRecord } from "@/manifest/schema";
+import { requireUrl } from "@/generators/require-url";
+import type { Generator, PipelineContext } from "@/generators/types";
+import { captureFocusWebm, captureInteractionWebm } from "@/generators/interaction/capture";
+import { interactionOptionsSchema, type ResolvedInteractionOptions } from "@/generators/interaction/options";
 
 export const INTERACTION_ID = "interaction";
 
@@ -18,10 +16,7 @@ export const INTERACTION_ID = "interaction";
  * element-focused clip cropped to one component. Always realtime — interactions and their
  * animations are inherently time-based — and always a single asset.
  */
-async function run(
-  ctx: PipelineContext,
-  options: ResolvedInteractionOptions,
-): Promise<{ assets: AssetRecord[] }> {
+async function run(ctx: PipelineContext, options: ResolvedInteractionOptions): Promise<{ assets: AssetRecord[] }> {
   const url = requireUrl(ctx);
   const preset = ctx.quality === "draft" ? "ultrafast" : "medium";
   const fileName = options.output.fileName ?? `${slugify(ctx.target.name)}.mp4`;
@@ -32,14 +27,7 @@ async function run(
       ? `recording ${url} (focus: ${options.focus.selector})`
       : `recording ${url} (interaction, ${options.actions.length} action(s))`,
   );
-  const args = {
-    browser: ctx.browser,
-    capture: ctx.capture,
-    url,
-    options,
-    tmpDir: ctx.tmpDir,
-    logger: ctx.logger,
-  };
+  const args = { browser: ctx.browser, capture: ctx.capture, url, options, tmpDir: ctx.tmpDir, logger: ctx.logger };
   let cropBox: { x: number; y: number; width: number; height: number } | undefined;
   let result: { webmPath: string; leadSeconds: number; durationSeconds: number };
   if (options.focus) {
@@ -61,7 +49,6 @@ async function run(
     height,
     crf: options.output.crf,
     preset,
-    // Drop the navigation + warm-up lead, then clamp to the intended length.
     startOffsetSeconds: result.leadSeconds,
     durationSeconds: result.durationSeconds,
     crop: cropBox,

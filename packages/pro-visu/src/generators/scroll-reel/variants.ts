@@ -4,12 +4,7 @@
  * asset (the `suffix` is appended to the base name). The common case — no viewports, no `"both"` —
  * yields a single variant with an empty suffix (the asset keeps its base name).
  */
-export interface VariantViewport {
-  name: string;
-  width: number;
-  height: number;
-  deviceScaleFactor?: number;
-}
+export interface VariantViewport { name: string; width: number; height: number; deviceScaleFactor?: number; }
 
 export interface CaptureVariant {
   width: number;

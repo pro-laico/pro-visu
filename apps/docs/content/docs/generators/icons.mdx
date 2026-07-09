@@ -1,0 +1,303 @@
+---
+title: icons
+description: A showcase of a project's icon set — an animated grid, as video or a still.
+---
+
+`icons` is a **local** generator — no `url`. Point it at a set of uniform icons and it lays them out
+in a centred grid on a solid backdrop, animates them with a sequence of **effect steps**, and
+captures the result as a looping **video** (mp4) or a single **still** (png). Use it to show off the
+icon set a project ships.
+
+```ts
+{
+  name: "icon-set",
+  generator: "icons",
+  options: {
+    dir: "public/icons",   // every image file in the folder, sorted by name
+    template: "showcase",
+  },
+}
+```
+
+You provide uniform, single-colour icons (SVG or PNG). By default each icon is **tinted** through a
+CSS mask — its shape comes from the file's alpha and its colour from a fill you control — so
+single-colour icons can be recoloured live (that's what the recolour interactions animate). Set
+`layout.recolor: false` to render the icons natively (original colours); then only the scale /
+opacity / rotate effects apply.
+
+## Interactions are one primitive
+
+Every preset interaction is the **same step**, differing only in `order` and `stagger`:
+
+- A step sweeps one effect (`scale`, `color`, `opacity`, `rotate`, `spin`) across the grid.
+- `order` sets each icon's **phase** across the grid — `forward`, `reverse`, `rows`, `columns`,
+  `diagonal`, `radial-in`/`radial-out` (a ripple from the centre), `spiral`, or `random`. Icons that
+  share a phase (a whole diagonal, a ring) fire **together**, which is what makes a pattern.
+- `stagger` sets how much of the step's `span` that phase spreads over: **`0`** fires every targeted
+  icon at once (a pattern flash), **`1`** walks them **one at a time**.
+
+So "scale one at a time", "recolour one at a time", and "recolour many in a pattern" are all this one
+primitive. Steps **fold in order**, so you stack them into layered, creative sequences (a colour
+sweep riding over a scale ripple). The animation is a pure function of time, so the video is
+frame-stepped (crisp, reproducible) and the still is just that timeline frozen at `motion.posterTime`.
+
+## Config options
+
+export const options = [
+  { name: 'icons', type: '(string | { src: string })[]', default: '[]', description: `Icon sources: paths and/or { src } objects. Combined with dir (dir first, then these). At least one icon must resolve (from icons and/or dir).` },
+  { name: 'dir', type: 'string', description: `A folder whose image files (svg/png/webp/jpg/gif/avif) become the icons, sorted by filename. Combined with icons.` },
+  { name: 'template', type: "'showcase' | 'scale-sweep' | 'color-sweep' | 'ripple' | 'pattern'", description: `Load a named interaction preset (deep-merged; your explicit options still win). "showcase" (the default when no steps are given) is a radial scale ripple then a forward recolour sweep. "scale-sweep" scales each icon up one at a time. "color-sweep" recolours each icon one at a time. "ripple" is a scale wave from the centre. "pattern" flashes a checkerboard then alternate rows.` },
+  { name: 'accent', type: 'string', default: "'#7c9cff'", description: `Accent colour the recolour templates sweep to (any CSS colour). Ignored if you supply your own steps.` },
+  { name: 'output', type: 'object', default: '{}', description: `Output frame + encoding settings. Override any subset.`, options: [
+    { name: 'format', type: "'video' | 'image'", default: "'video'", description: `Emit a looping video (mp4) or a single still frame (png).` },
+    { name: 'width', type: 'number', default: '1080', description: `Output frame width in px.` },
+    { name: 'height', type: 'number', default: '1080', description: `Output frame height in px.` },
+    { name: 'deviceScaleFactor', type: 'number (≤4)', default: '2', description: `Render scale (higher = crisper capture, downscaled into the output).` },
+    { name: 'fps', type: 'number (≤120)', default: '30', description: `Output frames per second (video).` },
+    { name: 'crf', type: 'number (0–51)', default: '18', description: `x264 quality (lower = better quality / larger file) (video).` },
+    { name: 'workers', type: 'number', description: `Parallel render workers (video). Omit to auto-pick from cores + free memory.` },
+    { name: 'fileName', type: 'string', description: `Output filename. Defaults to "<slug(asset name)>.<mp4|png>".` },
+  ] },
+  { name: 'motion', type: 'object', default: '{}', description: `Animation timeline — clip length + still sample point. Override any subset.`, options: [
+    { name: 'durationMs', type: 'number', default: '8000', description: `Clip length in ms. The steps' at/span (and posterTime) are fractions of this.` },
+    { name: 'posterTime', type: 'number (0–1)', default: '0.5', description: `For output.format: "image" — which clip moment to freeze, as a fraction of the timeline.` },
+  ] },
+  { name: 'layout', type: 'object', default: '{}', description: `Grid layout + appearance. Override any subset.`, options: [
+    { name: 'columns', type: 'number', description: `Fixed column count. Omit to auto-pick a near-square grid from the icon count + frame aspect.` },
+    { name: 'gap', type: 'number (px)', default: '32', description: `Gap between icons.` },
+    { name: 'padding', type: 'number (px)', default: '64', description: `Padding around the grid.` },
+    { name: 'iconSize', type: 'number (px)', description: `Icon cell size. Omit to fit the grid to the frame.` },
+    { name: 'background', type: 'string', default: "'#0b0b0f'", description: `Backdrop behind the grid (any CSS colour).` },
+    { name: 'recolor', type: 'boolean', default: 'true', description: `Tint each icon via a CSS mask so it can be recoloured (shape from the file's alpha). Off = render icons natively (original colours) — then only scale / opacity / rotate effects apply.` },
+  ] },
+  { name: 'base', type: 'object', default: '{}', description: `Resting icon appearance (before any step) + the animation seed.`, options: [
+    { name: 'color', type: 'string', default: "'#f4f4f5'", description: `Resting icon colour in tint mode (any CSS colour).` },
+    { name: 'scale', type: 'number', default: '1', description: `Resting icon scale multiplier.` },
+    { name: 'opacity', type: 'number (0–1)', default: '1', description: `Resting icon opacity.` },
+    { name: 'seed', type: 'number', default: '1', description: `Seed for "random" sweep orders — same seed ⇒ identical animation.` },
+  ] },
+  { name: 'steps', type: 'EffectStep[]', default: "the template's steps", description: `The animation: an ordered list of effect steps, folded in order so they layer. Defaults to the selected template's steps (or "showcase" when nothing is set).`, options: [
+    { name: 'kind', type: "'scale' | 'color' | 'opacity' | 'rotate' | 'spin'", required: true, description: `What to animate. scale = size multiplier; color = tint; opacity = fade; rotate = to an angle; spin = full turns.` },
+    { name: 'at', type: 'number (0–1)', required: true, description: `When the step starts, as a fraction of the clip.` },
+    { name: 'span', type: 'number (0–1)', required: true, description: `How long the step lasts, as a fraction of the clip.` },
+    { name: 'order', type: "'forward' | 'reverse' | 'random' | 'rows' | 'columns' | 'diagonal' | 'radial-in' | 'radial-out' | 'spiral'", default: "'forward'", description: `Sweep order across the grid (each icon's phase). Icons sharing a phase fire together (a wave / ripple / ring).` },
+    { name: 'stagger', type: 'number (0–1)', default: '0.6', description: `How much of span the phase spreads over: 0 = all targeted icons at once (a pattern), 1 = one at a time.` },
+    { name: 'targets', type: "'all' | 'even' | 'odd' | 'checkerboard' | 'rows-alt' | 'cols-alt'", default: "'all'", description: `Which icons participate. The patterns select a subset for a checkerboard / striped effect.` },
+    { name: 'easing', type: "'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'ease-out-strong' | 'ease-in-out-strong'", default: "'ease-in-out'", description: `Easing of each icon's ramp.` },
+    { name: 'return', type: 'boolean', default: 'true', description: `Bounce back to base by the end of the icon's slice (true) or latch at the target and hold (false). Keep true for a seamless loop.` },
+    { name: 'hold', type: 'number (0–1)', default: '0.3', description: `Fraction of each icon's slice held at the peak before it returns. Ignored when return is false.` },
+    { name: 'intensity', type: 'number (0–1)', default: '1', description: `Scales the effect's strength.` },
+    { name: 'scale', type: 'number', default: '1.6', description: `scale: target size multiplier (1 = base).` },
+    { name: 'color', type: 'string', description: `color: target colour (any hex or rgb()).` },
+    { name: 'opacity', type: 'number (0–1)', default: '1', description: `opacity: target opacity.` },
+    { name: 'angle', type: 'number (deg)', default: '90', description: `rotate: target angle in degrees.` },
+    { name: 'turns', type: 'number', default: '1', description: `spin: full turns over the icon's slice (a whole number loops seamlessly).` },
+  ] },
+]
+
+Provide at least one icon (via `icons` and/or `dir`); everything else has a sensible default.
+**Reference** is the interactive view; **TypeScript** is the same shape in code.
+
+<Tabs items={['Reference', 'TypeScript']}>
+
+<Tab value="Reference" className="p-0!">
+
+<ConfigOptions items={options} />
+
+</Tab>
+
+<Tab value="TypeScript">
+
+```ts
+{
+  name: "icon-set",
+  generator: "icons",
+  options: {
+    // --- source (icons is local: no url) ---
+    dir: "public/icons",              // folder of image files, sorted by name
+    // icons: ["public/logo.svg", { src: "assets/star.png" }],  // and/or explicit sources
+    // template: "showcase",          // optional preset (your options still win)
+    accent: "#7c9cff",
+
+    // --- grid layout & appearance ---
+    layout: {
+      // columns: 6,                   // optional; auto near-square by default
+      gap: 32,
+      padding: 64,
+      // iconSize: 96,                 // optional; fits the frame by default
+      background: "#0b0b0f",
+      recolor: true,                  // false = native colours (scale/opacity/rotate only)
+    },
+
+    // --- resting state & determinism ---
+    base: {
+      color: "#f4f4f5",
+      scale: 1,
+      opacity: 1,
+      seed: 1,                        // same seed ⇒ identical "random" sweeps
+    },
+
+    // --- the animation (order + stagger = the interaction) ---
+    steps: [
+      // scale ripple out from the centre, then settle back
+      { kind: "scale", at: 0.04, span: 0.4, order: "radial-out", stagger: 0.7, scale: 1.5, hold: 0.15 },
+      // recolour to the accent, one icon at a time (forward)
+      { kind: "color", at: 0.5, span: 0.42, order: "forward", stagger: 0.85, color: "#7c9cff", hold: 0.2 },
+    ],
+
+    // --- the timeline ---
+    motion: {
+      durationMs: 8000,               // steps' at/span (and posterTime) are fractions of this
+      posterTime: 0.5,                // for output.format: "image" — which moment to freeze
+    },
+
+    // --- output & encoding ---
+    output: {
+      format: "video",                // "image" freezes one PNG at motion.posterTime
+      width: 1080,
+      height: 1080,
+      deviceScaleFactor: 2,
+      fps: 30,
+      crf: 18,
+      // fileName: "icon-set.mp4",    // optional; defaults to <slug(name)>.<mp4|png>
+    },
+  },
+}
+```
+
+</Tab>
+
+</Tabs>
+
+> Icons should be **uniform** (same canvas size) and, for the recolour effects, **single-colour**
+> silhouettes — the mask takes the shape from the file's alpha. Turn `layout.recolor` off to show
+> multi-colour icons in their native colours.
+
+> **Layout.** The grid auto-fits and stays centred in the frame at any `width`×`height`: `columns`
+> defaults to a near-square count for the frame's aspect (set it to drive wide or tall layouts), the
+> icons size up to fill, and a **short final row is centred** under the full rows — so odd counts
+> (7, 10, 13…) still look balanced, not lopsided. Cells are square, so non-square icons letterbox
+> within their cell. `layout.iconSize` caps the cell (it's clamped so it can never overflow the
+> frame); leave it off to fill.
+
+## Examples
+
+Reach for a `template` for an instant look, or compose your own `steps` — the interaction is just an
+`order` + `stagger` on each step. Every clip below is a real `icons` render of the same 16-icon
+storefront set.
+
+### The showcase template
+
+The default `template: "showcase"` (used whenever you give no `steps`): a scale ripple out from the
+centre, then a forward recolour sweep to the accent — settling back to rest so it loops.
+
+<Example
+  clip="docs-icons-showcase"
+  caption="template: showcase — a centre-out scale ripple, then a forward recolour sweep to the accent."
+  code={`{
+  name: "icon-set",
+  generator: "icons",
+  options: {
+    dir: "public/icons",
+    template: "showcase",
+    accent: "#8a5a3c",
+    layout: { background: "#1a1714" },
+    base: { color: "#f6f3ed" },
+  },
+}`}
+/>
+
+### One at a time
+
+`stagger: 1` with a `forward` order walks the effect through the grid one icon at a time — the
+clearest way to "read out" a whole set.
+
+<Example
+  clip="docs-icons-oneatatime"
+  caption="stagger: 1 + order: forward — each icon scales up in turn, top-left to bottom-right."
+  code={`{
+  name: "icon-rollcall",
+  generator: "icons",
+  options: {
+    dir: "public/icons",
+    layout: { background: "#1a1714" },
+    base: { color: "#f6f3ed" },
+    steps: [
+      { kind: "scale", at: 0.05, span: 0.9, order: "forward", stagger: 0.85, scale: 1.6, hold: 0.2 },
+    ],
+  },
+}`}
+/>
+
+### A pattern, all at once
+
+`stagger: 0` fires every targeted icon together; a `targets` pattern picks the subset — here a
+checkerboard pulses to one colour, then the alternate rows to another.
+
+<Example
+  clip="docs-icons-pattern"
+  caption="stagger: 0 + targets — a checkerboard flashes together, then the alternate rows."
+  code={`{
+  name: "icon-checker",
+  generator: "icons",
+  options: {
+    dir: "public/icons",
+    layout: { background: "#1a1714" },
+    base: { color: "#f6f3ed" },
+    steps: [
+      { kind: "color", at: 0.05, span: 0.4, stagger: 0, targets: "checkerboard", color: "#8a5a3c", hold: 0.45 },
+      { kind: "color", at: 0.52, span: 0.4, stagger: 0, targets: "rows-alt",     color: "#b49a77", hold: 0.45 },
+    ],
+  },
+}`}
+/>
+
+### Layered motion
+
+Steps fold in order, so stack them — a ripple from the centre, a diagonal colour sweep, and a
+scattered spin riding on top.
+
+<Example
+  clip="docs-icons-layered"
+  caption="Three steps folded together: a radial scale ripple, a diagonal recolour, and a random spin."
+  code={`{
+  name: "icon-showpiece",
+  generator: "icons",
+  options: {
+    dir: "public/icons",
+    layout: { background: "#1a1714" },
+    base: { color: "#f6f3ed" },
+    steps: [
+      { kind: "scale", at: 0.02, span: 0.5, order: "radial-out", stagger: 0.6, scale: 1.45 },
+      { kind: "color", at: 0.30, span: 0.5, order: "diagonal",   stagger: 0.6,  color: "#8a5a3c" },
+      { kind: "spin",  at: 0.55, span: 0.4, order: "random",     stagger: 0.7,  turns: 1 },
+    ],
+  },
+}`}
+/>
+
+### A still contact sheet
+
+Set `output.format: "image"` to freeze one moment as a PNG — a clean grid of the whole icon set, with
+`posterTime` picking which beat to catch (here the checkerboard mid-flash).
+
+<ImageExample
+  src="/examples/docs-icons-sheet.png"
+  width={1800}
+  height={1800}
+  alt="A 4×4 grid of storefront icons on ink, half tinted cognac in a checkerboard."
+  caption='output.format: "image" — the "pattern" template frozen at posterTime 0.25.'
+  code={`{
+  name: "icon-sheet",
+  generator: "icons",
+  options: {
+    dir: "public/icons",
+    template: "pattern",
+    accent: "#8a5a3c",
+    layout: { background: "#1a1714" },
+    base: { color: "#f6f3ed" },
+    output: { format: "image", width: 900, height: 900 },
+    motion: { posterTime: 0.25 },
+  },
+}`}
+/>

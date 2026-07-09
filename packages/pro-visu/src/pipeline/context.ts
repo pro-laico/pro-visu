@@ -1,11 +1,12 @@
 import path from "node:path";
 import type { Browser } from "playwright-core";
+
 import { ensureDir } from "@/utils/fs";
-import { generatorDir, relPosix } from "@/utils/paths";
-import { withCaptureQuery } from "@/pipeline/capture";
 import type { Logger } from "@/utils/logger";
-import type { ResolvedCaptureSettings } from "@/config/schema";
+import { withCaptureQuery } from "@/pipeline/capture";
+import { generatorDir, relPosix } from "@/utils/paths";
 import type { ManifestStore } from "@/manifest/manifest";
+import type { ResolvedCaptureSettings } from "@/config/schema";
 import type { AssetTarget, PipelineContext } from "@/generators/types";
 
 export interface CreateContextArgs {

@@ -1,14 +1,12 @@
 import type { Browser } from "playwright-core";
 import type { ZodType, ZodTypeDef } from "zod";
+
 import type { Logger } from "@/utils/logger";
-import type { ResolvedCaptureSettings } from "@/config/schema";
 import type { AssetRecord } from "@/manifest/schema";
+import type { ResolvedCaptureSettings } from "@/config/schema";
 
 /** The site/page an asset is generated for. `url` is absent for local `scene` assets. */
-export interface AssetTarget {
-  name: string;
-  url?: string;
-}
+export interface AssetTarget { name: string; url?: string; }
 
 /**
  * Everything a generator needs, supplied by the pipeline. Created per (generator, target)
@@ -54,9 +52,7 @@ export interface PipelineContext {
   signal?: AbortSignal;
 }
 
-export interface GeneratorResult {
-  assets: AssetRecord[];
-}
+export interface GeneratorResult { assets: AssetRecord[]; }
 
 /**
  * The plugin contract. A new asset type implements this and registers itself — the

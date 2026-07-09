@@ -26,7 +26,7 @@ export class Semaphore {
 
   release(): void {
     const next = this.waiters.shift();
-    if (next) next(); // hand the permit straight to the oldest waiter
+    if (next) next();
     else this.available += 1;
   }
 }
@@ -35,11 +35,7 @@ export class Semaphore {
  * Run `fn` over `items` with at most `limit` in flight, preserving input order in the
  * result. `fn` should not reject — callers handle per-item errors and return a value.
  */
-export async function mapLimit<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T, index: number) => Promise<R>,
-): Promise<R[]> {
+export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
   const results = new Array<R>(items.length);
   let cursor = 0;
   const workerCount = Math.max(1, Math.min(limit, items.length));

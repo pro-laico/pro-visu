@@ -1,6 +1,7 @@
 import path from "node:path";
 import { mkdtemp } from "node:fs/promises";
 import type { Browser } from "playwright-core";
+
 import { ensureDir } from "@/utils/fs";
 import type { Logger } from "@/utils/logger";
 
@@ -33,13 +34,10 @@ export async function recordSceneRealtime(args: RecordSceneArgs): Promise<Record
   await ensureDir(args.tmpDir);
   const recordDir = await mkdtemp(path.join(args.tmpDir, "scene-rec-"));
 
-  const recStart = Date.now(); // recording effectively begins at context creation
+  const recStart = Date.now();
   const context = await args.browser.newContext({
     viewport: { width: args.width, height: args.height },
     deviceScaleFactor: args.deviceScaleFactor,
-    // Note: Playwright records at the viewport's CSS resolution — `size` places (does not upscale)
-    // the viewport into the frame, so it must equal width×height. Realtime can't supersample this
-    // way; the frame-stepper is the high-fidelity path. (deviceScaleFactor still sharpens rendering.)
     recordVideo: { dir: recordDir, size: { width: args.width, height: args.height } },
   });
   const page = await context.newPage();
@@ -52,15 +50,16 @@ export async function recordSceneRealtime(args: RecordSceneArgs): Promise<Record
     args.logger.debug(`loading scene ${args.url}`);
     await page.goto(args.url, { waitUntil: "load" });
     try {
+      //EXCUSE: runs in the browser via waitForFunction; page globals aren't in Node's DOM lib types
       await page.waitForFunction(
         () => (globalThis as { __showcaseReady?: boolean }).__showcaseReady === true,
         undefined,
         { timeout: 30_000 },
       );
     } catch (err) {
+      //EXCUSE: runs in the browser via page.evaluate; page globals aren't in Node's DOM lib types
       const diag = await page
         .evaluate(() => {
-          // Runs in the browser; the node tsconfig has no DOM lib, so reach via globalThis.
           const g = globalThis as unknown as {
             __showcase?: unknown;
             document: { querySelectorAll(s: string): ArrayLike<Record<string, unknown>> };
@@ -73,7 +72,7 @@ export async function recordSceneRealtime(args: RecordSceneArgs): Promise<Record
               src: v.currentSrc || v.src,
               readyState: v.readyState,
               networkState: v.networkState,
-              error: (v.error as { code?: number } | null)?.code ?? null,
+              error: (v.error as { code?: number } | null)?.code ?? null, //EXCUSE: browser-eval value typed loosely as Record above
             })),
           };
         })
@@ -81,15 +80,12 @@ export async function recordSceneRealtime(args: RecordSceneArgs): Promise<Record
       args.logger.error(`scene never became ready: ${JSON.stringify(diag)}`);
       throw err;
     }
-    // Everything up to here (navigation + readiness) is blank in the recording; the scene is now
-    // painted, so the head trim lands on the first real frame.
     leadSeconds = (Date.now() - recStart) / 1000;
-    await page.evaluate(() =>
-      (globalThis as { __showcase?: { play(): void } }).__showcase?.play(),
-    );
+    //EXCUSE: runs in the browser via page.evaluate; page globals aren't in Node's DOM lib types
+    await page.evaluate(() => (globalThis as { __showcase?: { play(): void } }).__showcase?.play());
     await page.waitForTimeout(Math.round(args.durationSeconds * 1000));
   } finally {
-    await context.close(); // finalizes the webm
+    await context.close();
   }
 
   if (!video) throw new Error("Playwright did not record a scene video.");

@@ -36,7 +36,7 @@ export interface Pulse {
 /** A scheduled change that sets one cell's glyph or color to an exact value at an absolute time. */
 export interface SetEvent {
   t: number;
-  slot: number; // cell index
+  slot: number;
   kind: "char" | "color";
   value: string;
 }
@@ -47,8 +47,6 @@ export type Rng = () => number;
 export const MASTER_POOL = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$%&@#*+=";
 
 const TOKENS: Token[] = ["foreground", "muted", "accent"];
-// Default relative likelihood of each token on a random color change (accent rarer — a pop, not the
-// norm). Overridden per-render by the `colorWeights` config.
 export const DEFAULT_WEIGHTS: Record<Token, number> = { foreground: 2, muted: 2, accent: 1 };
 
 /** Fallback advance (em) for an unmeasured glyph — only hit if a pool char wasn't measured. */
@@ -73,7 +71,7 @@ export function mulberry32(seed: number): Rng {
 export function buildSpec(blacklist: string, masterPool: string = MASTER_POOL): { pool: string } {
   const black = new Set(blacklist.toUpperCase().split(""));
   let pool = [...masterPool].filter((c) => !black.has(c)).join("");
-  if (!pool) pool = masterPool; // never let a blacklist empty the pool
+  if (!pool) pool = masterPool;
   return { pool };
 }
 
@@ -92,7 +90,7 @@ function weightedColor(rng: Rng, weights: Record<Token, number>, exclude?: Token
     r -= weights[t] ?? 1;
     if (r <= 0) return t;
   }
-  return pool[pool.length - 1] as Token;
+  return pool[pool.length - 1] as Token; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
 }
 
 /**
@@ -107,10 +105,11 @@ function evenCellPicker(rng: Rng, count: number): () => number {
       bag = Array.from({ length: count }, (_, i) => i);
       for (let i = bag.length - 1; i > 0; i--) {
         const j = Math.floor(rng() * (i + 1));
-        [bag[i], bag[j]] = [bag[j] as number, bag[i] as number];
+        [bag[i], bag[j]] = [bag[j] as number, bag[i] as number]; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
       }
     }
-    return bag.pop() as number;
+    const next = bag.pop();
+    return next ?? 0; // bag is refilled above when empty, so this is never undefined
   };
 }
 
@@ -118,13 +117,13 @@ function evenCellPicker(rng: Rng, count: number): () => number {
 function ease(u: number, pacing: Pulse["pacing"]): number {
   switch (pacing) {
     case "ease-in":
-      return u * u; // front-loaded
+      return u * u;
     case "ease-out":
-      return 1 - (1 - u) * (1 - u); // back-loaded
+      return 1 - (1 - u) * (1 - u);
     case "ease-in-out":
-      return u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u); // bunched at both ends
+      return u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u);
     default:
-      return u; // "even" / "linear"
+      return u;
   }
 }
 
@@ -158,15 +157,15 @@ export function packAndSeedLines(opts: {
   minPerLine: number;
 }): PackedLayout {
   const { targetEm, adv, pool, rng } = opts;
+  const poolArr = [...pool];
   const lines = Math.max(1, Math.floor(opts.lines));
   const minPerLine = Math.max(1, Math.floor(opts.minPerLine));
-  const poolArr = [...pool];
   const advOf = (g: string): number => adv[g] ?? FALLBACK_ADV;
 
   const cells: Cell[] = [];
   const lineLengths: number[] = [];
   const lineInitialEm: number[] = [];
-  let idx = 0; // global cell index (drives the muted-texture pattern)
+  let idx = 0;
 
   for (let L = 0; L < lines; L++) {
     let em = 0;
@@ -174,13 +173,12 @@ export function packAndSeedLines(opts: {
     for (;;) {
       const g = poolArr[Math.floor(rng() * poolArr.length)] ?? poolArr[0] ?? "A";
       const a = advOf(g);
-      // Stop before exceeding the budget (line ≤ targetEm), but never below minPerLine.
       if (count >= minPerLine && em + a > targetEm) break;
       cells.push({ text: g, token: idx % 4 === 2 ? "muted" : "foreground" });
       em += a;
       count++;
       idx++;
-      if (count >= 512) break; // hard safety cap (degenerate tiny targetEm)
+      if (count >= 512) break;
     }
     lineLengths.push(count);
     lineInitialEm.push(em);
@@ -204,38 +202,33 @@ function lineOfCells(lineLengths: number[], n: number): number[] {
  * runtime to warn on a degenerate (too-small) pool. Events at the same time are applied together
  * (compensating pairs flip simultaneously), so only the rendered net is measured.
  */
-export function maxLineDrift(
-  initial: Cell[],
-  events: SetEvent[],
-  adv: Record<string, number>,
-  lineLengths: number[],
-): number {
-  const advOf = (g: string): number => adv[g] ?? FALLBACK_ADV;
-  const lineOf = lineOfCells(lineLengths, initial.length);
+export function maxLineDrift(initial: Cell[], events: SetEvent[], adv: Record<string, number>, lineLengths: number[]): number {
   const lineInitialEm = lineLengths.map(() => 0);
+  const lineOf = lineOfCells(lineLengths, initial.length);
+  const advOf = (g: string): number => adv[g] ?? FALLBACK_ADV;
   initial.forEach((c, i) => {
-    const L = lineOf[i] as number;
-    lineInitialEm[L] = (lineInitialEm[L] as number) + advOf(c.text);
+    const L = lineOf[i] as number; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
+    lineInitialEm[L] = (lineInitialEm[L] as number) + advOf(c.text); //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
   });
+  let i = 0;
+  let maxRel = 0;
   const lineEm = lineInitialEm.slice();
   const text = initial.map((c) => c.text);
   const sorted = [...events].sort((a, b) => a.t - b.t);
-  let maxRel = 0;
-  let i = 0;
   while (i < sorted.length) {
-    const t = (sorted[i] as SetEvent).t;
-    while (i < sorted.length && (sorted[i] as SetEvent).t === t) {
-      const ev = sorted[i] as SetEvent;
+    const t = (sorted[i] as SetEvent).t; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
+    while (i < sorted.length && (sorted[i] as SetEvent).t === t) { //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
+      const ev = sorted[i] as SetEvent; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
       if (ev.kind === "char") {
-        const L = lineOf[ev.slot] as number;
-        lineEm[L] = (lineEm[L] as number) + advOf(ev.value) - advOf(text[ev.slot] as string);
+        const L = lineOf[ev.slot] as number; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
+        lineEm[L] = (lineEm[L] as number) + advOf(ev.value) - advOf(text[ev.slot] as string); //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
         text[ev.slot] = ev.value;
       }
       i++;
     }
     for (let L = 0; L < lineLengths.length; L++) {
-      const init = lineInitialEm[L] as number;
-      const rel = init > 0 ? Math.abs((lineEm[L] as number) - init) / init : 0;
+      const init = lineInitialEm[L] as number; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
+      const rel = init > 0 ? Math.abs((lineEm[L] as number) - init) / init : 0; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
       if (rel > maxRel) maxRel = rel;
     }
   }
@@ -268,14 +261,14 @@ export function buildEvents(
 ): SetEvent[] {
   const N = initial.length;
   const poolArr = [...pool];
-  const advOf = (g: string): number => adv[g] ?? FALLBACK_ADV;
-  const lineOf = lineOfCells(lineLengths, N);
   const lineEm = lineInitialEm.slice();
+  const lineOf = lineOfCells(lineLengths, N);
   const lineLo = lineInitialEm.map((e) => e * (1 - tol));
   const lineHi = lineInitialEm.map((e) => e * (1 + tol));
+  const advOf = (g: string): number => adv[g] ?? FALLBACK_ADV;
   const inBudget = (L: number, deltaEm: number): boolean => {
-    const e = (lineEm[L] as number) + deltaEm;
-    return e >= (lineLo[L] as number) && e <= (lineHi[L] as number);
+    const e = (lineEm[L] as number) + deltaEm; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
+    return e >= (lineLo[L] as number) && e <= (lineHi[L] as number); //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
   };
 
   const differentFrom = (not: string): string => {
@@ -306,33 +299,32 @@ export function buildEvents(
       if (g === g0) continue;
       if (inBudget(L, advOf(g) - a0)) valid.push(g);
     }
-    if (valid.length) return valid[Math.floor(rng() * valid.length)] as string;
-    return closestAdvance(a0, g0); // degraded: may breach tol on a tiny pool
+    if (valid.length) return valid[Math.floor(rng() * valid.length)] as string; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
+    return closestAdvance(a0, g0);
   };
 
-  const sim = initial.map((c) => ({ ...c }));
-  const total = totalDuration(pulses);
-  const forward: { t: number; slot: number; kind: "char" | "color"; from: string; to: string }[] = [];
   let start = 0;
+  const total = totalDuration(pulses);
+  const sim = initial.map((c) => ({ ...c }));
+  const forward: { t: number; slot: number; kind: "char" | "color"; from: string; to: string }[] = [];
 
   for (const p of pulses) {
     const d = Math.max(0, p.duration);
     const place = (i: number, n: number): number =>
       start + (p.pacing === "random" ? rng() * d : d * ease((i + 1) / (n + 1), p.pacing));
 
-    // --- glyph changes: width-compensated pairs (rounded to whole pairs) ---
     let nChars = Math.max(0, Math.round((p.chars ?? 0) * charMul * N));
-    nChars -= nChars % 2; // whole pairs
+    nChars -= nChars % 2;
     const nPairs = nChars / 2;
     const nextCharCell = evenCellPicker(rng, N);
     const applySingle = (t: number, slot: number): void => {
       const cell = sim[slot];
       if (!cell) return;
-      const L = lineOf[slot] as number;
+      const L = lineOf[slot] as number; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
       const g1 = pickInBudget(L, cell.text);
       if (g1 === cell.text) return;
       forward.push({ t, slot, kind: "char", from: cell.text, to: g1 });
-      lineEm[L] = (lineEm[L] as number) + advOf(g1) - advOf(cell.text);
+      lineEm[L] = (lineEm[L] as number) + advOf(g1) - advOf(cell.text); //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
       sim[slot] = { ...cell, text: g1 };
     };
     for (let i = 0; i < nPairs; i++) {
@@ -340,14 +332,13 @@ export function buildEvents(
       const cA = nextCharCell();
       const cellA = sim[cA];
       if (!cellA) continue;
-      const L = lineOf[cA] as number;
-      // same-line neighbour (prefer the next cell, else the previous)
+      const L = lineOf[cA] as number; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
       let cB = -1;
       if (cA + 1 < N && lineOf[cA + 1] === L) cB = cA + 1;
       else if (cA - 1 >= 0 && lineOf[cA - 1] === L) cB = cA - 1;
 
       if (cB < 0) {
-        applySingle(t, cA); // lone cell in a 1-glyph line
+        applySingle(t, cA);
         continue;
       }
       const cellB = sim[cB];
@@ -358,8 +349,6 @@ export function buildEvents(
       const g0 = cellA.text;
       const h0 = cellB.text;
       const pairSum0 = advOf(g0) + advOf(h0);
-      // Pick g1 with variety, then h1 to best-conserve the pair's total width; accept if the net
-      // keeps the line in budget. Retry a few times for a better fit before falling back.
       let chosen: { g1: string; h1: string; net: number } | null = null;
       for (let tries = 0; tries < 6 && !chosen; tries++) {
         const g1 = differentFrom(g0);
@@ -368,17 +357,16 @@ export function buildEvents(
         if (inBudget(L, net)) chosen = { g1, h1, net };
       }
       if (!chosen) {
-        applySingle(t, cA); // couldn't conserve within budget — minimal in-budget single change
+        applySingle(t, cA);
         continue;
       }
       forward.push({ t, slot: cA, kind: "char", from: g0, to: chosen.g1 });
       forward.push({ t, slot: cB, kind: "char", from: h0, to: chosen.h1 });
-      lineEm[L] = (lineEm[L] as number) + chosen.net;
+      lineEm[L] = (lineEm[L] as number) + chosen.net; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
       sim[cA] = { ...cellA, text: chosen.g1 };
       sim[cB] = { ...cellB, text: chosen.h1 };
     }
 
-    // --- color changes: unchanged (color doesn't affect advance) ---
     const nColors = Math.max(0, Math.round((p.colors ?? 0) * colorMul * N));
     const nextColorCell = evenCellPicker(rng, N);
     for (let i = 0; i < nColors; i++) {
@@ -413,9 +401,9 @@ export interface TimelineCursor {
  * never mutated, and `stateAt` returns a fresh array — safe to hand straight to React state.
  */
 export function createCursor(initial: Cell[], events: SetEvent[]): TimelineCursor {
-  let cells = initial.map((c) => ({ ...c }));
   let idx = 0;
   let lastT = -Infinity;
+  let cells = initial.map((c) => ({ ...c }));
   return {
     stateAt(t: number): Cell[] {
       if (t < lastT) {
@@ -423,10 +411,11 @@ export function createCursor(initial: Cell[], events: SetEvent[]): TimelineCurso
         idx = 0;
       }
       lastT = t;
-      while (idx < events.length && (events[idx] as SetEvent).t <= t) {
-        const ev = events[idx] as SetEvent;
+      while (idx < events.length && (events[idx] as SetEvent).t <= t) { //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
+        const ev = events[idx] as SetEvent; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
         const cur = cells[ev.slot];
         if (cur) {
+          //EXCUSE: color events carry a Token in their string `value` field by construction
           cells[ev.slot] =
             ev.kind === "char" ? { ...cur, text: ev.value } : { ...cur, token: ev.value as Token };
         }
@@ -444,7 +433,7 @@ export function createCursor(initial: Cell[], events: SetEvent[]): TimelineCurso
 export function pulseNameAt(pulses: Pulse[], t: number, mirror: boolean, clip: number): string {
   let tt = clip > 0 ? Math.min(Math.max(0, t), clip) : 0;
   const total = totalDuration(pulses);
-  if (mirror && tt > total) tt = 2 * total - tt; // reverse half mirrors the forward
+  if (mirror && tt > total) tt = 2 * total - tt;
   let acc = 0;
   let name = pulses[pulses.length - 1]?.name ?? "";
   for (const p of pulses) {

@@ -1,8 +1,9 @@
 import path from "node:path";
 import { existsSync } from "node:fs";
 import { spawn } from "node:child_process";
-import { createRequire } from "node:module";
 import { chromium } from "playwright-core";
+import { createRequire } from "node:module";
+
 import type { Logger } from "@/utils/logger";
 
 const require = createRequire(import.meta.url);
@@ -45,9 +46,7 @@ export async function ensureChromium(opts: EnsureChromiumOptions): Promise<boole
   opts.logger.info("Installing Chromium for Playwright (one-time, ~100–150 MB)…");
   const cli = resolveCliPath();
   await new Promise<void>((resolve, reject) => {
-    const child = spawn(process.execPath, [cli, "install", "chromium"], {
-      stdio: "inherit",
-    });
+    const child = spawn(process.execPath, [cli, "install", "chromium"], { stdio: "inherit" });
     child.on("error", reject);
     child.on("close", (code) =>
       code === 0

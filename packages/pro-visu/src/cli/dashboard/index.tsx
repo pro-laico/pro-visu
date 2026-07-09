@@ -1,7 +1,8 @@
 import { render, type Instance } from "ink";
-import type { JobStatus, Reporter, RowInit } from "@/pipeline/reporter";
-import { DashboardStore } from "./store";
+
 import { Dashboard } from "./Dashboard";
+import { DashboardStore } from "./store";
+import type { JobStatus, Reporter, RowInit } from "@/pipeline/reporter";
 
 /** No-op reporter for non-TTY / CI / --verbose: logs print normally, nothing is rendered. */
 export class NoopReporter implements Reporter {
@@ -41,9 +42,7 @@ export class InkReporter implements Reporter {
     if (this.instance || this.stopped) return;
     this.instance = render(<Dashboard store={this.store} onInterrupt={() => this.onInterrupt?.()} />, {
       stdout: this.out,
-      // We route logs through the dashboard ourselves, so Ink shouldn't also patch console.
       patchConsole: false,
-      // Esc/Ctrl+C is handled inside the dashboard via useInput; Ink must not exit on its own.
       exitOnCtrlC: false,
     });
   }
@@ -69,7 +68,7 @@ export class InkReporter implements Reporter {
   }
 
   route(tag: string, type: string, message: string): boolean {
-    if (this.stopped) return false; // after teardown, let logs print normally
+    if (this.stopped) return false;
     if (tag && this.store.has(tag)) {
       this.store.step(tag, message);
       return true;
@@ -81,8 +80,6 @@ export class InkReporter implements Reporter {
   stop(): void {
     if (this.stopped) return;
     this.stopped = true;
-    // Erase the live box before the final summary prints (committed Static logs stay in scrollback).
-    // clear() + unmount() run synchronously so the animation timer can't redraw between them.
     this.instance?.clear();
     this.instance?.unmount();
   }

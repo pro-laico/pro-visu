@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+
 import type { SceneProps } from "../types";
 import { expansionWeights, type Easing, type ReelTimingParams } from "./palette-reel-timeline";
 
@@ -30,23 +31,19 @@ const smooth = (x: number): number => {
   return t * t * (3 - 2 * t);
 };
 
-export function PaletteReel({
-  width,
-  height,
-  background,
-  files,
-  options,
-}: SceneProps): React.ReactElement {
+export function PaletteReel({ width, height, background, files, options }: SceneProps): React.ReactElement {
+  //EXCUSE: `options` is the loose scene-option bag; element shape can't be verified from Array.isArray
   const items: ReelItem[] = Array.isArray(options.items) ? (options.items as ReelItem[]) : [];
   const orientation = options.orientation === "columns" ? "columns" : "rows";
-  const num = (k: string, d: number): number =>
-    typeof options[k] === "number" ? (options[k] as number) : d;
-  const bool = (k: string, d: boolean): boolean =>
-    typeof options[k] === "boolean" ? (options[k] as boolean) : d;
+  const num = (k: string, d: number): number => {
+    const v = options[k];
+    return typeof v === "number" ? v : d;
+  };
+  const bool = (k: string, d: boolean): boolean => {
+    const v = options[k];
+    return typeof v === "boolean" ? v : d;
+  };
 
-  // A collapsed sliver has flex-grow 1 (so the slivers split their share evenly); a fully open band
-  // grows to `grownFlex` (≈ how many times a sliver's share it takes). Baselining at 1 matters: if
-  // the grows summed to < 1 the flexbox would leave the frame underfilled.
   const grownFlex = Math.max(1, num("grownFlex", 12));
   const gap = num("gap", 0);
   const cornerRadius = num("cornerRadius", 0);
@@ -64,9 +61,8 @@ export function PaletteReel({
       ? options.fontSize
       : Math.round(Math.min(width, height) * 0.045);
   const detailSize = Math.round(nameSize * detailFontScale);
-  const detailLinePx = Math.round(detailSize * 1.32); // per detail line incl. line-height
+  const detailLinePx = Math.round(detailSize * 1.32);
   const minCrossOpt = num("minCrossPx", 0);
-  // A legibility floor so a collapsed sliver always has room for its name even while another is open.
   const minCross = minCrossOpt > 0 ? minCrossOpt : Math.round(nameSize * 1.5);
   const padX = Math.round(nameSize * 0.7);
   const padY = Math.round(nameSize * 0.45);
@@ -79,16 +75,14 @@ export function PaletteReel({
       holdSeconds: num("holdSeconds", 2),
       transitionSeconds: num("transitionSeconds", 0.7),
       bounce: bool("bounce", true),
+      //EXCUSE: narrows to string then asserts it's a valid Easing keyword; invalid strings degrade in CSS
       easing: (typeof options.easing === "string" ? options.easing : "ease-in-out") as Easing,
     }),
     [optionsKey], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  // Start on the opening state (color 0 open) so the very first painted frame matches the seek at 0.
   const [weights, setWeights] = useState<number[]>(() => expansionWeights(0, params));
 
-  // Hold capture until the bands have painted (and the font, if any, has loaded). Created once,
-  // synchronously at first render, so the runtime sees the gate before its own ready check.
   const sceneReady = useRef<{ promise: Promise<void>; resolve: () => void } | null>(null);
   if (!sceneReady.current) {
     let resolve: () => void = () => {};
@@ -98,19 +92,13 @@ export function PaletteReel({
   }
 
   useEffect(() => {
-    // The timeline hook: the frame-stepper seeks this; flushSync commits the sizing/opacity to the
-    // DOM before the runtime's trailing rAF + screenshot, so every frame shows exactly its time.
     window.__sceneSeek = (t: number) => {
       flushSync(() => setWeights(expansionWeights(t, params)));
     };
     const markPainted = (): void => {
       requestAnimationFrame(() => requestAnimationFrame(() => sceneReady.current?.resolve()));
     };
-    // Gate on font readiness only when a custom font is served (else the first frame could use the
-    // fallback font); otherwise resolve after a committed paint.
-    void (fontUrl ? (document.fonts?.ready ?? Promise.resolve()) : Promise.resolve()).then(
-      markPainted,
-    );
+    void (fontUrl ? (document.fonts?.ready ?? Promise.resolve()) : Promise.resolve()).then(markPainted);
     return () => {
       delete window.__sceneSeek;
     };
@@ -132,8 +120,6 @@ export function PaletteReel({
     gap,
   };
 
-  // Detail lines in a wrapper whose height grows from 0 with the reveal — so they expand & fade in
-  // smoothly and never occupy space (nor shift the name) while the band is a sliver.
   const details = (item: ReelItem, reveal: number): React.ReactElement | null => {
     if (!item.details.length) return null;
     return (
@@ -146,10 +132,7 @@ export function PaletteReel({
         }}
       >
         {item.details.map((d, j) => (
-          <div
-            key={j}
-            style={{ fontSize: detailSize, fontWeight, lineHeight: 1.32, whiteSpace: "nowrap" }}
-          >
+          <div key={j} style={{ fontSize: detailSize, fontWeight, lineHeight: 1.32, whiteSpace: "nowrap" }}>
             {d}
           </div>
         ))}
@@ -158,7 +141,7 @@ export function PaletteReel({
   };
 
   const renderBandContent = (item: ReelItem, w: number): React.ReactElement => {
-    const reveal = smooth((w - 0.12) / 0.72); // details grow/fade in once the band has real size
+    const reveal = smooth((w - 0.12) / 0.72);
     const block: React.CSSProperties = {
       position: "absolute",
       inset: 0,
@@ -184,7 +167,6 @@ export function PaletteReel({
       );
     }
 
-    // columns: crossfade a vertical collapsed label out as the upright name+details block fades in.
     const nameReveal = smooth(w / 0.45);
     return (
       <>

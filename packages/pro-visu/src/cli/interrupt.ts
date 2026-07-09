@@ -38,9 +38,7 @@ export function watchForInterrupt(
     readline.emitKeypressEvents(stdin);
     try {
       stdin.setRawMode(true);
-    } catch {
-      /* some pseudo-TTYs reject raw mode — fall back to signals only */
-    }
+    } catch {}
     onKey = (_str, key) => {
       if (!key) return;
       if (key.name === "escape" || (key.ctrl && key.name === "c")) trigger();
@@ -60,9 +58,7 @@ export function watchForInterrupt(
       stdin.off("keypress", onKey);
       try {
         stdin.setRawMode(false);
-      } catch {
-        /* ignore */
-      }
+      } catch {}
       stdin.pause();
     }
   };

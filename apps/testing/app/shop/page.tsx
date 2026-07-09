@@ -1,6 +1,6 @@
-import { ShopBrowser } from "@/app/components/ShopBrowser";
 import { TheEdit } from "@/app/components/TheEdit";
 import { CATEGORIES, PRODUCTS } from "@/app/lib/catalog";
+import { ShopBrowser } from "@/app/components/ShopBrowser";
 
 export const metadata = {
   title: "The Collection — FASHION",

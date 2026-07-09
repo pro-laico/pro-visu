@@ -1,4 +1,5 @@
 import type { ZodIssue } from "zod";
+
 import { RENAMED_EASINGS } from "@/generators/easing";
 
 /**
@@ -55,9 +56,7 @@ export function legacyOptionHint(generatorId: string, issue: ZodIssue): string |
   }
   if (issue.code === "invalid_enum_value" && typeof issue.received === "string") {
     const renamed = RENAMED_EASINGS[issue.received];
-    if (renamed && issue.options.includes(renamed)) {
-      return `easing names were unified — use "${renamed}"`;
-    }
+    if (renamed && issue.options.includes(renamed)) return `easing names were unified — use "${renamed}"`;
   }
   return undefined;
 }

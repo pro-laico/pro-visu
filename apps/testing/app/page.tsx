@@ -1,8 +1,8 @@
 import Link from "next/link";
+import { MEDIA } from "@/app/lib/media";
+import { CATEGORIES, PRODUCTS } from "@/app/lib/catalog";
 import { ProductCard } from "@/app/components/ProductCard";
 import { Placeholder } from "@/app/components/Placeholder";
-import { CATEGORIES, PRODUCTS } from "@/app/lib/catalog";
-import { MEDIA } from "@/app/lib/media";
 
 const VALUES = ["Responsible Wool", "Made in Europe", "Considered Quantities", "Lifetime Repairs"];
 

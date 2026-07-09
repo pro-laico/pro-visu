@@ -5,14 +5,7 @@ import { z } from "zod";
  * wall pulses/pan, palette-reel crossfades). Six names: the CSS-familiar four plus two "strong"
  * variants with a heavier hold at the ends. The scene app implements the same curves by name.
  */
-export const easingSchema = z.enum([
-  "linear",
-  "ease-in",
-  "ease-out",
-  "ease-in-out",
-  "ease-out-strong",
-  "ease-in-out-strong",
-]);
+export const easingSchema = z.enum(["linear", "ease-in", "ease-out", "ease-in-out", "ease-out-strong", "ease-in-out-strong"]);
 export type Easing = z.infer<typeof easingSchema>;
 
 /** Pure easing functions, t in [0,1] → [0,1]. The base curves are cubic; "strong" is quintic. */

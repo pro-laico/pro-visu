@@ -1,12 +1,13 @@
 import os from "node:os";
+import pc from "picocolors";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import pc from "picocolors";
+
 import { TOOL_VERSION } from "@/version";
 
 const PKG_NAME = "pro-visu";
-const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // at most one registry hit a day
+const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 /** Env flag that turns a CLI invocation into the detached background fetch worker. */
 export const UPDATE_WORKER_FLAG = "PRO_VISU_UPDATE_WORKER";
 
@@ -21,7 +22,7 @@ function cacheFile(): string {
 
 function readCache(): UpdateCache | null {
   try {
-    return JSON.parse(readFileSync(cacheFile(), "utf8")) as UpdateCache;
+    return JSON.parse(readFileSync(cacheFile(), "utf8")) as UpdateCache; //EXCUSE: JSON.parse returns `any`; a bad shape is caught/ignored by callers
   } catch {
     return null;
   }
@@ -40,7 +41,7 @@ export function isNewerVersion(current: string, latest: string): boolean {
 
 /** Pure: should the notice (or a new check) run at all in this environment? Unit-tested. */
 export function updateCheckEnabled(env: NodeJS.ProcessEnv, argv: string[], version: string): boolean {
-  if (version === "0.0.0-dev") return false; // unpublished local build
+  if (version === "0.0.0-dev") return false;
   if (env.NO_UPDATE_NOTIFIER != null || env.NODE_ENV === "test" || env.CI != null) return false;
   if (argv.includes("--no-update-notifier")) return false;
   return true;
@@ -71,7 +72,6 @@ export function checkForUpdates(version: string = TOOL_VERSION): void {
     }
 
     if (!cache || Date.now() - cache.checkedAt > CHECK_INTERVAL_MS) {
-      // Detached worker so an in-flight registry request can never hold THIS process open.
       const child = spawn(process.execPath, [process.argv[1]!], {
         detached: true,
         stdio: "ignore",
@@ -79,9 +79,7 @@ export function checkForUpdates(version: string = TOOL_VERSION): void {
       });
       child.unref();
     }
-  } catch {
-    // An update check must never break the CLI.
-  }
+  } catch {}
 }
 
 /** The background worker body: fetch the latest version from npm and cache it. */
@@ -96,16 +94,12 @@ export async function runUpdateWorker(): Promise<void> {
     });
     clearTimeout(timer);
     if (res.ok) {
-      const body = (await res.json()) as { version?: string };
+      const body = (await res.json()) as { version?: string }; //EXCUSE: res.json() is `any`; `version` is re-checked with typeof below
       if (typeof body.version === "string") cache.latest = body.version;
     }
-  } catch {
-    /* offline / registry down — cache the attempt time so we don't hammer */
-  }
+  } catch {}
   try {
     mkdirSync(path.dirname(cacheFile()), { recursive: true });
     writeFileSync(cacheFile(), JSON.stringify(cache));
-  } catch {
-    /* unwritable cache dir — skip */
-  }
+  } catch {}
 }

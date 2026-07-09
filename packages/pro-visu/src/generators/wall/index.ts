@@ -1,9 +1,10 @@
 import path from "node:path";
-import { wallOptionsSchema, type ResolvedWallOptions } from "@/generators/wall/options";
+
 import { renderScene } from "@/scene-engine/render";
+import type { AssetRecord } from "@/manifest/schema";
 import type { ResolvedSceneOptions } from "@/scene-engine/options";
 import type { Generator, PipelineContext } from "@/generators/types";
-import type { AssetRecord } from "@/manifest/schema";
+import { wallOptionsSchema, type ResolvedWallOptions } from "@/generators/wall/options";
 
 export const WALL_ID = "wall";
 
@@ -17,7 +18,6 @@ function srcSlot(src: string): string {
 
 /** Map the friendly wall options onto the `wall` scene and render it through the scene engine. */
 async function run(ctx: PipelineContext, o: ResolvedWallOptions): Promise<{ assets: AssetRecord[] }> {
-  // Wire columns carry slot names only; `{ src }` tiles become served files under a synthetic slot.
   const files: Record<string, string> = {};
   const wireColumns = o.columns.map((col) => ({
     ...col,
@@ -36,7 +36,6 @@ async function run(ctx: PipelineContext, o: ResolvedWallOptions): Promise<{ asse
     background: o.layout.background,
     deviceScaleFactor: o.output.deviceScaleFactor,
     fps: o.output.fps,
-    // The scene wire format keeps seconds internally; the authoring surface is milliseconds.
     durationSeconds: o.motion.durationMs / 1000,
     capture: o.render.capture,
     workers: o.render.workers,

@@ -1,9 +1,10 @@
+import type { WallOptions } from "@/generators/wall/options";
+import type { IconsOptions } from "@/generators/icons/options";
+import type { PaletteOptions } from "@/generators/palette/options";
+import type { SpecimenOptions } from "@/generators/specimen/options";
 import type { ScrollReelOptions } from "@/generators/scroll-reel/options";
 import type { InteractionOptions } from "@/generators/interaction/options";
 import type { ScreenshotsOptions } from "@/generators/screenshots/options";
-import type { WallOptions } from "@/generators/wall/options";
-import type { SpecimenOptions } from "@/generators/specimen/options";
-import type { PaletteOptions } from "@/generators/palette/options";
 import type { PaletteReelOptions } from "@/generators/palette-reel/options";
 
 /**
@@ -203,6 +204,7 @@ export interface ShowcaseSettingsInput {
     screenshots?: ScreenshotsOptions;
     wall?: WallOptions;
     specimen?: SpecimenOptions;
+    icons?: IconsOptions;
     palette?: PaletteOptions;
     "palette-reel"?: PaletteReelOptions;
   };
@@ -228,7 +230,7 @@ export interface AssetBaseInput {
 /**
  * Discriminated by `generator` so each asset gets the right `options` autocomplete. URL-based
  * generators take a `url` — absolute, or a `/path` resolved against the managed server; omit it
- * to capture the managed server's root. Local generators (wall, specimen, palette) need none.
+ * to capture the managed server's root. Local generators (wall, specimen, icons, palette) need none.
  * Asset dependencies are derived from options (e.g. a wall's column tiles) — there is no
  * authored `inputs` map.
  */
@@ -238,6 +240,7 @@ export type AssetSpecInput =
   | (AssetBaseInput & { url?: string; generator: "screenshots"; options?: ScreenshotsOptions })
   | (AssetBaseInput & { generator: "wall"; options: WallOptions })
   | (AssetBaseInput & { generator: "specimen"; options: SpecimenOptions })
+  | (AssetBaseInput & { generator: "icons"; options: IconsOptions })
   | (AssetBaseInput & { generator: "palette"; options: PaletteOptions })
   | (AssetBaseInput & { generator: "palette-reel"; options: PaletteReelOptions });
 

@@ -1,5 +1,5 @@
-import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { readFile } from "node:fs/promises";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +16,8 @@ interface AssetRecord {
 async function loadAssets(): Promise<AssetRecord[] | null> {
   try {
     const raw = await readFile(path.join(process.cwd(), "public", "pro-visu", "showcase", "manifest.json"), "utf8");
-    const m = JSON.parse(raw) as { assets?: AssetRecord[] | Record<string, AssetRecord> };
-    const assets = m.assets ?? (m as unknown as Record<string, AssetRecord>);
+    const m = JSON.parse(raw) as { assets?: AssetRecord[] | Record<string, AssetRecord> }; //EXCUSE: JSON.parse returns `any`; the shape is normalized on the next line
+    const assets = m.assets ?? (m as unknown as Record<string, AssetRecord>); //EXCUSE: fallback for the legacy manifest shape (bare record, no `assets` key)
     return Array.isArray(assets) ? assets : Object.values(assets);
   } catch {
     return null;
@@ -42,14 +42,7 @@ export default async function Gallery() {
     <main style={{ padding: 40 }}>
       <h1 style={{ fontSize: 48 }}>Showcase gallery</h1>
       <p className="lead">{assets.length} generated assets</p>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-          gap: 24,
-          marginTop: 32,
-        }}
-      >
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 24, marginTop: 32 }}>
         {assets.map((a) => {
           const src = `/pro-visu/showcase/${a.file}`;
           const isVideo = a.format === "mp4" || a.format === "webm";

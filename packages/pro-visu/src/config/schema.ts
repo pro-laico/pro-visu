@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import { DEFAULT_OUTDIR, DEFAULT_CONCURRENCY } from "@/config/defaults";
 
 /** Friendly log levels surfaced in config + CLI. */
@@ -21,27 +22,16 @@ const browserSettingsSchema = z
       .default(true)
       .describe("Run the browser without a visible window (default true). Set false to watch captures."),
     /** Browser channel, e.g. "chrome" or "msedge". Omit to use the managed Chromium. */
-    channel: z
-      .string()
-      .optional()
-      .describe('Browser channel, e.g. "chrome" or "msedge". Omit to use the managed Chromium.'),
+    channel: z.string().optional().describe('Browser channel, e.g. "chrome" or "msedge". Omit to use the managed Chromium.'),
     /** Absolute path to a browser executable (overrides channel + managed Chromium). */
     executablePath: z
       .string()
       .optional()
       .describe("Absolute path to a browser executable (overrides channel + managed Chromium)."),
     /** Extra launch args, e.g. ["--no-sandbox"] on CI. */
-    args: z
-      .array(z.string())
-      .default([])
-      .describe('Extra launch args, e.g. ["--no-sandbox"] on CI.'),
+    args: z.array(z.string()).default([]).describe('Extra launch args, e.g. ["--no-sandbox"] on CI.'),
     /** Browser launch timeout (ms). Named to match server.readyTimeoutMs. */
-    launchTimeoutMs: z
-      .number()
-      .int()
-      .nonnegative()
-      .default(30_000)
-      .describe("Browser launch timeout in ms (default 30000)."),
+    launchTimeoutMs: z.number().int().nonnegative().default(30_000).describe("Browser launch timeout in ms (default 30000)."),
   })
   .strict();
 export type ResolvedBrowserSettings = z.infer<typeof browserSettingsSchema>;
@@ -75,11 +65,7 @@ export const serverSettingsSchema = z
       .optional()
       .describe("One-shot build run before starting. Defaults to the project's `<pm> build` script; set false to skip it."),
     /** Health-check URL polled until it responds. Defaults to http://127.0.0.1:<port>. */
-    url: z
-      .string()
-      .url()
-      .optional()
-      .describe("Health-check URL polled until it responds. Defaults to http://127.0.0.1:<port>."),
+    url: z.string().url().optional().describe("Health-check URL polled until it responds. Defaults to http://127.0.0.1:<port>."),
     /**
      * Port the readiness check polls — also derives `url` when `url` is omitted, and is passed to
      * the command as the PORT env var so it binds the same port automatically. Defaults to 3101
@@ -135,10 +121,7 @@ const captureSignalsSchema = z
       .optional()
       .describe("localStorage entries seeded (per origin) before the page's own scripts run."),
     /** JS source run in every page before its own scripts — e.g. set a global capture flag. */
-    initScript: z
-      .string()
-      .optional()
-      .describe("JS run in every page before its own scripts (e.g. `window.__PV_CAPTURE__ = true`)."),
+    initScript: z.string().optional().describe("JS run in every page before its own scripts (e.g. `window.__PV_CAPTURE__ = true`)."),
   })
   .strict();
 
@@ -164,10 +147,7 @@ const captureCleanupSchema = z
       .default([])
       .describe("Click these selectors once after load to dismiss overlays (consent dialogs); best-effort. Default none."),
     /** Hide scrollbars so they don't appear in captures. */
-    hideScrollbars: z
-      .boolean()
-      .default(true)
-      .describe("Hide scrollbars so they don't appear in captures. Default true."),
+    hideScrollbars: z.boolean().default(true).describe("Hide scrollbars so they don't appear in captures. Default true."),
     /** Pause CSS animations/transitions for fully static, deterministic captures. */
     pauseAnimations: z
       .boolean()
@@ -184,10 +164,7 @@ const captureCleanupSchema = z
       .default(true)
       .describe("Abort common analytics/ads/session-replay requests during capture (cleaner, faster). Default true."),
     /** Extra hostname substrings to block during capture. */
-    blockHosts: z
-      .array(z.string())
-      .default([])
-      .describe("Extra hostname substrings to block during capture. Default none."),
+    blockHosts: z.array(z.string()).default([]).describe("Extra hostname substrings to block during capture. Default none."),
     /** Playwright resource types to block (e.g. "media", "font", "image"). */
     blockResourceTypes: z
       .array(z.string())
@@ -286,9 +263,7 @@ export const settingsSchema = z.object({
   // --- capture environment ---
   browser: browserSettingsSchema.default({}).describe("Playwright launch controls."),
   /** Optional managed dev/prod server lifecycle (build → start → wait → … → stop). */
-  server: serverSettingsSchema
-    .optional()
-    .describe("Build → start → wait → capture → stop a server automatically."),
+  server: serverSettingsSchema.optional().describe("Build → start → wait → capture → stop a server automatically."),
 
   // --- capture-mode + generator defaults ---
   /** Capture-mode settings (site signals + tool-side cleanup) applied to every URL capture. */
@@ -349,7 +324,10 @@ export const assetSpecSchema = z
       .describe("Per-asset capture overrides, merged over settings.capture (e.g. show a globally-hidden cookie banner here via cleanup.showSelectors)."),
   })
   .strict()
-  .transform((a) => ({ ...a, inputs: {} as Record<string, string> }));
+  .transform((a) => {
+    const inputs: Record<string, string> = {};
+    return { ...a, inputs };
+  });
 export type ResolvedAssetSpec = z.infer<typeof assetSpecSchema>;
 
 export const showcaseConfigSchema = z

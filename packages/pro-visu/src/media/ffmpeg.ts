@@ -1,9 +1,10 @@
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { rm, writeFile } from "node:fs/promises";
-import { ffmpegBinaryPath } from "@/binaries/ffmpeg-binary";
+
 import { ensureDir } from "@/utils/fs";
 import type { Logger } from "@/utils/logger";
+import { ffmpegBinaryPath } from "@/binaries/ffmpeg-binary";
 
 export interface TranscodeArgs {
   inputPath: string;
@@ -54,20 +55,9 @@ export function ffmpegPath(): string {
  * h264 mp4 at a fixed fps. Pure — unit-tested.
  */
 export function buildTranscodeArgs(args: TranscodeArgs): string[] {
-  // Input-side seek (`-ss` before `-i`) skips the blank navigation/readiness lead Playwright records
-  // before playback starts, so the mp4 opens on the first real frame instead of a blank one.
-  const seek =
-    args.startOffsetSeconds && args.startOffsetSeconds > 0
-      ? ["-ss", args.startOffsetSeconds.toFixed(3)]
-      : [];
-  // Output-side limit (after the head seek) so the clip is exactly `durationSeconds` long.
-  const limit =
-    args.durationSeconds && args.durationSeconds > 0
-      ? ["-t", args.durationSeconds.toFixed(3)]
-      : [];
-  const crop = args.crop
-    ? `crop=${args.crop.width}:${args.crop.height}:${args.crop.x}:${args.crop.y},`
-    : "";
+  const seek = args.startOffsetSeconds && args.startOffsetSeconds > 0 ? ["-ss", args.startOffsetSeconds.toFixed(3)] : [];
+  const limit = args.durationSeconds && args.durationSeconds > 0 ? ["-t", args.durationSeconds.toFixed(3)] : [];
+  const crop = args.crop ? `crop=${args.crop.width}:${args.crop.height}:${args.crop.x}:${args.crop.y},` : "";
   return [
     "-y",
     ...seek,
@@ -93,18 +83,12 @@ export function buildTranscodeArgs(args: TranscodeArgs): string[] {
 }
 
 /** Read a video's pixel dimensions by parsing ffmpeg's stream info (no ffprobe needed). */
-export async function probeVideoDimensions(
-  file: string,
-): Promise<{ width: number; height: number } | null> {
+export async function probeVideoDimensions(file: string): Promise<{ width: number; height: number } | null> {
   return new Promise((resolve) => {
-    const child = spawn(ffmpegPath(), ["-hide_banner", "-i", file], {
-      stdio: ["ignore", "ignore", "pipe"],
-    });
+    const child = spawn(ffmpegPath(), ["-hide_banner", "-i", file], { stdio: ["ignore", "ignore", "pipe"] });
     let stderr = "";
     child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
     child.on("error", () => resolve(null));
-    // ffmpeg exits non-zero with no output file; the info we want is already on stderr. Anchor to
-    // the video stream line so a "1920x1080"-looking tag on another line can't be picked up first.
     child.on("close", () => {
       const videoLine = stderr.split("\n").find((l) => l.includes("Video:"));
       const match = videoLine ? /,\s(\d+)x(\d+)[\s,]/.exec(videoLine) : null;
@@ -116,9 +100,7 @@ export async function probeVideoDimensions(
 /** Read a video's duration in ms by parsing ffmpeg's stream info (no ffprobe needed). */
 export async function probeVideoDurationMs(file: string): Promise<number | null> {
   return new Promise((resolve) => {
-    const child = spawn(ffmpegPath(), ["-hide_banner", "-i", file], {
-      stdio: ["ignore", "ignore", "pipe"],
-    });
+    const child = spawn(ffmpegPath(), ["-hide_banner", "-i", file], { stdio: ["ignore", "ignore", "pipe"] });
     let stderr = "";
     child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
     child.on("error", () => resolve(null));
@@ -208,10 +190,7 @@ const STDERR_TAIL_CAP = 8192;
 
 /** Spawn an ffmpeg that consumes piped JPEG frames and writes an mp4 — no frames hit disk. */
 export function startFrameEncoder(a: FramePipeArgs, logger?: Logger, signal?: AbortSignal): FrameEncoder {
-  const child = spawn(ffmpegPath(), buildFramePipeArgs(a), {
-    stdio: ["pipe", "ignore", "pipe"],
-    signal, // a cancelled run kills the encoder instead of waiting for it to drain
-  });
+  const child = spawn(ffmpegPath(), buildFramePipeArgs(a), { stdio: ["pipe", "ignore", "pipe"], signal });
   let stderr = "";
   let failed: Error | null = null;
   child.stderr.on("data", (d: Buffer) => {
@@ -245,12 +224,10 @@ export function startFrameEncoder(a: FramePipeArgs, logger?: Logger, signal?: Ab
         );
       }),
     kill: () => {
-      stdin.destroy(); // rejects any in-flight write via its callback
+      stdin.destroy();
       try {
         child.kill();
-      } catch {
-        /* already gone */
-      }
+      } catch {}
     },
   };
 }
@@ -274,14 +251,8 @@ export function buildConcatArgs(listFile: string, outPath: string): string[] {
 }
 
 /** Concatenate mp4 segments into one file (stream copy — no re-encode). */
-export async function concatMp4(
-  segments: string[],
-  outPath: string,
-  logger?: Logger,
-  signal?: AbortSignal,
-): Promise<void> {
+export async function concatMp4(segments: string[], outPath: string, logger?: Logger, signal?: AbortSignal): Promise<void> {
   await ensureDir(path.dirname(outPath));
-  // concat demuxer wants forward slashes and single-quoted paths.
   const listFile = `${outPath}.concat.txt`;
   const list = segments.map((s) => `file '${s.replace(/\\/g, "/")}'`).join("\n");
   await writeFile(listFile, `${list}\n`, "utf8");
@@ -312,21 +283,15 @@ export async function runFfmpeg(argv: string[], logger?: Logger, signal?: AbortS
 }
 
 /** Re-encode the recorded webm into an mp4 at outputPath. */
-export async function transcodeToMp4(
-  args: TranscodeArgs & { logger?: Logger; signal?: AbortSignal },
-): Promise<void> {
+export async function transcodeToMp4(args: TranscodeArgs & { logger?: Logger; signal?: AbortSignal }): Promise<void> {
   await ensureDir(path.dirname(args.outputPath));
   await runFfmpeg(buildTranscodeArgs(args), args.logger, args.signal);
 }
 
-// --- output transforms: aspect reframing + alternate formats (gif / webp / poster) ---
-
 export type AspectPreset = "16:9" | "9:16" | "1:1";
 
 /** Pure: resolve an aspect preset (or explicit size) to concrete output pixel dimensions. */
-export function aspectTarget(
-  aspect: AspectPreset | { width: number; height: number },
-): { width: number; height: number } {
+export function aspectTarget(aspect: AspectPreset | { width: number; height: number }): { width: number; height: number } {
   if (typeof aspect === "object") return { width: aspect.width, height: aspect.height };
   switch (aspect) {
     case "9:16":
@@ -468,9 +433,7 @@ export interface StillSegmentArgs {
 export function buildStillSegmentArgs(a: StillSegmentArgs): string[] {
   const filters = [`scale=${a.width}:${a.height}:flags=lanczos:${SCALE_COLOR}`, "format=yuv420p"];
   if (a.fadeInSec > 0) filters.push(`fade=t=in:st=0:d=${a.fadeInSec.toFixed(3)}`);
-  if (a.fadeOutSec > 0) {
-    filters.push(`fade=t=out:st=${Math.max(0, a.seconds - a.fadeOutSec).toFixed(3)}:d=${a.fadeOutSec.toFixed(3)}`);
-  }
+  if (a.fadeOutSec > 0) filters.push(`fade=t=out:st=${Math.max(0, a.seconds - a.fadeOutSec).toFixed(3)}:d=${a.fadeOutSec.toFixed(3)}`);
   return [
     "-y",
     "-loop",

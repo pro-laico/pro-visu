@@ -1,15 +1,13 @@
 import type { Browser, Page } from "playwright-core";
-import { captureFramedVideo } from "@/recorder/frame-capture";
+
+import type { Logger } from "@/utils/logger";
 import { applyCapture } from "@/pipeline/capture";
-import { applyPostNav, installNetworkHygiene, installPreNav } from "@/pipeline/clean-capture";
+import { captureFramedVideo } from "@/recorder/frame-capture";
+import type { ResolvedCaptureSettings } from "@/config/schema";
 import { createSharedNetworkCache } from "@/recorder/network-cache";
-import {
-  detectSectionOffsets,
-  measureNormalizedOffsets,
-  measureTopInset,
-  prepareScroll,
-  seekFrame,
-} from "@/generators/scroll-reel/scroll";
+import type { ResolvedScrollReelOptions } from "@/generators/scroll-reel/options";
+import { applyPostNav, installNetworkHygiene, installPreNav } from "@/pipeline/clean-capture";
+import { detectSectionOffsets, measureNormalizedOffsets, measureTopInset, prepareScroll, seekFrame } from "@/generators/scroll-reel/scroll";
 import {
   autoSectionSteps,
   autoSectionsBudgetMs,
@@ -31,9 +29,6 @@ import {
   type ResolvedTimeline,
   type TimelineSpec,
 } from "@/generators/scroll-reel/timeline";
-import type { ResolvedCaptureSettings } from "@/config/schema";
-import type { ResolvedScrollReelOptions } from "@/generators/scroll-reel/options";
-import type { Logger } from "@/utils/logger";
 
 /** Time at the bottom for lazy/below-the-fold content to load during the (un-recorded) warm-up pass. */
 const PREWARM_SETTLE_MS = 700;
@@ -70,14 +65,8 @@ export interface ScrollFramesArgs {
  * instead of exactly flush — otherwise a sub-pixel boundary seam of the previous section peeks out.
  * Returns 0 (no header, no bias) when nothing is detected.
  */
-async function resolveHeaderInset(
-  page: Page,
-  override?: { selector?: string; height?: number },
-): Promise<number> {
-  const measured =
-    override?.height != null
-      ? override.height
-      : await page.evaluate(measureTopInset, { selector: override?.selector });
+async function resolveHeaderInset(page: Page, override?: { selector?: string; height?: number }): Promise<number> {
+  const measured = override?.height != null ? override.height : await page.evaluate(measureTopInset, { selector: override?.selector });
   return measured > 0 ? Math.max(0, measured - HEADER_SEAM_BIAS_PX) : 0;
 }
 
@@ -94,8 +83,6 @@ async function buildScrollTimeline(
   logger: Logger,
 ): Promise<ResolvedTimeline> {
   const steps = options.motion.choreography;
-  // Apply the loop transform before binding to wall-clock time: boomerang mirrors the spec;
-  // straight appends one swift glide back to the top so the clip loops without retracing stops.
   const finalize = (spec: TimelineSpec): ResolvedTimeline => {
     let looped = spec;
     if (options.motion.loop === "boomerang") looped = boomerangSpec(spec);
@@ -105,16 +92,10 @@ async function buildScrollTimeline(
     return resolveTimeline(looped, totalSeconds);
   };
 
-  // 1. Explicit choreography wins: resolve selector targets in one in-page pass (numbers/% in Node).
   if (steps && steps.length > 0) {
-    const selectors = steps
-      .map((s) => s.to)
-      .filter((to): to is string => typeof to === "string" && !to.trim().endsWith("%"));
+    const selectors = steps.map((s) => s.to).filter((to): to is string => typeof to === "string" && !to.trim().endsWith("%"));
     const headerInsetPx = selectors.length > 0 ? await resolveHeaderInset(page) : 0;
-    const measured =
-      selectors.length > 0
-        ? await page.evaluate(measureNormalizedOffsets, { selectors, headerInsetPx })
-        : [];
+    const measured = selectors.length > 0 ? await page.evaluate(measureNormalizedOffsets, { selectors, headerInsetPx }) : [];
 
     let mi = 0;
     let prevY = 0;
@@ -151,13 +132,9 @@ async function buildScrollTimeline(
     );
   }
 
-  // 2. Auto-sections: detect the page's sections and pan/hold through them within a fixed budget.
   if (options.motion.autoSections) {
     const cfg = options.motion.autoSections === true ? {} : options.motion.autoSections;
-    const headerInsetPx = await resolveHeaderInset(page, {
-      selector: cfg.headerSelector,
-      height: cfg.headerHeight,
-    });
+    const headerInsetPx = await resolveHeaderInset(page, { selector: cfg.headerSelector, height: cfg.headerHeight });
     const offsets = await page.evaluate(detectSectionOffsets, {
       minHeightFraction: cfg.minHeightFraction ?? DEFAULT_AUTO_MIN_HEIGHT_FRACTION,
       selector: cfg.selector ?? null,
@@ -187,7 +164,6 @@ async function buildScrollTimeline(
     logger.warn("autoSections: no scrollable sections detected — using a default sweep");
   }
 
-  // 3. Default: a single eased top→bottom sweep.
   return finalize(
     defaultTimelineSpec({
       startDelayMs: options.page.startDelayMs,
@@ -208,17 +184,13 @@ async function buildScrollTimeline(
  */
 export async function captureScrollFrames(a: ScrollFramesArgs): Promise<void> {
   const { options } = a;
-  const totalSeconds =
-    scrollTimelineTotalMs({
+  const totalSeconds = scrollTimelineTotalMs({
       startDelayMs: options.page.startDelayMs,
       durationMs: options.motion.durationMs,
       endDwellMs: options.page.endDwellMs,
       choreography: options.motion.choreography,
       autoSections: options.motion.autoSections,
     }) / 1000;
-  // With parallel workers, share one response cache across their isolated contexts: the site is
-  // fetched once instead of once per worker (identical bytes in every worker — which the
-  // deterministic capture wants anyway). Single worker keeps the unrouted fast path.
   const netCache = a.workers > 1 ? createSharedNetworkCache({ logger: a.logger }) : null;
   await captureFramedVideo<ResolvedTimeline>({
     browser: a.browser,
@@ -238,16 +210,10 @@ export async function captureScrollFrames(a: ScrollFramesArgs): Promise<void> {
     onProgress: a.onProgress,
     signal: a.signal,
     prepare: async (page, { logger }) => {
-      // Force the color scheme + block tracker requests before navigation so load-time media queries
-      // and the network match the intended capture.
       if (a.colorScheme) await page.emulateMedia({ colorScheme: a.colorScheme });
-      // Seed capture-mode cookies / init script on the context before any navigation.
       await applyCapture(page.context(), a.capture, a.url);
-      // Cache BEFORE hygiene: Playwright runs the last-registered route first, so hygiene aborts
-      // trackers and falls back; only requests it lets through reach the shared cache.
       if (netCache) await netCache.install(page);
       await installNetworkHygiene(page, a.capture);
-      // Pre-navigation hooks (e.g. freeze the clock, theme class) must be installed before page scripts.
       await installPreNav(page, a.capture, { themeClass: options.variants.themeClass });
       logger.debug(`navigating to ${a.url} (waitUntil=${options.page.waitUntil})`);
       await page.goto(a.url, { waitUntil: options.page.waitUntil });
@@ -255,21 +221,12 @@ export async function captureScrollFrames(a: ScrollFramesArgs): Promise<void> {
         logger.debug(`waiting for selector ${options.page.waitForSelector}`);
         await page.waitForSelector(options.page.waitForSelector, { state: "visible" });
       }
-      // Suppress capture noise (hide banners/scrollbars, inject CSS, dismiss consent overlays).
       await applyPostNav(page, a.capture, logger, { themeClass: options.variants.themeClass });
-      // Warm-up (not recorded): load lazy content, fonts and images, then settle back at the top.
       await page.evaluate(prepareScroll, { settleMs: PREWARM_SETTLE_MS });
-      // Resolve the timeline against the (now stable) page; deterministic across workers.
       return buildScrollTimeline(page, options, totalSeconds, logger);
     },
     seekToFrame: async (page, t, timeline) => {
-      // ONE evaluate per frame: seek + settle ride the same protocol round-trip. The settle is
-      // capped in-page at settleMaxMs so the call always returns — a stuck decode can't stack
-      // pending protocol calls.
-      await page.evaluate(seekFrame, {
-        normalizedY: timeline.scrollAt(t),
-        settleMaxMs: a.settlePerFrame ? a.settleMaxMs : undefined,
-      });
+      await page.evaluate(seekFrame, { normalizedY: timeline.scrollAt(t), settleMaxMs: a.settlePerFrame ? a.settleMaxMs : undefined });
     },
   });
 }

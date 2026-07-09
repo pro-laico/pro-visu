@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import { normalizeHex, type FieldId } from "@/generators/palette/color";
 
 /** Field ids that can be placed in a swatch corner. */
@@ -110,143 +111,57 @@ export interface PaletteOptionsInput {
   contrast?: PaletteContrastInput;
 }
 
-const paletteObjectSchema = z
-  .object({
-    colors: z
-      .array(
-        z
-          .object({
-            name: z.string().min(1).describe('Display name, e.g. "Wet Grey".'),
-            hex: hexString.describe("Hex value (#rgb or #rrggbb, with or without #)."),
-          })
-          .strict(),
-      )
-      .min(1)
-      .describe("The colors to show (at least one)."),
-    output: z
-      .object({
+const paletteObjectSchema = z.object({
+    colors: z.array(
+        z.object({
+          name: z.string().min(1).describe('Display name, e.g. "Wet Grey".'),
+          hex: hexString.describe("Hex value (#rgb or #rrggbb, with or without #)."),
+        }).strict(),
+      ).min(1).describe("The colors to show (at least one)."),
+    output: z.object({
         width: z.number().int().positive().default(1400).describe("Output width in px. Default 1400."),
-        height: z
-          .number()
-          .int()
-          .positive()
-          .default(1750)
+        height: z.number().int().positive().default(1750)
           .describe("Output height in px. Default 1750 (portrait 4:5 with the default width)."),
-        deviceScaleFactor: z
-          .number()
-          .positive()
-          .max(4)
-          .default(2)
-          .describe("Render scale (2 = retina-crisp). Default 2."),
-        fileName: z
-          .string()
-          .optional()
-          .describe('Output filename; defaults to "<slug(asset name)>.png".'),
+        deviceScaleFactor: z.number().positive().max(4).default(2).describe("Render scale (2 = retina-crisp). Default 2."),
+        fileName: z.string().optional().describe('Output filename; defaults to "<slug(asset name)>.png".'),
       })
       .strict()
       .default({}),
-    layout: z
-      .object({
-        layout: z
-          .enum(["rows", "columns", "grid"])
-          .default("rows")
+    layout: z.object({
+        layout: z.enum(["rows", "columns", "grid"]).default("rows")
           .describe('Swatch arrangement: full-width bands, full-height columns, or an N-wide grid. Default "rows".'),
-        gridColumns: z
-          .number()
-          .int()
-          .min(1)
-          .max(12)
-          .default(3)
-          .describe('Columns when layout is "grid". Default 3.'),
-        background: z
-          .string()
-          .default("#ffffff")
-          .describe('Page background, shown only in the gaps between swatches. Default "#ffffff".'),
-        gap: z
-          .number()
-          .nonnegative()
-          .default(0)
-          .describe("Gap between swatches (px). Default 0 (swatches abut)."),
-        cornerRadius: z
-          .number()
-          .nonnegative()
-          .default(0)
-          .describe("Swatch corner radius (px). Default 0 (square)."),
-        padding: z
-          .number()
-          .nonnegative()
-          .optional()
+        gridColumns: z.number().int().min(1).max(12).default(3).describe('Columns when layout is "grid". Default 3.'),
+        background: z.string().default("#ffffff").describe('Page background, shown only in the gaps between swatches. Default "#ffffff".'),
+        gap: z.number().nonnegative().default(0).describe("Gap between swatches (px). Default 0 (swatches abut)."),
+        cornerRadius: z.number().nonnegative().default(0).describe("Swatch corner radius (px). Default 0 (square)."),
+        padding: z.number().nonnegative().optional()
           .describe("Inset of the labels from the swatch edges (px). Omit to derive from the width."),
       })
       .strict()
       .default({}),
-    fields: z
-      .object({
-        topLeft: z
-          .array(fieldEnum)
-          .default(["name", "hex"])
-          .describe("Fields stacked in the top-left corner. Default name + hex."),
-        topRight: z
-          .array(fieldEnum)
-          .default(["rgb", "oklch"])
-          .describe("Fields stacked in the top-right corner. Default rgb + oklch."),
-        bottomLeft: z
-          .array(fieldEnum)
-          .default([])
-          .describe("Fields stacked in the bottom-left corner. Default none."),
-        bottomRight: z
-          .array(fieldEnum)
-          .default([])
-          .describe("Fields stacked in the bottom-right corner. Default none."),
+    fields: z.object({
+        topLeft: z.array(fieldEnum).default(["name", "hex"]).describe("Fields stacked in the top-left corner. Default name + hex."),
+        topRight: z.array(fieldEnum).default(["rgb", "oklch"]).describe("Fields stacked in the top-right corner. Default rgb + oklch."),
+        bottomLeft: z.array(fieldEnum).default([]).describe("Fields stacked in the bottom-left corner. Default none."),
+        bottomRight: z.array(fieldEnum).default([]).describe("Fields stacked in the bottom-right corner. Default none."),
       })
       .strict()
       .default({}),
-    text: z
-      .object({
+    text: z.object({
         uppercase: z.boolean().default(false).describe("Uppercase the color names. Default false."),
-        rgbStyle: z
-          .enum(["labeled", "css", "plain"])
-          .default("labeled")
-          .describe('RGB string style. Default "labeled".'),
-        oklchStyle: z
-          .enum(["css", "labeled"])
-          .default("css")
-          .describe('OKLCH string style. Default "css".'),
-        fontFile: z
-          .string()
-          .optional()
+        rgbStyle: z.enum(["labeled", "css", "plain"]).default("labeled").describe('RGB string style. Default "labeled".'),
+        oklchStyle: z.enum(["css", "labeled"]).default("css").describe('OKLCH string style. Default "css".'),
+        fontFile: z.string().optional()
           .describe("Custom font file (woff2/woff/ttf/otf), embedded into the render. Omit for a system bold sans."),
-        fontSize: z
-          .number()
-          .positive()
-          .optional()
-          .describe("Label font size in px. Omit to derive from the width."),
-        fontWeight: z
-          .number()
-          .int()
-          .min(1)
-          .max(1000)
-          .default(700)
-          .describe("Label font weight. Default 700."),
+        fontSize: z.number().positive().optional().describe("Label font size in px. Omit to derive from the width."),
+        fontWeight: z.number().int().min(1).max(1000).default(700).describe("Label font weight. Default 700."),
       })
       .strict()
       .default({}),
-    contrast: z
-      .object({
-        textLight: z
-          .string()
-          .default("#ffffff")
-          .describe('Light text color, used on dark swatches (picked by contrast). Default "#ffffff".'),
-        textDark: z
-          .string()
-          .default("#141414")
-          .describe('Dark text color, used on light swatches (picked by contrast). Default "#141414".'),
-        contrastThreshold: z
-          .number()
-          .min(0)
-          .max(1)
-          .default(0.5)
-          .describe("Luminance above which the dark text is used (0..1). Default 0.5."),
+    contrast: z.object({
+        textLight: z.string().default("#ffffff").describe('Light text color, used on dark swatches (picked by contrast). Default "#ffffff".'),
+        textDark: z.string().default("#141414").describe('Dark text color, used on light swatches (picked by contrast). Default "#141414".'),
+        contrastThreshold: z.number().min(0).max(1).default(0.5).describe("Luminance above which the dark text is used (0..1). Default 0.5."),
       })
       .strict()
       .default({}),

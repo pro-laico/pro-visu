@@ -1,10 +1,10 @@
 import Link from "next/link";
+import { MEDIA } from "@/app/lib/media";
+import { getProduct } from "@/app/lib/catalog";
 import { StatTile } from "@/app/components/StatTile";
-import { ProductSpecCard } from "@/app/components/ProductSpecCard";
 import { BrandMark } from "@/app/components/BrandMark";
 import { MiniGallery } from "@/app/components/MiniGallery";
-import { getProduct } from "@/app/lib/catalog";
-import { MEDIA } from "@/app/lib/media";
+import { ProductSpecCard } from "@/app/components/ProductSpecCard";
 
 export const metadata = {
   title: "The Lookbook — FASHION",
@@ -21,10 +21,10 @@ const SWATCHES = [
 ];
 
 export default function Lookbook() {
-  const coat = getProduct("the-camel-coat");
   const tote = getProduct("leather-tote");
-  const crew = getProduct("cashmere-crewneck");
+  const coat = getProduct("the-camel-coat");
   const slip = getProduct("silk-slip-dress");
+  const crew = getProduct("cashmere-crewneck");
 
   return (
     <main>
@@ -34,8 +34,6 @@ export default function Lookbook() {
         <p className="page-sub">A study in restraint — the house essentials, the cloth, the making.</p>
       </section>
 
-      {/* An editorial brand board: imagery, type, proof-points, and tokenized product cards.
-          Each panel carries a stable id so pro-visu.config.ts can focus-capture it as a 3:4 tile. */}
       <section className="lb-grid section-flush" aria-label="Lookbook">
         <div className="lb-panel lb-type" id="lb-wordmark">
           <span className="lb-wordmark">FASHION</span>

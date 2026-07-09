@@ -1,5 +1,6 @@
 import { chromium } from "playwright-core";
 import type { Browser } from "playwright-core";
+
 import type { ResolvedBrowserSettings } from "@/config/schema";
 
 /** Launch Chromium with the repo's browser settings. */

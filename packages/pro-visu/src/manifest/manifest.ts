@@ -2,12 +2,7 @@ import path from "node:path";
 import { existsSync } from "node:fs";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { ensureDir } from "@/utils/fs";
-import {
-  emptyManifest,
-  manifestSchema,
-  type AssetRecord,
-  type Manifest,
-} from "@/manifest/schema";
+import { emptyManifest, manifestSchema, type AssetRecord, type Manifest } from "@/manifest/schema";
 
 function manifestPath(outDir: string): string {
   return path.join(outDir, "manifest.json");
@@ -26,9 +21,7 @@ export async function readManifest(outDir: string): Promise<Manifest> {
     throw new Error(`Corrupt manifest (invalid JSON): ${file}`);
   }
   const parsed = manifestSchema.safeParse(json);
-  if (!parsed.success) {
-    throw new Error(`Corrupt manifest (schema mismatch): ${file}`);
-  }
+  if (!parsed.success) throw new Error(`Corrupt manifest (schema mismatch): ${file}`);
   return parsed.data;
 }
 
@@ -49,10 +42,7 @@ export async function writeManifest(outDir: string, manifest: Manifest): Promise
   await ensureDir(outDir);
   const file = manifestPath(outDir);
   const tmp = `${file}.tmp`;
-  const sorted: Manifest = {
-    ...manifest,
-    assets: [...manifest.assets].sort((a, b) => a.id.localeCompare(b.id)),
-  };
+  const sorted: Manifest = { ...manifest, assets: [...manifest.assets].sort((a, b) => a.id.localeCompare(b.id)) };
   const contents = `${JSON.stringify(sorted, null, 2)}\n`;
   await writeFile(tmp, contents, "utf8");
 
@@ -65,10 +55,9 @@ export async function writeManifest(outDir: string, manifest: Manifest): Promise
       const code = (err as NodeJS.ErrnoException).code;
       if (!code || !TRANSIENT_RENAME_CODES.has(code)) throw err;
       if (attempt < maxAttempts) {
-        await sleep(attempt * 50); // 50,100,150,200ms backoff
+        await sleep(attempt * 50);
         continue;
       }
-      // The lock outlived our retries — overwrite in place (non-atomic) and clean up the tmp.
       await writeFile(file, contents, "utf8");
       await rm(tmp, { force: true });
       return;
@@ -83,10 +72,7 @@ export async function writeManifest(outDir: string, manifest: Manifest): Promise
 export class ManifestStore {
   private chain: Promise<void> = Promise.resolve();
 
-  private constructor(
-    private readonly outDir: string,
-    private readonly manifest: Manifest,
-  ) {}
+  private constructor(private readonly outDir: string, private readonly manifest: Manifest) {}
 
   static async load(outDir: string): Promise<ManifestStore> {
     return new ManifestStore(outDir, await readManifest(outDir));

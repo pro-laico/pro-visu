@@ -1,7 +1,7 @@
 import http from "node:http";
 import path from "node:path";
-import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
+import { createReadStream } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 const MIME: Record<string, string> = {
@@ -40,7 +40,7 @@ export function parseByteRange(
 ): { start: number; end: number } | null {
   if (!header) return null;
   const m = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
-  if (!m) return null; // not a single bytes range (e.g. multi-range) → caller serves full
+  if (!m) return null;
   const [, startRaw, endRaw] = m;
   let start: number;
   let end: number;
@@ -79,9 +79,9 @@ export interface SceneServerArgs {
  * input files (with HTTP range support so the scene's <video> can seek). No writes anywhere.
  */
 export async function startSceneServer(args: SceneServerArgs): Promise<SceneServer> {
-  const staticRoot = path.resolve(args.staticDir);
-  const inputByUrl = new Map<string, string>();
   const slotToUrl = new Map<string, string>();
+  const inputByUrl = new Map<string, string>();
+  const staticRoot = path.resolve(args.staticDir);
   for (const [slot, file] of Object.entries(args.inputs)) {
     const ext = path.extname(file) || ".mp4";
     const url = `/_inputs/${slot}${ext}`;
@@ -89,11 +89,7 @@ export async function startSceneServer(args: SceneServerArgs): Promise<SceneServ
     slotToUrl.set(slot, url);
   }
 
-  const serveFile = async (
-    file: string,
-    req: IncomingMessage,
-    res: ServerResponse,
-  ): Promise<void> => {
+  const serveFile = async (file: string, req: IncomingMessage, res: ServerResponse): Promise<void> => {
     let info;
     try {
       info = await stat(file);
@@ -117,7 +113,6 @@ export async function startSceneServer(args: SceneServerArgs): Promise<SceneServ
       });
       createReadStream(file, { start: parsed.start, end: parsed.end }).pipe(res);
     } else {
-      // No range, or malformed/unsatisfiable — serve the whole body rather than mis-claim a 206.
       res.writeHead(200, { "Content-Type": type, "Content-Length": info.size });
       createReadStream(file).pipe(res);
     }
@@ -140,7 +135,6 @@ export async function startSceneServer(args: SceneServerArgs): Promise<SceneServ
       await stat(filePath);
       return serveFile(filePath, req, res);
     } catch {
-      // SPA fallback so the scene app always loads.
       return serveFile(path.join(staticRoot, "index.html"), req, res);
     }
   };
@@ -161,7 +155,7 @@ export async function startSceneServer(args: SceneServerArgs): Promise<SceneServ
     origin,
     inputUrl: (slot) => {
       const rel = slotToUrl.get(slot);
-      if (!rel) throw new Error(`Unknown scene input slot "${slot}".`); // don't silently serve the SPA
+      if (!rel) throw new Error(`Unknown scene input slot "${slot}".`);
       return origin + rel;
     },
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),

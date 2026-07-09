@@ -14,14 +14,8 @@ export function buildGraph(specs: ResolvedAssetSpec[]): Map<string, ResolvedAsse
 
   for (const spec of specs) {
     for (const [slot, dep] of Object.entries(spec.inputs)) {
-      if (!byName.has(dep)) {
-        throw new Error(
-          `Asset "${spec.name}" input "${slot}" references unknown asset "${dep}".`,
-        );
-      }
-      if (dep === spec.name) {
-        throw new Error(`Asset "${spec.name}" cannot depend on itself.`);
-      }
+      if (!byName.has(dep)) throw new Error(`Asset "${spec.name}" input "${slot}" references unknown asset "${dep}".`);
+      if (dep === spec.name) throw new Error(`Asset "${spec.name}" cannot depend on itself.`);
     }
   }
 
@@ -60,10 +54,7 @@ function assertAcyclic(specs: ResolvedAssetSpec[]): void {
  * only the assets tagged with the same string; `true` (default) runs everything not individually
  * disabled. Dependencies aren't resolved here — `expandSelection` pulls those in afterward.
  */
-export function enabledAssetNames(
-  specs: ResolvedAssetSpec[],
-  settingsEnabled: EnabledFlag,
-): string[] {
+export function enabledAssetNames(specs: ResolvedAssetSpec[], settingsEnabled: EnabledFlag): string[] {
   if (settingsEnabled === false) return [];
   const group = typeof settingsEnabled === "string" ? settingsEnabled : null;
   return specs
@@ -94,10 +85,7 @@ export function resolveSelection(
  * names are ignored here (the caller warns); unknown *dependencies* are caught by buildGraph.
  * `undefined` means "no filter" (all assets); an empty array means "nothing selected".
  */
-export function expandSelection(
-  specs: ResolvedAssetSpec[],
-  names: string[] | undefined,
-): ResolvedAssetSpec[] {
+export function expandSelection(specs: ResolvedAssetSpec[], names: string[] | undefined): ResolvedAssetSpec[] {
   if (!names) return specs;
   if (names.length === 0) return [];
   const byName = new Map(specs.map((s) => [s.name, s]));
