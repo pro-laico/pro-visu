@@ -43,22 +43,23 @@ JSON works either way, with autocomplete + validation from a generated `pro-visu
 npx pro-visu init
 ```
 
-Idempotent. Detects package manager, framework, and dev port → writes a matching config;
-gitignores the output dir; adds a `"pro-visu"` package script; downloads the managed Chromium +
+Idempotent. Detects package manager, framework, and dev port → writes `pro-visu/pro-visu.config.ts`;
+gitignores `pro-visu/output/`; adds a `"pro-visu"` package script; downloads the managed Chromium +
 ffmpeg (one-time, shared). Leaves an existing config alone. `--json` for a dependency-free JSON
 config; [all flags](/docs/cli#pro-visu-init).
 
 ## Configure
 
-Point an asset at your site — set `URL` to whatever you'll run (dev / prod build / deployed):
+Edit `pro-visu/pro-visu.config.ts` — point an asset at your site by setting `URL` to whatever
+you'll run (dev / prod build / deployed):
 
-```ts
+```ts title="pro-visu/pro-visu.config.ts"
 import { defineConfig } from "pro-visu";
 
 const URL = "http://localhost:3000";
 
 export default defineConfig({
-  settings: { outDir: "pro-visu" },
+  settings: { outDir: "output" }, // → pro-visu/output/
   assets: [
     {
       name: "home-reel",

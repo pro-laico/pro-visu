@@ -35,25 +35,47 @@ export interface BrowserSettingsInput {
 
 export interface ServerSettingsInput {
   /**
-   * Command that starts the server, run via the shell. The tool sets PORT/HOST in its environment
-   * to the readiness port/host, so frameworks that honor PORT (Next, Vite, …) bind it
-   * automatically — `command: "next start"` is enough. An explicit flag still wins.
+   * Command that starts the server, run via the shell. **Defaults to your project's start script**
+   * (`<pm> start`, e.g. `pnpm start`), detected from the lockfile — set it only to override. The
+   * tool sets PORT/HOST in its environment to the readiness port/host, so frameworks that honor
+   * PORT (Next, Vite, …) bind it automatically. An explicit flag (e.g. `next start -p 4000`) wins.
+   *
+   * @default "<pm> start" — your project's start script (e.g. `pnpm start` / `npm run start`)
    */
-  command: string;
-  /** Optional one-shot build to run first, e.g. "next build". */
-  build?: string;
-  /** Health-check URL polled until it responds. Defaults to http://127.0.0.1:<port>. */
+  command?: string;
+  /**
+   * One-shot build run before starting, e.g. `next build`. **Defaults to your project's build
+   * script** (`<pm> build`, e.g. `pnpm build`); set `false` to skip the build step (already-built
+   * or dev-server setups).
+   *
+   * @default "<pm> build" — your project's build script (e.g. `pnpm build` / `npm run build`)
+   */
+  build?: string | false;
+  /**
+   * Health-check URL polled until it responds.
+   * @default "http://127.0.0.1:<port>"
+   */
   url?: string;
   /**
    * Port the readiness check polls — also derives `url` when `url` is omitted, and is passed to
-   * the command as PORT so it binds the same port automatically. Defaults to 3101.
+   * the command as PORT so it binds the same port automatically.
+   * @default 3101
    */
   port?: number;
-  /** Working dir for build + command, relative to the config dir. Defaults to it. */
+  /**
+   * Working dir for build + command, relative to the repo root (where the CLI runs).
+   * @default "the repo root"
+   */
   cwd?: string;
-  /** Max time to wait for the server to become reachable (ms). Default 120000. */
+  /**
+   * Max time to wait for the server to become reachable, in ms.
+   * @default 120000
+   */
   readyTimeoutMs?: number;
-  /** If a server is already reachable at the URL, use it as-is (don't start/stop one). */
+  /**
+   * If a server is already reachable at the URL, use it as-is (don't start/stop one).
+   * @default true
+   */
   reuseExisting?: boolean;
 }
 

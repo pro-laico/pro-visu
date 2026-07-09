@@ -47,28 +47,33 @@ const browserSettingsSchema = z
 export type ResolvedBrowserSettings = z.infer<typeof browserSettingsSchema>;
 
 /**
- * Optional managed server. When set, `pro-visu generate` builds (if given), starts the
+ * Optional managed server. When set (even as `{}`), `pro-visu generate` builds, starts the
  * server, waits for it to respond, runs the capture, then shuts it down — so a project's
- * npm script can be just `pro-visu generate`.
+ * npm script can be just `pro-visu generate`. `build` and `command` default to the project's own
+ * package scripts (`<pm> build` / `<pm> start`, detected from the lockfile), so it follows along
+ * with whatever those scripts do without needing to be set.
  */
 export const serverSettingsSchema = z
   .object({
     /**
-     * Command that starts the server, run via the shell. The tool sets PORT/HOST in the
-     * command's environment to the readiness port/host, so frameworks that honor PORT (Next,
-     * Vite, …) bind it automatically — `command: "next start"` is enough. An explicit flag
-     * (e.g. `next start -p 4000`) still wins.
+     * Command that starts the server, run via the shell. Defaults to the project's `<pm> start`
+     * script (e.g. `pnpm start`). The tool sets PORT/HOST in the command's environment to the
+     * readiness port/host, so frameworks that honor PORT (Next, Vite, …) bind it automatically.
+     * An explicit flag (e.g. `next start -p 4000`) still wins.
      */
     command: z
       .string()
       .min(1)
-      .describe("Command that starts the server, run via the shell. PORT/HOST are set in its env so PORT-honoring frameworks bind automatically."),
-    /** Optional one-shot build to run first, e.g. "next build". */
-    build: z
-      .string()
-      .min(1)
       .optional()
-      .describe('Optional one-shot build to run first, e.g. "next build".'),
+      .describe("Command that starts the server, run via the shell. Defaults to the project's `<pm> start` script. PORT/HOST are set in its env so PORT-honoring frameworks bind automatically."),
+    /**
+     * One-shot build to run before starting, e.g. "next build". Defaults to the project's
+     * `<pm> build` script; set `false` to skip building (already-built or dev-server setups).
+     */
+    build: z
+      .union([z.string().min(1), z.literal(false)])
+      .optional()
+      .describe("One-shot build run before starting. Defaults to the project's `<pm> build` script; set false to skip it."),
     /** Health-check URL polled until it responds. Defaults to http://127.0.0.1:<port>. */
     url: z
       .string()
@@ -86,11 +91,11 @@ export const serverSettingsSchema = z
       .positive()
       .default(3101)
       .describe("Port the readiness check polls; also derives `url` and is passed as PORT so the server binds it. Defaults to 3101."),
-    /** Working dir for build + command, relative to the config dir. Defaults to it. */
+    /** Working dir for build + command, relative to the repo root (where the CLI runs). Defaults to it. */
     cwd: z
       .string()
       .optional()
-      .describe("Working dir for build + command, relative to the config dir. Defaults to it."),
+      .describe("Working dir for build + command, relative to the repo root (where the CLI runs), so scripts run against your app. Defaults to the repo root."),
     /** Max time to wait for the server to become reachable (ms). */
     readyTimeoutMs: z
       .number()
@@ -221,12 +226,12 @@ export const settingsSchema = z.object({
   enabled: enabledSchema
     .default(true)
     .describe('Which assets to run: true (all not individually disabled), false (none), or a group string that runs only assets whose `enabled` matches (e.g. "quick-test").'),
-  /** Output directory, relative to the repo root. */
+  /** Output directory, relative to the `pro-visu/` config dir (so the default lands in pro-visu/output/). */
   outDir: z
     .string()
     .min(1)
     .default(DEFAULT_OUTDIR)
-    .describe(`Output directory for generated assets, relative to the repo root (default "${DEFAULT_OUTDIR}").`),
+    .describe(`Output directory for generated assets, relative to the pro-visu/ config dir (default "${DEFAULT_OUTDIR}", i.e. pro-visu/output/).`),
   /** How many assets to generate in parallel (shared browser, separate contexts). */
   concurrency: z
     .number()

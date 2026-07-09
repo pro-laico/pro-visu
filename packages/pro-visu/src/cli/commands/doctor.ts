@@ -1,6 +1,6 @@
-import path from "node:path";
 import { existsSync } from "node:fs";
-import { resolveCwd } from "@/utils/paths";
+import { resolveCwd, resolveConfigDir } from "@/utils/paths";
+import { detectPackageManager, pmRun } from "@/utils/package-manager";
 import { createLogger } from "@/utils/logger";
 import { loadShowcaseConfig } from "@/config/load";
 import type { ResolvedConfig } from "@/config/schema";
@@ -52,14 +52,14 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<void> {
     const loaded = await loadShowcaseConfig({ cwd, configFile: options.config });
     config = loaded.config;
     configFile = loaded.configFile;
-    const where = loaded.configFile ?? 'package.json "pro-visu" key';
+    const where = loaded.configFile ?? "pro-visu config";
     log.success(`Config OK (${where}) — ${config.assets.length} asset(s).`);
   } catch (err) {
     failed = true;
     reportConfigError(log, err);
   }
   // Keep a scaffolded pro-visu.schema.json current with this tool version (best-effort).
-  await refreshSchemaFile(configFile ? path.dirname(configFile) : cwd, log);
+  await refreshSchemaFile(resolveConfigDir(cwd, configFile), log);
   if (config) {
     if (validatePlan(log, config, config.assets, "final")) {
       log.success("Asset options OK.");
@@ -131,7 +131,11 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<void> {
 
     // Capture targets: a managed server is started per run; otherwise the URLs must already respond.
     if (serverCfg) {
-      log.info(`Managed server configured: \`${serverCfg.command}\` (started per run).`);
+      // Report the commands that will actually run — build/command default to the project's scripts.
+      const pm = detectPackageManager(cwd);
+      const startCmd = serverCfg.command ?? pmRun(pm, "start");
+      const buildCmd = serverCfg.build === false ? "skipped" : `\`${serverCfg.build ?? pmRun(pm, "build")}\``;
+      log.info(`Managed server: build ${buildCmd}, start \`${startCmd}\` (started per run).`);
     } else if (await preflightUrls(log, { ...config, assets: resolved }, resolved)) {
       log.success("Asset URLs respond.");
     } else {

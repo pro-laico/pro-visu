@@ -15,7 +15,7 @@ interface AssetRecord {
 
 async function loadAssets(): Promise<AssetRecord[] | null> {
   try {
-    const raw = await readFile(path.join(process.cwd(), "public", "pro-visu", "manifest.json"), "utf8");
+    const raw = await readFile(path.join(process.cwd(), "public", "pro-visu", "showcase", "manifest.json"), "utf8");
     const m = JSON.parse(raw) as { assets?: AssetRecord[] | Record<string, AssetRecord> };
     const assets = m.assets ?? (m as unknown as Record<string, AssetRecord>);
     return Array.isArray(assets) ? assets : Object.values(assets);
@@ -51,7 +51,7 @@ export default async function Gallery() {
         }}
       >
         {assets.map((a) => {
-          const src = `/pro-visu/${a.file}`;
+          const src = `/pro-visu/showcase/${a.file}`;
           const isVideo = a.format === "mp4" || a.format === "webm";
           return (
             <figure key={a.id} style={{ margin: 0 }}>

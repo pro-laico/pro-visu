@@ -3,15 +3,23 @@ title: Configuration
 description: The pro-visu.config file — settings (every field at its default), the managed server, assets, options merging, and the input graph.
 ---
 
-`pro-visu init` writes a `pro-visu.config.ts` with two blocks: `settings` (repo-level CLI
-behaviour) and `assets` (what to generate).
+Everything pro-visu owns lives in a `pro-visu/` folder at your repo root: `pro-visu init` writes
+`pro-visu/pro-visu.config.ts` with two blocks — `settings` (repo-level CLI behaviour) and `assets`
+(what to generate) — and output renders into `pro-visu/output/`.
 
-```ts
+```
+pro-visu/
+├─ pro-visu.config.ts   # the config
+├─ config/              # optional: modules the config is split into
+└─ output/              # generated assets + manifest.json (gitignored)
+```
+
+```ts title="pro-visu/pro-visu.config.ts"
 import { defineConfig } from "pro-visu";
 
 export default defineConfig({
   // repo-level behaviour — every field is optional (full reference below)
-  settings: { outDir: "pro-visu" },
+  settings: { outDir: "output" },
   // one entry per thing to generate
   assets: [
     { name: "home-reel", url: "https://your-site.com", generator: "scroll-reel" },
@@ -24,16 +32,24 @@ field, but the config is validated again at runtime.
 
 ## File discovery
 
-Without `--config <path>`, the CLI discovers config in any of these forms:
+Without `--config <path>`, the CLI looks **inside the `pro-visu/` folder** for the config:
 
 - `pro-visu.config.ts` · `.js` · `.mjs` · `.cjs` · `.json`
 - `.pro-visurc` / `.pro-visurc.json`
-- a `"pro-visu"` key in `package.json`
 
-A `.ts` config that imports `defineConfig` requires the `pro-visu` package to be
-resolvable from that folder; a `.json` config does not. A JSON config gets the same
+An explicit `--config <path>` escapes this convention and is loaded as given (paths resolve
+against the repo root). A `.ts` config that imports `defineConfig` requires the `pro-visu` package
+to be resolvable from that folder; a `.json` config does not. A JSON config gets the same
 autocomplete + validation from a generated `pro-visu.schema.json` — `pro-visu init --json`
-writes it and points the config at it via `$schema`.
+writes it (next to the config) and points the config at it via `$schema`.
+
+### Multiple configs
+
+You can keep more than one config in the folder — e.g. a main showcase and a smaller docs set —
+and run the extra ones by name: `pro-visu generate --config pro-visu/docs.config.ts`. Give each its
+own `outDir` (a nested subfolder such as `output/showcase` and `output/docs` is tidiest) so they
+don't share one `manifest.json` — each run writes and prunes its own manifest, so a shared output
+dir would have the two configs clobbering each other's records.
 
 ## Settings
 
@@ -42,18 +58,18 @@ for them: output & run behaviour, then the capture environment (browser + manage
 capture-mode settings and per-generator defaults.
 
 export const serverFields = [
-  { name: 'command', type: 'string', required: true, description: 'Command that starts the server, run via the shell. The tool sets PORT/HOST in its environment to the readiness port/host, so frameworks that honour PORT (Next, Vite, …) bind it automatically — "next start" is enough. An explicit flag (e.g. next start -p 4000) still wins.' },
-  { name: 'build', type: 'string', description: 'Optional one-shot build to run first, e.g. "next build".' },
+  { name: 'command', type: 'string', default: '<pm> start', description: 'Command that starts the server, run via the shell. Defaults to your project\'s start script (e.g. "pnpm start"), detected from the lockfile — so you rarely set it. The tool sets PORT/HOST in its environment to the readiness port/host, so frameworks that honour PORT (Next, Vite, …) bind it automatically. An explicit flag (e.g. next start -p 4000) still wins.' },
+  { name: 'build', type: 'string | false', default: '<pm> build', description: 'One-shot build run before starting. Defaults to your project\'s build script (e.g. "pnpm build"); set false to skip it (already-built or dev-server setups).' },
   { name: 'url', type: 'string', description: 'Health-check URL polled until it responds. Defaults to http://127.0.0.1:<port>.' },
   { name: 'port', type: 'number', default: '3101', description: 'Port the readiness check probes (and derives url from), also passed to the command as PORT so it binds the same port.' },
-  { name: 'cwd', type: 'string', default: 'config dir', description: 'Working directory for build + command, relative to the config.' },
+  { name: 'cwd', type: 'string', default: 'repo root', description: 'Working directory for build + command, relative to the repo root (where the CLI is run), not the pro-visu/ folder — so "next build" runs against your app.' },
   { name: 'readyTimeoutMs', type: 'number', default: '120000', description: 'Max time to wait for the server to become reachable.' },
   { name: 'reuseExisting', type: 'boolean', default: 'true', description: "If a server is already reachable at the URL, use it as-is (don't start or stop one)." },
 ]
 
 export const settingsOptions = [
   { name: 'enabled', type: 'boolean | string', default: 'true', description: 'Which assets to run. true runs every asset that is not individually disabled; false runs none; a group string (e.g. "quick-test") runs only the assets whose own enabled matches it — a fast way to swap between quality passes. Explicit --asset selection on the CLI overrides this.' },
-  { name: 'outDir', type: 'string', default: '"pro-visu"', description: 'Output directory, relative to the repo root. Holds generated assets + manifest.json.' },
+  { name: 'outDir', type: 'string', default: '"output"', description: 'Output directory, relative to the pro-visu/ config dir (so the default lands in pro-visu/output/). Holds generated assets + manifest.json.' },
   { name: 'concurrency', type: 'number', default: '1', description: 'How many assets to generate in parallel (shared browser, separate contexts). Raise it on a machine with RAM headroom for faster runs.' },
   { name: 'logLevel', type: '"silent" | "error" | "warn" | "info" | "debug"', default: '"info"', description: 'Log verbosity for generate and list. --verbose forces "debug" on generate; doctor always reports in full. (Render quality is an iteration choice — set it with --draft, not here.)' },
   { name: 'cache', type: 'boolean', default: 'false', description: 'Skip assets whose inputs + options + tool fingerprint are unchanged. Opt-in; can be stale. Same as --cache.' },
@@ -64,7 +80,7 @@ export const settingsOptions = [
     { name: 'args', type: 'string[]', default: '[]', description: 'Extra launch args, e.g. ["--no-sandbox"] on CI.' },
     { name: 'launchTimeoutMs', type: 'number', default: '30000', description: 'Browser launch timeout in ms.' },
   ] },
-  { name: 'server', type: 'object', description: 'Optional managed server — the tool builds, starts, waits for, and stops your site (see below). Only command is required.', options: serverFields },
+  { name: 'server', type: 'object', description: 'Optional managed server — the tool builds, starts, waits for, and stops your site (see below). Every field defaults, so `server: {}` works; build/command fall back to your project\'s package scripts.', options: serverFields },
   { name: 'capture', type: 'object', description: 'Applied to every URL-based asset (scroll-reel, screenshots, interaction) and folded into the cache key. Two halves: signals into the site, and cleanup the tool applies itself.', options: [
     { name: 'signals', type: 'object', description: 'Capture-mode flags delivered into the site. The site must READ one and render settled (reveals shown, count-ups final).', options: [
       { name: 'query', type: 'Record<string, string>', description: 'Query params appended to every URL-based asset, e.g. { capture: "1" } → ?capture=1.' },
@@ -104,7 +120,7 @@ view; **TypeScript** is the same shape in code, every field at its default.
 settings: {
   // output & run behaviour
   enabled: true,                       // false = run none; "quick-test" = run only that group
-  outDir: "pro-visu",
+  outDir: "output",
   concurrency: 1,
   logLevel: "info",
   cache: false,
@@ -117,7 +133,7 @@ settings: {
     args: [],                          // e.g. ["--no-sandbox"] on CI
     launchTimeoutMs: 30000,
   },
-  // server: { command: "next start" }, // managed server — see below
+  // server: {}, // managed server (build → `<pm> build`, start → `<pm> start`) — see below
 
   // capture-mode + generator defaults
   capture: {
@@ -216,27 +232,37 @@ settings: {
 
 ## Managed server
 
-When `settings.server` is set, `pro-visu generate` builds your site (if a `build` is given),
-starts it, waits for it to respond, runs the capture, then shuts it down — so a project's npm
-script can be just `pro-visu generate`. (Every `server` field is in the reference above; only
-`command` is required.)
+When `settings.server` is set — **even as an empty `{}`** — `pro-visu generate` builds your site,
+starts it, waits for it to respond, runs the capture, then shuts it down, so a project's npm
+script can be just `pro-visu generate`. `build` and `command` default to your project's own
+package scripts (`<pm> build` / `<pm> start`, detected from the lockfile), so you rarely set
+either — pro-visu just follows along with whatever those scripts do. Change your `build`/`start`
+scripts and pro-visu follows automatically.
 
 ```ts
 import { defineConfig } from "pro-visu";
 
 export default defineConfig({
-  settings: {
-    server: {
-      build: "next build",
-      command: "next start", // PORT is injected (defaults to 3101) — no -p needed
-    },
-  },
+  // build → `pnpm build`, start → `pnpm start` (or npm/yarn/bun) — no fields needed:
+  settings: { server: {} },
   assets: [
     // url omitted → captures the server root; relative paths resolve against it
     { name: "home", generator: "scroll-reel" },
     { name: "pricing", url: "/pricing", generator: "scroll-reel" },
   ],
 });
+```
+
+Override any field only when your setup differs — e.g. `command: "next start -p 4000"`, or
+`build: false` to skip the build for an already-built or dev-server target:
+
+```ts
+settings: {
+  server: {
+    build: false,             // don't build — just start
+    command: "pnpm dev",      // point at a dev server instead of a production start
+  },
+},
 ```
 
 The managed server's URL is the **default base** for capture targets: a url-based asset that
@@ -375,20 +401,20 @@ Selecting an asset with `--asset` automatically pulls in its dependencies.
 
 ## Splitting the config
 
-Nothing requires one monolithic file. As a showcase grows, split it into modules — settings in
-one file, each asset family in its own — and compose them in `pro-visu.config.ts`, the way a
-Payload config imports its collections:
+Nothing requires one monolithic file. As a showcase grows, split it into modules under
+`pro-visu/config/` — settings in one file, each asset family in its own — and compose them in
+`pro-visu/pro-visu.config.ts`, the way a Payload config imports its collections:
 
-```ts title="showcase/settings.ts"
+```ts title="pro-visu/config/settings.ts"
 import type { ShowcaseSettingsInput } from "pro-visu";
 
 export const settings: ShowcaseSettingsInput = {
-  outDir: "pro-visu",
-  server: { command: "next start" },
+  outDir: "output",
+  server: {}, // build → `<pm> build`, start → `<pm> start`
 };
 ```
 
-```ts title="showcase/films.ts"
+```ts title="pro-visu/config/films.ts"
 import type { AssetSpecInput } from "pro-visu";
 
 export const films: AssetSpecInput[] = [
@@ -405,11 +431,11 @@ export const films: AssetSpecInput[] = [
 ];
 ```
 
-```ts title="pro-visu.config.ts"
+```ts title="pro-visu/pro-visu.config.ts"
 import { defineConfig } from "pro-visu";
-import { settings } from "./showcase/settings";
-import { films } from "./showcase/films";
-import { stills } from "./showcase/stills";
+import { settings } from "./config/settings";
+import { films } from "./config/films";
+import { stills } from "./config/stills";
 
 export default defineConfig({ settings, assets: [...films, ...stills] });
 ```

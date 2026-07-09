@@ -6,7 +6,9 @@ description: Set up and run pro-visu in a project to generate marketing/showcase
 # Setting up pro-visu
 
 `pro-visu` ("For Show") is a CLI that captures a website by URL and writes showcase assets into a
-gitignored `pro-visu/` folder. Your job with this skill: install pro-visu, write a working
+gitignored `pro-visu/output/` folder. Everything pro-visu owns lives under a `pro-visu/` folder:
+the config (`pro-visu/pro-visu.config.ts`), any modules it's split into (`pro-visu/config/`), and
+output (`pro-visu/output/`). Your job with this skill: install pro-visu, write a working
 `pro-visu.config` for the project at hand, and generate.
 
 - **Docs:** https://pro-visu.com/docs · **CLI reference:** https://pro-visu.com/docs/cli
@@ -29,21 +31,24 @@ For one-offs, skip the install and prefix commands with `npx` (e.g. `npx pro-vis
 
 ## 2. Scaffold
 ```bash
-pnpm exec pro-visu init          # typed pro-visu.config.ts
+pnpm exec pro-visu init          # typed pro-visu/pro-visu.config.ts
 pnpm exec pro-visu init --json   # dependency-free JSON config + JSON Schema (for npx / global use)
 ```
 `init` detects the package manager, framework, and dev port (Next → 3000, Vite → 5173, …) and
 scaffolds the config to match; when pro-visu isn't a local dependency it falls back to the JSON
-config automatically. It also creates + gitignores `pro-visu/`, adds a `pro-visu` npm script, and
-ensures Chromium. Re-running is safe (idempotent).
+config automatically. It also creates + gitignores `pro-visu/output/`, adds a `pro-visu` npm script,
+and ensures Chromium. Re-running is safe (idempotent).
 
 ## 3. Configure for THIS project
-Edit `pro-visu.config.ts`. Two decisions:
+Edit `pro-visu/pro-visu.config.ts`. Two decisions:
 
 - **Where the site runs.** Use a deployed URL, a localhost the user has already started, OR set
-  `settings.server` so pro-visu builds → starts → captures → stops the site itself — e.g.
-  `{ build: "npm run build", command: "npm start", port: 3101 }`. With a managed server, relative
-  asset `url`s (e.g. `/shop`) resolve against it and an omitted `url` captures the root.
+  `settings.server` so pro-visu builds → starts → captures → stops the site itself. `server: {}`
+  is enough — `build`/`command` default to the project's own `<pm> build` / `<pm> start` scripts
+  (detected from the lockfile), so it follows along with whatever those do. Override a field only
+  when the setup differs (e.g. `command: "next start -p 4000"`, or `build: false` to skip building).
+  With a managed server, relative asset `url`s (e.g. `/shop`) resolve against it (default port
+  3101) and an omitted `url` captures the root.
 - **What to capture.** Each `assets` entry names a `generator`. A solid starting set:
 
 ```ts
@@ -51,8 +56,8 @@ import { defineConfig } from "pro-visu";
 
 export default defineConfig({
   settings: {
-    outDir: "pro-visu",
-    // server: { build: "npm run build", command: "npm start", port: 3101 },
+    outDir: "output", // relative to pro-visu/ → renders into pro-visu/output/
+    // server: {}, // build → `<pm> build`, start → `<pm> start` (port 3101); override only if needed
     defaults: {
       "scroll-reel": {
         output: {
@@ -120,7 +125,7 @@ pnpm exec pro-visu generate                 # all assets (add --draft while iter
 pnpm exec pro-visu generate --asset home-reel   # just one (repeatable)
 pnpm exec pro-visu list                     # show what's in the manifest (--json for scripts)
 ```
-Assets land in `pro-visu/<generator>/...` with metadata in `pro-visu/manifest.json` (gitignored).
+Assets land in `pro-visu/output/<generator>/...` with metadata in `pro-visu/output/manifest.json` (gitignored).
 Re-running replaces an asset's record by `name`.
 
 ## Capture-safe animations (esp. screenshots)
