@@ -32,4 +32,17 @@ describe("server settings", () => {
   it("is optional in settings (no server block)", () => {
     expect(settingsSchema.parse({}).server).toBeUndefined();
   });
+
+  it("accepts an empty server block — command/build default to the project's scripts at runtime", () => {
+    const server = serverSettingsSchema.parse({});
+    expect(server.command).toBeUndefined();
+    expect(server.build).toBeUndefined();
+    expect(server.port).toBe(3101); // other defaults still apply
+  });
+
+  it("accepts build: false to skip the build step", () => {
+    expect(serverSettingsSchema.parse({ build: false }).build).toBe(false);
+    // an empty-string build is still rejected (min length) — false is the disable sentinel
+    expect(() => serverSettingsSchema.parse({ build: "" })).toThrow();
+  });
 });

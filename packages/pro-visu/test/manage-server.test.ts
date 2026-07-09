@@ -115,6 +115,34 @@ describe("startManagedServer", () => {
     expect(await waitUntil(false, url, 8000)).toBe(true); // tree killed → port stops answering
   }, 30000);
 
+  it("defaults build + command to the project's package scripts when they're omitted", async () => {
+    const dir = await tmp();
+    const port = await freePort();
+    // start script runs a server on the injected PORT; build script drops a marker file.
+    await writeFile(
+      path.join(dir, "server.cjs"),
+      `const http = require("http");
+http.createServer((_q, r) => { r.statusCode = 200; r.end("ok"); }).listen(Number(process.env.PORT), "127.0.0.1");
+`,
+      "utf8",
+    );
+    await writeFile(
+      path.join(dir, "package.json"),
+      // no lockfile / packageManager field → detected as npm → `npm run build` / `npm run start`
+      JSON.stringify({ name: "probe", scripts: { build: 'node -e "process.exit(0)"', start: "node server.cjs" } }),
+      "utf8",
+    );
+    const url = `http://127.0.0.1:${port}`;
+    const server = serverSettingsSchema.parse({ port, reuseExisting: false, readyTimeoutMs: 15000 }); // no build/command
+
+    const handle = await startManagedServer(server, dir, log);
+    expect(handle).not.toBeNull();
+    expect(await reachable(url)).toBe(true); // default `npm run start` booted the server on PORT
+
+    await handle!.stop();
+    expect(await waitUntil(false, url, 8000)).toBe(true);
+  }, 30000);
+
   // Windows: a shell-spawned child's `exit` event fires even while the underlying node process
   // keeps running, so the readiness failure always reports via the "exited" branch and the pure
   // timeout branch can't be reached. It IS reachable on POSIX (the shell child stays alive), so
@@ -137,6 +165,7 @@ setInterval(() => {}, 1000); // belt-and-suspenders: keep the event loop open
       const port = await freePort(); // nothing ever listens here
       const server = serverSettingsSchema.parse({
         command: `node "${keepAlive}"`,
+        build: false, // isolate the server-lifecycle path (no package.json to default-build in tmp)
         port,
         reuseExisting: false,
         readyTimeoutMs: 1200,
@@ -151,6 +180,7 @@ setInterval(() => {}, 1000); // belt-and-suspenders: keep the event loop open
     const port = await freePort();
     const server = serverSettingsSchema.parse({
       command: "exit 0", // exits immediately without ever listening
+      build: false, // isolate the command-exit path (no package.json to default-build in tmp)
       port,
       reuseExisting: false,
       readyTimeoutMs: 1200,

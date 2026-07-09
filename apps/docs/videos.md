@@ -22,20 +22,21 @@ From the repo root, render the curated subset and copy it in:
 pnpm --filter testing generate --asset type-sans --asset colors-reel --asset lookbook-wall --asset home-vertical
 
 # 2. copy the curated outputs into videos/ (flat names)
-cp apps/testing/public/pro-visu/specimen/type-sans.mp4         apps/docs/videos/type-sans.mp4
-cp apps/testing/public/pro-visu/palette-reel/colors-reel.mp4   apps/docs/videos/colors-reel.mp4
-cp apps/testing/public/pro-visu/wall/lookbook-wall.mp4         apps/docs/videos/lookbook-wall.mp4
-cp apps/testing/public/pro-visu/scroll-reel/home-vertical.mp4  apps/docs/videos/docs-vertical.mp4
+cp apps/testing/public/pro-visu/showcase/specimen/type-sans.mp4         apps/docs/videos/type-sans.mp4
+cp apps/testing/public/pro-visu/showcase/palette-reel/colors-reel.mp4   apps/docs/videos/colors-reel.mp4
+cp apps/testing/public/pro-visu/showcase/wall/lookbook-wall.mp4         apps/docs/videos/lookbook-wall.mp4
+cp apps/testing/public/pro-visu/showcase/scroll-reel/home-vertical.mp4  apps/docs/videos/docs-vertical.mp4
 ```
 
 The fuller set of examples — the `docs-*` clips and the `public/examples/` stills — is generated
-from a dedicated config, [`apps/testing/pro-visu.docs.config.ts`](../testing/pro-visu.docs.config.ts):
+from a dedicated config, [`apps/testing/pro-visu/pro-visu.docs.config.ts`](../testing/pro-visu/pro-visu.docs.config.ts):
 
 ```bash
-pnpm --filter testing exec pro-visu generate --config pro-visu.docs.config.ts
+pnpm --filter testing exec pro-visu generate --config pro-visu/pro-visu.docs.config.ts
 ```
 
-Then copy the `docs-*.mp4` into `videos/`, the palette/screenshot PNGs into
+Those land in `apps/testing/public/pro-visu/docs/` (its own subfolder + manifest, separate from the
+main showcase). Then copy the `docs-*.mp4` into `videos/`, the palette/screenshot PNGs into
 `apps/docs/public/examples/`, and convert the (very tall, ~12 MB) full-page desktop screenshot to
 JPEG, e.g. `ffmpeg -i docs-shot-desktop-desktop.png -q:v 4 public/examples/docs-shot-desktop.jpg`.
 
@@ -78,4 +79,4 @@ Set the same `MUX_TOKEN_*` vars in the Vercel project env so deploys can process
 > **Source files:** the raw `*.mp4` files are committed so the docs render in `pnpm --filter docs
 > dev` without Mux. Once the `*.mp4.json` files carry Mux playback ids, you can stop tracking the
 > raw sources (gitignore `videos/*.mp4`) and let Mux serve them — the config that regenerates
-> them lives in [`apps/testing/pro-visu.config.ts`](../testing/pro-visu.config.ts).
+> them lives in [`apps/testing/pro-visu/pro-visu.config.ts`](../testing/pro-visu/pro-visu.config.ts).

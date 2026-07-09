@@ -1,13 +1,22 @@
 import path from "node:path";
+import { CONFIG_DIR } from "@/config/defaults";
 
 /** Resolve a working directory to an absolute path (defaults to process.cwd()). */
 export function resolveCwd(cwd?: string): string {
   return path.resolve(cwd ?? process.cwd());
 }
 
-/** Resolve the output directory (e.g. `pro-visu/`) against the consuming repo root. */
-export function resolveOutDir(cwd: string, outDir: string): string {
-  return path.resolve(cwd, outDir);
+/**
+ * The directory that holds the config file, its nested modules, and output: the dir of the
+ * discovered config file, or `<cwd>/pro-visu/` when there is none (init/list fallbacks).
+ */
+export function resolveConfigDir(cwd: string, configFile?: string): string {
+  return configFile ? path.dirname(configFile) : path.join(cwd, CONFIG_DIR);
+}
+
+/** Resolve the output directory (default `output`) against the config dir (`<repo>/pro-visu/`). */
+export function resolveOutDir(configDir: string, outDir: string): string {
+  return path.resolve(configDir, outDir);
 }
 
 /** Per-generator subdirectory inside the output dir, e.g. `pro-visu/scroll-reel`. */

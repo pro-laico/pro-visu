@@ -1,5 +1,5 @@
 import pc from "picocolors";
-import { resolveCwd, resolveOutDir } from "@/utils/paths";
+import { resolveCwd, resolveConfigDir, resolveOutDir } from "@/utils/paths";
 import { createLogger } from "@/utils/logger";
 import { loadShowcaseConfig, ConfigNotFoundError } from "@/config/load";
 import type { LogLevel } from "@/config/schema";
@@ -24,12 +24,12 @@ export async function runList(options: ListOptions = {}): Promise<void> {
   let outDir: string;
   let logLevel: LogLevel = "info";
   try {
-    const { config } = await loadShowcaseConfig({ cwd, configFile: options.config });
-    outDir = resolveOutDir(cwd, config.settings.outDir);
+    const { config, configFile } = await loadShowcaseConfig({ cwd, configFile: options.config });
+    outDir = resolveOutDir(resolveConfigDir(cwd, configFile), config.settings.outDir);
     logLevel = config.settings.logLevel;
   } catch (err) {
     if (err instanceof ConfigNotFoundError) {
-      outDir = resolveOutDir(cwd, DEFAULT_OUTDIR);
+      outDir = resolveOutDir(resolveConfigDir(cwd), DEFAULT_OUTDIR);
     } else {
       reportConfigError(bootstrap, err);
       process.exitCode = 1;

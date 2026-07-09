@@ -5,10 +5,10 @@ description: pro-visu turns a website into marketing assets — scroll reels, sc
 
 **pro-visu** — a portable CLI that turns the sites you build into marketing/showcase assets:
 scroll reels, responsive screenshots, looping media walls, font/colour specimens — all from one
-`pro-visu.config.ts`.
+`pro-visu/pro-visu.config.ts`.
 
-Install into a repo, point assets at a URL, run `pro-visu generate`. Output → gitignored
-`pro-visu/` + a `manifest.json`.
+Install into a repo, point assets at a URL, run `pro-visu generate`. Everything lives in a
+`pro-visu/` folder: the config, and gitignored output in `pro-visu/output/` (+ a `manifest.json`).
 
 <Showcase clip="docs-home" />
 
@@ -16,7 +16,7 @@ Install into a repo, point assets at a URL, run `pro-visu generate`. Output → 
 
 Three pieces:
 
-1. **Config** — `pro-visu.config.ts`: `settings` (repo-level CLI behaviour) + `assets` (what to
+1. **Config** — `pro-visu/pro-visu.config.ts`: `settings` (repo-level CLI behaviour) + `assets` (what to
    generate).
 2. **Generators** — each asset names a `generator`. Options merge `settings.defaults["<generator>"]`
    under the asset's own `options`.

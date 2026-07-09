@@ -23,7 +23,7 @@ Then open `/gallery` (`pnpm --filter testing dev`) to view the generated assets.
 - `app/lookbook/page.tsx` — a brand board built for capture: stable-id 3:4 panels
   (`#lb-wordmark`, `#lb-editorial`, `#lb-spec-coat`, `#lb-swatch`, `#lb-quote`) that the focus
   clips crop into standalone tiles.
-- `app/gallery/page.tsx` — reads `public/pro-visu/manifest.json` to preview generated assets.
+- `app/gallery/page.tsx` — reads `public/pro-visu/showcase/manifest.json` to preview generated assets.
 - `app/components/` — shared `Header` (nav mega-menu + slide-in cart drawer), `Footer`,
   `ProductCard`, `AddToBag`, `Placeholder`, the `cart` context, and more.
 - `app/lib/catalog.ts` — products, categories, tones. `app/lib/media.ts` — hero/editorial imagery.

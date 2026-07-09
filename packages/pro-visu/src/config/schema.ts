@@ -5,6 +5,14 @@ import { DEFAULT_OUTDIR, DEFAULT_CONCURRENCY } from "@/config/defaults";
 const logLevelSchema = z.enum(["silent", "error", "warn", "info", "debug"]);
 export type LogLevel = z.infer<typeof logLevelSchema>;
 
+/**
+ * `enabled` toggle shared by each asset and the global `settings`. `true`/`false` switch an asset
+ * on/off; a string tags it into a named group (e.g. "quick-test"). Setting `settings.enabled` to a
+ * group string runs only the assets tagged with it — a fast way to swap between quality passes.
+ */
+const enabledSchema = z.union([z.boolean(), z.string().min(1)]);
+export type EnabledFlag = z.infer<typeof enabledSchema>;
+
 /** Playwright launch controls, settable per-repo. */
 const browserSettingsSchema = z
   .object({
@@ -39,28 +47,33 @@ const browserSettingsSchema = z
 export type ResolvedBrowserSettings = z.infer<typeof browserSettingsSchema>;
 
 /**
- * Optional managed server. When set, `pro-visu generate` builds (if given), starts the
+ * Optional managed server. When set (even as `{}`), `pro-visu generate` builds, starts the
  * server, waits for it to respond, runs the capture, then shuts it down — so a project's
- * npm script can be just `pro-visu generate`.
+ * npm script can be just `pro-visu generate`. `build` and `command` default to the project's own
+ * package scripts (`<pm> build` / `<pm> start`, detected from the lockfile), so it follows along
+ * with whatever those scripts do without needing to be set.
  */
 export const serverSettingsSchema = z
   .object({
     /**
-     * Command that starts the server, run via the shell. The tool sets PORT/HOST in the
-     * command's environment to the readiness port/host, so frameworks that honor PORT (Next,
-     * Vite, …) bind it automatically — `command: "next start"` is enough. An explicit flag
-     * (e.g. `next start -p 4000`) still wins.
+     * Command that starts the server, run via the shell. Defaults to the project's `<pm> start`
+     * script (e.g. `pnpm start`). The tool sets PORT/HOST in the command's environment to the
+     * readiness port/host, so frameworks that honor PORT (Next, Vite, …) bind it automatically.
+     * An explicit flag (e.g. `next start -p 4000`) still wins.
      */
     command: z
       .string()
       .min(1)
-      .describe("Command that starts the server, run via the shell. PORT/HOST are set in its env so PORT-honoring frameworks bind automatically."),
-    /** Optional one-shot build to run first, e.g. "next build". */
-    build: z
-      .string()
-      .min(1)
       .optional()
-      .describe('Optional one-shot build to run first, e.g. "next build".'),
+      .describe("Command that starts the server, run via the shell. Defaults to the project's `<pm> start` script. PORT/HOST are set in its env so PORT-honoring frameworks bind automatically."),
+    /**
+     * One-shot build to run before starting, e.g. "next build". Defaults to the project's
+     * `<pm> build` script; set `false` to skip building (already-built or dev-server setups).
+     */
+    build: z
+      .union([z.string().min(1), z.literal(false)])
+      .optional()
+      .describe("One-shot build run before starting. Defaults to the project's `<pm> build` script; set false to skip it."),
     /** Health-check URL polled until it responds. Defaults to http://127.0.0.1:<port>. */
     url: z
       .string()
@@ -78,11 +91,11 @@ export const serverSettingsSchema = z
       .positive()
       .default(3101)
       .describe("Port the readiness check polls; also derives `url` and is passed as PORT so the server binds it. Defaults to 3101."),
-    /** Working dir for build + command, relative to the config dir. Defaults to it. */
+    /** Working dir for build + command, relative to the repo root (where the CLI runs). Defaults to it. */
     cwd: z
       .string()
       .optional()
-      .describe("Working dir for build + command, relative to the config dir. Defaults to it."),
+      .describe("Working dir for build + command, relative to the repo root (where the CLI runs), so scripts run against your app. Defaults to the repo root."),
     /** Max time to wait for the server to become reachable (ms). */
     readyTimeoutMs: z
       .number()
@@ -199,18 +212,61 @@ export const captureSettingsSchema = z
 export type ResolvedCaptureSettings = z.infer<typeof captureSettingsSchema>;
 
 /**
+ * Per-asset cleanup OVERRIDE — a sparse partial of the global `cleanup` (no field has a default, so
+ * an omitted key inherits the global). Array fields are ADDITIVE (unioned with the globals), and two
+ * subtraction escapes remove inherited entries: `showSelectors` un-hides globally-hidden elements,
+ * `unblockHosts` un-blocks globally-blocked hosts.
+ */
+const captureCleanupOverrideSchema = z
+  .object({
+    hideSelectors: z.array(z.string()).optional().describe("Extra selectors to hide, added on top of the global hideSelectors."),
+    showSelectors: z.array(z.string()).optional().describe("Un-hide: selectors to REMOVE from the inherited global hideSelectors (e.g. show a globally-hidden cookie banner in this one asset)."),
+    injectCss: z.string().optional().describe("Extra CSS, appended to the global injectCss for this asset."),
+    clickSelectors: z.array(z.string()).optional().describe("Extra selectors to click, added on top of the global clickSelectors."),
+    hideScrollbars: z.boolean().optional().describe("Override the global hideScrollbars for this asset. Omit to inherit."),
+    pauseAnimations: z.boolean().optional().describe("Override the global pauseAnimations for this asset. Omit to inherit."),
+    freezeClock: z.boolean().optional().describe("Override the global freezeClock for this asset. Omit to inherit."),
+    blockTrackers: z.boolean().optional().describe("Override the global blockTrackers for this asset. Omit to inherit."),
+    blockHosts: z.array(z.string()).optional().describe("Extra hostname substrings to block, added on top of the global blockHosts."),
+    unblockHosts: z.array(z.string()).optional().describe("Un-block: hostname substrings to REMOVE from the inherited global blockHosts."),
+    blockResourceTypes: z.array(z.string()).optional().describe("Extra Playwright resource types to block, added on top of the global blockResourceTypes."),
+  })
+  .strict();
+
+/**
+ * A single asset's capture override, deep-merged OVER `settings.capture` when the asset runs. Lets a
+ * globally-hidden element (say a cookie banner) be shown off in one asset, or any signal/cleanup be
+ * tuned per asset without touching the global. Omit a key to inherit the global value.
+ */
+export const captureOverrideSchema = z
+  .object({
+    signals: captureSignalsSchema.optional().describe("Per-asset capture signals, merged over the global ones (records merge; cookies merge by name)."),
+    cleanup: captureCleanupOverrideSchema.optional().describe("Per-asset cleanup overrides, merged over the global ones (arrays additive; showSelectors/unblockHosts subtract)."),
+  })
+  .strict();
+export type ResolvedCaptureOverride = z.infer<typeof captureOverrideSchema>;
+
+/**
  * Repo-level CLI behavior (the `settings` block). Fields are grouped: output & run behavior, then
  * the capture environment (browser + managed server), then capture-mode settings and per-generator
  * defaults. Render quality is not persisted here — it's an iteration-time choice, set with `--draft`.
  */
 export const settingsSchema = z.object({
   // --- output & run behavior ---
-  /** Output directory, relative to the repo root. */
+  /**
+   * Which assets to run. `true` (default) runs every asset that isn't individually disabled;
+   * `false` runs none; a group string (e.g. "quick-test") runs only the assets tagged with that
+   * same string in their own `enabled`. Explicit `--asset` selection on the CLI overrides this.
+   */
+  enabled: enabledSchema
+    .default(true)
+    .describe('Which assets to run: true (all not individually disabled), false (none), or a group string that runs only assets whose `enabled` matches (e.g. "quick-test").'),
+  /** Output directory, relative to the `pro-visu/` config dir (so the default lands in pro-visu/output/). */
   outDir: z
     .string()
     .min(1)
     .default(DEFAULT_OUTDIR)
-    .describe(`Output directory for generated assets, relative to the repo root (default "${DEFAULT_OUTDIR}").`),
+    .describe(`Output directory for generated assets, relative to the pro-visu/ config dir (default "${DEFAULT_OUTDIR}", i.e. pro-visu/output/).`),
   /** How many assets to generate in parallel (shared browser, separate contexts). */
   concurrency: z
     .number()
@@ -261,6 +317,15 @@ export const assetSpecSchema = z
   .object({
     name: z.string().min(1),
     /**
+     * Whether to run this asset. `true` (default) includes it; `false` leaves it out without
+     * deleting or commenting it; a group string (e.g. "quick-test") tags it so `settings.enabled`
+     * set to the same string runs only that group. Dependencies of a running asset are pulled in
+     * regardless of their own `enabled`.
+     */
+    enabled: enabledSchema
+      .default(true)
+      .describe('Run this asset? true (default), false to skip it, or a group string (e.g. "quick-test") selected via settings.enabled.'),
+    /**
      * Page to capture: an absolute `https://…` URL, or a path like `/shop` resolved against the
      * managed server's URL. Optional — with a managed server, a url-based asset that omits it
      * captures the server root; local generators (`specimen`, `palette`, `wall`, …) need no url.
@@ -275,6 +340,13 @@ export const assetSpecSchema = z
       .optional(),
     generator: z.string().min(1),
     options: z.record(z.string(), z.unknown()).default({}),
+    /**
+     * Per-asset overrides of `settings.capture`, deep-merged over it for this asset only — e.g. show
+     * a globally-hidden element (`cleanup: { showSelectors: ["#cookie-banner"] }`) or flip a toggle.
+     */
+    capture: captureOverrideSchema
+      .optional()
+      .describe("Per-asset capture overrides, merged over settings.capture (e.g. show a globally-hidden cookie banner here via cleanup.showSelectors)."),
   })
   .strict()
   .transform((a) => ({ ...a, inputs: {} as Record<string, string> }));

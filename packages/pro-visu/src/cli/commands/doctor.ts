@@ -1,6 +1,6 @@
-import path from "node:path";
 import { existsSync } from "node:fs";
-import { resolveCwd } from "@/utils/paths";
+import { resolveCwd, resolveConfigDir } from "@/utils/paths";
+import { detectPackageManager, pmRun } from "@/utils/package-manager";
 import { createLogger } from "@/utils/logger";
 import { loadShowcaseConfig } from "@/config/load";
 import type { ResolvedConfig } from "@/config/schema";
@@ -11,7 +11,7 @@ import { ensureChromium } from "@/binaries/chromium";
 import { ensureFfmpeg } from "@/binaries/ensure-ffmpeg";
 import { ffmpegIsSupported } from "@/binaries/ffmpeg-binary";
 import { applyDerivedInputs } from "@/pipeline/runner";
-import { buildGraph } from "@/pipeline/graph";
+import { buildGraph, resolveSelection } from "@/pipeline/graph";
 import { getGenerator } from "@/generators/registry";
 import { reportConfigError } from "@/cli/ui";
 import { validatePlan, preflightUrls } from "@/cli/commands/generate";
@@ -52,14 +52,14 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<void> {
     const loaded = await loadShowcaseConfig({ cwd, configFile: options.config });
     config = loaded.config;
     configFile = loaded.configFile;
-    const where = loaded.configFile ?? 'package.json "pro-visu" key';
+    const where = loaded.configFile ?? "pro-visu config";
     log.success(`Config OK (${where}) — ${config.assets.length} asset(s).`);
   } catch (err) {
     failed = true;
     reportConfigError(log, err);
   }
   // Keep a scaffolded pro-visu.schema.json current with this tool version (best-effort).
-  await refreshSchemaFile(configFile ? path.dirname(configFile) : cwd, log);
+  await refreshSchemaFile(resolveConfigDir(cwd, configFile), log);
   if (config) {
     if (validatePlan(log, config, config.assets, "final")) {
       log.success("Asset options OK.");
@@ -105,14 +105,37 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<void> {
     const resolved = resolveTargets(config.assets, serverBase, (id) =>
       Boolean(getGenerator(id)?.requiresUrl),
     );
-    log.info(`Plan: ${resolved.length} asset(s), concurrency ${config.settings.concurrency}`);
+    const willRun = new Set(
+      resolveSelection(resolved, undefined, config.settings.enabled).map((a) => a.name),
+    );
+    const { enabled } = config.settings;
+    const enabledNote =
+      enabled === true
+        ? ""
+        : enabled === false
+          ? " — settings.enabled: false (nothing runs)"
+          : ` — settings.enabled: "${enabled}" (group)`;
+    log.info(
+      `Plan: ${willRun.size}/${resolved.length} asset(s) run, concurrency ${config.settings.concurrency}${enabledNote}`,
+    );
     for (const a of resolved) {
-      log.log(`  • ${a.name}  [${a.generator}]${a.url ? `  ${a.url}` : ""}`);
+      const tag =
+        typeof a.enabled === "string"
+          ? `  (group "${a.enabled}")`
+          : a.enabled === false
+            ? "  (disabled)"
+            : "";
+      const mark = willRun.has(a.name) ? "•" : "·";
+      log.log(`  ${mark} ${a.name}  [${a.generator}]${a.url ? `  ${a.url}` : ""}${tag}`);
     }
 
     // Capture targets: a managed server is started per run; otherwise the URLs must already respond.
     if (serverCfg) {
-      log.info(`Managed server configured: \`${serverCfg.command}\` (started per run).`);
+      // Report the commands that will actually run — build/command default to the project's scripts.
+      const pm = detectPackageManager(cwd);
+      const startCmd = serverCfg.command ?? pmRun(pm, "start");
+      const buildCmd = serverCfg.build === false ? "skipped" : `\`${serverCfg.build ?? pmRun(pm, "build")}\``;
+      log.info(`Managed server: build ${buildCmd}, start \`${startCmd}\` (started per run).`);
     } else if (await preflightUrls(log, { ...config, assets: resolved }, resolved)) {
       log.success("Asset URLs respond.");
     } else {

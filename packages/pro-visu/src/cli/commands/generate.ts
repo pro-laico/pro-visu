@@ -1,4 +1,4 @@
-import { resolveCwd, resolveOutDir } from "@/utils/paths";
+import { resolveCwd, resolveConfigDir, resolveOutDir } from "@/utils/paths";
 import { ensureDir } from "@/utils/fs";
 import { createLogger, createReportingLogger, type Logger } from "@/utils/logger";
 import { loadShowcaseConfig } from "@/config/load";
@@ -28,7 +28,7 @@ import {
   mergeGeneratorOptions,
   type AssetOutcome,
 } from "@/pipeline/runner";
-import { expandSelection, dependenciesOf } from "@/pipeline/graph";
+import { resolveSelection, dependenciesOf } from "@/pipeline/graph";
 import { createReporter } from "@/cli/dashboard";
 import type { Reporter } from "@/pipeline/reporter";
 import { TOOL_VERSION } from "@/version";
@@ -67,14 +67,15 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     return;
   }
   const { config } = loaded;
+  const configDir = resolveConfigDir(cwd, loaded.configFile);
 
   // Keep a scaffolded pro-visu.schema.json current with this tool version (JSON-config editor
   // autocomplete). Best-effort; looks next to the config file.
-  await refreshSchemaFile(loaded.configFile ? path.dirname(loaded.configFile) : cwd, bootstrapLog);
+  await refreshSchemaFile(configDir, bootstrapLog);
 
   // NOTE: everything up to the dashboard mounting logs through `bootstrapLog` — the reporting
   // logger buffers lines into the not-yet-rendered dashboard, which would swallow early errors.
-  const outDir = resolveOutDir(cwd, config.settings.outDir);
+  const outDir = resolveOutDir(configDir, config.settings.outDir);
 
   // Reject a malformed --concurrency loudly instead of silently falling back to the config value.
   // (A bare `--concurrency` with no value reaches us as boolean true — also malformed.)
@@ -107,7 +108,24 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   // here in seconds — not after a minutes-long setup. Derive option-declared dependencies first
   // (e.g. a wall's tile producers) so the selection sees them.
   applyDerivedInputs(config);
-  const selected = expandSelection(config.assets, requested);
+  const selected = resolveSelection(config.assets, requested, config.settings.enabled);
+  if (selected.length === 0) {
+    // No requested names means the emptiness came from the enabled/group filter — say so plainly.
+    if (!requested) {
+      const { enabled } = config.settings;
+      const why =
+        enabled === false
+          ? "settings.enabled is false"
+          : typeof enabled === "string"
+            ? `no assets are tagged enabled: "${enabled}" (settings.enabled)`
+            : "no assets are enabled";
+      bootstrapLog.error(`No assets to generate — ${why}.`);
+    } else {
+      bootstrapLog.error("No matching assets to generate.");
+    }
+    process.exitCode = 1;
+    return;
+  }
   const quality = options.draft ? "draft" : "final";
   if (!validatePlan(bootstrapLog, config, selected, quality)) {
     process.exitCode = 1;
@@ -132,8 +150,9 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   }
   const baseServerCfg = options.skipServer || !anyNeedsServer ? undefined : config.settings.server;
   // --skip-build keeps the managed server but drops its one-shot build (the site is unchanged).
+  // `build: false` (not undefined) is the explicit skip — undefined would fall back to the default.
   const serverCfg =
-    baseServerCfg && options.skipBuild ? { ...baseServerCfg, build: undefined } : baseServerCfg;
+    baseServerCfg && options.skipBuild ? { ...baseServerCfg, build: false as const } : baseServerCfg;
 
   // The managed server's URL is the default base: a url-based asset that omits `url` captures its
   // root, and a relative `url` resolves against it. (No server → assets as authored.)
@@ -255,7 +274,8 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   const gates: string[] = [];
   const tasks: ServerTasks = {};
   if (reporter.isLive && serverCfg) {
-    if (serverCfg.build) {
+    // A build runs unless explicitly disabled — undefined means "default to the project's build script".
+    if (serverCfg.build !== false) {
       reporter.add({ id: "@build", name: "build", detail: "server", system: true });
       gates.push("@build");
       tasks.build = taskHandle(reporter, "@build");
