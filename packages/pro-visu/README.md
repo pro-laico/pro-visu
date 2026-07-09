@@ -2,8 +2,8 @@
 
 A portable CLI for generating marketing/showcase assets (scroll reels, responsive
 screenshots, media walls — with more asset types to come) of the websites you build. Install it
-into any website repo, point it at a URL, and it writes assets into a gitignored `pro-visu/`
-folder.
+into any website repo, point it at a URL, and it writes assets into a gitignored `pro-visu/output/`
+folder. Everything pro-visu owns — the config and its output — lives under a `pro-visu/` folder.
 
 > Status: **pre-1.0** (the option surface may still shift). Generators: `scroll-reel`,
 > `interaction`, `screenshots`, `wall`, `specimen`, `icons`, `palette`, `palette-reel` — see the
@@ -21,7 +21,7 @@ and author config:
 | | **Dev dependency** (recommended) | **Global / `npx`** (no install) |
 |---|---|---|
 | Install | `pnpm add -D pro-visu` | `npm i -g pro-visu`, or just `npx pro-visu …` |
-| Config | TS `pro-visu.config.ts` (`defineConfig`) — or JSON | JSON `pro-visu.config.json` |
+| Config | TS `pro-visu/pro-visu.config.ts` (`defineConfig`) — or JSON | JSON `pro-visu/pro-visu.config.json` |
 | Editor help | Full TypeScript checking + autocomplete + hover docs | Autocomplete + validation + hover docs from a generated JSON Schema |
 | Version | Pinned in your lockfile → you and CI build identical assets | Floating (npx fetches latest; pin with `pro-visu@x.y.z`) |
 | Best for | A repo you own, and CI pipelines | One-off captures, trying it out, throwaway scripts |
@@ -33,16 +33,16 @@ and author config:
 
 ```bash
 pnpm add -D pro-visu     # or: npm i -D pro-visu  /  yarn add -D pro-visu
-npx pro-visu init             # scaffolds pro-visu.config.ts, gitignores pro-visu/, ensures a browser
-# edit pro-visu.config.ts, start your site (or use a deployed URL), then:
+npx pro-visu init             # scaffolds pro-visu/pro-visu.config.ts, gitignores pro-visu/output/, ensures a browser
+# edit pro-visu/pro-visu.config.ts, start your site (or use a deployed URL), then:
 npx pro-visu generate
 ```
 
 ### Globally or via `npx` (no install)
 
 ```bash
-npx pro-visu init --json     # scaffolds pro-visu.config.json + pro-visu.schema.json
-# edit pro-visu.config.json, then:
+npx pro-visu init --json     # scaffolds pro-visu/pro-visu.config.json + pro-visu/pro-visu.schema.json
+# edit pro-visu/pro-visu.config.json, then:
 npx pro-visu generate
 ```
 
@@ -50,15 +50,15 @@ npx pro-visu generate
 
 ## Config
 
-`pro-visu init` writes a `pro-visu.config.ts`. It has two sections — `settings`
+`pro-visu init` writes a `pro-visu/pro-visu.config.ts`. It has two sections — `settings`
 (repo-level CLI behavior) and `assets` (what to generate):
 
-```ts
+```ts title="pro-visu/pro-visu.config.ts"
 import { defineConfig } from "pro-visu";
 
 export default defineConfig({
   settings: {
-    outDir: "pro-visu",
+    outDir: "output", // → pro-visu/output/
     concurrency: 1,
     browser: { headless: true },
     defaults: {
@@ -81,13 +81,14 @@ export default defineConfig({
 });
 ```
 
-Config is discovered in multiple formats: `pro-visu.config.{ts,js,mjs,cjs,json}`,
-`.pro-visurc`, or a `pro-visu` key in `package.json`. Use `--config <path>` to override.
+Config is discovered inside the `pro-visu/` folder, in any format:
+`pro-visu.config.{ts,js,mjs,cjs,json}`, `.pro-visurc`, or `.pro-visurc.json`. Use
+`--config <path>` to point anywhere else (it escapes the folder convention).
 
 The config doesn't have to be one file. Every author-facing type is exported (generator option
 types plus their fragments — `WallColumnInput`, `ChoreographyStepInput`, `PaletteColorInput`, …),
-so a growing showcase can keep settings and each asset family in their own modules
-(`satisfies AssetSpecInput[]`) and compose them in `pro-visu.config.ts`. See
+so a growing showcase can keep settings and each asset family in their own modules under
+`pro-visu/config/` and compose them in `pro-visu/pro-visu.config.ts`. See
 [Splitting the config](https://pro-visu.com/docs/configuration#splitting-the-config).
 
 **Capture mode** (`settings.capture`) makes every URL capture clean and settled — in two halves.
@@ -98,7 +99,7 @@ session cookie also carries auth for login-gated pages.) See the
 [settings docs](https://pro-visu.com/docs/configuration/settings#capture).
 
 Prefer JSON (or running via `npx`/global)? `pro-visu init --json` writes the same config as
-`pro-visu.config.json` plus a `pro-visu.schema.json`, wired up with `"$schema": "./pro-visu.schema.json"`
+`pro-visu/pro-visu.config.json` plus a sibling `pro-visu/pro-visu.schema.json`, wired up with `"$schema": "./pro-visu.schema.json"`
 so your editor still autocompletes and validates every field. The schema refreshes itself — after
 an upgrade, the next `generate`/`doctor` rewrites it to match the installed version.
 
@@ -379,7 +380,7 @@ pnpm install
 
 Then, in your website repo:
 ```bash
-npx pro-visu init        # scaffolds pro-visu.config.ts, gitignores pro-visu/, installs Chromium
+npx pro-visu init        # scaffolds pro-visu/pro-visu.config.ts, gitignores pro-visu/output/, installs Chromium
 npx pro-visu generate    # point a target at a deployed URL or a localhost you've started
 ```
 

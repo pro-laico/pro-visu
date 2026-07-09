@@ -3,6 +3,7 @@ import http from "node:http";
 import https from "node:https";
 import { spawn, type ChildProcess } from "node:child_process";
 import type { ResolvedServerSettings } from "@/config/schema";
+import { detectPackageManager, pmRun } from "@/utils/package-manager";
 import type { Logger } from "@/utils/logger";
 
 /** A started server we own and must tear down (null when we reused an existing one). */
@@ -158,6 +159,13 @@ export async function startManagedServer(
   const cwd = server.cwd ? path.resolve(baseCwd, server.cwd) : baseCwd;
   const url = resolveServerUrl(server);
 
+  // Default build/command to the project's own package scripts so pro-visu piggybacks on whatever
+  // they already run — detected from the lockfile so it fits npm/pnpm/yarn/bun alike. `build: false`
+  // explicitly skips the build (and is how --skip-build reaches here).
+  const pm = detectPackageManager(cwd);
+  const buildCmd = server.build === false ? undefined : (server.build ?? pmRun(pm, "build"));
+  const startCmd = server.command ?? pmRun(pm, "start");
+
   // In live mode the rows convey progress; avoid untagged logs that would corrupt the block.
   const live = Boolean(tasks.build || tasks.server);
 
@@ -173,15 +181,15 @@ export async function startManagedServer(
     return null;
   }
 
-  if (server.build) {
+  if (buildCmd) {
     if (live) {
       tasks.build?.start();
-      tasks.build?.step(`building (${server.build})…`);
+      tasks.build?.step(`building (${buildCmd})…`);
     } else {
-      logger.info(`Building: ${server.build}`);
+      logger.info(`Building: ${buildCmd}`);
     }
     try {
-      await runOnce(server.build, cwd, tasks.build, signal);
+      await runOnce(buildCmd, cwd, tasks.build, signal);
     } catch (err) {
       tasks.build?.fail();
       throw err;
@@ -191,15 +199,15 @@ export async function startManagedServer(
 
   if (live) {
     tasks.server?.start();
-    tasks.server?.step(`starting (${server.command})…`);
+    tasks.server?.step(`starting (${startCmd})…`);
   } else {
-    logger.info(`Starting server: ${server.command}`);
+    logger.info(`Starting server: ${startCmd}`);
   }
   // Pass the readiness port/host to the command as PORT/HOST so frameworks that honor them
   // (Next, Vite, …) bind exactly the port we probe — no need to repeat it in the command. An
   // explicit flag in the command (e.g. `next start -p 4000`) still wins.
   const probed = new URL(url);
-  const child = spawn(server.command, {
+  const child = spawn(startCmd, {
     cwd,
     shell: true,
     stdio: "ignore",

@@ -15,6 +15,12 @@ import type { PaletteReelOptions } from "@/generators/palette-reel/options";
 
 export type LogLevel = "silent" | "error" | "warn" | "info" | "debug";
 
+/**
+ * `enabled` toggle for an asset or the global `settings`. `true`/`false` switch on/off; a string
+ * tags an asset into a named group (e.g. "quick-test") that `settings.enabled` can select.
+ */
+export type EnabledFlag = boolean | string;
+
 export interface BrowserSettingsInput {
   /** Run the browser without a visible window (default true). Set false to watch captures. */
   headless?: boolean;
@@ -30,25 +36,47 @@ export interface BrowserSettingsInput {
 
 export interface ServerSettingsInput {
   /**
-   * Command that starts the server, run via the shell. The tool sets PORT/HOST in its environment
-   * to the readiness port/host, so frameworks that honor PORT (Next, Vite, …) bind it
-   * automatically — `command: "next start"` is enough. An explicit flag still wins.
+   * Command that starts the server, run via the shell. **Defaults to your project's start script**
+   * (`<pm> start`, e.g. `pnpm start`), detected from the lockfile — set it only to override. The
+   * tool sets PORT/HOST in its environment to the readiness port/host, so frameworks that honor
+   * PORT (Next, Vite, …) bind it automatically. An explicit flag (e.g. `next start -p 4000`) wins.
+   *
+   * @default "<pm> start" — your project's start script (e.g. `pnpm start` / `npm run start`)
    */
-  command: string;
-  /** Optional one-shot build to run first, e.g. "next build". */
-  build?: string;
-  /** Health-check URL polled until it responds. Defaults to http://127.0.0.1:<port>. */
+  command?: string;
+  /**
+   * One-shot build run before starting, e.g. `next build`. **Defaults to your project's build
+   * script** (`<pm> build`, e.g. `pnpm build`); set `false` to skip the build step (already-built
+   * or dev-server setups).
+   *
+   * @default "<pm> build" — your project's build script (e.g. `pnpm build` / `npm run build`)
+   */
+  build?: string | false;
+  /**
+   * Health-check URL polled until it responds.
+   * @default "http://127.0.0.1:<port>"
+   */
   url?: string;
   /**
    * Port the readiness check polls — also derives `url` when `url` is omitted, and is passed to
-   * the command as PORT so it binds the same port automatically. Defaults to 3101.
+   * the command as PORT so it binds the same port automatically.
+   * @default 3101
    */
   port?: number;
-  /** Working dir for build + command, relative to the config dir. Defaults to it. */
+  /**
+   * Working dir for build + command, relative to the repo root (where the CLI runs).
+   * @default "the repo root"
+   */
   cwd?: string;
-  /** Max time to wait for the server to become reachable (ms). Default 120000. */
+  /**
+   * Max time to wait for the server to become reachable, in ms.
+   * @default 120000
+   */
   readyTimeoutMs?: number;
-  /** If a server is already reachable at the URL, use it as-is (don't start/stop one). */
+  /**
+   * If a server is already reachable at the URL, use it as-is (don't start/stop one).
+   * @default true
+   */
   reuseExisting?: boolean;
 }
 
@@ -100,8 +128,57 @@ export interface CaptureSettingsInput {
   cleanup?: CaptureCleanupInput;
 }
 
+/**
+ * Per-asset cleanup override. A sparse partial of the global `cleanup` — omit a key to inherit it.
+ * Array fields (`hideSelectors`, `clickSelectors`, `blockHosts`, `blockResourceTypes`) are ADDITIVE:
+ * they layer on top of the globals. Use the subtraction escapes to remove inherited entries.
+ */
+export interface CaptureCleanupOverrideInput {
+  /** Extra selectors to hide, added on top of the global `hideSelectors`. */
+  hideSelectors?: string[];
+  /** Un-hide: selectors to REMOVE from the inherited global `hideSelectors` (e.g. show a globally-hidden cookie banner in this asset). */
+  showSelectors?: string[];
+  /** Extra CSS, appended to the global `injectCss` for this asset. */
+  injectCss?: string;
+  /** Extra selectors to click, added on top of the global `clickSelectors`. */
+  clickSelectors?: string[];
+  /** Override the global `hideScrollbars` for this asset. Omit to inherit. */
+  hideScrollbars?: boolean;
+  /** Override the global `pauseAnimations` for this asset. Omit to inherit. */
+  pauseAnimations?: boolean;
+  /** Override the global `freezeClock` for this asset. Omit to inherit. */
+  freezeClock?: boolean;
+  /** Override the global `blockTrackers` for this asset. Omit to inherit. */
+  blockTrackers?: boolean;
+  /** Extra hostname substrings to block, added on top of the global `blockHosts`. */
+  blockHosts?: string[];
+  /** Un-block: hostname substrings to REMOVE from the inherited global `blockHosts`. */
+  unblockHosts?: string[];
+  /** Extra Playwright resource types to block, added on top of the global `blockResourceTypes`. */
+  blockResourceTypes?: string[];
+}
+
+/**
+ * A single asset's capture override, deep-merged OVER `settings.capture` when the asset runs. Lets
+ * one asset show off something the global config hides (or tune any signal/cleanup) without touching
+ * the global. Signals merge (records by key, cookies by name); cleanup arrays are additive with
+ * `showSelectors`/`unblockHosts` to subtract; booleans/strings override. Omit a key to inherit.
+ */
+export interface CaptureOverrideInput {
+  /** Per-asset capture signals, merged over the global ones. */
+  signals?: CaptureSignalsInput;
+  /** Per-asset cleanup overrides, merged over the global ones. */
+  cleanup?: CaptureCleanupOverrideInput;
+}
+
 export interface ShowcaseSettingsInput {
   // --- output & run behavior ---
+  /**
+   * Which assets to run. `true` (default) runs every asset that isn't individually disabled;
+   * `false` runs none; a group string (e.g. "quick-test") runs only the assets whose own
+   * `enabled` matches it. Explicit `--asset` selection on the CLI overrides this.
+   */
+  enabled?: EnabledFlag;
   /** Output directory for generated assets, relative to the repo root (default "pro-visu"). */
   outDir?: string;
   /** How many assets to generate in parallel (shared browser, separate contexts). */
@@ -137,6 +214,17 @@ export interface ShowcaseSettingsInput {
 export interface AssetBaseInput {
   /** Unique id for this asset — also the output filename (`<slug(name)>.mp4`) and manifest key. */
   name: string;
+  /**
+   * Run this asset? `true` (default) includes it; `false` skips it without deleting or commenting
+   * it out; a group string (e.g. "quick-test") tags it for selection via `settings.enabled`.
+   */
+  enabled?: EnabledFlag;
+  /**
+   * Per-asset overrides of `settings.capture`, deep-merged over it for this asset only — e.g. show a
+   * globally-hidden element with `capture: { cleanup: { showSelectors: ["#cookie-banner"] } }`, or
+   * flip a toggle like `freezeClock`. Omit to inherit the global capture settings unchanged.
+   */
+  capture?: CaptureOverrideInput;
 }
 
 /**

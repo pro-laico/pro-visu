@@ -33,7 +33,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "pro-visu.config.ts",
+    "pro-visu/pro-visu.config.ts",
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [

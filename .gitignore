@@ -11,8 +11,9 @@ next-env.d.ts
 .idea/
 .vscode/
 
-# generated showcase output (testing app)
-apps/*/pro-visu/
+# generated showcase output (testing app) — the pro-visu/ folder itself holds the committed
+# config; only its output/ subdir (default convention) and the served public/pro-visu/ are ignored.
+apps/*/pro-visu/output/
 apps/*/public/pro-visu/
 
 # fumadocs generated source

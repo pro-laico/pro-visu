@@ -5,7 +5,8 @@ import { mkdtemp } from "node:fs/promises";
 import type { Browser } from "playwright-core";
 import { launchBrowser } from "@/pipeline/browser";
 import { createContext } from "@/pipeline/context";
-import { buildGraph, dependenciesOf, expandSelection } from "@/pipeline/graph";
+import { resolveAssetCapture } from "@/pipeline/capture";
+import { buildGraph, dependenciesOf, resolveSelection } from "@/pipeline/graph";
 import { computeCacheKey } from "@/pipeline/cache";
 import type { Reporter } from "@/pipeline/reporter";
 import { getGenerator } from "@/generators/registry";
@@ -92,7 +93,7 @@ export function applyQuality(
 export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
   applyDerivedInputs(opts.config); // generators that declare deps via options (e.g. wall columns)
   buildGraph(opts.config.assets); // validate refs + reject cycles up front
-  const specs = expandSelection(opts.config.assets, opts.assetNames);
+  const specs = resolveSelection(opts.config.assets, opts.assetNames, opts.config.settings.enabled);
   if (specs.length === 0) return [];
 
   await ensureDir(opts.outDir);
@@ -148,6 +149,9 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
       );
       const options = generator.optionsSchema.parse(merged);
 
+      // This asset's effective capture = the global settings.capture with its own override layered on.
+      const capture = resolveAssetCapture(opts.config.settings.capture, spec.capture);
+
       // Hash the content of declared file dependencies (e.g. fonts) into the cache key, so
       // editing the file regenerates the asset. Missing files fail here, early and clearly,
       // instead of producing a blank render from a 404'd URL later.
@@ -171,7 +175,7 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
         quality,
         toolVersion: opts.toolVersion,
         // Capture-mode toggles change the rendered output, so a change must bust the cache.
-        capture: opts.config.settings.capture,
+        capture,
       });
 
       if (cacheEnabled) {
@@ -211,7 +215,7 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
         toolVersion: opts.toolVersion,
         quality,
         manifest,
-        capture: opts.config.settings.capture,
+        capture,
         onProgress: reporter ? (v) => reporter.progress(spec.name, v) : undefined,
         signal: opts.signal,
       });

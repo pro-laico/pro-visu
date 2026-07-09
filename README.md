@@ -15,8 +15,8 @@
 
 **pro-visu** is a portable CLI for showing off the websites you build. Point it at a URL, whether a
 local dev server or a deployed site, and it captures **scroll reels, responsive screenshots, looping
-media walls, and type/colour specimens**, all from one `pro-visu.config.ts`. Output is deterministic
-(byte-identical run-to-run) and crisp, written into a gitignored `pro-visu/` folder that's ready to
+media walls, and type/colour specimens**, all from one `pro-visu/pro-visu.config.ts`. Output is deterministic
+(byte-identical run-to-run) and crisp, written into a gitignored `pro-visu/output/` folder that's ready to
 drop into a portfolio, a landing-page hero, a social post, a launch thread, or a README (like this one).
 
 ## Output Examples

@@ -1,26 +1,19 @@
 import { defineConfig } from "pro-visu";
-import { CAMEL, COGNAC, CURSOR, INK, LODEN, PAPER, FASHION } from "./showcase/brand";
+import { CAMEL, COGNAC, CURSOR, INK, LODEN, PAPER, FASHION } from "../showcase/brand";
 
 // DOCS EXAMPLE ASSETS — the clips/stills embedded in the pro-visu docs (apps/docs), dogfooding
-// the FASHION storefront. Separate from the main showcase config (pro-visu.config.ts).
+// the FASHION storefront. Separate from the main showcase config (pro-visu/pro-visu.config.ts).
 //
-//   pnpm --filter testing exec pro-visu generate --config pro-visu.docs.config.ts
+//   pnpm --filter testing exec pro-visu generate --config pro-visu/pro-visu.docs.config.ts
 //
-// Outputs land in public/pro-visu/ (gitignored); curated files are copied into apps/docs/videos/
+// Outputs land in public/pro-visu/docs/ (gitignored); curated files are copied into apps/docs/videos/
 // (→ Mux via `pnpm --filter docs sync-videos`) and apps/docs/public/examples/ (stills). See
 // apps/docs/videos.md for the workflow. The hero-loop / type-sans / colors-reel clips already on
 // Mux come from the main config and aren't regenerated here.
 
 export default defineConfig({
   settings: {
-    outDir: "public/pro-visu",
-    concurrency: 1,
-    browser: { headless: true },
-    server: {
-      build: "pnpm build",
-      command: "pnpm exec next start",
-      readyTimeoutMs: 180_000,
-    },
+    outDir: "../public/pro-visu/docs", // relative to this pro-visu/ dir → apps/testing/public/pro-visu/docs (own manifest, separate from the main showcase)
     // Freeze time/randomness so every docs capture is perfectly repeatable.
     capture: { cleanup: { freezeClock: true } },
     defaults: {
