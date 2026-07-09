@@ -147,10 +147,12 @@ function templateSteps(name: IconsTemplate, accent: string): IconEffectInput[] {
         { kind: "color", at: 0.5, span: 0.4, order: "forward", stagger: 0, targets: "rows-alt", color: accent, hold: 0.4 },
       ];
     default:
-      // "showcase": a radial scale ripple out from the centre, then a forward recolour sweep — ending at rest.
+      // "showcase": a radial scale ripple out from the centre, then a forward recolour sweep — ending
+      // at rest. Roomy per-icon slices (lower stagger, wider span) + a real peak hold so each icon
+      // makes a smooth, deliberate pop rather than a quick flick.
       return [
-        { kind: "scale", at: 0.04, span: 0.4, order: "radial-out", stagger: 0.7, scale: 1.5, hold: 0.15 },
-        { kind: "color", at: 0.5, span: 0.42, order: "forward", stagger: 0.85, color: accent, hold: 0.2 },
+        { kind: "scale", at: 0.03, span: 0.52, order: "radial-out", stagger: 0.5, scale: 1.4, hold: 0.32 },
+        { kind: "color", at: 0.52, span: 0.44, order: "forward", stagger: 0.8, color: accent, hold: 0.25 },
       ];
   }
 }
