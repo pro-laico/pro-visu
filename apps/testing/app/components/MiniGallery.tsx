@@ -1,8 +1,3 @@
-// A living product gallery: three framings of the same photo (top / center / bottom) crossfading on
-// a pure-CSS 4s loop — an ambient "multiple views" hero. Replaces the PDP's placeholder thumbnails
-// with something real, and (because it self-loops in 4s, which divides the 16s wall) makes a clean
-// animated media-wall tile. CSS-only so it bakes into a capture with no JS state.
-
 interface MiniGalleryProps {
   src: string;
   alt: string;

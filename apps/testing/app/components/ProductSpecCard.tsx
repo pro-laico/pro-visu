@@ -1,9 +1,5 @@
-// A compact, "tokenized" product card — the photo with overlaid label bars (category · price ·
-// name · cloth). Denser than the tall ProductCard; reusable in the lookbook, the PDP "you may
-// also like" rail, a quick-view, and email. Self-contained at 3:4 so it crops cleanly.
-
-import { formatPrice, type Product } from "@/app/lib/catalog";
 import { Placeholder } from "@/app/components/Placeholder";
+import { formatPrice, type Product } from "@/app/lib/catalog";
 
 export function ProductSpecCard({ product }: { product: Product }) {
   return (

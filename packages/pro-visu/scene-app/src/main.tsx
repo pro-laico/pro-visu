@@ -1,8 +1,10 @@
-import "virtual:uno.css";
 import { createRoot } from "react-dom/client";
-import { scenes } from "./scenes/registry";
+
 import { initRuntime } from "./runtime";
 import type { SceneProps } from "./types";
+import { scenes } from "./scenes/registry";
+
+import "virtual:uno.css";
 
 const FALLBACK: SceneProps = {
   width: 1080,
@@ -22,9 +24,9 @@ function readConfig(): { scene: string; props: SceneProps } {
   let parsed: Partial<SceneProps> = {};
   if (raw) {
     try {
-      parsed = JSON.parse(raw) as Partial<SceneProps>;
+      parsed = JSON.parse(raw) as Partial<SceneProps>; //TODO: replace `as` cast with proper typing
     } catch {
-      parsed = {}; // malformed props → fall back rather than crash to a blank capture
+      parsed = {};
     }
   }
   return { scene, props: { ...FALLBACK, ...parsed } };
@@ -40,19 +42,10 @@ if (rootEl) {
   } else {
     document.body.style.background = props.background;
     createRoot(rootEl).render(
-      <div
-        style={{
-          width: props.width,
-          height: props.height,
-          background: props.background,
-          overflow: "hidden",
-          position: "relative",
-        }}
-      >
+      <div style={{ width: props.width, height: props.height, background: props.background, overflow: "hidden", position: "relative" }}>
         <Scene {...props} />
       </div>,
     );
-    // Publish the capture runtime once the scene (and its <video>s) have mounted.
     requestAnimationFrame(() => initRuntime());
   }
 }

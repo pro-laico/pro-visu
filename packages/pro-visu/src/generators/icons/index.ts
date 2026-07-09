@@ -1,10 +1,11 @@
 import path from "node:path";
 import { existsSync, readdirSync } from "node:fs";
-import { iconsOptionsSchema, type ResolvedIconsOptions } from "@/generators/icons/options";
+
 import { renderScene } from "@/scene-engine/render";
+import type { AssetRecord } from "@/manifest/schema";
 import type { ResolvedSceneOptions } from "@/scene-engine/options";
 import type { Generator, PipelineContext } from "@/generators/types";
-import type { AssetRecord } from "@/manifest/schema";
+import { iconsOptionsSchema, type ResolvedIconsOptions } from "@/generators/icons/options";
 
 export const ICONS_ID = "icons";
 
@@ -32,13 +33,9 @@ function collectIcons(o: ResolvedIconsOptions): string[] {
     } catch {
       names = [];
     }
-    for (const name of names.filter((n) => ICON_EXTS.has(path.extname(n).toLowerCase())).sort()) {
-      out.push(path.join(dirAbs, name));
-    }
+    for (const name of names.filter((n) => ICON_EXTS.has(path.extname(n).toLowerCase())).sort()) out.push(path.join(dirAbs, name));
   }
-  for (const src of o.icons) {
-    out.push(abs(typeof src === "string" ? src : src.src));
-  }
+  for (const src of o.icons) out.push(abs(typeof src === "string" ? src : src.src));
   return out;
 }
 
@@ -46,31 +43,20 @@ function collectIcons(o: ResolvedIconsOptions): string[] {
 async function run(ctx: PipelineContext, o: ResolvedIconsOptions): Promise<{ assets: AssetRecord[] }> {
   const iconPaths = collectIcons(o);
   if (iconPaths.length === 0) {
-    // Point at the actual cause: a bad `dir`, an empty `dir`, or nothing supplied at all.
     if (o.dir) {
       const dirAbs = abs(o.dir);
-      if (!existsSync(dirAbs)) {
-        throw new Error(`icons: dir not found — "${o.dir}" (resolved to ${dirAbs}).`);
-      }
-      throw new Error(
-        `icons: no image files (svg/png/webp/jpg/gif/avif) in dir "${o.dir}"${o.icons.length ? " and no `icons` given" : ""}.`,
-      );
+      if (!existsSync(dirAbs)) throw new Error(`icons: dir not found — "${o.dir}" (resolved to ${dirAbs}).`);
+      throw new Error(`icons: no image files (svg/png/webp/jpg/gif/avif) in dir "${o.dir}"${o.icons.length ? " and no `icons` given" : ""}.`);
     }
-    throw new Error(
-      "icons: no icons. Provide `icons` (paths and/or { src }) and/or a `dir` containing image files.",
-    );
+    throw new Error("icons: no icons. Provide `icons` (paths and/or { src }) and/or a `dir` containing image files.");
   }
 
-  // A `color` step needs the CSS-mask tint; with `recolor: false` it silently no-ops (the icons
-  // render in their native colours). Warn rather than let a recolour template quietly do nothing.
   if (o.layout.recolor === false && o.steps.some((s) => s.kind === "color")) {
     ctx.logger.warn(
       "icons: `layout.recolor` is false, so `color` steps have no effect (icons render natively). Enable recolor or drop the color steps.",
     );
   }
 
-  // Rough legibility check: if the auto-fit cell will be tiny, the showcase reads as noise. Estimate
-  // the fit the way the scene does (a near-square grid) and nudge the author before a long render.
   if (o.layout.iconSize == null) {
     const { width, height } = o.output;
     const cols = o.layout.columns ?? Math.max(1, Math.round(Math.sqrt(iconPaths.length * (width / height))));
@@ -88,7 +74,6 @@ async function run(ctx: PipelineContext, o: ResolvedIconsOptions): Promise<{ ass
     }
   }
 
-  // Each icon gets a stable, ordered served-file slot; the scene resolves the slot back to its URL.
   const files: Record<string, string> = {};
   const slots = iconPaths.map((p, i) => {
     const slot = `icon-${i}`;
@@ -96,8 +81,8 @@ async function run(ctx: PipelineContext, o: ResolvedIconsOptions): Promise<{ ass
     return slot;
   });
 
-  const durationSeconds = o.motion.durationMs / 1000;
   const isImage = o.output.format === "image";
+  const durationSeconds = o.motion.durationMs / 1000;
 
   const sceneOptions: ResolvedSceneOptions = {
     scene: "icons",
@@ -107,8 +92,6 @@ async function run(ctx: PipelineContext, o: ResolvedIconsOptions): Promise<{ ass
     deviceScaleFactor: o.output.deviceScaleFactor,
     fps: o.output.fps,
     durationSeconds,
-    // The animation is a deterministic function of time — frame-step it for a crisp, exact video;
-    // a still just freezes the same timeline at one moment.
     capture: isImage ? "still" : "frames",
     stillTimeSeconds: isImage ? o.motion.posterTime * durationSeconds : 0,
     workers: o.output.workers,
@@ -139,9 +122,4 @@ function fileDependencies(o: ResolvedIconsOptions): string[] {
   return [...new Set(collectIcons(o))];
 }
 
-export const iconsGenerator: Generator<ResolvedIconsOptions> = {
-  id: ICONS_ID,
-  optionsSchema: iconsOptionsSchema,
-  fileDependencies,
-  run,
-};
+export const iconsGenerator: Generator<ResolvedIconsOptions> = { id: ICONS_ID, optionsSchema: iconsOptionsSchema, fileDependencies, run };

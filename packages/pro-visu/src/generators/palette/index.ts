@@ -1,16 +1,14 @@
 import path from "node:path";
-import { readFile, writeFile } from "node:fs/promises";
 import { imageSize } from "image-size";
-import {
-  paletteOptionsSchema,
-  type ResolvedPaletteOptions,
-} from "@/generators/palette/options";
-import { buildPaletteHtml } from "@/generators/palette/html";
+import { readFile, writeFile } from "node:fs/promises";
+
 import { ensureDir } from "@/utils/fs";
-import { sha256Buffer } from "@/utils/hash";
 import { slugify } from "@/utils/paths";
-import type { Generator, PipelineContext } from "@/generators/types";
+import { sha256Buffer } from "@/utils/hash";
 import type { AssetRecord } from "@/manifest/schema";
+import { buildPaletteHtml } from "@/generators/palette/html";
+import type { Generator, PipelineContext } from "@/generators/types";
+import { paletteOptionsSchema, type ResolvedPaletteOptions } from "@/generators/palette/options";
 
 export const PALETTE_ID = "palette";
 
@@ -30,10 +28,7 @@ async function fontDataUrl(fontFile: string): Promise<string> {
 }
 
 /** Render the palette HTML and screenshot it to a PNG (static — no animation). */
-async function run(
-  ctx: PipelineContext,
-  o: ResolvedPaletteOptions,
-): Promise<{ assets: AssetRecord[] }> {
+async function run(ctx: PipelineContext, o: ResolvedPaletteOptions): Promise<{ assets: AssetRecord[] }> {
   const fileName = o.output.fileName ?? `${slugify(ctx.target.name)}.png`;
   const outPath = ctx.resolveOutPath(fileName);
 
@@ -49,14 +44,7 @@ async function run(
   try {
     const page = await context.newPage();
     await page.setContent(html, { waitUntil: "load" });
-    // Let a custom font finish loading before the shot so it's actually applied.
-    if (dataUrl) {
-      await page.evaluate(
-        () =>
-          (globalThis as { document?: { fonts?: { ready?: Promise<unknown> } } }).document?.fonts
-            ?.ready,
-      );
-    }
+    if (dataUrl) await page.evaluate(() => (globalThis as { document?: { fonts?: { ready?: Promise<unknown> } } }).document?.fonts?.ready); //TODO: replace `as` cast with proper typing
     buffer = await page.screenshot({ type: "png" });
   } finally {
     await context.close();
@@ -87,7 +75,6 @@ async function run(
 export const paletteGenerator: Generator<ResolvedPaletteOptions> = {
   id: PALETTE_ID,
   optionsSchema: paletteOptionsSchema,
-  // A custom font's content shapes the output — hash it into the cache key.
   fileDependencies: (o) => (o.text.fontFile ? [o.text.fontFile] : []),
   run,
 };

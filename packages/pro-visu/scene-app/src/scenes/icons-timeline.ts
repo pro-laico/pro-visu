@@ -141,9 +141,8 @@ export function autoColumns(count: number, w: number, h: number): number {
   let bestScore = Infinity;
   for (let cols = 1; cols <= count; cols++) {
     const rows = Math.ceil(count / cols);
-    const orphans = (cols - (count % cols)) % cols; // empty cells in the last row
-    const score =
-      Math.abs(Math.log(cols / rows) - target) + orphans * 0.06 - (cols >= rows ? 1e-4 : 0);
+    const orphans = (cols - (count % cols)) % cols;
+    const score = Math.abs(Math.log(cols / rows) - target) + orphans * 0.06 - (cols >= rows ? 1e-4 : 0);
     if (score < bestScore) {
       bestScore = score;
       best = cols;
@@ -201,8 +200,6 @@ function participates(i: number, p: Pos, targets: Targets): boolean {
 function orderScore(order: Order, i: number, p: Pos, grid: Grid, rng: () => number): number {
   const cr = (grid.rows - 1) / 2;
   const cc = (grid.columns - 1) / 2;
-  // Geometric orders read from the VISUAL position (vx/vy) so a ripple/diagonal tracks the centred
-  // layout — a lone final-row icon sits under the middle, not the corner.
   const dist = Math.hypot(p.vy - cr, p.vx - cc);
   switch (order) {
     case "reverse":
@@ -218,7 +215,6 @@ function orderScore(order: Order, i: number, p: Pos, grid: Grid, rng: () => numb
     case "radial-in":
       return -dist;
     case "spiral":
-      // Rings outward, ordered by angle within each ring.
       return dist + (Math.atan2(p.vy - cr, p.vx - cc) + Math.PI) / (2 * Math.PI);
     case "random":
       return rng();
@@ -232,12 +228,7 @@ function orderScore(order: Order, i: number, p: Pos, grid: Grid, rng: () => numb
  * Non-participants get `phase = -1` (a sentinel meaning "excluded"). A random order is seeded per
  * (step index, base seed) so different steps scatter differently but reproducibly.
  */
-export function stepPhases(
-  step: EffectStep,
-  stepIndex: number,
-  grid: Grid,
-  seed: number,
-): number[] {
+export function stepPhases(step: EffectStep, stepIndex: number, grid: Grid, seed: number): number[] {
   const pos = positions(grid);
   const targets = step.targets ?? "all";
   const rng = mulberry32((seed >>> 0) ^ (0x9e3779b9 * (stepIndex + 1)));
@@ -257,12 +248,12 @@ export function stepPhases(
  * icon ends back at base. In latch mode it's a monotone 0→1 ramp that stays at 1 after the slice.
  */
 function envelope(step: EffectStep, u: number, phase: number): number {
-  if (phase < 0) return 0; // excluded icon
+  if (phase < 0) return 0;
   const s = clamp(step.stagger ?? 0.6, 0, 0.98);
   const span = Math.max(1e-4, step.span);
-  const d = Math.max(1e-4, span * (1 - s)); // per-icon slice length
+  const d = Math.max(1e-4, span * (1 - s));
   const start = step.at + phase * s * span;
-  const x = (u - start) / d; // local progress within the icon's slice
+  const x = (u - start) / d;
   const returns = step.return !== false;
   if (x <= 0) return 0;
   if (x >= 1) return returns ? 0 : 1;
@@ -274,8 +265,6 @@ function envelope(step: EffectStep, u: number, phase: number): number {
   if (x <= ramp + hold) return 1;
   return ease((1 - x) / ramp, step.easing);
 }
-
-// --- colour parsing / mixing (hex + rgb()/rgba() → sRGB lerp) -------------------------------------
 
 interface Rgb {
   r: number;
@@ -335,16 +324,8 @@ export interface BaseState {
  * order, so overlapping steps layer (a colour sweep during a scale ripple, etc.). Pure and
  * deterministic — the same (steps, t, grid, seed) always yields the same states.
  */
-export function evalIcons(
-  steps: EffectStep[],
-  t: number,
-  durationSeconds: number,
-  grid: Grid,
-  base: BaseState,
-  seed: number,
-): IconState[] {
+export function evalIcons(steps: EffectStep[], t: number, durationSeconds: number, grid: Grid, base: BaseState, seed: number): IconState[] {
   const u = durationSeconds > 0 ? clamp(t / durationSeconds, 0, 1) : 0;
-  // Precompute each step's per-icon phases once (independent of t).
   const phases = steps.map((step, si) => stepPhases(step, si, grid, seed));
 
   const out: IconState[] = [];
@@ -375,8 +356,6 @@ export function evalIcons(
           state.color = mixColor(state.color, step.color ?? state.color, e);
           break;
         case "spin": {
-          // Spin uses a monotone 0→1 progress (not a bump) so it turns through cleanly; a whole
-          // number of turns lands back on the start angle, so it's seamless regardless of `return`.
           if (phase < 0) break;
           const s = clamp(step.stagger ?? 0.6, 0, 0.98);
           const span = Math.max(1e-4, step.span);

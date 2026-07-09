@@ -1,13 +1,14 @@
 import path from "node:path";
 import { mkdtemp } from "node:fs/promises";
 import type { Browser, Page } from "playwright-core";
+
 import { ensureDir } from "@/utils/fs";
-import { applyCapture } from "@/pipeline/capture";
-import { applyPostNav, installNetworkHygiene, installPreNav } from "@/pipeline/clean-capture";
-import type { ResolvedCaptureSettings } from "@/config/schema";
-import { EASINGS, type Easing } from "@/generators/easing";
-import type { ResolvedInteractionOptions } from "@/generators/interaction/options";
 import type { Logger } from "@/utils/logger";
+import { applyCapture } from "@/pipeline/capture";
+import { EASINGS, type Easing } from "@/generators/easing";
+import type { ResolvedCaptureSettings } from "@/config/schema";
+import type { ResolvedInteractionOptions } from "@/generators/interaction/options";
+import { applyPostNav, installNetworkHygiene, installPreNav } from "@/pipeline/clean-capture";
 
 /** Default cursor travel / scroll-animation time for a step that omits `durationMs`. */
 export const DEFAULT_ACTION_DURATION_MS = 700;
@@ -33,7 +34,7 @@ export function keystrokeGaps(count: number, delayMs: number, easing: Easing): n
   const gaps: number[] = [];
   let prev = 0;
   for (let i = 1; i <= count; i++) {
-    const at = ease(i / count) * total; // cumulative time the i-th keystroke lands at
+    const at = ease(i / count) * total;
     gaps.push(at - prev);
     prev = at;
   }
@@ -116,22 +117,18 @@ export function interactionTotalMs(
  * framework that wipes `<body>` on route change can't leave the cursor orphaned.
  */
 function installCursorRuntime(opts: { show: boolean; size: number; color: string }): void {
-  const g = globalThis as any;
+  const g = globalThis as any; //TODO: replace `as` cast with proper typing
   const doc = g.document;
   if (!doc) return;
 
   const boot = (): void => {
     if (!doc.body) return;
-    // Already installed on this document/window (e.g. a client-side nav kept the global) — just make
-    // sure the cursor node is still attached and bail.
     if (g.__sc) {
       g.__sc.ensure();
       return;
     }
     const state = g.__scState || (g.__scState = { x: (g.innerWidth || 0) / 2, y: (g.innerHeight || 0) / 2 });
 
-    // Create-or-reattach the cursor node and sync it to the tracked position. Called on every move
-    // so a route change that removed the node (React re-rendering `<body>`) transparently restores it.
     const ensure = (): any => {
       if (!opts.show) return null;
       let cur = doc.getElementById("__sc_cursor");
@@ -198,17 +195,12 @@ function installCursorRuntime(opts: { show: boolean; size: number; color: string
       moveToSelector: async (sel: string, ms: number): Promise<void> => {
         const el = doc.querySelector(sel);
         if (!el) return;
-        // The cursor never scrolls the page — the viewport is managed only by the `scrollTo` action
-        // (a separate, explicit camera move). We glide to wherever the target currently sits; a caller
-        // is responsible for scrolling it into view first. `runAction` warns if it's off-screen.
         const rect = el.getBoundingClientRect();
         await tween(rect.left + rect.width / 2, rect.top + rect.height / 2, ms);
       },
       scrollTo: async (to: any, ms: number, align?: string, offset?: number, headerH?: number): Promise<void> => {
         const se = doc.scrollingElement || doc.documentElement;
         const max = Math.max(0, se.scrollHeight - se.clientHeight);
-        // `offset` nudges the final resting position: for a top-aligned scroll a positive offset leaves
-        // that many px of room above the target; negative scrolls past it. Applies to every `to` form.
         const off = offset || 0;
         let target = 0;
         if (typeof to === "number") target = to * max - off;
@@ -219,13 +211,9 @@ function installCursorRuntime(opts: { show: boolean; size: number; color: string
             const rect = el.getBoundingClientRect();
             const elTopDoc = rect.top + (g.pageYOffset || 0);
             const vh = se.clientHeight || g.innerHeight || 0;
-            // center: centre within the VISIBLE band [headerH, vh], i.e. shift down by half the header.
-            // bottom: the target sits against the viewport bottom, which a top header never covers — no adjustment.
             if (align === "center") target = elTopDoc - (vh - rect.height) / 2 - (headerH || 0) / 2 - off;
             else if (align === "bottom") target = elTopDoc - (vh - rect.height) - off;
             else {
-              // top (default): honor scroll-margin-top, and drop below a sticky/fixed header so the
-              // target isn't parked behind it. The configured header height stacks with `offset`.
               let margin = 0;
               try {
                 margin = parseFloat(g.getComputedStyle(el).scrollMarginTop) || 0;
@@ -309,17 +297,15 @@ async function isOnScreen(page: Page, selector: string): Promise<boolean> {
   try {
     return await page.evaluate((sel: string) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const g = globalThis as any;
+      const g = globalThis as any; //TODO: replace `as` cast with proper typing
       const el = g.document?.querySelector(sel);
-      if (!el) return true; // missing element is a different problem — don't also cry "off-screen"
+      if (!el) return true;
       const r = el.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) return false;
       const cx = r.left + r.width / 2;
       const cy = r.top + r.height / 2;
-      if (cx < 0 || cy < 0 || cx > g.innerWidth || cy > g.innerHeight) return false; // centre off-screen
+      if (cx < 0 || cy < 0 || cx > g.innerWidth || cy > g.innerHeight) return false;
       const top = g.document.elementFromPoint(cx, cy);
-      // Visible if the centre resolves to the element (or a node it contains / is contained by) —
-      // i.e. nothing is painted over it there.
       return !!top && (top === el || el.contains(top) || top.contains(el));
     }, selector);
   } catch {
@@ -328,27 +314,14 @@ async function isOnScreen(page: Page, selector: string): Promise<boolean> {
 }
 
 /** Drive one interaction step: animate the cursor, then perform the real Playwright action. */
-async function runAction(
-  page: Page,
-  a: InteractionAction,
-  durationMs: number,
-  logger: Logger,
-  stickyHeaderHeight: number,
-): Promise<void> {
-  // Selector-targeted steps wait for their element first — this also lets a step that follows a
-  // navigation (a clicked link) block until the destination page has rendered the target.
+async function runAction(page: Page, a: InteractionAction, durationMs: number, logger: Logger, stickyHeaderHeight: number): Promise<void> {
   if (
     a.selector &&
     (a.do === "move" || a.do === "hover" || a.do === "click" || a.do === "type" || a.do === "erase")
   ) {
     try {
       await page.waitForSelector(a.selector, { state: "visible", timeout: 15000 });
-    } catch {
-      /* fall through — the real action below surfaces a clearer error, or a `move` simply no-ops */
-    }
-    // The cursor never scrolls the page (that's the `scrollTo` action's job). If the target sits
-    // off-screen — or is covered (e.g. tucked behind a sticky header) — gliding to it and letting
-    // Playwright hard-scroll to act on it reads as a jarring jump. Warn so the author adds a `scrollTo`.
+    } catch {}
     if (!(await isOnScreen(page, a.selector))) {
       logger.warn(
         `${a.do} target "${a.selector}" is off-screen or covered — add a \`scrollTo\` before this step (the cursor never auto-scrolls).`,
@@ -357,7 +330,7 @@ async function runAction(
   }
   switch (a.do) {
     case "wait":
-      return; // the per-step hold provides the pause
+      return;
     case "scrollTo":
       await page.evaluate(
         (p: { to: number | string; ms: number; align: string; offset: number; headerH: number }) =>
@@ -375,7 +348,7 @@ async function runAction(
           offset: a.offset ?? 0,
           headerH: stickyHeaderHeight,
         },
-      );
+      ); //TODO: replace `as` cast with proper typing
       return;
     case "move":
       if (a.selector) {
@@ -386,7 +359,7 @@ async function runAction(
               p.ms,
             ),
           { sel: a.selector, ms: durationMs },
-        );
+        ); //TODO: replace `as` cast with proper typing
       } else {
         const fx = a.x ?? 0.5;
         const fy = a.y ?? 0.5;
@@ -398,9 +371,7 @@ async function runAction(
               p.ms,
             ),
           { x: fx, y: fy, ms: durationMs },
-        );
-        // Move the REAL pointer to the same spot so hover state follows the cursor — e.g. gliding
-        // into empty space lifts :hover off a card, visibly "deselecting" it.
+        ); //TODO: replace `as` cast with proper typing
         const vp = page.viewportSize();
         if (vp) await page.mouse.move(fx * vp.width, fy * vp.height);
       }
@@ -413,12 +384,10 @@ async function runAction(
     case "click":
       if (!a.selector) return;
       await moveCursorToSelector(page, a.selector, durationMs);
-      await page.evaluate(() => (globalThis as { __sc?: { pulse(): void } }).__sc?.pulse());
+      await page.evaluate(() => (globalThis as { __sc?: { pulse(): void } }).__sc?.pulse()); //TODO: replace `as` cast with proper typing
       await page.click(a.selector);
       return;
     case "type": {
-      // Focus the field: glide the cursor over and click it (a selector-less type assumes it's
-      // already focused — e.g. following an earlier type/click on the same field).
       if (a.selector) {
         await moveCursorToSelector(page, a.selector, durationMs);
         await page.click(a.selector);
@@ -437,13 +406,11 @@ async function runAction(
         await moveCursorToSelector(page, a.selector, durationMs);
         await page.click(a.selector);
       }
-      // Snap the caret to the end so we backspace from the tail, then remove `count` chars (or the
-      // whole current value when `count` is omitted).
       await page.keyboard.press("End");
       const count =
         a.count ??
         (a.selector
-          ? await page.$eval(a.selector, (el) => (el as unknown as { value?: string }).value?.length ?? 0)
+          ? await page.$eval(a.selector, (el) => (el as unknown as { value?: string }).value?.length ?? 0) //TODO: replace `as` cast with proper typing
           : 0);
       await playKeystrokes(
         count,
@@ -475,9 +442,7 @@ async function runActionList(
     try {
       await runAction(page, a, durationMs, logger, stickyHeaderHeight);
     } catch (e) {
-      logger.warn(
-        `${label} step "${a.do}"${a.selector ? ` (${a.selector})` : ""} failed: ${(e as Error).message}`,
-      );
+      logger.warn(`${label} step "${a.do}"${a.selector ? ` (${a.selector})` : ""} failed: ${(e as Error).message}`);
     }
     await sleep(a.holdMs ?? DEFAULT_ACTION_HOLD_MS);
   }
@@ -491,7 +456,7 @@ function moveCursorToSelector(page: Page, selector: string, ms: number): Promise
         p.ms,
       ),
     { sel: selector, ms },
-  );
+  ); //TODO: replace `as` cast with proper typing
 }
 
 export interface InteractionArgs {
@@ -544,30 +509,20 @@ export async function captureInteractionWebm(args: InteractionArgs): Promise<Int
     if (options.page.waitForSelector) {
       await page.waitForSelector(options.page.waitForSelector, { state: "visible" });
     }
-    // Keep media playing: an interaction records live, and the page may be mid-demo on purpose.
     await applyPostNav(page, args.capture, logger, { pauseMedia: false });
     try {
-      await page.evaluate(
-        () =>
-          (globalThis as { document?: { fonts?: { ready?: Promise<unknown> } } }).document?.fonts?.ready,
-      );
-    } catch {
-      /* no font set */
-    }
+      await page.evaluate(() => (globalThis as { document?: { fonts?: { ready?: Promise<unknown> } } }).document?.fonts?.ready); //TODO: replace `as` cast with proper typing
+    } catch {}
     const cursorOpts = {
       show: options.cursor?.show ?? true,
       size: options.cursor?.size ?? 22,
       color: options.cursor?.color ?? "#0b0b0f",
     };
-    // Reinstall on every future document (a full navigation), and install on the current one now.
     await page.addInitScript(installCursorRuntime, cursorOpts);
     await page.evaluate(installCursorRuntime, cursorOpts);
 
-    // Off-camera setup (pre-position cursor / scroll / seed UI state) — folded into the head trim.
     await runActionList(page, options.setup, "setup", logger, options.page.stickyHeaderHeight);
 
-    // Everything above is blank/churn in the recording; the scripted interaction starts now. Measure
-    // the kept window off the wall clock so typing jitter and erase-all length are captured exactly.
     const keptStart = Date.now();
     leadSeconds = (keptStart - recStart) / 1000;
     await sleep(options.page.startDelayMs);
@@ -575,15 +530,12 @@ export async function captureInteractionWebm(args: InteractionArgs): Promise<Int
     await sleep(options.page.endDwellMs);
     keptMs = Date.now() - keptStart;
 
-    // Off-camera teardown — runs past the kept window, so it's clamped off by durationSeconds.
     await runActionList(page, options.teardown, "teardown", logger, options.page.stickyHeaderHeight);
   } finally {
     await context.close();
   }
 
-  if (!video) {
-    throw new Error("Playwright did not record a video (recordVideo inactive).");
-  }
+  if (!video) throw new Error("Playwright did not record a video (recordVideo inactive).");
   return { webmPath: await video.path(), leadSeconds, durationSeconds: keptMs / 1000 };
 }
 
@@ -621,7 +573,7 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
     page.evaluate(
       () =>
         new Promise<void>((res) => {
-          const g = globalThis as unknown as { requestAnimationFrame(cb: () => void): void };
+          const g = globalThis as unknown as { requestAnimationFrame(cb: () => void): void }; //TODO: replace `as` cast with proper typing
           g.requestAnimationFrame(() => g.requestAnimationFrame(() => res()));
         }),
     );
@@ -644,34 +596,28 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
       size: options.cursor?.size ?? 22,
       color: options.cursor?.color ?? "#0b0b0f",
     };
-    // Reinstall on every future document (a full navigation), and install on the current one now.
     await page.addInitScript(installCursorRuntime, cursorOpts);
     await page.evaluate(installCursorRuntime, cursorOpts);
-    // Bring the element to the center before the kept clip starts.
     await page.evaluate((sel: string) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const el = (globalThis as any).document?.querySelector(sel);
+      const el = (globalThis as any).document?.querySelector(sel); //TODO: replace `as` cast with proper typing
       if (el) {
         try {
           el.scrollIntoView({ behavior: "instant", block: "center" });
-        } catch {
-          /* ignore */
-        }
+        } catch {}
       }
     }, focus.selector);
     await twoFrames();
 
-    // Off-camera setup (pre-position cursor / scroll / seed UI state) — folded into the head trim.
     await runActionList(page, options.setup, "setup", logger, options.page.stickyHeaderHeight);
 
     const keptStart = Date.now();
     leadSeconds = (keptStart - recStart) / 1000;
     await sleep(options.page.startDelayMs);
     await runActionList(page, actions, "focus", logger, options.page.stickyHeaderHeight);
-    // Measure the element's final box (covers any expansion from the trigger) for the crop.
     const box = await page.evaluate((sel: string) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const el = (globalThis as any).document?.querySelector(sel);
+      const el = (globalThis as any).document?.querySelector(sel); //TODO: replace `as` cast with proper typing
       if (!el) return null;
       const r = el.getBoundingClientRect();
       return { x: r.left, y: r.top, w: r.width, h: r.height };
@@ -685,14 +631,11 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
     await sleep(options.page.endDwellMs);
     keptMs = Date.now() - keptStart;
 
-    // Off-camera teardown — runs past the kept window, so it's clamped off by durationSeconds.
     await runActionList(page, options.teardown, "teardown", logger, options.page.stickyHeaderHeight);
   } finally {
     await context.close();
   }
 
-  if (!video) {
-    throw new Error("Playwright did not record a video (recordVideo inactive).");
-  }
+  if (!video) throw new Error("Playwright did not record a video (recordVideo inactive).");
   return { webmPath: await video.path(), leadSeconds, durationSeconds: keptMs / 1000, cropBox };
 }

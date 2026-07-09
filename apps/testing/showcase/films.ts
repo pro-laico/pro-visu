@@ -1,9 +1,8 @@
 import type { AssetSpecInput } from "pro-visu";
 
-// Storefront films: scroll-reels over the real pages.
 export const films: AssetSpecInput[] = [
   {
-    name: "home", // auto-sections down the home page; straight loop glides back to the top at the end
+    name: "home",
     generator: "scroll-reel",
     options: {
       page: { waitForSelector: ".hero-media img" },
@@ -11,7 +10,7 @@ export const films: AssetSpecInput[] = [
     },
   },
   {
-    name: "home-vertical", // 9:16 social cut — mp4 for paid, gif + poster for organic
+    name: "home-vertical",
     generator: "scroll-reel",
     options: {
       output: { width: 430, height: 932, deviceScaleFactor: 2, outputs: ["mp4", "gif", "poster"] },
@@ -21,7 +20,7 @@ export const films: AssetSpecInput[] = [
     },
   },
   {
-    name: "home-square", // 1:1 feed cut — mp4 + animated WebP (smaller than gif)
+    name: "home-square",
     generator: "scroll-reel",
     options: {
       output: { width: 1080, height: 1080, deviceScaleFactor: 2, outputs: ["mp4", "webp"] },
@@ -31,7 +30,7 @@ export const films: AssetSpecInput[] = [
     },
   },
   {
-    name: "shop", // the collection page at two viewports; each emits its own asset
+    name: "shop",
     generator: "scroll-reel",
     url: "/shop",
     options: {
@@ -46,7 +45,7 @@ export const films: AssetSpecInput[] = [
     },
   },
   {
-    name: "product", // PDP: gallery → details → related
+    name: "product",
     generator: "scroll-reel",
     url: "/products/the-camel-coat",
     options: {
@@ -73,7 +72,7 @@ export const films: AssetSpecInput[] = [
     },
   },
   {
-    name: "lookbook", // the brand board — a page built for capture (stable panel ids)
+    name: "lookbook",
     generator: "scroll-reel",
     url: "/lookbook",
     options: {

@@ -1,4 +1,5 @@
 import type { BrowserContext } from "playwright-core";
+
 import type { ResolvedCaptureSettings, ResolvedCaptureOverride } from "@/config/schema";
 
 /** Union two string lists, de-duplicated, order-preserving (base entries first). */
@@ -32,10 +33,7 @@ function mergeCookies(
 }
 
 /** A record merge that stays `undefined` when the result is empty (preserves "no signal"). */
-function mergeRecord(
-  base: Record<string, string> | undefined,
-  extra: Record<string, string> | undefined,
-): Record<string, string> | undefined {
+function mergeRecord(base: Record<string, string> | undefined, extra: Record<string, string> | undefined): Record<string, string> | undefined {
   const merged = { ...base, ...extra };
   return Object.keys(merged).length ? merged : undefined;
 }
@@ -47,10 +45,7 @@ function mergeRecord(
  * inherited entries. No override → the globals are returned unchanged (identical hash → no cache
  * churn for assets that don't override).
  */
-export function resolveAssetCapture(
-  global: ResolvedCaptureSettings,
-  override: ResolvedCaptureOverride | undefined,
-): ResolvedCaptureSettings {
+export function resolveAssetCapture(global: ResolvedCaptureSettings, override: ResolvedCaptureOverride | undefined): ResolvedCaptureSettings {
   if (!override) return global;
   const g = global;
   const os = override.signals;
@@ -81,10 +76,7 @@ export function resolveAssetCapture(
  * isn't a parseable absolute URL (a bare `/path`, or empty) is returned unchanged — base-resolution
  * already happened in `resolveTargets`, and a relative route still inherits the context's cookies.
  */
-export function withCaptureQuery(
-  url: string | undefined,
-  capture: ResolvedCaptureSettings | undefined,
-): string | undefined {
+export function withCaptureQuery(url: string | undefined, capture: ResolvedCaptureSettings | undefined): string | undefined {
   if (!url || !capture?.signals.query) return url;
   try {
     const u = new URL(url);
@@ -112,21 +104,12 @@ export async function applyCapture(
   if (cookies?.length && url) {
     try {
       const origin = new URL(url).origin;
-      await context.addCookies(
-        cookies.map((c) => ({ name: c.name, value: c.value, url: origin })),
-      );
-    } catch {
-      /* non-absolute url → can't scope cookies; skip them */
-    }
+      await context.addCookies(cookies.map((c) => ({ name: c.name, value: c.value, url: origin })));
+    } catch {}
   }
 
   const scripts: string[] = [];
-  if (localStorage) {
-    // Runs before the page's own scripts (addInitScript), so values are present on first read.
-    scripts.push(
-      `try{var e=${JSON.stringify(localStorage)};for(var k in e)localStorage.setItem(k,e[k]);}catch(_){}`,
-    );
-  }
+  if (localStorage) scripts.push(`try{var e=${JSON.stringify(localStorage)};for(var k in e)localStorage.setItem(k,e[k]);}catch(_){}`);
   if (initScript) scripts.push(initScript);
   if (scripts.length) await context.addInitScript(scripts.join("\n"));
 }

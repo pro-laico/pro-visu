@@ -40,7 +40,13 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               <div className="pdp-gallery-thumbs">
                 {["50% 18%", "50% 50%", "50% 82%"].map((pos) => (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img key={pos} className="pdp-thumb" src={product.image as string} alt="" style={{ objectPosition: pos }} />
+                  <img
+                    key={pos}
+                    className="pdp-thumb"
+                    src={product.image as string} //TODO: replace `as` cast with proper typing
+                    alt=""
+                    style={{ objectPosition: pos }}
+                  />
                 ))}
               </div>
             </>

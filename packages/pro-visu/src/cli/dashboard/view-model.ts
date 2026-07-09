@@ -6,10 +6,10 @@ export const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", 
 
 /** Width of the bar itself, in cells. */
 const BAR_WIDTH = 8;
-/** Full width of the progress column: bar + space + a right-aligned "NN%". */
-export const PROGRESS_COL = BAR_WIDTH + 4;
 const BAR_FULL = "▓";
 const BAR_EMPTY = "░";
+/** Full width of the progress column: bar + space + a right-aligned "NN%". */
+export const PROGRESS_COL = BAR_WIDTH + 4;
 
 /** Below these terminal widths, columns drop out so rows never wrap. */
 const HIDE_DETAIL_BELOW = 76;
@@ -74,8 +74,7 @@ export interface DashboardVM {
   logs: LogVM[];
 }
 
-const isDone = (v?: JobView): boolean =>
-  Boolean(v && (v.status === "ok" || v.status === "cached"));
+const isDone = (v?: JobView): boolean => Boolean(v && (v.status === "ok" || v.status === "cached"));
 
 /** Collapse newlines/tabs so routed (multi-line) output renders as one row. */
 const oneLine = (s: string): string => s.replace(/[\r\n\t]+/g, " ");
@@ -131,7 +130,7 @@ export function progressColumn(v: JobView, frame: number, cancelling: boolean): 
         const pct = `${Math.min(99, Math.floor(v.progress * 100))}%`.padStart(3);
         return { text: `${bar} ${pct}`, color: live };
       }
-      const span = Math.max(1, w * 2 - 2); // ping-pong period over [0, w-1]
+      const span = Math.max(1, w * 2 - 2);
       const m = frame % span;
       const pos = m < w ? m : span - m;
       const cells = Array.from({ length: w }, (_, i) => (i === pos ? BAR_FULL : BAR_EMPTY)).join("");
@@ -203,7 +202,6 @@ export function buildView(
     (j.system ? setup : assets).push(rowOf(j, jobs, frame, now, cancelling));
   }
 
-  // Counts cover assets only; setup rows (build/server) are shown but not counted.
   const assetJobs = snapshot.jobs.filter((j) => !j.system);
   const cached = assetJobs.filter((j) => j.status === "cached").length;
   const done = assetJobs.filter((j) => j.status === "ok" || j.status === "cached").length;
@@ -227,27 +225,20 @@ export function buildView(
     text: oneLine(l.message),
   }));
 
-  // Keep the live block within the terminal height. Rendering more lines than the terminal has rows
-  // makes Ink's in-place redraw fight the terminal's own scroll (the rows "jiggle"), so when the asset
-  // rows don't all fit, show a window around the active rows and mark how many are hidden above/below.
   let visibleAssets = assets;
   let assetsBefore = 0;
   let assetsAfter = 0;
   let maxStart = 0;
   if (rows && rows > 0) {
-    // Fixed chrome: borders(2) + header(1) + ASSETS margin+label(2) + footer margin+line(2) = 7,
-    // plus the setup block (margin+label+rows) when present, plus a 1-row safety margin.
     const chrome = 7 + (setup.length > 0 ? 2 + setup.length : 0) + 1;
     const budget = Math.max(1, rows - chrome);
     if (assets.length > budget) {
-      const show = Math.max(1, budget - 2); // reserve up to two "N more" marker lines
+      const show = Math.max(1, budget - 2);
       maxStart = assets.length - show;
       let start: number;
       if (typeof viewStart === "number") {
-        // Manual scroll: honor the requested start, clamped to the list.
         start = Math.max(0, Math.min(viewStart, maxStart));
       } else {
-        // Auto-follow: centre the window on the running rows (or the next waiting one).
         const runningPos: number[] = [];
         assetJobs.forEach((j, i) => {
           if (j.status === "running") runningPos.push(i);

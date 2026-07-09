@@ -1,6 +1,7 @@
 import type { Browser } from "playwright-core";
-import { captureFramedVideo } from "@/recorder/frame-capture";
+
 import type { Logger } from "@/utils/logger";
+import { captureFramedVideo } from "@/recorder/frame-capture";
 
 export interface FrameCaptureArgs {
   browser: Browser;
@@ -56,6 +57,7 @@ export async function captureSceneFrames(args: FrameCaptureArgs): Promise<void> 
     signal: args.signal,
     prepare: async (page) => {
       await page.goto(args.url, { waitUntil: "load" });
+      //TODO: replace `as` cast with proper typing
       await page.waitForFunction(
         () => (globalThis as { __showcaseReady?: boolean }).__showcaseReady === true,
         undefined,
@@ -63,11 +65,8 @@ export async function captureSceneFrames(args: FrameCaptureArgs): Promise<void> 
       );
     },
     seekToFrame: async (page, t) => {
-      await page.evaluate(
-        (tt) =>
-          (globalThis as { __showcase?: { seek(t: number): Promise<void> } }).__showcase?.seek(tt),
-        t,
-      );
+      //TODO: replace `as` cast with proper typing
+      await page.evaluate((tt) => (globalThis as { __showcase?: { seek(t: number): Promise<void> } }).__showcase?.seek(tt), t);
     },
   });
 }

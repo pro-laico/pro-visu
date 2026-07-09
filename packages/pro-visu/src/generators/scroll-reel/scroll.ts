@@ -55,9 +55,6 @@ export interface DetectSectionsArgs {
   headerInsetPx?: number;
 }
 
-// Browser globals — declared loosely (no DOM lib in this Node project). The exported functions are
-// serialized and run inside the page via page.evaluate, so each must be fully self-contained (no
-// references to module-level bindings); the small scroll helpers are therefore inlined in both.
 declare const window: {
   scrollTo: (o: { top: number; left: number; behavior: string }) => void;
   innerHeight: number;
@@ -83,39 +80,22 @@ export async function prepareScroll(args: PrepareScrollArgs): Promise<void> {
   const target = findScrollTarget(document, getComputedStyle) as any;
   forceInstant(target);
 
-  const sleep = (ms: number): Promise<void> =>
-    new Promise((resolve) => setTimeout(() => resolve(), ms));
-  // Cap any awaited promise so a never-settling one can't wedge the whole prepare step. A
-  // `loading="lazy"` <img> that never enters the viewport (e.g. in a hidden carousel slide) never
-  // loads, so its `decode()` neither resolves nor rejects — and `document.fonts.ready` can stall on
-  // a webfont that never loads. Both run inside `page.evaluate`, which has no timeout, so without a
-  // cap a single such element hangs the entire capture indefinitely.
-  const withCap = <T>(p: Promise<T> | null, ms: number): Promise<T | void> =>
-    Promise.race([p ?? Promise.resolve(), sleep(ms)]);
+  const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(() => resolve(), ms));
+  const withCap = <T>(p: Promise<T> | null, ms: number): Promise<T | void> => Promise.race([p ?? Promise.resolve(), sleep(ms)]);
 
-  scrollTargetTo(target, maxScrollOf(target)); // jump to bottom to trigger lazy content
+  scrollTargetTo(target, maxScrollOf(target));
   await sleep(Math.max(0, args.settleMs));
   try {
     await withCap(document.fonts?.ready ?? null, 5000);
-  } catch {
-    /* no font set */
-  }
+  } catch {}
   try {
     const imgs = Array.from(document.images ?? []);
-    // Decode every image, but bound the whole batch — a real decode is sub-second; a stuck lazy/
-    // never-loading image would otherwise hang here forever (see `withCap` above).
-    await withCap(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      Promise.all(imgs.map((im: any) => (im.decode ? im.decode().catch(() => {}) : null))),
-      4000,
-    );
-  } catch {
-    /* decode unsupported */
-  }
-  scrollTargetTo(target, 0); // back to the top for the animated pass
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await withCap(Promise.all(imgs.map((im: any) => (im.decode ? im.decode().catch(() => {}) : null))), 4000);
+  } catch {}
+  scrollTargetTo(target, 0);
   await sleep(50);
 
-  // --- inlined, self-contained scroll helpers (duplicated in pageScroll; see note above) ---
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function findScrollTarget(doc: any, gcs: (el: any) => { overflowY: string }): unknown {
     const se = doc.scrollingElement || doc.documentElement;
@@ -144,11 +124,7 @@ export async function prepareScroll(args: PrepareScrollArgs): Promise<void> {
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function isDocTarget(t: any): boolean {
-    return (
-      t === (document.scrollingElement || document.documentElement) ||
-      t === document.documentElement ||
-      t === document.body
-    );
+    return t === (document.scrollingElement || document.documentElement) || t === document.documentElement || t === document.body;
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function scrollTargetTo(t: any, y: number): void {
@@ -164,14 +140,10 @@ export async function prepareScroll(args: PrepareScrollArgs): Promise<void> {
   function forceInstant(t: any): void {
     try {
       document.documentElement.style.scrollBehavior = "auto";
-    } catch {
-      /* ignore */
-    }
+    } catch {}
     try {
       if (t && t.style) t.style.scrollBehavior = "auto";
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   }
 }
 
@@ -191,16 +163,12 @@ export async function detectSectionOffsets(args: DetectSectionsArgs): Promise<nu
   const docTarget = isDocTarget(target);
   const vh = window.innerHeight || document.documentElement.clientHeight || 1;
   const containerTop = docTarget ? 0 : target.getBoundingClientRect().top;
-  const curScroll = docTarget
-    ? window.pageYOffset || document.documentElement.scrollTop || 0
-    : target.scrollTop;
+  const curScroll = docTarget ? window.pageYOffset || document.documentElement.scrollTop || 0 : target.scrollTop;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let els: any[] = [];
   try {
-    els = Array.from(
-      document.querySelectorAll(args.selector || "section, main > *, [data-section]"),
-    );
+    els = Array.from(document.querySelectorAll(args.selector || "section, main > *, [data-section]"));
   } catch {
     els = [];
   }
@@ -213,18 +181,13 @@ export async function detectSectionOffsets(args: DetectSectionsArgs): Promise<nu
     } catch {
       continue;
     }
-    // Apply the height filter only to the heuristic; trust an explicit selector verbatim.
     if (!args.selector && rect.height < minH) continue;
-    // Unless the footer is wanted, don't let footer elements count as sections (heuristic only).
     if (!args.includeFooter && !args.selector) {
       try {
         if (el.closest && el.closest('footer, [role="contentinfo"]')) continue;
-      } catch {
-        /* ignore */
-      }
+      } catch {}
     }
     const rawTop = docTarget ? rect.top + curScroll : rect.top - containerTop + curScroll;
-    // Pull the target up by the sticky/fixed header height so the section isn't clipped under it.
     const top = rawTop - (args.headerInsetPx ?? 0);
     const y = Math.max(0, Math.min(distance, top));
     offsets.push(y / distance);
@@ -234,15 +197,9 @@ export async function detectSectionOffsets(args: DetectSectionsArgs): Promise<nu
   for (const o of offsets) {
     if (deduped.length === 0 || o - deduped[deduped.length - 1]! > 0.01) deduped.push(o);
   }
-  // With includeFooter the reel always ends at the very bottom; without it, the last detected
-  // content section is the final stop. An empty detection still falls back to a single
-  // scroll-to-bottom stop so the reel covers the page.
-  if (deduped.length === 0 || (args.includeFooter && deduped[deduped.length - 1]! < 0.99)) {
-    deduped.push(1);
-  }
+  if (deduped.length === 0 || (args.includeFooter && deduped[deduped.length - 1]! < 0.99)) deduped.push(1);
   return deduped.slice(0, args.maxSections);
 
-  // --- inlined, self-contained scroll helpers (duplicated elsewhere in this file; see note above) ---
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function findScrollTarget(doc: any, gcs: (el: any) => { overflowY: string }): unknown {
     const se = doc.scrollingElement || doc.documentElement;
@@ -271,11 +228,7 @@ export async function detectSectionOffsets(args: DetectSectionsArgs): Promise<nu
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function isDocTarget(t: any): boolean {
-    return (
-      t === (document.scrollingElement || document.documentElement) ||
-      t === document.documentElement ||
-      t === document.body
-    );
+    return t === (document.scrollingElement || document.documentElement) || t === document.documentElement || t === document.body;
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function maxScrollOf(t: any): number {
@@ -288,17 +241,13 @@ export async function detectSectionOffsets(args: DetectSectionsArgs): Promise<nu
  * target — used by choreography to "scroll to a section". Returns null for a selector that matches no
  * element. Measured once after warm-up (positions are stable), so all workers agree. Self-contained.
  */
-export async function measureNormalizedOffsets(
-  args: MeasureOffsetsArgs,
-): Promise<Array<number | null>> {
+export async function measureNormalizedOffsets(args: MeasureOffsetsArgs): Promise<Array<number | null>> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const target = findScrollTarget(document, getComputedStyle) as any;
   const distance = maxScrollOf(target);
   const docTarget = isDocTarget(target);
   const containerTop = docTarget ? 0 : target.getBoundingClientRect().top;
-  const curScroll = docTarget
-    ? window.pageYOffset || document.documentElement.scrollTop || 0
-    : target.scrollTop;
+  const curScroll = docTarget ? window.pageYOffset || document.documentElement.scrollTop || 0 : target.scrollTop;
   return args.selectors.map((sel) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let el: any = null;
@@ -310,13 +259,11 @@ export async function measureNormalizedOffsets(
     if (!el) return null;
     const rect = el.getBoundingClientRect();
     const rawTop = docTarget ? rect.top + curScroll : rect.top - containerTop + curScroll;
-    // Pull the target up by the sticky/fixed header height so the selector lands below it, not under it.
     const offsetTop = rawTop - (args.headerInsetPx ?? 0);
     const y = Math.max(0, Math.min(distance, offsetTop));
     return distance > 0 ? y / distance : 0;
   });
 
-  // --- inlined, self-contained scroll helpers (duplicated elsewhere in this file; see note above) ---
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function findScrollTarget(doc: any, gcs: (el: any) => { overflowY: string }): unknown {
     const se = doc.scrollingElement || doc.documentElement;
@@ -345,11 +292,7 @@ export async function measureNormalizedOffsets(
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function isDocTarget(t: any): boolean {
-    return (
-      t === (document.scrollingElement || document.documentElement) ||
-      t === document.documentElement ||
-      t === document.body
-    );
+    return t === (document.scrollingElement || document.documentElement) || t === document.documentElement || t === document.body;
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function maxScrollOf(t: any): number {
@@ -371,15 +314,11 @@ export async function measureTopInset(args: MeasureTopInsetArgs): Promise<number
   const vw = window.innerWidth || document.documentElement.clientWidth || 0;
   const maxFraction = args.maxFraction ?? 0.4;
   const distance = maxScrollOf(target);
-  const cur = isDocTarget(target)
-    ? window.pageYOffset || document.documentElement.scrollTop || 0
-    : target.scrollTop;
-  // Pin any top-sticky header by scrolling past its natural position, then settle one frame.
+  const cur = isDocTarget(target) ? window.pageYOffset || document.documentElement.scrollTop || 0 : target.scrollTop;
   scrollTargetTo(target, Math.min(cur + vh, distance));
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   let inset = 0;
   if (args.selector) {
-    // Explicit override: measure this element's bottom edge (while pinned), skip the heuristic.
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const el = (document as any).querySelector(args.selector);
@@ -387,9 +326,7 @@ export async function measureTopInset(args: MeasureTopInsetArgs): Promise<number
         const r = el.getBoundingClientRect();
         if (r.height > 0) inset = Math.max(0, r.bottom);
       }
-    } catch {
-      /* ignore — falls back to 0 */
-    }
+    } catch {}
   } else {
     try {
       const all = document.querySelectorAll("body *");
@@ -409,27 +346,14 @@ export async function measureTopInset(args: MeasureTopInsetArgs): Promise<number
         } catch {
           continue;
         }
-        // A header pinned to the top: starts at the very top, spans most of the width, isn't a
-        // full-screen overlay, and reaches lower than anything found so far.
-        if (
-          r.top <= 2 &&
-          r.width >= vw * 0.6 &&
-          r.height > 0 &&
-          r.bottom > inset &&
-          r.bottom <= vh * maxFraction
-        ) {
-          inset = r.bottom;
-        }
+        if (r.top <= 2 && r.width >= vw * 0.6 && r.height > 0 && r.bottom > inset && r.bottom <= vh * maxFraction) inset = r.bottom;
       }
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   }
-  scrollTargetTo(target, cur); // restore the original scroll
+  scrollTargetTo(target, cur);
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   return inset;
 
-  // --- inlined, self-contained scroll helpers (duplicated elsewhere in this file; see note above) ---
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function findScrollTarget(doc: any, gcs: (el: any) => { overflowY: string }): unknown {
     const se = doc.scrollingElement || doc.documentElement;
@@ -458,11 +382,7 @@ export async function measureTopInset(args: MeasureTopInsetArgs): Promise<number
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function isDocTarget(t: any): boolean {
-    return (
-      t === (document.scrollingElement || document.documentElement) ||
-      t === document.documentElement ||
-      t === document.body
-    );
+    return t === (document.scrollingElement || document.documentElement) || t === document.documentElement || t === document.body;
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function scrollTargetTo(t: any, y: number): void {
@@ -493,30 +413,21 @@ export interface SeekFrameArgs extends SeekScrollArgs {
  * inlined as elsewhere in this file.
  */
 export async function seekFrame(args: SeekFrameArgs): Promise<void> {
-  // 1. Scroll-seek (same semantics as seekScrollTo).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const target = findScrollTarget(document, getComputedStyle) as any;
   forceInstant(target);
   const distance = maxScrollOf(target);
   const clamped = args.normalizedY < 0 ? 0 : args.normalizedY > 1 ? 1 : args.normalizedY;
   scrollTargetTo(target, clamped * distance);
-  // Two rAF ticks: let scroll handlers run (frame 1) and the resulting paint commit (frame 2).
-  await new Promise<void>((resolve) =>
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-  );
+  await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
 
-  // 2. Settle in-view content (fonts + visible image decode), each await capped at settleMaxMs.
   if (args.settleMaxMs != null) {
     const maxMs = args.settleMaxMs;
-    const sleep = (ms: number): Promise<void> =>
-      new Promise((resolve) => setTimeout(() => resolve(), ms));
-    const withCap = <T>(p: Promise<T> | null): Promise<T | void> =>
-      Promise.race([p ?? Promise.resolve(), sleep(maxMs)]);
+    const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(() => resolve(), ms));
+    const withCap = <T>(p: Promise<T> | null): Promise<T | void> => Promise.race([p ?? Promise.resolve(), sleep(maxMs)]);
     try {
       await withCap(document.fonts?.ready ?? null);
-    } catch {
-      /* no font set */
-    }
+    } catch {}
     try {
       const vh = window.innerHeight || document.documentElement.clientHeight || 0;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -529,16 +440,11 @@ export async function seekFrame(args: SeekFrameArgs): Promise<void> {
           return false;
         }
       });
-      await withCap(
-        Promise.all(inView.map((im) => (im.decode ? im.decode().catch(() => {}) : null))),
-      );
-    } catch {
-      /* decode unsupported */
-    }
+      await withCap(Promise.all(inView.map((im) => (im.decode ? im.decode().catch(() => {}) : null))));
+    } catch {}
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   }
 
-  // --- inlined, self-contained scroll helpers (duplicated elsewhere in this file; see note above) ---
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function findScrollTarget(doc: any, gcs: (el: any) => { overflowY: string }): unknown {
     const se = doc.scrollingElement || doc.documentElement;
@@ -567,11 +473,7 @@ export async function seekFrame(args: SeekFrameArgs): Promise<void> {
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function isDocTarget(t: any): boolean {
-    return (
-      t === (document.scrollingElement || document.documentElement) ||
-      t === document.documentElement ||
-      t === document.body
-    );
+    return t === (document.scrollingElement || document.documentElement) || t === document.documentElement || t === document.body;
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function scrollTargetTo(t: any, y: number): void {
@@ -587,14 +489,10 @@ export async function seekFrame(args: SeekFrameArgs): Promise<void> {
   function forceInstant(t: any): void {
     try {
       document.documentElement.style.scrollBehavior = "auto";
-    } catch {
-      /* ignore */
-    }
+    } catch {}
     try {
       if (t && t.style) t.style.scrollBehavior = "auto";
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   }
 }
 

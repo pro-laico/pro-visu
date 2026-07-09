@@ -11,12 +11,12 @@ export function ProductCard({ product, id }: { product: Product; id?: string }) 
   const [added, setAdded] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  const href = `/products/${product.slug}`;
+
   function onAdd() {
     add({ slug: product.slug, name: product.name, price: product.price, colorway: product.colorway });
     setAdded(true);
   }
-
-  const href = `/products/${product.slug}`;
 
   return (
     <article className="product" id={id}>

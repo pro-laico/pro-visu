@@ -2,9 +2,10 @@ import path from "node:path";
 import http from "node:http";
 import https from "node:https";
 import { spawn, type ChildProcess } from "node:child_process";
+
+import type { Logger } from "@/utils/logger";
 import type { ResolvedServerSettings } from "@/config/schema";
 import { detectPackageManager, pmRun } from "@/utils/package-manager";
-import type { Logger } from "@/utils/logger";
 
 /** A started server we own and must tear down (null when we reused an existing one). */
 export interface ServerHandle {
@@ -65,29 +66,16 @@ export interface ServerTasks {
  * `task`, output is captured and the latest line feeds the tracker row (instead of streaming
  * raw to the terminal); the captured tail is included in the error on failure.
  */
-function runOnce(
-  command: string,
-  cwd: string,
-  task?: TaskHandle,
-  signal?: AbortSignal,
-): Promise<void> {
+function runOnce(command: string, cwd: string, task?: TaskHandle, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(new Error("Aborted."));
     const tracked = Boolean(task);
-    const child = spawn(command, {
-      cwd,
-      shell: true,
-      stdio: tracked ? ["ignore", "pipe", "pipe"] : "inherit",
-    });
+    const child = spawn(command, { cwd, shell: true, stdio: tracked ? ["ignore", "pipe", "pipe"] : "inherit" });
     let tail = "";
     const onData = (b: Buffer): void => {
       const text = b.toString();
       tail = (tail + text).slice(-4000);
-      const last = text
-        .split(/\r?\n/)
-        .map((l) => l.trim())
-        .filter(Boolean)
-        .at(-1);
+      const last = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).at(-1);
       if (last) task?.step(last);
     };
     if (tracked) {
@@ -95,7 +83,7 @@ function runOnce(
       child.stderr?.on("data", onData);
     }
     const onAbort = (): void => {
-      void killTree(child); // stop the build (and its tree) on a graceful interrupt
+      void killTree(child);
       reject(new Error("Aborted."));
     };
     signal?.addEventListener("abort", onAbort, { once: true });
@@ -123,21 +111,16 @@ function killTree(child: ChildProcess): Promise<void> {
   return new Promise((resolve) => {
     if (child.pid == null || child.exitCode != null) return resolve();
     if (process.platform === "win32") {
-      // The shell-spawned server has child processes (next → node); /T kills the tree.
-      const killer = spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
-        stdio: "ignore",
-      });
+      const killer = spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
       killer.on("error", () => resolve());
       killer.on("close", () => resolve());
     } else {
       try {
-        process.kill(-child.pid, "SIGTERM"); // negative pid = the process group
+        process.kill(-child.pid, "SIGTERM");
       } catch {
         try {
           child.kill("SIGTERM");
-        } catch {
-          /* already gone */
-        }
+        } catch {}
       }
       resolve();
     }
@@ -159,14 +142,10 @@ export async function startManagedServer(
   const cwd = server.cwd ? path.resolve(baseCwd, server.cwd) : baseCwd;
   const url = resolveServerUrl(server);
 
-  // Default build/command to the project's own package scripts so pro-visu piggybacks on whatever
-  // they already run — detected from the lockfile so it fits npm/pnpm/yarn/bun alike. `build: false`
-  // explicitly skips the build (and is how --skip-build reaches here).
   const pm = detectPackageManager(cwd);
   const buildCmd = server.build === false ? undefined : (server.build ?? pmRun(pm, "build"));
   const startCmd = server.command ?? pmRun(pm, "start");
 
-  // In live mode the rows convey progress; avoid untagged logs that would corrupt the block.
   const live = Boolean(tasks.build || tasks.server);
 
   if (server.reuseExisting && (await probe(url))) {
@@ -203,9 +182,6 @@ export async function startManagedServer(
   } else {
     logger.info(`Starting server: ${startCmd}`);
   }
-  // Pass the readiness port/host to the command as PORT/HOST so frameworks that honor them
-  // (Next, Vite, …) bind exactly the port we probe — no need to repeat it in the command. An
-  // explicit flag in the command (e.g. `next start -p 4000`) still wins.
   const probed = new URL(url);
   const child = spawn(startCmd, {
     cwd,
@@ -216,7 +192,6 @@ export async function startManagedServer(
       PORT: probed.port || (probed.protocol === "https:" ? "443" : "80"),
       HOST: probed.hostname,
     },
-    // POSIX: own process group so we can signal the whole tree. Windows uses taskkill /T.
     detached: process.platform !== "win32",
   });
 
@@ -240,7 +215,7 @@ export async function startManagedServer(
   }
   tasks.server?.step(`ready at ${url}`);
   tasks.server?.ok();
-  if (!live) logger.success(`Server ready at ${url}`); // in live mode the row conveys this
+  if (!live) logger.success(`Server ready at ${url}`);
 
   return {
     pid: child.pid,

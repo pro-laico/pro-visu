@@ -4,11 +4,7 @@
  * formatting. No I/O — fully unit-testable.
  */
 
-export interface Rgb {
-  r: number;
-  g: number;
-  b: number;
-}
+export interface Rgb { r: number; g: number; b: number; }
 
 /** A field that can be shown on a swatch. */
 export type FieldId = "name" | "hex" | "rgb" | "oklch" | "hsl";
@@ -16,23 +12,14 @@ export type FieldId = "name" | "hex" | "rgb" | "oklch" | "hsl";
 /** Normalize `#rgb` / `rgb` / `#rrggbb` (any case) to canonical uppercase `#RRGGBB`. */
 export function normalizeHex(hex: string): string {
   let h = hex.trim().replace(/^#/, "");
-  if (/^[0-9a-fA-F]{3}$/.test(h)) {
-    h = h
-      .split("")
-      .map((c) => c + c)
-      .join("");
-  }
+  if (/^[0-9a-fA-F]{3}$/.test(h)) h = h.split("").map((c) => c + c).join("");
   if (!/^[0-9a-fA-F]{6}$/.test(h)) throw new Error(`Invalid hex color: "${hex}"`);
   return `#${h.toUpperCase()}`;
 }
 
 export function hexToRgb(hex: string): Rgb {
   const h = normalizeHex(hex).slice(1);
-  return {
-    r: parseInt(h.slice(0, 2), 16),
-    g: parseInt(h.slice(2, 4), 16),
-    b: parseInt(h.slice(4, 6), 16),
-  };
+  return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16) };
 }
 
 const clamp = (n: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, n));
@@ -74,11 +61,7 @@ export function rgbToOklch({ r, g, b }: Rgb): Oklch {
   return { l: clamp(L, 0, 1), c: C, h: C < 1e-4 ? 0 : H };
 }
 
-export interface Hsl {
-  h: number;
-  s: number;
-  l: number;
-}
+export interface Hsl { h: number; s: number; l: number; }
 
 /** sRGB (0..255) → HSL (h 0..360, s/l 0..100). */
 export function rgbToHsl({ r, g, b }: Rgb): Hsl {
@@ -111,18 +94,11 @@ export function rgbToHsl({ r, g, b }: Rgb): Hsl {
 
 /** WCAG relative luminance (0..1) of an sRGB color. */
 function relativeLuminance({ r, g, b }: Rgb): number {
-  return (
-    0.2126 * srgbToLinear(r / 255) +
-    0.7152 * srgbToLinear(g / 255) +
-    0.0722 * srgbToLinear(b / 255)
-  );
+  return 0.2126 * srgbToLinear(r / 255) + 0.7152 * srgbToLinear(g / 255) + 0.0722 * srgbToLinear(b / 255);
 }
 
 /** Pick readable text on a swatch: the dark text on light backgrounds, light text on dark ones. */
-export function pickTextColor(
-  hex: string,
-  opts: { light: string; dark: string; threshold?: number },
-): string {
+export function pickTextColor(hex: string, opts: { light: string; dark: string; threshold?: number }): string {
   const lum = relativeLuminance(hexToRgb(hex));
   return lum > (opts.threshold ?? 0.5) ? opts.dark : opts.light;
 }
@@ -141,11 +117,7 @@ const round = (n: number, d = 0): number => {
 };
 
 /** Render one field of a color as its display string. */
-export function formatField(
-  color: { name: string; hex: string },
-  field: FieldId,
-  fmt: FieldFormat = {},
-): string {
+export function formatField(color: { name: string; hex: string }, field: FieldId, fmt: FieldFormat = {}): string {
   const hex = normalizeHex(color.hex);
   const rgb = hexToRgb(hex);
   switch (field) {

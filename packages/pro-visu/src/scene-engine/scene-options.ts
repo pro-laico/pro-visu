@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import { easingSchema } from "@/generators/easing";
 
 /**
@@ -13,9 +14,7 @@ const specimenWirePulseSchema = z
     chars: z.number().nonnegative().default(0),
     colors: z.number().nonnegative().default(0),
     color: z.enum(["foreground", "muted", "accent"]).optional(),
-    pacing: z
-      .enum(["even", "linear", "ease-in", "ease-out", "ease-in-out", "random"])
-      .default("even"),
+    pacing: z.enum(["even", "linear", "ease-in", "ease-out", "ease-in-out", "random"]).default("even"),
   })
   .strict();
 
@@ -35,8 +34,6 @@ const specimenWirePulseSchema = z
  */
 const specimenSceneOptionsSchema = z
   .object({
-    // The name label: its text plus placement/styling within the bottom gap area. The specimen
-    // generator folds its friendly `name` + `label` options into this one object.
     label: z
       .object({
         text: z.string().default(""),
@@ -112,16 +109,9 @@ export const wallPulseSchema = z
     /** When the pulse starts, as a fraction of the clip (0..1). */
     at: z.number().min(0).max(1).describe("When the pulse starts, as a fraction of the clip (0..1)."),
     /** How long the move takes, as a fraction of the clip (0..1). */
-    span: z
-      .number()
-      .positive()
-      .max(1)
-      .describe("How long the move takes, as a fraction of the clip (0..1)."),
+    span: z.number().positive().max(1).describe("How long the move takes, as a fraction of the clip (0..1)."),
     /** How far it travels, in periods (1 = one full tile-set / one wrap). Usually 0..1. */
-    distance: z
-      .number()
-      .nonnegative()
-      .describe("How far it travels, in periods (1 = one full tile-set / wrap). Usually 0..1."),
+    distance: z.number().nonnegative().describe("How far it travels, in periods (1 = one full tile-set / wrap). Usually 0..1."),
     /** Easing of the move's ramp. */
     easing: wallEasingEnum.default("ease-in-out").describe("Easing of the move's ramp. Default 'ease-in-out'."),
   })
@@ -151,10 +141,7 @@ export const wallPanSchema = z
 export const wallColumnSchema = z
   .object({
     /** Assets stacked in this column, by name (cycled to fill the height). At least one. */
-    tiles: z
-      .array(z.string().min(1))
-      .min(1)
-      .describe("Assets stacked in this column, by name (cycled to fill the height). At least one."),
+    tiles: z.array(z.string().min(1)).min(1).describe("Assets stacked in this column, by name (cycled to fill the height). At least one."),
     /** Constant start-position shift, 0..1 of a tile-set — de-aligns columns with similar content. */
     stagger: z
       .number()
@@ -171,10 +158,7 @@ export const wallColumnSchema = z
       .optional()
       .describe("Continuous whole-clip loops for this column. Omit to inherit the wall-level loops."),
     /** This column's pulses. Omit to inherit the wall-level `pulses`. */
-    pulses: z
-      .array(wallPulseSchema)
-      .optional()
-      .describe("This column's pulses. Omit to inherit the wall-level pulses."),
+    pulses: z.array(wallPulseSchema).optional().describe("This column's pulses. Omit to inherit the wall-level pulses."),
   })
   .strict();
 
@@ -185,10 +169,7 @@ export const wallColumnSchema = z
 export const fauxTileSchema = z
   .object({
     /** Box fill (any CSS color). Omit to auto-derive a distinct color from the tile name. */
-    color: z
-      .string()
-      .optional()
-      .describe("Box fill (any CSS color). Omit to auto-derive a distinct color from the tile name."),
+    color: z.string().optional().describe("Box fill (any CSS color). Omit to auto-derive a distinct color from the tile name."),
     /** Optional caption shown under the name (e.g. "16:9") — purely cosmetic. */
     caption: z.string().optional().describe("Optional caption shown under the name (e.g. 16:9) — purely cosmetic."),
     /** This faux tile's aspect ratio (width / height): 1.78 = 16:9 (short), 0.56 = 9:16 (tall), 1 =
@@ -396,11 +377,6 @@ export const SCENE_OPTION_SCHEMAS = {
 
 export type SceneId = keyof typeof SCENE_OPTION_SCHEMAS;
 
-// ---------------------------------------------------------------------------
-// Author-facing input types (editor autocomplete). Kept in sync with the zod
-// schemas by the Exact<> guards at the bottom — a drift is a compile error.
-// ---------------------------------------------------------------------------
-
 /** The wall's easing curves. */
 export type WallEasing = z.infer<typeof wallEasingEnum>;
 
@@ -593,10 +569,7 @@ export interface IconsSceneOptionsInput {
 // Compile-time guards: the documented authoring types must stay in sync with the schemas.
 type Exact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
 const _wallInSync: Exact<WallSceneOptionsInput, z.input<typeof wallSceneOptionsSchema>> = true;
-const _paletteReelInSync: Exact<
-  PaletteReelSceneOptionsInput,
-  z.input<typeof paletteReelSceneOptionsSchema>
-> = true;
+const _paletteReelInSync: Exact<PaletteReelSceneOptionsInput, z.input<typeof paletteReelSceneOptionsSchema>> = true;
 const _iconEffectInSync: Exact<IconEffectInput, z.input<typeof iconEffectSchema>> = true;
 const _iconsInSync: Exact<IconsSceneOptionsInput, z.input<typeof iconsSceneOptionsSchema>> = true;
 void _wallInSync;

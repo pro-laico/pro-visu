@@ -1,15 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+
 import type { SceneProps } from "../types";
-import {
-  autoColumns,
-  evalIcons,
-  makeGrid,
-  type BaseState,
-  type EffectStep,
-  type Grid,
-  type IconState,
-} from "./icons-timeline";
+import { autoColumns, evalIcons, makeGrid, type BaseState, type EffectStep, type Grid, type IconState } from "./icons-timeline";
 
 /**
  * An icon-set showcase: a centred grid of uniform icons on a solid backdrop. By default each icon is
@@ -25,7 +18,7 @@ import {
 
 /** Read a number from the loose scene-option bag with a default. */
 function num(o: Record<string, unknown>, k: string, d: number): number {
-  return typeof o[k] === "number" ? (o[k] as number) : d;
+  return typeof o[k] === "number" ? (o[k] as number) : d; //TODO: replace `as` cast with proper typing
 }
 
 interface Layout {
@@ -49,8 +42,6 @@ function computeLayout(width: number, height: number, count: number, o: Record<s
   const availW = Math.max(1, width - padding * 2 - gap * (grid.columns - 1));
   const availH = Math.max(1, height - padding * 2 - gap * (grid.rows - 1));
   const fit = Math.floor(Math.min(availW / grid.columns, availH / grid.rows));
-  // `iconSize` caps the cell but never overflows the frame — a too-large override is clamped to the
-  // fit (icons smaller than the fit just leave more padding, and the grid stays centred).
   const override = typeof o.iconSize === "number" && o.iconSize > 0 ? Math.round(o.iconSize) : undefined;
   const iconSize = Math.max(4, override !== undefined ? Math.min(override, fit) : fit);
 
@@ -84,7 +75,6 @@ function IconCell({
     willChange: "transform, opacity",
   };
   if (recolor) {
-    // Shape from the file's alpha (mask), colour from background-color → live-recolourable.
     const mask: React.CSSProperties = {
       width: "100%",
       height: "100%",
@@ -111,16 +101,8 @@ function IconCell({
   );
 }
 
-export function Icons({
-  width,
-  height,
-  background,
-  durationSeconds,
-  files,
-  options,
-}: SceneProps): React.ReactElement {
-  // Ordered icon URLs: the generator passes slot names in `options.icons`, resolved to served files.
-  const iconSlots = Array.isArray(options.icons) ? (options.icons as string[]) : [];
+export function Icons({ width, height, background, durationSeconds, files, options }: SceneProps): React.ReactElement {
+  const iconSlots = Array.isArray(options.icons) ? (options.icons as string[]) : []; //TODO: replace `as` cast with proper typing
   const urls = useMemo(
     () => iconSlots.map((slot) => files[slot]).filter((u): u is string => Boolean(u)),
     [JSON.stringify(iconSlots), JSON.stringify(files)], // eslint-disable-line react-hooks/exhaustive-deps
@@ -130,7 +112,7 @@ export function Icons({
   const bg = typeof options.background === "string" ? options.background : background;
   const recolor = options.recolor !== false;
   const seed = num(options, "seed", 1);
-  const steps = Array.isArray(options.steps) ? (options.steps as EffectStep[]) : [];
+  const steps = Array.isArray(options.steps) ? (options.steps as EffectStep[]) : []; //TODO: replace `as` cast with proper typing
   const base: BaseState = {
     color: typeof options.baseColor === "string" ? options.baseColor : "#f4f4f5",
     scale: typeof options.baseScale === "number" ? options.baseScale : 1,
@@ -162,7 +144,6 @@ export function Icons({
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      // Preload every url so masks and native images are ready before the first frame.
       await Promise.all(
         urls.map(
           (u) =>
@@ -175,8 +156,7 @@ export function Icons({
             }),
         ),
       );
-      const twoFrames = (): Promise<void> =>
-        new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+      const twoFrames = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
       await twoFrames();
       if (!cancelled) sceneReady.current?.resolve();
     })();
@@ -208,8 +188,6 @@ export function Icons({
     overflow: "hidden",
   };
   const cols = layout.grid.columns;
-  // Render row by row, each row flex-centred, so a short final row sits centred under the full ones
-  // (a plain CSS grid would leave the orphans hugging the left). Full rows fill the width → no shift.
   const rows: string[][] = [];
   for (let i = 0; i < urls.length; i += cols) rows.push(urls.slice(i, i + cols));
 

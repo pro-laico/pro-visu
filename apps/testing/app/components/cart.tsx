@@ -28,8 +28,8 @@ function keyOf(slug: string, size?: string) {
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [lines, setLines] = useState<CartLine[]>([]);
   const [open, setOpen] = useState(false);
+  const [lines, setLines] = useState<CartLine[]>([]);
 
   const value = useMemo<CartContextValue>(() => {
     const count = lines.reduce((n, l) => n + l.qty, 0);
@@ -39,9 +39,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setLines((prev) => {
         const k = keyOf(line.slug, line.size);
         const existing = prev.find((l) => keyOf(l.slug, l.size) === k);
-        if (existing) {
-          return prev.map((l) => (keyOf(l.slug, l.size) === k ? { ...l, qty: l.qty + 1 } : l));
-        }
+        if (existing) return prev.map((l) => (keyOf(l.slug, l.size) === k ? { ...l, qty: l.qty + 1 } : l));
         return [...prev, { ...line, qty: 1 }];
       });
     }

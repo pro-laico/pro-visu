@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { iconEffectSchema, type IconEffectInput } from "@/scene-engine/scene-options";
+
 import { videoOutputShape } from "@/generators/shared-options";
+import { iconEffectSchema, type IconEffectInput } from "@/scene-engine/scene-options";
 
 /**
  * Author-facing options for the `icons` generator — a showcase of a project's icon set: a centred
@@ -129,34 +130,25 @@ export interface IconsOptionsInput {
   steps?: IconEffectInput[];
 }
 
-// --- templates ------------------------------------------------------------------------------------
-
 const ACCENT = "#7c9cff";
 
 /** The steps for a named template, using `accent` for every recolour so the `accent` option flows through. */
 function templateSteps(name: IconsTemplate, accent: string): IconEffectInput[] {
   switch (name) {
     case "scale-sweep":
-      // Scale each icon up one at a time (forward), then settle back.
       return [{ kind: "scale", at: 0.05, span: 0.9, order: "forward", stagger: 0.92, scale: 1.6, hold: 0.1 }];
     case "color-sweep":
-      // Recolour each icon to the accent one at a time (forward), then back.
       return [{ kind: "color", at: 0.05, span: 0.9, order: "forward", stagger: 0.9, color: accent, hold: 0.15 }];
     case "ripple":
-      // A continuous scale wave rippling out from the centre.
       return [
         { kind: "scale", at: 0.05, span: 0.9, order: "radial-out", stagger: 0.8, scale: 1.45, hold: 0.05, easing: "ease-in-out" },
       ];
     case "pattern":
-      // Flash a checkerboard to the accent, then the alternate rows — a two-beat pattern.
       return [
         { kind: "color", at: 0.05, span: 0.4, order: "forward", stagger: 0, targets: "checkerboard", color: accent, hold: 0.4 },
         { kind: "color", at: 0.5, span: 0.4, order: "forward", stagger: 0, targets: "rows-alt", color: accent, hold: 0.4 },
       ];
     default:
-      // "showcase": a radial scale ripple out from the centre, then a forward recolour sweep — ending
-      // at rest. Roomy per-icon slices (lower stagger, wider span) + a real peak hold so each icon
-      // makes a smooth, deliberate pop rather than a quick flick.
       return [
         { kind: "scale", at: 0.03, span: 0.52, order: "radial-out", stagger: 0.5, scale: 1.4, hold: 0.32 },
         { kind: "color", at: 0.52, span: 0.44, order: "forward", stagger: 0.8, color: accent, hold: 0.25 },
@@ -182,30 +174,18 @@ function deepMerge(base: Record<string, unknown>, override: Record<string, unkno
 /** Merge a selected template's steps underneath the user's explicit options (which win, deeply). */
 function applyTemplate(raw: unknown): unknown {
   if (!isPlainObject(raw)) return raw;
-  // Default to the "showcase" template when none is named and no explicit steps are given.
+  //TODO: replace `as` cast with proper typing
   const name =
-    typeof raw.template === "string"
-      ? (raw.template as IconsTemplate)
-      : raw.steps === undefined
-        ? "showcase"
-        : undefined;
+    typeof raw.template === "string" ? (raw.template as IconsTemplate) : raw.steps === undefined ? "showcase" : undefined;
   if (!name) return raw;
   const accent = typeof raw.accent === "string" ? raw.accent : ACCENT;
   return deepMerge({ steps: templateSteps(name, accent) }, raw);
 }
 
-// --- schema ---------------------------------------------------------------------------------------
-
 const iconsObjectSchema = z
   .object({
-    icons: z
-      .array(iconSourceSchema)
-      .default([])
-      .describe("Icon sources: paths and/or { src }. Combined with `dir` (dir first, then these)."),
-    dir: z
-      .string()
-      .optional()
-      .describe("A folder whose image files (svg/png/webp/jpg/gif/avif) become the icons, sorted by filename."),
+    icons: z.array(iconSourceSchema).default([]).describe("Icon sources: paths and/or { src }. Combined with `dir` (dir first, then these)."),
+    dir: z.string().optional().describe("A folder whose image files (svg/png/webp/jpg/gif/avif) become the icons, sorted by filename."),
     template: z
       .enum(["showcase", "scale-sweep", "color-sweep", "ripple", "pattern"])
       .optional()
@@ -216,8 +196,6 @@ const iconsObjectSchema = z
           .enum(["video", "image"])
           .default("video")
           .describe('Emit a looping video ("video", mp4) or a single still ("image", png). Default "video".'),
-        // Shared video-output block (width/height/deviceScaleFactor/fps/crf/fileName) — same knobs and
-        // wording as the other generators; fileName is overridden to note the .png case.
         ...videoOutputShape({ width: 1080, height: 1080, deviceScaleFactor: 2 }),
         fileName: z.string().optional().describe('Output filename; defaults to "<slug(asset name)>.<mp4|png>".'),
         workers: z

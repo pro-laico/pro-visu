@@ -1,8 +1,9 @@
 import { z } from "zod";
-import { normalizeHex, type FieldId } from "@/generators/palette/color";
-import { easingSchema, type Easing } from "@/generators/easing";
+
 import { videoOutputShape } from "@/generators/shared-options";
+import { easingSchema, type Easing } from "@/generators/easing";
 import type { PaletteColorInput } from "@/generators/palette/options";
+import { normalizeHex, type FieldId } from "@/generators/palette/color";
 
 /** Field ids that can be revealed on a band when it expands (same set as the still palette). */
 const fieldEnum = z.enum(["name", "hex", "rgb", "oklch", "hsl"]);
@@ -123,159 +124,65 @@ export interface PaletteReelOptionsInput {
   contrast?: PaletteReelContrastInput;
 }
 
-const paletteReelObjectSchema = z
-  .object({
-    colors: z
-      .array(
-        z
-          .object({
-            name: z.string().min(1).describe("Display name shown on the color's sliver/band."),
-            hex: hexString.describe("Color value as a hex string like #D7DBDE."),
-          })
-          .strict(),
-      )
-      .min(1)
-      .describe("The colors to reveal (at least one)."),
-    details: z
-      .array(fieldEnum)
-      .default(["hex", "oklch", "rgb"])
-      .describe(
-        "Fields revealed when a color expands (the name is always shown, so it's ignored here). Default hex + oklch + rgb.",
-      ),
+const paletteReelObjectSchema = z.object({
+    colors: z.array(
+        z.object({
+          name: z.string().min(1).describe("Display name shown on the color's sliver/band."),
+          hex: hexString.describe("Color value as a hex string like #D7DBDE."),
+        }).strict(),
+      ).min(1).describe("The colors to reveal (at least one)."),
+    details: z.array(fieldEnum).default(["hex", "oklch", "rgb"])
+      .describe("Fields revealed when a color expands (the name is always shown, so it's ignored here). Default hex + oklch + rgb."),
 
-    output: z
-      .object({
-        ...videoOutputShape({ width: 1920, height: 1080, deviceScaleFactor: 1 }),
-      })
-      .strict()
-      .default({}),
+    output: z.object({ ...videoOutputShape({ width: 1920, height: 1080, deviceScaleFactor: 1 }) }).strict().default({}),
 
-    timing: z
-      .object({
-        holdMs: z
-          .number()
-          .positive()
-          .default(2000)
+    timing: z.object({
+        holdMs: z.number().positive().default(2000)
           .describe("How long each color stays fully open before handing off to the next (ms). Default 2000."),
-        transitionMs: z
-          .number()
-          .positive()
-          .default(700)
-          .describe("Crossfade length from one open color to the next (ms). Default 700."),
-        bounce: z
-          .boolean()
-          .default(true)
-          .describe(
-            "Ping-pong the sweep so each handoff is between neighbouring bands; off wraps directly (last to first). Default true.",
-          ),
-        easing: easingSchema
-          .default("ease-in-out")
-          .describe('Easing applied to the crossfade ramp. Default "ease-in-out".'),
-        durationMs: z
-          .number()
-          .positive()
-          .optional()
+        transitionMs: z.number().positive().default(700).describe("Crossfade length from one open color to the next (ms). Default 700."),
+        bounce: z.boolean().default(true)
+          .describe("Ping-pong the sweep so each handoff is between neighbouring bands; off wraps directly (last to first). Default true."),
+        easing: easingSchema.default("ease-in-out").describe('Easing applied to the crossfade ramp. Default "ease-in-out".'),
+        durationMs: z.number().positive().optional()
           .describe("Clip length override (ms). Omit to derive (count x (hold + transition)) for a clean loop."),
       })
       .strict()
       .default({}),
 
-    layout: z
-      .object({
-        orientation: z
-          .enum(["rows", "columns"])
-          .default("rows")
-          .describe(
-            'Sliver arrangement: horizontal bands (names upright) or full-height vertical strips. Default "rows".',
-          ),
-        grownFlex: z
-          .number()
-          .min(1)
-          .default(12)
-          .describe(
-            "How many times a sliver's share a fully-open band takes (a collapsed sliver is the baseline). Default 12.",
-          ),
-        minCrossPx: z
-          .number()
-          .nonnegative()
-          .default(0)
+    layout: z.object({
+        orientation: z.enum(["rows", "columns"]).default("rows")
+          .describe('Sliver arrangement: horizontal bands (names upright) or full-height vertical strips. Default "rows".'),
+        grownFlex: z.number().min(1).default(12)
+          .describe("How many times a sliver's share a fully-open band takes (a collapsed sliver is the baseline). Default 12."),
+        minCrossPx: z.number().nonnegative().default(0)
           .describe("Minimum cross-size of a sliver in px so its name stays legible. Default 0 (derive from height)."),
-        nameAlwaysVisible: z
-          .boolean()
-          .default(true)
-          .describe(
-            "Keep the name fully visible even in a collapsed sliver (else it fades with the band). Default true.",
-          ),
-        background: z
-          .string()
-          .default("#ffffff")
-          .describe('Backdrop behind the bands (shown in `gap` between them). Default "#ffffff".'),
-        gap: z
-          .number()
-          .nonnegative()
-          .default(0)
-          .describe("Gap between bands (px). Default 0 (bands abut)."),
-        cornerRadius: z
-          .number()
-          .nonnegative()
-          .default(0)
-          .describe("Band corner radius (px). Default 0 (square)."),
+        nameAlwaysVisible: z.boolean().default(true)
+          .describe("Keep the name fully visible even in a collapsed sliver (else it fades with the band). Default true."),
+        background: z.string().default("#ffffff").describe('Backdrop behind the bands (shown in `gap` between them). Default "#ffffff".'),
+        gap: z.number().nonnegative().default(0).describe("Gap between bands (px). Default 0 (bands abut)."),
+        cornerRadius: z.number().nonnegative().default(0).describe("Band corner radius (px). Default 0 (square)."),
       })
       .strict()
       .default({}),
 
-    text: z
-      .object({
+    text: z.object({
         uppercase: z.boolean().default(false).describe("Uppercase the color names. Default false."),
-        rgbStyle: z
-          .enum(["labeled", "css", "plain"])
-          .default("labeled")
-          .describe('RGB string style. Default "labeled".'),
-        oklchStyle: z
-          .enum(["css", "labeled"])
-          .default("css")
-          .describe('OKLCH string style. Default "css".'),
-        fontFile: z
-          .string()
-          .optional()
+        rgbStyle: z.enum(["labeled", "css", "plain"]).default("labeled").describe('RGB string style. Default "labeled".'),
+        oklchStyle: z.enum(["css", "labeled"]).default("css").describe('OKLCH string style. Default "css".'),
+        fontFile: z.string().optional()
           .describe("Custom font file (woff2/woff/ttf/otf), served into the render. Omit for a system bold sans."),
-        fontWeight: z
-          .number()
-          .int()
-          .min(1)
-          .max(1000)
-          .default(700)
-          .describe("Label font weight. Default 700."),
-        fontSize: z
-          .number()
-          .positive()
-          .optional()
-          .describe("Name font size in px. Omit to derive from the frame size."),
-        detailFontScale: z
-          .number()
-          .positive()
-          .default(0.62)
+        fontWeight: z.number().int().min(1).max(1000).default(700).describe("Label font weight. Default 700."),
+        fontSize: z.number().positive().optional().describe("Name font size in px. Omit to derive from the frame size."),
+        detailFontScale: z.number().positive().default(0.62)
           .describe("Detail-line font size as a fraction of the name size. Default 0.62."),
       })
       .strict()
       .default({}),
 
-    contrast: z
-      .object({
-        textLight: z
-          .string()
-          .default("#ffffff")
-          .describe('Light text color, used on dark bands (picked by contrast). Default "#ffffff".'),
-        textDark: z
-          .string()
-          .default("#141414")
-          .describe('Dark text color, used on light bands (picked by contrast). Default "#141414".'),
-        contrastThreshold: z
-          .number()
-          .min(0)
-          .max(1)
-          .default(0.5)
-          .describe("Luminance above which the dark text is used (0..1). Default 0.5."),
+    contrast: z.object({
+        textLight: z.string().default("#ffffff").describe('Light text color, used on dark bands (picked by contrast). Default "#ffffff".'),
+        textDark: z.string().default("#141414").describe('Dark text color, used on light bands (picked by contrast). Default "#141414".'),
+        contrastThreshold: z.number().min(0).max(1).default(0.5).describe("Luminance above which the dark text is used (0..1). Default 0.5."),
       })
       .strict()
       .default({}),
@@ -291,8 +198,5 @@ export type ResolvedPaletteReelOptions = z.infer<typeof paletteReelObjectSchema>
 
 // Compile-time guard: the documented authoring type must stay in sync with the schema's input shape.
 type Exact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
-const _paletteReelInputInSync: Exact<
-  PaletteReelOptionsInput,
-  z.input<typeof paletteReelObjectSchema>
-> = true;
+const _paletteReelInputInSync: Exact<PaletteReelOptionsInput, z.input<typeof paletteReelObjectSchema>> = true;
 void _paletteReelInputInSync;

@@ -7,13 +7,7 @@ import { z } from "zod";
  * (e.g. a 1920×1080 scene vs a 1280×800 page reel) stay visible at the call site.
  */
 
-export interface VideoOutputDefaults {
-  width: number;
-  height: number;
-  deviceScaleFactor: number;
-  fps?: number;
-  crf?: number;
-}
+export interface VideoOutputDefaults { width: number; height: number; deviceScaleFactor: number; fps?: number; crf?: number; }
 
 /** width / height / deviceScaleFactor / fps / crf / fileName — the universal video-output block. */
 export function videoOutputShape(d: VideoOutputDefaults): {
@@ -25,18 +19,8 @@ export function videoOutputShape(d: VideoOutputDefaults): {
   fileName: z.ZodOptional<z.ZodString>;
 } {
   return {
-    width: z
-      .number()
-      .int()
-      .positive()
-      .default(d.width)
-      .describe(`Output width in CSS px. Default ${d.width}.`),
-    height: z
-      .number()
-      .int()
-      .positive()
-      .default(d.height)
-      .describe(`Output height in CSS px. Default ${d.height}.`),
+    width: z.number().int().positive().default(d.width).describe(`Output width in CSS px. Default ${d.width}.`),
+    height: z.number().int().positive().default(d.height).describe(`Output height in CSS px. Default ${d.height}.`),
     deviceScaleFactor: z
       .number()
       .positive()
@@ -45,13 +29,7 @@ export function videoOutputShape(d: VideoOutputDefaults): {
       .describe(
         `Render scale (higher = crisper capture, downscaled into the video). Default ${d.deviceScaleFactor}.`,
       ),
-    fps: z
-      .number()
-      .int()
-      .positive()
-      .max(120)
-      .default(d.fps ?? 30)
-      .describe(`Output frames per second. Default ${d.fps ?? 30}.`),
+    fps: z.number().int().positive().max(120).default(d.fps ?? 30).describe(`Output frames per second. Default ${d.fps ?? 30}.`),
     crf: z
       .number()
       .int()
@@ -59,18 +37,12 @@ export function videoOutputShape(d: VideoOutputDefaults): {
       .max(51)
       .default(d.crf ?? 18)
       .describe(`x264 quality, 0–51 (lower = better quality / larger file). Default ${d.crf ?? 18}.`),
-    fileName: z
-      .string()
-      .optional()
-      .describe('Output filename; defaults to "<slug(asset name)>.mp4".'),
+    fileName: z.string().optional().describe('Output filename; defaults to "<slug(asset name)>.mp4".'),
   };
 }
 
 /** workers / frameFormat — the frame-stepped render block. */
-export function frameCaptureShape(): {
-  workers: z.ZodOptional<z.ZodNumber>;
-  frameFormat: z.ZodDefault<z.ZodEnum<["jpeg", "png"]>>;
-} {
+export function frameCaptureShape(): { workers: z.ZodOptional<z.ZodNumber>; frameFormat: z.ZodDefault<z.ZodEnum<["jpeg", "png"]>>; } {
   return {
     workers: z
       .number()
@@ -88,9 +60,7 @@ export function frameCaptureShape(): {
 }
 
 /** The frames/realtime strategy switch — only for generators that genuinely offer both (wall). */
-export function captureStrategyShape(): {
-  capture: z.ZodDefault<z.ZodEnum<["frames", "realtime"]>>;
-} {
+export function captureStrategyShape(): { capture: z.ZodDefault<z.ZodEnum<["frames", "realtime"]>>; } {
   return {
     capture: z
       .enum(["frames", "realtime"])
@@ -104,10 +74,7 @@ export function captureStrategyShape(): {
 /** A named viewport, shared by scroll-reel and screenshots. */
 export const namedViewportSchema = z
   .object({
-    name: z
-      .string()
-      .min(1)
-      .describe('Label for this viewport — used in the asset id / filename (e.g. "desktop").'),
+    name: z.string().min(1).describe('Label for this viewport — used in the asset id / filename (e.g. "desktop").'),
     width: z.number().int().positive().describe("Viewport width in CSS px."),
     height: z.number().int().positive().describe("Viewport height in CSS px."),
     deviceScaleFactor: z

@@ -1,30 +1,14 @@
 import { defineConfig } from "pro-visu";
-import { CAMEL, COGNAC, CURSOR, INK, LODEN, PAPER, FASHION } from "../showcase/brand";
 
-// DOCS EXAMPLE ASSETS — the clips/stills embedded in the pro-visu docs (apps/docs), dogfooding
-// the FASHION storefront. Separate from the main showcase config (pro-visu/pro-visu.config.ts).
-//
-//   pnpm --filter testing exec pro-visu generate --config pro-visu/pro-visu.docs.config.ts
-//
-// Outputs land in public/pro-visu/docs/ (gitignored); curated files are copied into apps/docs/videos/
-// (→ Mux via `pnpm --filter docs sync-videos`) and apps/docs/public/examples/ (stills). See
-// apps/docs/videos.md for the workflow. The hero-loop / type-sans / colors-reel clips already on
-// Mux come from the main config and aren't regenerated here.
+import { CAMEL, COGNAC, CURSOR, INK, LODEN, PAPER, FASHION } from "../showcase/brand";
 
 export default defineConfig({
   settings: {
-    outDir: "../public/pro-visu/docs", // relative to this pro-visu/ dir → apps/testing/public/pro-visu/docs (own manifest, separate from the main showcase)
-    // Freeze time/randomness so every docs capture is perfectly repeatable.
+    outDir: "../public/pro-visu/docs",
     capture: { cleanup: { freezeClock: true } },
-    defaults: {
-      "scroll-reel": { output: { width: 1280, height: 800, fps: 30 } },
-      // The storefront's sticky header is ~100px tall; top-aligned scrollTo drops targets below it.
-      interaction: { page: { stickyHeaderHeight: 100 } },
-    },
+    defaults: { "scroll-reel": { output: { width: 1280, height: 800, fps: 30 } }, interaction: { page: { stickyHeaderHeight: 100 } } },
   },
   assets: [
-    // The landing hero: auto-sections tuned to kill stop/start jitter (dsf 3 supersample) +
-    // boomerang so the pan loops with no restart cut.
     {
       name: "docs-home",
       generator: "scroll-reel",
@@ -34,7 +18,6 @@ export default defineConfig({
         page: { waitForSelector: ".hero-media img" },
       },
     },
-    // Actual scrolling: a clean auto-sections pan/hold down the home page.
     {
       name: "docs-scroll",
       generator: "scroll-reel",
@@ -43,7 +26,6 @@ export default defineConfig({
         motion: { autoSections: { durationMs: 9000 } },
       },
     },
-    // Straight loop: one auto-sections pass, then a glide back to the top so the clip loops.
     {
       name: "docs-straight",
       generator: "scroll-reel",
@@ -52,10 +34,6 @@ export default defineConfig({
         motion: { loop: "straight", autoSections: { durationMs: 14000 } },
       },
     },
-    // Scripted tour (seamless loop) across pages: start on the home page, navigate to the shop, browse
-    // "The Edit" module, hop to the About page to take in its hero, then click the wordmark home again —
-    // landing exactly where it began (home top, cursor resting on the wordmark). The synthetic cursor
-    // survives the client-side navigations, so the whole journey is one continuous take.
     {
       name: "docs-browse",
       generator: "interaction",
@@ -64,23 +42,20 @@ export default defineConfig({
         output: { width: 1280, height: 800, deviceScaleFactor: 2 },
         cursor: { color: CURSOR },
         page: { waitForSelector: ".hero-media img" },
-        setup: [{ do: "move", selector: ".wordmark", durationMs: 0, holdMs: 0 }], // park where the tour ends
+        setup: [{ do: "move", selector: ".wordmark", durationMs: 0, holdMs: 0 }],
         actions: [
-          { do: "click", selector: ".nav-inline a:nth-child(1)", durationMs: 600, holdMs: 1300 }, // → /shop
-          { do: "scrollTo", to: "#edit", durationMs: 1000, holdMs: 700 }, // frame The Edit
+          { do: "click", selector: ".nav-inline a:nth-child(1)", durationMs: 600, holdMs: 1300 },
+          { do: "scrollTo", to: "#edit", durationMs: 1000, holdMs: 700 },
           { do: "click", selector: ".edit-thumb:nth-child(2)", durationMs: 550, holdMs: 900 },
           { do: "click", selector: ".edit-thumb:nth-child(3)", durationMs: 550, holdMs: 900 },
           { do: "click", selector: ".edit-thumb:nth-child(4)", durationMs: 550, holdMs: 1000 },
-          { do: "click", selector: ".nav-inline a:nth-child(3)", durationMs: 700, holdMs: 1500 }, // → /about (hero)
-          { do: "wait", holdMs: 900 }, // dwell on the About hero
-          { do: "click", selector: ".wordmark", durationMs: 700, holdMs: 400 }, // → / home
-          { do: "scrollTo", to: 0, durationMs: 0, holdMs: 1400 }, // pin to the top so it matches frame 0 → loops
+          { do: "click", selector: ".nav-inline a:nth-child(3)", durationMs: 700, holdMs: 1500 },
+          { do: "wait", holdMs: 900 },
+          { do: "click", selector: ".wordmark", durationMs: 700, holdMs: 400 },
+          { do: "scrollTo", to: 0, durationMs: 0, holdMs: 1400 },
         ],
       },
     },
-    // Seamless loop, cropped to a component: the PDP add-to-bag block (size row + button). Setup
-    // selects XS off-camera so the loop opens on the first size; the tour then works up S → M → L → XL
-    // and the final tap returns to XS — so the last frame (XS selected, cursor on it) matches the first.
     {
       name: "docs-loop",
       generator: "interaction",
@@ -88,26 +63,21 @@ export default defineConfig({
       options: {
         cursor: { color: CURSOR },
         page: { waitForSelector: ".size-options button" },
-        setup: [{ do: "click", selector: ".size-options button:nth-of-type(1)", durationMs: 0, holdMs: 0 }], // start on XS
+        setup: [{ do: "click", selector: ".size-options button:nth-of-type(1)", durationMs: 0, holdMs: 0 }],
         focus: {
           selector: ".addbag",
           padding: 24,
           actions: [
-            { do: "click", selector: ".size-options button:nth-of-type(2)", durationMs: 420, holdMs: 600 }, // S
-            { do: "click", selector: ".size-options button:nth-of-type(3)", durationMs: 420, holdMs: 600 }, // M
-            { do: "click", selector: ".size-options button:nth-of-type(4)", durationMs: 420, holdMs: 600 }, // L
-            { do: "click", selector: ".size-options button:nth-of-type(5)", durationMs: 420, holdMs: 600 }, // XL
-            { do: "click", selector: ".size-options button:nth-of-type(1)", durationMs: 560, holdMs: 900 }, // back to XS → loops
+            { do: "click", selector: ".size-options button:nth-of-type(2)", durationMs: 420, holdMs: 600 },
+            { do: "click", selector: ".size-options button:nth-of-type(3)", durationMs: 420, holdMs: 600 },
+            { do: "click", selector: ".size-options button:nth-of-type(4)", durationMs: 420, holdMs: 600 },
+            { do: "click", selector: ".size-options button:nth-of-type(5)", durationMs: 420, holdMs: 600 },
+            { do: "click", selector: ".size-options button:nth-of-type(1)", durationMs: 560, holdMs: 900 },
           ],
           holdMs: 300,
         },
       },
     },
-    // Element focus (seamless loop): crop to a product card with room around it, and drive it live.
-    // The clip opens at rest (cursor parked off the card, so nothing is hovered); then the cursor
-    // glides in — the hover-gated controls reveal and the image zooms — the wishlist heart fills, the
-    // button confirms "Added to bag", the heart clears, and the cursor glides back off the card, which
-    // lifts the hover so the card settles to rest again — an exact match for the opening frame.
     {
       name: "docs-focus",
       generator: "interaction",
@@ -115,27 +85,21 @@ export default defineConfig({
       options: {
         cursor: { color: CURSOR },
         page: { waitForSelector: "#feature-card img" },
-        setup: [{ do: "move", x: 0.16, y: 0.87, durationMs: 0, holdMs: 0 }], // rest: cursor just below the card
+        setup: [{ do: "move", x: 0.16, y: 0.87, durationMs: 0, holdMs: 0 }],
         focus: {
           selector: "#feature-card",
           padding: 26,
           actions: [
-            { do: "hover", selector: "#feature-card .product-media", durationMs: 600, holdMs: 900 }, // reveal + zoom
-            { do: "click", selector: "#feature-card .wishlist", durationMs: 450, holdMs: 1000 }, // heart fills
-            { do: "click", selector: "#feature-card .quick-add", durationMs: 500, holdMs: 1300 }, // → "Added to bag"
-            { do: "click", selector: "#feature-card .wishlist", durationMs: 450, holdMs: 700 }, // heart clears (reset)
-            { do: "move", x: 0.16, y: 0.87, durationMs: 600, holdMs: 1100 }, // glide off → card deselects → frame 0
+            { do: "hover", selector: "#feature-card .product-media", durationMs: 600, holdMs: 900 },
+            { do: "click", selector: "#feature-card .wishlist", durationMs: 450, holdMs: 1000 },
+            { do: "click", selector: "#feature-card .quick-add", durationMs: 500, holdMs: 1300 },
+            { do: "click", selector: "#feature-card .wishlist", durationMs: 450, holdMs: 700 },
+            { do: "move", x: 0.16, y: 0.87, durationMs: 600, holdMs: 1100 },
           ],
           holdMs: 300,
         },
       },
     },
-    // Search flow (the write actions), as a seamless loop. The search filters on SUBMIT (Enter), not
-    // per keystroke. Setup lands the camera on the search field (top-aligned, 40px of headroom below
-    // the sticky header). Then: search "trousers" → Enter → glance at the result; edit the query —
-    // erase, type "knitwear" → Enter → glance across the two results and open the second; dwell on the
-    // product, then navigate back to the list so the last frame matches the first. Exercises `type`,
-    // `press`, `erase`, and `scrollTo` (align + offset + header height).
     {
       name: "docs-search",
       generator: "interaction",
@@ -144,27 +108,26 @@ export default defineConfig({
         cursor: { color: CURSOR },
         page: { waitForSelector: "#search-input" },
         setup: [
-          { do: "scrollTo", to: "#search-input", align: "top", offset: 40, durationMs: 0, holdMs: 0 }, // start on the search field
-          { do: "move", selector: "#search-input", durationMs: 0, holdMs: 0 }, // park the cursor on it (frame 0)
+          { do: "scrollTo", to: "#search-input", align: "top", offset: 40, durationMs: 0, holdMs: 0 },
+          { do: "move", selector: "#search-input", durationMs: 0, holdMs: 0 },
         ],
         actions: [
           { do: "click", selector: "#search-input", holdMs: 400 },
           { do: "type", selector: "#search-input", text: "trousers", delayMs: 55, easing: "ease-out", holdMs: 300 },
-          { do: "press", key: "Enter", holdMs: 800 }, // submit → the list updates to the match
-          { do: "hover", selector: "#shop-grid .product:first-child .product-media", durationMs: 550, holdMs: 1000 }, // ~1s on the result
-          { do: "erase", selector: "#search-input", delayMs: 80, easing: "ease-in", holdMs: 300 }, // back to the field, clear it
-          { do: "type", selector: "#search-input", text: "knitwear", delayMs: 55, holdMs: 300 }, // edit the query
-          { do: "press", key: "Enter", holdMs: 800 }, // submit → two results
-          { do: "hover", selector: "#shop-grid .product:first-child .product-media", durationMs: 550, holdMs: 1000 }, // ~1s on the first
-          { do: "hover", selector: "#shop-grid .product:nth-child(2) .product-media", durationMs: 550, holdMs: 1000 }, // ~1s on the second
-          { do: "click", selector: "#shop-grid .product:nth-child(2) .product-link", durationMs: 500, holdMs: 2000 }, // open the second, dwell 2s
-          { do: "click", selector: ".nav-inline a:nth-child(1)", durationMs: 700, holdMs: 900 }, // → back to the list (/shop)
-          { do: "scrollTo", to: "#search-input", align: "top", offset: 40, durationMs: 800, holdMs: 500 }, // glide to the start position
-          { do: "move", selector: "#search-input", durationMs: 600, holdMs: 1000 }, // cursor back on the field → matches frame 0 → loops
+          { do: "press", key: "Enter", holdMs: 800 },
+          { do: "hover", selector: "#shop-grid .product:first-child .product-media", durationMs: 550, holdMs: 1000 },
+          { do: "erase", selector: "#search-input", delayMs: 80, easing: "ease-in", holdMs: 300 },
+          { do: "type", selector: "#search-input", text: "knitwear", delayMs: 55, holdMs: 300 },
+          { do: "press", key: "Enter", holdMs: 800 },
+          { do: "hover", selector: "#shop-grid .product:first-child .product-media", durationMs: 550, holdMs: 1000 },
+          { do: "hover", selector: "#shop-grid .product:nth-child(2) .product-media", durationMs: 550, holdMs: 1000 },
+          { do: "click", selector: "#shop-grid .product:nth-child(2) .product-link", durationMs: 500, holdMs: 2000 },
+          { do: "click", selector: ".nav-inline a:nth-child(1)", durationMs: 700, holdMs: 900 },
+          { do: "scrollTo", to: "#search-input", align: "top", offset: 40, durationMs: 800, holdMs: 500 },
+          { do: "move", selector: "#search-input", durationMs: 600, holdMs: 1000 },
         ],
       },
     },
-    // The "demo" specimen template on a serif — capped so the labelled walkthrough stays short.
     {
       name: "docs-type-demo",
       generator: "specimen",
@@ -176,13 +139,6 @@ export default defineConfig({
       },
     },
 
-    // ── Specimen recipes ─────────────────────────────────────────────────────────────────────
-    // Each of these is a *coherent composition*: the settings reinforce one intent rather than
-    // isolating a single knob. Grouped by the lever that drives the whole recipe.
-
-    // A · ASPECT RATIO drives the layout.
-    // 9:16 numeral ticker: many rows only pay off with vertical room + a high fill, and tabular
-    // mono digits (uniform width) render as a flawless grid. Random flip-churn = departure board.
     {
       name: "docs-spec-portrait",
       generator: "specimen",
@@ -203,7 +159,6 @@ export default defineConfig({
         ],
       },
     },
-    // 4:1 ultrawide banner: a single fat line is the only thing that suits the letterbox shape.
     {
       name: "docs-spec-banner",
       generator: "specimen",
@@ -222,9 +177,6 @@ export default defineConfig({
       },
     },
 
-    // B · WEIGHT + DENSITY set the mood together.
-    // Hairline: weight 100 stays elegant with airy leading + calm motion — a spacious, luxe take.
-    // Every knob points the same way (quiet, roomy).
     {
       name: "docs-spec-hairline",
       generator: "specimen",
@@ -242,8 +194,6 @@ export default defineConfig({
         ],
       },
     },
-    // Heavy mosaic: weight 900 wants density, so pack 10 tight lines and let it churn busily on a
-    // dark palette with an accent flash — loud and kinetic, the opposite of the hairline.
     {
       name: "docs-spec-heavy",
       generator: "specimen",
@@ -263,9 +213,6 @@ export default defineConfig({
       },
     },
 
-    // C · COLOR is the subject.
-    // Accent-led: colorWeights makes accent 4× more likely and colorIntensity runs hot, while the
-    // glyphs stay calm — so colour, not letters, is what moves. Neon pops on near-black.
     {
       name: "docs-spec-neon",
       generator: "specimen",
@@ -286,8 +233,6 @@ export default defineConfig({
         ],
       },
     },
-    // Monochrome: accent is omitted (so it equals the background and every "pop" blends away), muted
-    // dominates the weights, and intensity is low — a restrained, single-hue piece.
     {
       name: "docs-spec-mono",
       generator: "specimen",
@@ -308,9 +253,6 @@ export default defineConfig({
       },
     },
 
-    // D · GLYPH POOL defines the specimen.
-    // Lowercase text face: the pool is a–z, which means descenders (g j p q y) — so leading must rise
-    // to 1.0 or they clip. Pool + leading are one coupled decision. Editorial serif on paper.
     {
       name: "docs-spec-lowercase",
       generator: "specimen",
@@ -329,8 +271,6 @@ export default defineConfig({
         ],
       },
     },
-    // Symbols & punctuation: a symbol pool paired with a monospaced face so the odd-shaped glyphs
-    // still lock to an even grid. Terminal palette.
     {
       name: "docs-spec-symbols",
       generator: "specimen",
@@ -350,9 +290,6 @@ export default defineConfig({
       },
     },
 
-    // E · MOTION character.
-    // One-shot: mirror off means the clip ends on its final state instead of looping back — so the
-    // storyboard is written to assemble from near-blank and hold composed, like an intro sting.
     {
       name: "docs-spec-oneshot",
       generator: "specimen",
@@ -371,11 +308,6 @@ export default defineConfig({
       },
     },
 
-    // ── Icon-set showcase ────────────────────────────────────────────────────────────────────
-    // A cohesive 16-icon storefront set (public/icons), tinted on ink so it can recolour live.
-    // Square, short, frame-stepped — each demonstrates one facet of the step primitive.
-
-    // The default "showcase" preset: a radial scale ripple, then a forward recolour sweep to cognac.
     {
       name: "docs-icons-showcase",
       generator: "icons",
@@ -389,7 +321,6 @@ export default defineConfig({
         base: { color: PAPER },
       },
     },
-    // One at a time: stagger 1 walks the scale through the grid in reading order.
     {
       name: "docs-icons-oneatatime",
       generator: "icons",
@@ -402,7 +333,6 @@ export default defineConfig({
         steps: [{ kind: "scale", at: 0.05, span: 0.9, order: "forward", stagger: 0.85, scale: 1.6, hold: 0.2 }],
       },
     },
-    // A pattern, all at once: stagger 0 fires a checkerboard together, then the alternate rows.
     {
       name: "docs-icons-pattern",
       generator: "icons",
@@ -418,8 +348,6 @@ export default defineConfig({
         ],
       },
     },
-    // Layered: a centre-out scale ripple, a diagonal colour sweep, and a scattered spin — folded
-    // together to show steps compose.
     {
       name: "docs-icons-layered",
       generator: "icons",
@@ -436,7 +364,6 @@ export default defineConfig({
         ],
       },
     },
-    // Still contact sheet (png): the "pattern" template frozen mid-flash — the whole set at a glance.
     {
       name: "docs-icons-sheet",
       generator: "icons",
@@ -452,7 +379,6 @@ export default defineConfig({
     },
 
     { name: "docs-palette", generator: "palette", options: { colors: FASHION } },
-    // Grid layout with per-corner fields and an embedded brand font.
     {
       name: "docs-palette-grid",
       generator: "palette",
@@ -473,7 +399,6 @@ export default defineConfig({
         text: { rgbStyle: "css", fontFile: "public/fonts/InterVariable.woff2", uppercase: true },
       },
     },
-    // Desktop full page — the whole scrollable page, far taller than the viewport.
     {
       name: "docs-shot-desktop",
       generator: "screenshots",
@@ -483,7 +408,6 @@ export default defineConfig({
         page: { waitForSelector: ".hero-media img" },
       },
     },
-    // Phone, above the fold only.
     {
       name: "docs-shot-mobile",
       generator: "screenshots",
@@ -493,7 +417,6 @@ export default defineConfig({
         page: { waitForSelector: ".hero-media img" },
       },
     },
-    // Element crop: the featured product card, shot at the desktop viewport.
     {
       name: "docs-shot",
       generator: "screenshots",
@@ -505,8 +428,6 @@ export default defineConfig({
         page: { waitForSelector: "#shop-grid .product img" },
       },
     },
-    // A very simple real wall: 3 columns of photos as direct `{ src }` tiles (no producer
-    // assets needed), one gentle drift, short.
     {
       name: "docs-wall",
       generator: "wall",
@@ -532,8 +453,6 @@ export default defineConfig({
         ],
       },
     },
-    // Wall TEST MODE: faux labelled boxes recorded realtime — the docs example for iterating
-    // layout + motion in seconds before the real frame-stepped render.
     {
       name: "docs-wall-test",
       generator: "wall",
@@ -542,7 +461,7 @@ export default defineConfig({
         render: { capture: "realtime" },
         motion: { durationMs: 8000, loops: 1 },
         preview: { enabled: true },
-        layout: { background: INK, gap: 4, cornerRadius: 4, tileAspect: 0.5625 }, // 9:16 phone clips
+        layout: { background: INK, gap: 4, cornerRadius: 4, tileAspect: 0.5625 },
         columns: [
           { tiles: ["home", "pricing"], direction: "down" },
           { tiles: ["product", "lookbook"], direction: "up", stagger: 0.4 },

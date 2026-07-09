@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+
 import type { SceneProps } from "../types";
 import { trackOffset, type Dir, type PulseInput, type Track } from "./wall-motion";
 
@@ -68,46 +69,38 @@ interface Layout {
   fallbackAspect: number;
 }
 
-function computeLayout(
-  width: number,
-  inputs: Record<string, string>,
-  files: Record<string, string>,
-  o: Record<string, unknown>,
-): Layout {
+function computeLayout(width: number, inputs: Record<string, string>, files: Record<string, string>, o: Record<string, unknown>): Layout {
+  //TODO: replace `as` cast with proper typing
   const num = (k: string, d: number): number => (typeof o[k] === "number" ? (o[k] as number) : d);
 
-  // Each column owns its tiles (asset slot names) + its own motion. Count = array length.
+  //TODO: replace `as` cast with proper typing
   const colDefs = Array.isArray(o.columns) ? (o.columns as WallColumnOpt[]) : [];
   const columnsN = Math.max(1, colDefs.length);
   const gap = Math.max(0, Math.round(num("gap", 8)));
   const fallbackAspect = Math.max(0.2, num("tileAspect", 0.75));
   const radius = Math.max(0, Math.round(num("cornerRadius", 6)));
 
-  // Preview mode: render faux color boxes instead of resolving real assets.
   const test = o.test === true;
-  const testTiles =
-    o.testTiles && typeof o.testTiles === "object"
-      ? (o.testTiles as Record<string, FauxTileOpt>)
-      : {};
+  //TODO: replace `as` cast with proper typing
+  const testTiles = o.testTiles && typeof o.testTiles === "object" ? (o.testTiles as Record<string, FauxTileOpt>) : {};
 
-  // Wall-level motion defaults inherited by columns that omit their own.
   const defaultLoops = Math.max(0, num("loops", 0));
+  //TODO: replace `as` cast with proper typing
   const defaultPulses = Array.isArray(o.pulses) ? (o.pulses as PulseInput[]) : [];
 
-  const panOpt: WallPanOpt = o.pan && typeof o.pan === "object" ? (o.pan as WallPanOpt) : {};
+  const panOpt: WallPanOpt = o.pan && typeof o.pan === "object" ? (o.pan as WallPanOpt) : {}; //TODO: replace `as` cast with proper typing
   const pan: Track = {
     pulses: panOpt.pulses ?? [],
     loops: Math.max(0, panOpt.loops ?? 0),
     dir: panOpt.direction === "right" ? -1 : 1,
   };
 
-  // Columns fill the width exactly (unitX = tileW + gap = width/columns), so one column-set spans
-  // the viewport and the ×2 horizontal copies tile the pan seamlessly.
   const tileW = Math.max(40, Math.round(width / columnsN - gap));
   const periodX = columnsN * (tileW + gap);
 
   const columns = colDefs.map((c) => {
     const names = c.tiles ?? [];
+    //TODO: replace `as` cast with proper typing
     const cells: Cell[] = test
       ? names.map((name) => {
           const f = testTiles[name] ?? {};
@@ -119,12 +112,10 @@ function computeLayout(
             aspect: typeof f.aspect === "number" && f.aspect > 0 ? f.aspect : fallbackAspect,
           };
         })
-      : // Slot names resolve to asset inputs, or served files (`{ src }` tiles).
-        (names.map((name) => inputs[name] ?? files[name]).filter(Boolean) as string[]).map((url) => ({
+      : (names.map((name) => inputs[name] ?? files[name]).filter(Boolean) as string[]).map((url) => ({
           kind: "asset" as const,
           url,
         }));
-    // Omitted direction defaults to "down"; omitted loops/pulses inherit the wall defaults.
     const dir: Dir = c.direction === "up" ? 1 : -1;
     const track: Track = {
       pulses: c.pulses ?? defaultPulses,
@@ -142,17 +133,7 @@ const media: React.CSSProperties = { width: "100%", height: "auto", display: "bl
 
 /** A single tile: it spans the column width and takes its height from its media's natural aspect
  *  (asset) or its configured `aspect` (faux). No fixed box / cropping — the media defines the size. */
-function Tile({
-  cell,
-  w,
-  radius,
-  background,
-}: {
-  cell: Cell;
-  w: number;
-  radius: number;
-  background: string;
-}): React.ReactElement {
+function Tile({ cell, w, radius, background }: { cell: Cell; w: number; radius: number; background: string }): React.ReactElement {
   const frame: React.CSSProperties = {
     width: w,
     borderRadius: radius,
@@ -203,7 +184,7 @@ function Tile({
 function estimatePeriod(cellCount: number, tileW: number, gap: number, aspect: number): number {
   if (cellCount <= 0) return 0;
   const tileH = Math.round(tileW / aspect);
-  return cellCount * tileH + cellCount * gap; // one set + its trailing inter-set gap
+  return cellCount * tileH + cellCount * gap;
 }
 
 /** How many copies of a column's tile-set to stack so the marquee always has content during a full
@@ -216,8 +197,7 @@ function copiesFor(period: number, viewport: number, gap: number): number {
   return Math.min(50, Math.max(2, 1 + Math.ceil((viewport + gap) / period)));
 }
 
-const nextFrame = (): Promise<void> =>
-  new Promise((resolve) => requestAnimationFrame(() => resolve()));
+const nextFrame = (): Promise<void> => new Promise((resolve) => requestAnimationFrame(() => resolve()));
 
 /** Resolve once every <img>/<video> under `root` has its intrinsic size (or has errored/timed out),
  *  so a measurement reads the real, laid-out tile heights rather than zero-height placeholders. */
@@ -238,7 +218,7 @@ function whenMediaSized(root: HTMLElement): Promise<void> {
     );
   }
   for (const v of Array.from(root.querySelectorAll("video"))) {
-    if (v.readyState >= 1 /* HAVE_METADATA */ && v.videoWidth > 0) continue;
+    if (v.readyState >= 1 && v.videoWidth > 0) continue;
     waits.push(
       new Promise((resolve) => {
         const done = (): void => {
@@ -252,30 +232,17 @@ function whenMediaSized(root: HTMLElement): Promise<void> {
     );
   }
   if (waits.length === 0) return Promise.resolve();
-  // Hard cap so a stuck media element can never hang capture.
   return Promise.race([
     Promise.all(waits).then(() => undefined),
     new Promise<void>((resolve) => setTimeout(resolve, 15_000)),
   ]);
 }
 
-export function Wall({
-  width,
-  height,
-  background,
-  durationSeconds,
-  inputs,
-  files,
-  options,
-}: SceneProps): React.ReactElement {
+export function Wall({ width, height, background, durationSeconds, inputs, files, options }: SceneProps): React.ReactElement {
   const layoutKey = `${width}x${height}|${JSON.stringify(options)}|${JSON.stringify(inputs)}|${JSON.stringify(files)}`;
   const layout = useMemo(() => computeLayout(width, inputs, files, options), [layoutKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Backdrop shown in the padding gaps and behind tiles — the wall sceneOption overrides the
-  // scene's background prop when set.
   const bg = typeof options.background === "string" ? options.background : background;
 
-  // Per-column scroll period (px) = the height of ONE set of that column's tiles + its trailing gap.
-  // Seeded from the fallback aspect, then replaced with the DOM-measured value once media has loaded.
   const initialPeriods = useMemo(
     () =>
       layout.columns.map((c) =>
@@ -284,7 +251,6 @@ export function Wall({
     [layoutKey], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const [periods, setPeriods] = useState<number[]>(initialPeriods);
-  // Mirror periods into a ref so the (long-lived) seek closure always reads the latest measurement.
   const periodsRef = useRef<number[]>(initialPeriods);
   periodsRef.current = periods;
 
@@ -294,12 +260,8 @@ export function Wall({
   }));
 
   const rootRef = useRef<HTMLDivElement | null>(null);
-  // First-set wrapper per column — we measure its height to get the column's period.
   const setRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Readiness gate (mirror the specimen): hold capture until the wall's tiles have loaded, the
-  // periods are measured, and the laid-out result has painted. Created once, synchronously at first
-  // render, so the runtime sees it before its own ready check.
   const sceneReady = useRef<{ promise: Promise<void>; resolve: () => void } | null>(null);
   if (!sceneReady.current) {
     let resolve: () => void = () => {};
@@ -314,20 +276,15 @@ export function Wall({
     void (async () => {
       const root = rootRef.current;
       if (root) await whenMediaSized(root);
-      // Two frames for the browser to lay out the now-sized media before we read heights.
       await nextFrame();
       await nextFrame();
       if (cancelled) return;
       const measured = layout.columns.map((_, c) => {
         const el = setRefs.current[c];
-        // The set wrapper holds one set of tiles (gaps between them); the repeat unit adds one more
-        // gap before the next set, so the period is the wrapper's height + one gap.
         return el && el.offsetHeight > 0 ? el.offsetHeight + layout.gap : 0;
       });
       setPeriods(measured);
       periodsRef.current = measured;
-      // Two frames so the re-render with measured periods (and the right `copies`) has committed and
-      // painted before capture is allowed to begin.
       await nextFrame();
       await nextFrame();
       if (!cancelled) sceneReady.current?.resolve();
@@ -338,10 +295,6 @@ export function Wall({
   }, [layoutKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    // The timeline hook: the frame-stepper seeks this; flushSync commits the transforms to the DOM
-    // before the runtime's trailing rAF + screenshot, so every frame shows exactly its time's state.
-    // System 1 (pan) and System 2 (per-column) are evaluated independently; each column uses its own
-    // measured period (read live from the ref).
     window.__sceneSeek = (t: number) => {
       flushSync(() => {
         setMotion({
@@ -369,11 +322,7 @@ export function Wall({
   };
   const colset: React.CSSProperties = { display: "flex", width: layout.periodX, flex: "0 0 auto" };
 
-  const renderColumn = (
-    col: Layout["columns"][number],
-    c: number,
-    copy: number,
-  ): React.ReactElement => {
+  const renderColumn = (col: Layout["columns"][number], c: number, copy: number): React.ReactElement => {
     const period = periods[c] ?? 0;
     const copies = copiesFor(period, height, layout.gap);
     return (
@@ -393,7 +342,6 @@ export function Wall({
           {Array.from({ length: copies }).map((_, set) => (
             <div
               key={set}
-              // Measure only the first set of the FIRST horizontal copy (they're identical).
               ref={
                 copy === 0 && set === 0
                   ? (el) => {
@@ -416,7 +364,6 @@ export function Wall({
   return (
     <div style={root} ref={rootRef}>
       <div style={xpan}>
-        {/* Two side-by-side copies of the column-set so the X pan wraps seamlessly. */}
         {[0, 1].map((copy) => (
           <div key={copy} style={colset}>
             {layout.columns.map((col, c) => renderColumn(col, c, copy))}

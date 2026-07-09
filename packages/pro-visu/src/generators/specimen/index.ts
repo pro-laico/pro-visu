@@ -1,24 +1,15 @@
-import {
-  specimenOptionsSchema,
-  type ResolvedSpecimenOptions,
-} from "@/generators/specimen/options";
 import { renderScene } from "@/scene-engine/render";
+import type { AssetRecord } from "@/manifest/schema";
 import type { ResolvedSceneOptions } from "@/scene-engine/options";
 import type { Generator, PipelineContext } from "@/generators/types";
-import type { AssetRecord } from "@/manifest/schema";
+import { specimenOptionsSchema, type ResolvedSpecimenOptions } from "@/generators/specimen/options";
 
 export const SPECIMEN_ID = "specimen";
 
 /** Map the friendly specimen options onto the `specimen` scene and render it. */
-async function run(
-  ctx: PipelineContext,
-  o: ResolvedSpecimenOptions,
-): Promise<{ assets: AssetRecord[] }> {
-  // Clip length follows the composed pulses (doubled when mirrored for a seamless loop) unless
-  // explicitly overridden. The authoring surface is milliseconds; the scene wire format is seconds.
+async function run(ctx: PipelineContext, o: ResolvedSpecimenOptions): Promise<{ assets: AssetRecord[] }> {
   const pulsesTotalMs = o.pulses.reduce((sum, p) => sum + p.durationMs, 0);
-  const durationSeconds =
-    (o.animation.durationMs ?? (o.animation.mirror ? pulsesTotalMs * 2 : pulsesTotalMs)) / 1000;
+  const durationSeconds = (o.animation.durationMs ?? (o.animation.mirror ? pulsesTotalMs * 2 : pulsesTotalMs)) / 1000;
   const wirePulses = o.pulses.map(({ durationMs, ...p }) => ({ ...p, duration: durationMs / 1000 }));
 
   const sceneOptions: ResolvedSceneOptions = {
@@ -29,16 +20,12 @@ async function run(
     deviceScaleFactor: o.output.deviceScaleFactor,
     fps: o.output.fps,
     durationSeconds,
-    // The specimen's animation is a seeded, deterministic function of time (it publishes
-    // __sceneSeek), so the frame-stepper renders it frame-exact: single encode, supersampling via
-    // deviceScaleFactor, and a perfect loop seam — no realtime recording jitter.
     capture: "frames",
     frameFormat: "jpeg",
     crf: o.output.crf,
     fileName: o.output.fileName,
     files: { font: o.font },
     sceneOptions: {
-      // The scene receives the label as one object: its text (from `name`) plus placement/styling.
       label: { text: o.name, ...o.label },
       demo: o.animation.demo,
       weight: o.type.weight,
@@ -63,7 +50,6 @@ async function run(
 export const specimenGenerator: Generator<ResolvedSpecimenOptions> = {
   id: SPECIMEN_ID,
   optionsSchema: specimenOptionsSchema,
-  // The font's CONTENT shapes the output — hash it into the cache key (edit font → regenerate).
   fileDependencies: (o) => [o.font],
   run,
 };

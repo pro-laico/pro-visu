@@ -1,17 +1,15 @@
 import path from "node:path";
-import {
-  scrollReelOptionsSchema,
-  type ResolvedScrollReelOptions,
-} from "@/generators/scroll-reel/options";
-import { captureScrollFrames } from "@/generators/scroll-reel/capture-frames";
-import { scrollTimelineTotalMs } from "@/generators/scroll-reel/timeline";
-import { buildVariants } from "@/generators/scroll-reel/variants";
-import { produceOutputs } from "@/generators/scroll-reel/outputs";
+
+import { slugify } from "@/utils/paths";
+import type { AssetRecord } from "@/manifest/schema";
 import { requireUrl } from "@/generators/require-url";
 import { autoWorkers } from "@/recorder/frame-capture";
-import { slugify } from "@/utils/paths";
+import { buildVariants } from "@/generators/scroll-reel/variants";
+import { produceOutputs } from "@/generators/scroll-reel/outputs";
 import type { Generator, PipelineContext } from "@/generators/types";
-import type { AssetRecord } from "@/manifest/schema";
+import { scrollTimelineTotalMs } from "@/generators/scroll-reel/timeline";
+import { captureScrollFrames } from "@/generators/scroll-reel/capture-frames";
+import { scrollReelOptionsSchema, type ResolvedScrollReelOptions } from "@/generators/scroll-reel/options";
 
 export const SCROLL_REEL_ID = "scroll-reel";
 
@@ -21,10 +19,7 @@ export const SCROLL_REEL_ID = "scroll-reel";
  * variants (each its own asset); each capture is then reframed / re-encoded into the requested
  * output formats. For a realtime recording of the live page, use the `interaction` generator.
  */
-async function run(
-  ctx: PipelineContext,
-  options: ResolvedScrollReelOptions,
-): Promise<{ assets: AssetRecord[] }> {
+async function run(ctx: PipelineContext, options: ResolvedScrollReelOptions): Promise<{ assets: AssetRecord[] }> {
   const url = requireUrl(ctx);
   const draft = ctx.quality === "draft";
   const preset = draft ? "ultrafast" : "medium";
@@ -46,12 +41,7 @@ async function run(
     const captureMp4 = path.join(ctx.tmpDir, `${slugify(assetId)}-capture.mp4`);
     const vopts = {
       ...options,
-      output: {
-        ...options.output,
-        width: v.width,
-        height: v.height,
-        deviceScaleFactor: v.deviceScaleFactor,
-      },
+      output: { ...options.output, width: v.width, height: v.height, deviceScaleFactor: v.deviceScaleFactor },
     };
     const label = v.suffix ? ` [${v.suffix}]` : "";
     ctx.logger.info(`recording ${url}${label} (frame-stepped, ${workers} worker(s))`);
@@ -63,10 +53,8 @@ async function run(
       outPath: captureMp4,
       preset,
       workers,
-      // Draft always uses fast jpeg intermediates; final uses the configured format (png = lossless).
       frameFormat: draft ? "jpeg" : options.render.frameFormat,
       jpegQuality: draft ? 70 : 90,
-      // Per-frame settling defaults on, off in draft for speed (override with the explicit option).
       settlePerFrame: options.render.settlePerFrame ?? !draft,
       settleMaxMs: options.render.settleMaxMs,
       colorScheme: v.colorScheme,
@@ -75,7 +63,6 @@ async function run(
       onProgress: ctx.progress,
       signal: ctx.signal,
     });
-    // Reframe to the requested aspect (if any) and emit each output format as its own asset.
     const recs = await produceOutputs({
       ctx,
       generatorId: SCROLL_REEL_ID,

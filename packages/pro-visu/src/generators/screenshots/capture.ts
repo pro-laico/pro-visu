@@ -1,11 +1,12 @@
 import type { Browser, Page } from "playwright-core";
+
 import type { Logger } from "@/utils/logger";
 import { mapLimit } from "@/utils/concurrency";
 import { applyCapture } from "@/pipeline/capture";
-import { applyPostNav, installNetworkHygiene, installPreNav } from "@/pipeline/clean-capture";
-import { prepareScroll } from "@/generators/scroll-reel/scroll";
 import type { ResolvedCaptureSettings } from "@/config/schema";
+import { prepareScroll } from "@/generators/scroll-reel/scroll";
 import type { ResolvedScreenshotsOptions } from "@/generators/screenshots/options";
+import { applyPostNav, installNetworkHygiene, installPreNav } from "@/pipeline/clean-capture";
 
 /** Minimum settle at the bottom for lazy/below-the-fold content (esp. for fullPage shots). */
 const MIN_PREPARE_SETTLE_MS = 600;
@@ -34,19 +35,12 @@ type PageShotOptions = NonNullable<Parameters<Page["screenshot"]>[0]>;
  */
 export async function captureScreenshots<T>(args: CaptureArgs<T>): Promise<T[]> {
   const { options } = args;
-  const perViewport = await mapLimit(
-    options.viewports,
-    Math.min(3, options.viewports.length),
-    (bp) => captureViewport(args, bp),
-  );
+  const perViewport = await mapLimit(options.viewports, Math.min(3, options.viewports.length), (bp) => captureViewport(args, bp));
   return perViewport.flat();
 }
 
 /** One viewport: fresh context → navigate → warm the page → page shot + element shots. */
-async function captureViewport<T>(
-  args: CaptureArgs<T>,
-  bp: ResolvedScreenshotsOptions["viewports"][number],
-): Promise<T[]> {
+async function captureViewport<T>(args: CaptureArgs<T>, bp: ResolvedScreenshotsOptions["viewports"][number]): Promise<T[]> {
   const { browser, url, options, logger } = args;
   const shots: T[] = [];
   {
@@ -61,28 +55,13 @@ async function captureViewport<T>(
       await installPreNav(page, args.capture);
       logger.debug(`[${bp.name}] navigating to ${url}`);
       await page.goto(url, { waitUntil: options.page.waitUntil });
-      if (options.page.waitForSelector) {
-        await page.waitForSelector(options.page.waitForSelector, { state: "visible" });
-      }
-      // Suppress capture noise (hide banners/scrollbars, inject CSS, dismiss consent overlays).
+      if (options.page.waitForSelector) await page.waitForSelector(options.page.waitForSelector, { state: "visible" });
       await applyPostNav(page, args.capture, logger);
-      // Drive the page so lazy-loaded / intersection-mounted content, web fonts, and image decode
-      // are done before we shoot — otherwise fullPage shots capture blank/placeholder regions and
-      // fallback fonts. Returns to the top when finished.
-      await page.evaluate(prepareScroll, {
-        settleMs: Math.max(options.page.settleMs, MIN_PREPARE_SETTLE_MS),
-      });
+      await page.evaluate(prepareScroll, { settleMs: Math.max(options.page.settleMs, MIN_PREPARE_SETTLE_MS) });
 
-      const pageShotOptions: PageShotOptions = {
-        type: options.output.format,
-        fullPage: options.fullPage,
-      };
-      if (options.output.format === "png" && options.output.omitBackground) {
-        pageShotOptions.omitBackground = true;
-      }
-      if (options.output.format === "jpeg" && options.output.quality != null) {
-        pageShotOptions.quality = options.output.quality;
-      }
+      const pageShotOptions: PageShotOptions = { type: options.output.format, fullPage: options.fullPage };
+      if (options.output.format === "png" && options.output.omitBackground) pageShotOptions.omitBackground = true;
+      if (options.output.format === "jpeg" && options.output.quality != null) pageShotOptions.quality = options.output.quality;
       shots.push(await args.persist(bp.name, await page.screenshot(pageShotOptions)));
 
       for (const element of options.elements) {
@@ -92,22 +71,13 @@ async function captureViewport<T>(
           continue;
         }
         const elShotOptions: PageShotOptions = { type: options.output.format };
-        if (options.output.format === "png" && options.output.omitBackground) {
-          elShotOptions.omitBackground = true;
-        }
-        if (options.output.format === "jpeg" && options.output.quality != null) {
-          elShotOptions.quality = options.output.quality;
-        }
-        // A present-but-hidden element (display:none until interaction) makes locator.screenshot
-        // throw; warn + skip it instead of aborting the whole viewport loop. Only the capture is
-        // guarded — a persist (disk write) failure is a real error and still propagates.
+        if (options.output.format === "png" && options.output.omitBackground) elShotOptions.omitBackground = true;
+        if (options.output.format === "jpeg" && options.output.quality != null) elShotOptions.quality = options.output.quality;
         let buffer: Buffer | null = null;
         try {
           buffer = await locator.screenshot(elShotOptions);
         } catch (err) {
-          logger.warn(
-            `[${bp.name}] could not capture "${element.selector}": ${(err as Error).message}`,
-          );
+          logger.warn(`[${bp.name}] could not capture "${element.selector}": ${(err as Error).message}`);
         }
         if (buffer) shots.push(await args.persist(`${bp.name}-${element.name}`, buffer));
       }

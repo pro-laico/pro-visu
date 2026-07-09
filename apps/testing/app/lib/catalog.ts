@@ -1,7 +1,3 @@
-// Catalog data for the FASHION storefront (the pro-visu capture target).
-// Swap a CSS placeholder for a real photo by setting `image` on a product (e.g.
-// "/img/products/the-camel-coat.jpg") and dropping the file in `public/img/`.
-
 export type Tone = "camel" | "oat" | "charcoal" | "bone" | "ink" | "cognac" | "ecru" | "loden";
 
 /** Tonal duotones used by the placeholder until real photography is provided. */

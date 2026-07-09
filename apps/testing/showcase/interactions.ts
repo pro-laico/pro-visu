@@ -1,25 +1,24 @@
 import type { AssetSpecInput } from "pro-visu";
+
 import { CURSOR } from "./brand";
 
-// Scripted realtime tours with the synthetic cursor — slow + deliberate, in camel.
 export const interactions: AssetSpecInput[] = [
   {
-    name: "menu", // seamless loop: open the mega-menu, glide a link, return to the button and close
+    name: "menu",
     generator: "interaction",
     options: {
       cursor: { color: CURSOR },
-      // Pre-place the cursor on the trigger (off-camera) so frame 0 has no glide-in from center.
       setup: [{ do: "move", selector: "#menu-button", durationMs: 0, holdMs: 0 }],
       actions: [
-        { do: "click", selector: "#menu-button", holdMs: 700 }, // open
-        { do: "hover", selector: "#menu-panel a", holdMs: 900 }, // glide across a link
-        { do: "move", selector: "#menu-button", durationMs: 500, holdMs: 250 }, // travel back
-        { do: "click", selector: "#menu-button", holdMs: 900 }, // close → last frame matches the first
+        { do: "click", selector: "#menu-button", holdMs: 700 },
+        { do: "hover", selector: "#menu-panel a", holdMs: 900 },
+        { do: "move", selector: "#menu-button", durationMs: 500, holdMs: 250 },
+        { do: "click", selector: "#menu-button", holdMs: 900 },
       ],
     },
   },
   {
-    name: "cart", // quick-add the featured piece, open the cart drawer
+    name: "cart",
     generator: "interaction",
     options: {
       cursor: { color: CURSOR },
@@ -30,7 +29,7 @@ export const interactions: AssetSpecInput[] = [
     },
   },
   {
-    name: "browse", // shop: eased scroll to "The Edit", then tap through the pieces (phone-sized)
+    name: "browse",
     generator: "interaction",
     url: "/shop",
     options: {
@@ -45,7 +44,7 @@ export const interactions: AssetSpecInput[] = [
     },
   },
   {
-    name: "buy", // PDP buy flow: choose a size, add to bag, drawer slides in
+    name: "buy",
     generator: "interaction",
     url: "/products/the-camel-coat",
     options: {
@@ -57,13 +56,12 @@ export const interactions: AssetSpecInput[] = [
     },
   },
   {
-    name: "search", // shop search: type a query, submit with Enter, open the result
+    name: "search",
     generator: "interaction",
     url: "/shop",
     options: {
       cursor: { color: CURSOR },
       page: { waitForSelector: "#search-input" },
-      // Start framed on the search field (top-aligned, 40px headroom) so its results are in view too.
       setup: [
         { do: "scrollTo", to: "#search-input", align: "top", offset: 40, durationMs: 0, holdMs: 0 },
         { do: "move", selector: "#search-input", durationMs: 0, holdMs: 0 },

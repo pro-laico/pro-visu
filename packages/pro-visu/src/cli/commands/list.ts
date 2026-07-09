@@ -1,12 +1,13 @@
 import pc from "picocolors";
-import { resolveCwd, resolveConfigDir, resolveOutDir } from "@/utils/paths";
+
+import { reportConfigError } from "@/cli/ui";
+import { formatBytes } from "@/utils/format";
 import { createLogger } from "@/utils/logger";
-import { loadShowcaseConfig, ConfigNotFoundError } from "@/config/load";
 import type { LogLevel } from "@/config/schema";
 import { readManifest } from "@/manifest/manifest";
 import { DEFAULT_OUTDIR } from "@/config/defaults";
-import { reportConfigError } from "@/cli/ui";
-import { formatBytes } from "@/utils/format";
+import { loadShowcaseConfig, ConfigNotFoundError } from "@/config/load";
+import { resolveCwd, resolveConfigDir, resolveOutDir } from "@/utils/paths";
 
 export interface ListOptions {
   cwd?: string;
@@ -17,8 +18,6 @@ export interface ListOptions {
 
 export async function runList(options: ListOptions = {}): Promise<void> {
   const cwd = resolveCwd(options.cwd);
-  // Errors before the config resolves are always visible; the leveled logger takes over once
-  // settings.logLevel is known (a `--json` dump bypasses the logger entirely, below).
   const bootstrap = createLogger("info");
 
   let outDir: string;

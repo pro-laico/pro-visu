@@ -7,11 +7,7 @@ function editDistance(a: string, b: string): number {
     dist[0] = i;
     for (let j = 1; j < cols; j++) {
       const tmp = dist[j] ?? 0;
-      dist[j] = Math.min(
-        (dist[j] ?? 0) + 1, // deletion
-        (dist[j - 1] ?? 0) + 1, // insertion
-        prev + (a[i - 1] === b[j - 1] ? 0 : 1), // substitution
-      );
+      dist[j] = Math.min((dist[j] ?? 0) + 1, (dist[j - 1] ?? 0) + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
       prev = tmp;
     }
   }

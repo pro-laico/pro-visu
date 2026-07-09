@@ -1,15 +1,15 @@
-import { zodToJsonSchema } from "zod-to-json-schema";
 import type { ZodTypeAny } from "zod";
-import { settingsSchema, captureOverrideSchema } from "@/config/schema";
-import { listGenerators } from "@/generators/registry";
+import { zodToJsonSchema } from "zod-to-json-schema";
+
 import { TOOL_VERSION } from "@/version";
+import { listGenerators } from "@/generators/registry";
+import { settingsSchema, captureOverrideSchema } from "@/config/schema";
 
 type JsonObject = Record<string, unknown>;
 
 /** Convert a zod schema to an inlined (no $ref) JSON Schema fragment, without its own $schema tag. */
 function toJson(schema: ZodTypeAny): JsonObject {
-  const out = zodToJsonSchema(schema, { $refStrategy: "none" }) as JsonObject;
-  // Strip the per-fragment $schema tag — we only want one at the document root.
+  const out = zodToJsonSchema(schema, { $refStrategy: "none" }) as JsonObject; //TODO: replace `as` cast with proper typing
   delete out.$schema;
   return out;
 }
@@ -37,11 +37,7 @@ export function generateConfigJsonSchema(): JsonObject {
     required: ["name", "generator"],
     additionalProperties: false,
     properties: {
-      name: {
-        type: "string",
-        minLength: 1,
-        description: "Unique id — also the output filename and manifest key.",
-      },
+      name: { type: "string", minLength: 1, description: "Unique id — also the output filename and manifest key." },
       enabled: {
         type: ["boolean", "string"],
         default: true,
@@ -53,14 +49,8 @@ export function generateConfigJsonSchema(): JsonObject {
         description:
           "Absolute http(s) URL, or a /path resolved against the managed server. Omit for local generators (wall, specimen, palette).",
       },
-      generator: {
-        description: "Which generator produces this asset.",
-        enum: generators.map((g) => g.id),
-      },
-      options: {
-        type: "object",
-        description: "Generator-specific options — autocompletes once `generator` is set.",
-      },
+      generator: { description: "Which generator produces this asset.", enum: generators.map((g) => g.id) },
+      options: { type: "object", description: "Generator-specific options — autocompletes once `generator` is set." },
       capture: {
         ...toJson(captureOverrideSchema),
         description:
@@ -74,21 +64,14 @@ export function generateConfigJsonSchema(): JsonObject {
     $schema: "http://json-schema.org/draft-07/schema#",
     title: "pro-visu config",
     description: "Configuration for the pro-visu CLI (pro-visu.config.json).",
-    // Stamped so the CLI can refresh a stale schema file automatically after an upgrade.
     "x-tool-version": TOOL_VERSION,
     type: "object",
     required: ["assets"],
     additionalProperties: false,
     properties: {
-      // The config file itself may carry a $schema pointer; the runtime validator ignores it.
       $schema: { type: "string" },
       settings: toJson(settingsSchema),
-      assets: {
-        type: "array",
-        minItems: 1,
-        description: "What to generate (at least one).",
-        items: assetItem,
-      },
+      assets: { type: "array", minItems: 1, description: "What to generate (at least one).", items: assetItem },
     },
   };
 }
@@ -107,10 +90,7 @@ export const DEFAULT_SCHEMA_FILE = "pro-visu.schema.json";
  * for JSON configs always matches the installed version with no manual refresh step. Best-effort —
  * a failure never breaks the command.
  */
-export async function refreshSchemaFile(
-  dir: string,
-  log?: { info(msg: string): void },
-): Promise<void> {
+export async function refreshSchemaFile(dir: string, log?: { info(msg: string): void }): Promise<void> {
   const { readFile, writeFile } = await import("node:fs/promises");
   const path = await import("node:path");
   const file = path.join(dir, DEFAULT_SCHEMA_FILE);
@@ -118,14 +98,12 @@ export async function refreshSchemaFile(
   try {
     existing = await readFile(file, "utf8");
   } catch {
-    return; // no schema file scaffolded — nothing to maintain
+    return;
   }
   try {
-    const version = (JSON.parse(existing) as Record<string, unknown>)["x-tool-version"];
+    const version = (JSON.parse(existing) as Record<string, unknown>)["x-tool-version"]; //TODO: replace `as` cast with proper typing
     if (version === TOOL_VERSION) return;
     await writeFile(file, serializeConfigJsonSchema(), "utf8");
     log?.info(`refreshed ${DEFAULT_SCHEMA_FILE} for pro-visu ${TOOL_VERSION}`);
-  } catch {
-    /* unparseable/unwritable — leave it alone */
-  }
+  } catch {}
 }

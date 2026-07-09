@@ -1,4 +1,5 @@
 import path from "node:path";
+
 import { CONFIG_DIR } from "@/config/defaults";
 
 /** Resolve a working directory to an absolute path (defaults to process.cwd()). */
@@ -36,10 +37,5 @@ export function relPosix(from: string, to: string): string {
 
 /** Turn an asset name into a safe filename slug. */
 export function slugify(name: string): string {
-  return (
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "asset"
-  );
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "asset";
 }

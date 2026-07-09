@@ -1,6 +1,5 @@
 import type { AssetSpecInput } from "pro-visu";
 
-// Responsive stills of the storefront, plus element crops.
 export const screenshots: AssetSpecInput[] = [
   {
     name: "shots",

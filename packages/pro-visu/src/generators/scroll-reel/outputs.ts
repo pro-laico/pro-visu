@@ -1,20 +1,13 @@
 import path from "node:path";
 import { copyFile, stat } from "node:fs/promises";
-import {
-  aspectTarget,
-  buildAspectArgs,
-  buildGifArgs,
-  buildPosterArgs,
-  buildWebpArgs,
-  probeVideoDurationMs,
-  runFfmpeg,
-} from "@/media/ffmpeg";
+
 import { ensureDir } from "@/utils/fs";
-import { sha256File } from "@/utils/hash";
 import { slugify } from "@/utils/paths";
-import type { ResolvedScrollReelOptions } from "@/generators/scroll-reel/options";
-import type { PipelineContext } from "@/generators/types";
+import { sha256File } from "@/utils/hash";
 import type { AssetRecord } from "@/manifest/schema";
+import type { PipelineContext } from "@/generators/types";
+import type { ResolvedScrollReelOptions } from "@/generators/scroll-reel/options";
+import { aspectTarget, buildAspectArgs, buildGifArgs, buildPosterArgs, buildWebpArgs, probeVideoDurationMs, runFfmpeg } from "@/media/ffmpeg";
 
 export interface OutputJob {
   ctx: PipelineContext;
@@ -34,7 +27,6 @@ export interface OutputJob {
   preset: string;
 }
 
-// mp4 first so it stays the primary output (used when another asset references this one as an input).
 const FORMAT_ORDER = ["mp4", "gif", "webp", "poster"] as const;
 
 /**
@@ -46,9 +38,8 @@ const FORMAT_ORDER = ["mp4", "gif", "webp", "poster"] as const;
 export async function produceOutputs(job: OutputJob): Promise<AssetRecord[]> {
   const { ctx, options } = job;
   const logger = ctx.logger;
-  const signal = ctx.signal; // a cancel kills any in-progress reframe/encode here too
+  const signal = ctx.signal;
 
-  // Aspect reframe (once, shared by every output) — or use the capture as-is.
   let videoMp4 = job.sourceMp4;
   let outW = job.width;
   let outH = job.height;
@@ -75,7 +66,6 @@ export async function produceOutputs(job: OutputJob): Promise<AssetRecord[]> {
     videoMp4 = reframed;
   }
 
-  // Probe the real container duration (mux can drift a little from the computed sum).
   const videoMs = (await probeVideoDurationMs(videoMp4)) ?? job.durationMs;
 
   const gifFps = options.output.gifFps ?? Math.min(options.output.fps, 15);
@@ -93,17 +83,9 @@ export async function produceOutputs(job: OutputJob): Promise<AssetRecord[]> {
     } else if (fmt === "gif") {
       await runFfmpeg(buildGifArgs({ inputPath: videoMp4, outputPath: outPath, fps: gifFps }), logger, signal);
     } else if (fmt === "webp") {
-      await runFfmpeg(
-        buildWebpArgs({ inputPath: videoMp4, outputPath: outPath, fps: gifFps, quality: 75 }),
-        logger,
-        signal,
-      );
+      await runFfmpeg(buildWebpArgs({ inputPath: videoMp4, outputPath: outPath, fps: gifFps, quality: 75 }), logger, signal);
     } else {
-      await runFfmpeg(
-        buildPosterArgs({ inputPath: videoMp4, outputPath: outPath, atSeconds: 0 }),
-        logger,
-        signal,
-      );
+      await runFfmpeg(buildPosterArgs({ inputPath: videoMp4, outputPath: outPath, atSeconds: 0 }), logger, signal);
     }
 
     const [stats, contentHash] = await Promise.all([stat(outPath), sha256File(outPath)]);

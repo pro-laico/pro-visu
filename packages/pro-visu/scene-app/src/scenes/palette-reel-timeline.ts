@@ -50,19 +50,19 @@ export function ease(u: number, e: Easing): number {
   const x = clamp01(u);
   switch (e) {
     case "ease-in":
-      return x * x * x; // cubic, front-loaded
+      return x * x * x;
     case "ease-out": {
       const y = 1 - x;
-      return 1 - y * y * y; // cubic, back-loaded
+      return 1 - y * y * y;
     }
     case "ease-in-out":
-      return x * x * x * (x * (x * 6 - 15) + 10); // smootherstep (quintic)
+      return x * x * x * (x * (x * 6 - 15) + 10);
     case "ease-out-strong":
-      return 1 - Math.pow(1 - x, 5); // quintic, back-loaded
+      return 1 - Math.pow(1 - x, 5);
     case "ease-in-out-strong":
-      return x < 0.5 ? 16 * Math.pow(x, 5) : 1 - Math.pow(-2 * x + 2, 5) / 2; // quintic in-out
+      return x < 0.5 ? 16 * Math.pow(x, 5) : 1 - Math.pow(-2 * x + 2, 5) / 2;
     default:
-      return x; // "linear"
+      return x;
   }
 }
 
@@ -83,7 +83,7 @@ function stopColor(k: number, n: number, bounce: boolean): number {
   if (!bounce) return ((k % n) + n) % n;
   const period = 2 * (n - 1);
   const m = ((k % period) + period) % period;
-  return m < n ? m : period - m; // 0,1,…,n-1,n-2,…,1
+  return m < n ? m : period - m;
 }
 
 /** Total clip length: every stop holds once and hands off once. Seam wraps cleanly to t=0. */
@@ -117,12 +117,12 @@ export function expansionWeights(t: number, p: ReelTimingParams): number[] {
   const cur = stopColor(k, n, p.bounce);
 
   if (local <= p.holdSeconds || p.transitionSeconds <= 0) {
-    weights[cur] = 1; // holding fully open
+    weights[cur] = 1;
   } else {
     const e = ease((local - p.holdSeconds) / p.transitionSeconds, p.easing);
     const next = stopColor(k + 1, n, p.bounce);
-    weights[cur] = 1 - e; // outgoing collapses
-    weights[next] = e; // incoming (an adjacent band, when bouncing) opens
+    weights[cur] = 1 - e;
+    weights[next] = e;
   }
   return weights;
 }

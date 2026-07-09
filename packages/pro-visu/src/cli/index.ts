@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import { cac } from "cac";
+
 import { TOOL_VERSION } from "@/version";
-import { checkForUpdates, runUpdateWorker, UPDATE_WORKER_FLAG } from "@/cli/update-check";
 import { runInit } from "@/cli/commands/init";
-import { runGenerate } from "@/cli/commands/generate";
-import { runDoctor } from "@/cli/commands/doctor";
 import { runList } from "@/cli/commands/list";
+import { runDoctor } from "@/cli/commands/doctor";
+import { runGenerate } from "@/cli/commands/generate";
+import { checkForUpdates, runUpdateWorker, UPDATE_WORKER_FLAG } from "@/cli/update-check";
 
 const cli = cac("pro-visu");
 
@@ -52,21 +53,17 @@ cli.version(TOOL_VERSION);
 const parsed = cli.parse(process.argv, { run: false });
 
 async function main(): Promise<void> {
-  // A detached invocation of ourselves refreshes the update-check cache, then exits.
   if (process.env[UPDATE_WORKER_FLAG] === "1") {
     await runUpdateWorker();
     return;
   }
-  // Fire-and-forget: arms a deferred "newer version on npm" notice (best-effort, non-blocking).
   checkForUpdates();
   if (!cli.matchedCommand) {
-    // An unrecognized command is an error (exit 1), not a silent help dump — scripts must notice.
     if (parsed.args.length > 0) {
       console.error(`Unknown command "${parsed.args[0]}". Run \`pro-visu --help\` for the command list.`);
       process.exitCode = 1;
       return;
     }
-    // --help / --version were already handled by parse(); otherwise show help.
     if (!parsed.options.help && !parsed.options.version) cli.outputHelp();
     return;
   }

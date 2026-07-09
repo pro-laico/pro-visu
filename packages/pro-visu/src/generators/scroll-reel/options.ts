@@ -1,199 +1,99 @@
 import { z } from "zod";
+
 import { easingSchema, type Easing } from "@/generators/easing";
 import { frameCaptureShape, namedViewportSchema, videoOutputShape, type ViewportInput } from "@/generators/shared-options";
 
 /** One choreographed scroll step (see `choreography` below). */
-const choreographyStepSchema = z
-  .object({
+const choreographyStepSchema = z.object({
     /** Target: a 0..1 number, an "NN%" string, or a CSS selector to bring into view. */
-    to: z
-      .union([z.number(), z.string()])
-      .describe('Target: a 0..1 number, an "NN%" string, or a CSS selector to bring into view.'),
+    to: z.union([z.number(), z.string()]).describe('Target: a 0..1 number, an "NN%" string, or a CSS selector to bring into view.'),
     /** Travel time to this target (ms). Default 1200. */
-    durationMs: z
-      .number()
-      .int()
-      .nonnegative()
-      .optional()
-      .describe("Travel time to this target (ms). Default 1200."),
+    durationMs: z.number().int().nonnegative().optional().describe("Travel time to this target (ms). Default 1200."),
     /** Hold time at this target after arriving (ms). Default 800. */
-    holdMs: z
-      .number()
-      .int()
-      .nonnegative()
-      .optional()
-      .describe("Hold time at this target after arriving (ms). Default 800."),
-    easing: easingSchema
-      .optional()
-      .describe('Easing for the travel to this target. Default "ease-in-out".'),
-  })
-  .strict();
+    holdMs: z.number().int().nonnegative().optional().describe("Hold time at this target after arriving (ms). Default 800."),
+    easing: easingSchema.optional().describe('Easing for the travel to this target. Default "ease-in-out".'),
+  }).strict();
 
 /** Tuning for auto-section choreography (see `autoSections` below). */
-const autoSectionsSchema = z
-  .object({
+const autoSectionsSchema = z.object({
     /** Min element height (as a fraction of the viewport) to count as a section. Default 0.5. */
-    minHeightFraction: z
-      .number()
-      .positive()
-      .max(2)
-      .optional()
-      .describe(
-        "Min element height (as a fraction of the viewport) to count as a section. Default 0.5.",
-      ),
+    minHeightFraction: z.number().positive().max(2).optional()
+      .describe("Min element height (as a fraction of the viewport) to count as a section. Default 0.5."),
     /** Explicit section selector; overrides the heuristic. */
-    selector: z
-      .string()
-      .optional()
-      .describe("Explicit section selector; overrides the heuristic. Omit to auto-detect."),
+    selector: z.string().optional().describe("Explicit section selector; overrides the heuristic. Omit to auto-detect."),
     /** Explicit sticky-header selector to measure the top inset from; overrides the heuristic that auto-detects it. */
-    headerSelector: z
-      .string()
-      .optional()
+    headerSelector: z.string().optional()
       .describe(
         "Sticky-header selector to measure the top inset from, when the auto-detect picks the wrong element (e.g. a JS-fixed header). Omit to auto-detect. Overridden by headerHeight.",
       ),
     /** Explicit sticky-header height (px); overrides both the heuristic and headerSelector. */
-    headerHeight: z
-      .number()
-      .nonnegative()
-      .optional()
+    headerHeight: z.number().nonnegative().optional()
       .describe(
         "Sticky-header height in px, used verbatim as the top inset (sections land just below it). Overrides the auto-detect and headerSelector. Omit to auto-detect.",
       ),
     /** Hold at each detected section (ms). Default 700. */
-    holdMs: z
-      .number()
-      .int()
-      .nonnegative()
-      .optional()
-      .describe("Hold at each detected section (ms). Default 700."),
+    holdMs: z.number().int().nonnegative().optional().describe("Hold at each detected section (ms). Default 700."),
     /** Total clip length (ms) split across detected sections. Default 12000. */
-    durationMs: z
-      .number()
-      .int()
-      .positive()
-      .optional()
-      .describe("Total clip length (ms) split across detected sections. Default 12000."),
+    durationMs: z.number().int().positive().optional().describe("Total clip length (ms) split across detected sections. Default 12000."),
     /** Cap on the number of sections. Default 8. */
-    maxSections: z
-      .number()
-      .int()
-      .positive()
-      .optional()
-      .describe("Cap on the number of sections. Default 8."),
+    maxSections: z.number().int().positive().optional().describe("Cap on the number of sections. Default 8."),
     /** Distribute travel time by distance for uniform scroll speed. Default true. */
-    constantVelocity: z
-      .boolean()
-      .optional()
-      .describe("Distribute travel time by distance for uniform scroll speed. Default true."),
+    constantVelocity: z.boolean().optional().describe("Distribute travel time by distance for uniform scroll speed. Default true."),
     /** Scroll all the way to the page bottom (footer included). Default false: stop at the last content section. */
-    includeFooter: z
-      .boolean()
-      .optional()
+    includeFooter: z.boolean().optional()
       .describe(
         "Scroll all the way to the page bottom (footer included). Default false: footers aren't counted as sections and the reel ends at the last content section.",
       ),
-  })
-  .strict();
+  }).strict();
 
 /** Pixel size, encoding, and output formats. */
-const outputGroupSchema = z
-  .object({
+const outputGroupSchema = z.object({
     ...videoOutputShape({ width: 1280, height: 800, deviceScaleFactor: 2 }),
     /** Files to emit per variant; each becomes its own asset. */
-    outputs: z
-      .array(z.enum(["mp4", "gif", "webp", "poster"]))
-      .default(["mp4"])
+    outputs: z.array(z.enum(["mp4", "gif", "webp", "poster"])).default(["mp4"])
       .describe('Files to emit per variant; each becomes its own asset. Default ["mp4"].'),
     /** GIF / animated-WebP frame rate. Defaults to min(fps, 15). */
-    gifFps: z
-      .number()
-      .int()
-      .positive()
-      .max(50)
-      .optional()
-      .describe("GIF / animated-WebP frame rate. Defaults to min(fps, 15)."),
-  })
-  .strict()
+    gifFps: z.number().int().positive().max(50).optional().describe("GIF / animated-WebP frame rate. Defaults to min(fps, 15)."),
+  }).strict()
   .default({});
 
 /** Page-load waiting + dwell at the ends of the scroll. */
-const pageGroupSchema = z
-  .object({
+const pageGroupSchema = z.object({
     /** Dwell at the top before scrolling (ms). */
-    startDelayMs: z
-      .number()
-      .int()
-      .nonnegative()
-      .default(500)
-      .describe("Dwell at the top before scrolling (ms). Default 500."),
+    startDelayMs: z.number().int().nonnegative().default(500).describe("Dwell at the top before scrolling (ms). Default 500."),
     /** Dwell at the bottom after scrolling (ms). */
-    endDwellMs: z
-      .number()
-      .int()
-      .nonnegative()
-      .default(800)
-      .describe("Dwell at the bottom after scrolling (ms). Default 800."),
-    waitUntil: z
-      .enum(["load", "domcontentloaded", "networkidle", "commit"])
-      .default("networkidle")
+    endDwellMs: z.number().int().nonnegative().default(800).describe("Dwell at the bottom after scrolling (ms). Default 800."),
+    waitUntil: z.enum(["load", "domcontentloaded", "networkidle", "commit"]).default("networkidle")
       .describe('Page-load milestone to wait for before recording. Default "networkidle".'),
     /** Optional element to wait for before recording (e.g. a hero section). */
-    waitForSelector: z
-      .string()
-      .optional()
-      .describe("Optional element to wait for before recording (e.g. a hero section). Omit to skip."),
-  })
-  .strict()
+    waitForSelector: z.string().optional().describe("Optional element to wait for before recording (e.g. a hero section). Omit to skip."),
+  }).strict()
   .default({});
 
 /** Frame-stepped render tuning (parallelism, frame format, per-frame settling). */
-const renderGroupSchema = z
-  .object({
+const renderGroupSchema = z.object({
     ...frameCaptureShape(),
     /** Wait for fonts + in-view images before each frame's screenshot. Defaults on (off in draft). */
-    settlePerFrame: z
-      .boolean()
-      .optional()
-      .describe(
-        "Wait for fonts + in-view images before each frame's screenshot. Defaults on (off in draft).",
-      ),
+    settlePerFrame: z.boolean().optional()
+      .describe("Wait for fonts + in-view images before each frame's screenshot. Defaults on (off in draft)."),
     /** Max time (ms) to wait per frame for settling before screenshotting anyway. */
-    settleMaxMs: z
-      .number()
-      .int()
-      .nonnegative()
-      .default(250)
-      .describe(
-        "Max time (ms) to wait per frame for settling before screenshotting anyway. Default 250.",
-      ),
-  })
-  .strict()
+    settleMaxMs: z.number().int().nonnegative().default(250)
+      .describe("Max time (ms) to wait per frame for settling before screenshotting anyway. Default 250."),
+  }).strict()
   .default({});
 
 /** How the scroll moves: duration/easing, loop, and choreography. */
-const motionGroupSchema = z
-  .object({
+const motionGroupSchema = z.object({
     /** Time to scroll from top to bottom (ms). */
-    durationMs: z
-      .number()
-      .int()
-      .positive()
-      .default(6000)
-      .describe("Time to scroll from top to bottom (ms). Default 6000."),
-    easing: easingSchema
-      .default("ease-in-out")
-      .describe('Easing for the default top→bottom scroll. Default "ease-in-out".'),
+    durationMs: z.number().int().positive().default(6000).describe("Time to scroll from top to bottom (ms). Default 6000."),
+    easing: easingSchema.default("ease-in-out").describe('Easing for the default top→bottom scroll. Default "ease-in-out".'),
     /**
      * Loop style — applies to whichever motion drives the reel (the default sweep, `choreography`, or
      * `autoSections`). "boomerang" plays the motion forward then back within the clip, retracing every
      * stop. "straight" runs the motion once, then glides straight back to the top (no section stops) so
      * the clip loops.
      */
-    loop: z
-      .enum(["none", "boomerang", "straight"])
-      .default("none")
+    loop: z.enum(["none", "boomerang", "straight"]).default("none")
       .describe(
         'Loop style — works with the default sweep, choreography, and autoSections. "boomerang" plays the motion forward then back, retracing every stop; "straight" runs it once then glides straight back to the top so the clip loops. Default "none".',
       ),
@@ -203,94 +103,60 @@ const motionGroupSchema = z
      * the "pause on each section" look. Omit for the default single eased sweep. Clip length becomes
      * startDelay + Σ(step travel + hold) + endDwell.
      */
-    choreography: z
-      .array(choreographyStepSchema)
-      .optional()
-      .describe(
-        "Choreographed scroll: an ordered list of steps instead of one top→bottom sweep. Omit for the default single eased sweep.",
-      ),
+    choreography: z.array(choreographyStepSchema).optional()
+      .describe("Choreographed scroll: an ordered list of steps instead of one top→bottom sweep. Omit for the default single eased sweep."),
     /**
      * Auto-choreograph: detect the page's sections and pan/hold through them automatically (no manual
      * selectors). `true` for defaults, or an object to tune. The clip is a fixed budget (`durationMs`,
      * default 12000) split across detected sections. Ignored if `choreography` is set.
      */
-    autoSections: z
-      .union([z.boolean(), autoSectionsSchema])
-      .optional()
+    autoSections: z.union([z.boolean(), autoSectionsSchema]).optional()
       .describe(
         "Auto-choreograph: detect sections and pan/hold through them. `true` for defaults, or an object to tune. Ignored if `choreography` is set.",
       ),
-  })
-  .strict()
+  }).strict()
   .default({});
 
 /** Variant matrix: each cell (color scheme × viewport) is emitted as its own asset. */
-const variantsGroupSchema = z
-  .object({
+const variantsGroupSchema = z.object({
     /** Force a color scheme. "both" emits a light AND a dark asset (<name>-light / <name>-dark). */
-    colorScheme: z
-      .enum(["light", "dark", "both"])
-      .optional()
-      .describe(
-        'Force a color scheme. "both" emits a light AND a dark asset (<name>-light / <name>-dark). Omit to leave as-is.',
-      ),
+    colorScheme: z.enum(["light", "dark", "both"]).optional()
+      .describe('Force a color scheme. "both" emits a light AND a dark asset (<name>-light / <name>-dark). Omit to leave as-is.'),
     /** Add this class to <html> before capture (e.g. to trigger a CSS-class dark theme). */
-    themeClass: z
-      .string()
-      .optional()
-      .describe(
-        "Add this class to <html> before capture (e.g. to trigger a CSS-class dark theme). Omit for none.",
-      ),
+    themeClass: z.string().optional()
+      .describe("Add this class to <html> before capture (e.g. to trigger a CSS-class dark theme). Omit for none."),
     /** Capture the same reel at multiple viewports; each emits an asset (<name>-<viewport name>). */
-    viewports: z
-      .array(namedViewportSchema)
-      .optional()
-      .describe(
-        "Also capture the reel at these viewports; each emits an asset (<name>-<viewport name>).",
-      ),
-  })
-  .strict()
+    viewports: z.array(namedViewportSchema).optional()
+      .describe("Also capture the reel at these viewports; each emits an asset (<name>-<viewport name>)."),
+  }).strict()
   .default({});
 
 /** Reframe the output to a target aspect. */
-const reframeGroupSchema = z
-  .object({
+const reframeGroupSchema = z.object({
     /** Reframe the output to a target aspect: a preset ("16:9"|"9:16"|"1:1") or explicit {width,height}. */
-    aspect: z
-      .union([
+    aspect: z.union([
         z.enum(["16:9", "9:16", "1:1"]),
         z.object({ width: z.number().int().positive(), height: z.number().int().positive() }).strict(),
-      ])
-      .optional()
+      ]).optional()
       .describe(
         'Reframe the output to a target aspect: a preset ("16:9"|"9:16"|"1:1") or explicit {width,height}. Omit to keep the capture aspect.',
       ),
     /** How to fit the capture into the aspect: "cover" (scale + center-crop) or "contain" (scale + pad). */
-    fit: z
-      .enum(["cover", "contain"])
-      .default("cover")
-      .describe(
-        'How to fit the capture into `aspect`: "cover" (scale + center-crop) or "contain" (scale + pad). Default "cover".',
-      ),
+    fit: z.enum(["cover", "contain"]).default("cover")
+      .describe('How to fit the capture into `aspect`: "cover" (scale + center-crop) or "contain" (scale + pad). Default "cover".'),
     /** Pad color used by "contain". */
-    padColor: z
-      .string()
-      .default("#0b0b0f")
-      .describe('Pad color used by "contain". Default "#0b0b0f".'),
-  })
-  .strict()
+    padColor: z.string().default("#0b0b0f").describe('Pad color used by "contain". Default "#0b0b0f".'),
+  }).strict()
   .default({});
 
-export const scrollReelOptionsSchema = z
-  .object({
+export const scrollReelOptionsSchema = z.object({
     output: outputGroupSchema,
     page: pageGroupSchema,
     render: renderGroupSchema,
     motion: motionGroupSchema,
     variants: variantsGroupSchema,
     reframe: reframeGroupSchema,
-  })
-  .strict();
+  }).strict();
 
 // ---------------------------------------------------------------------------
 // Author-facing input types (editor autocomplete + hover docs). JSDoc on the
@@ -464,10 +330,7 @@ export type ResolvedScrollReelOptions = z.infer<typeof scrollReelOptionsSchema>;
 
 // Compile-time guard: the documented authoring type must stay in sync with the schema's input shape.
 type Exact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
-const _scrollReelInputInSync: Exact<
-  ScrollReelOptionsInput,
-  z.input<typeof scrollReelOptionsSchema>
-> = true;
+const _scrollReelInputInSync: Exact<ScrollReelOptionsInput, z.input<typeof scrollReelOptionsSchema>> = true;
 void _scrollReelInputInSync;
 
 // Re-exported for callers that consumed these from here before the shared-options split.

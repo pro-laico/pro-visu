@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+
 import type { SceneProps } from "../types";
 import {
   buildEvents,
@@ -27,14 +28,12 @@ import {
  * specimen-timeline.ts) drives cell state through `window.__sceneSeek(t)`. The capture runtime
  * frame-steps it deterministically (`capture: "frames"`) or plays it on a rAF wall clock.
  */
-const DEFAULT_LEADING = 0.78; // line-height: minimal leading so the cap-height lines sit close together
+const DEFAULT_LEADING = 0.78;
 const DEFAULT_LINES = 3;
 const DEFAULT_DRIFT = 0.05;
-const MIN_PER_LINE = 3; // never let a huge font collapse a line to 1–2 glyphs
-const TYPE_FRACTION = 0.8; // default glyph-wall fill (overridable via the `fill` option); rest = background + label
+const MIN_PER_LINE = 3;
+const TYPE_FRACTION = 0.8;
 
-// Fallback used only if the host doesn't pass `pulses` (the generator always does). `chars`/`colors`
-// are fractions of the wall. These describe the *outward* half; with mirroring on it plays out + back.
 const DEFAULT_PULSES: Pulse[] = [
   { name: "hold", duration: 0.8 },
   { name: "letters", duration: 0.8, chars: 0.13 },
@@ -114,18 +113,10 @@ function labelAnchorStyle(anchor: string, padding: number): React.CSSProperties 
  * variables the wrapper sets from config. Served via `files.<name>`; captured with the deterministic
  * frame-stepper.
  */
-export function Specimen({
-  width,
-  height,
-  background,
-  files,
-  options,
-  durationSeconds,
-}: SceneProps): React.ReactElement {
+export function Specimen({ width, height, background, files, options, durationSeconds }: SceneProps): React.ReactElement {
   const fontUrl = files.oracle ?? Object.values(files)[0] ?? "";
   const weight = typeof options.weight === "number" ? options.weight : 400;
-  // The name label: its text plus placement/styling within the bottom gap area. Older wire payloads
-  // sent `label` as a bare string (the text) — tolerate that so cached scenes keep working.
+  //TODO: replace `as` cast with proper typing
   const labelOpt =
     typeof options.label === "string"
       ? { text: options.label }
@@ -150,44 +141,37 @@ export function Specimen({
   const tol = typeof options.maxLineDrift === "number" ? options.maxLineDrift : DEFAULT_DRIFT;
   const characterPool =
     typeof options.characterPool === "string" ? options.characterPool : undefined;
-  // The schedule seed: same seed ⇒ identical animation in every browser context. The parallel
-  // frame-stepper relies on this — each worker loads the page independently and must agree.
   const seed = typeof options.seed === "number" ? options.seed : 1;
-  const pulses =
-    Array.isArray(options.pulses) && options.pulses.length
-      ? (options.pulses as Pulse[])
-      : DEFAULT_PULSES;
-  const mirror = options.mirror !== false; // seamless loop by default
+  //TODO: replace `as` cast with proper typing
+  const pulses = Array.isArray(options.pulses) && options.pulses.length ? (options.pulses as Pulse[]) : DEFAULT_PULSES;
+  const mirror = options.mirror !== false;
   const charIntensity = typeof options.characterIntensity === "number" ? options.characterIntensity : 1;
   const colorIntensity = typeof options.colorIntensity === "number" ? options.colorIntensity : 1;
-  // Relative likelihood of each token on a random (non-targeted) color change. Config-controlled.
-  const cw = (options.colorWeights ?? {}) as Partial<Record<Token, number>>;
+  const cw = (options.colorWeights ?? {}) as Partial<Record<Token, number>>; //TODO: replace `as` cast with proper typing
   const weights: Record<Token, number> = {
     foreground: typeof cw.foreground === "number" ? cw.foreground : DEFAULT_WEIGHTS.foreground,
     muted: typeof cw.muted === "number" ? cw.muted : DEFAULT_WEIGHTS.muted,
     accent: typeof cw.accent === "number" ? cw.accent : DEFAULT_WEIGHTS.accent,
   };
   const pulsesKey = `${JSON.stringify(pulses)}|${mirror}|${charIntensity}|${colorIntensity}|${JSON.stringify(weights)}|${seed}|${tol}`;
-  const colors = (options.colors ?? {}) as Record<string, string>;
+  const colors = (options.colors ?? {}) as Record<string, string>; //TODO: replace `as` cast with proper typing
   const foreground = colors.foreground ?? "#16181d";
   const muted = colors.muted ?? "#a7adb6";
-  const accent = colors.accent ?? background; // accent falls back to the backdrop (blends in)
-  const labelColor = labelOpt.color ?? foreground; // font-name label falls back to foreground
+  const accent = colors.accent ?? background;
+  const labelColor = labelOpt.color ?? foreground;
 
-  // The glyph pool (master minus blacklist), measured into widths after the font loads.
   const specKey = `${blacklist}|${characterPool ?? ""}`;
   const spec = useMemo(() => buildSpec(blacklist, characterPool), [specKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Geometry: the glyph wall fills the top `typeFraction` full-bleed; the strip below is background + label.
   const typeArea = Math.round(height * typeFraction);
   const barH = height - typeArea;
   const fontSize = clamp(Math.floor(typeArea / (lines * leading)), 8, typeArea);
   const lineH = fontSize * leading;
-  const targetEm = width / fontSize; // per-line advance budget, in em
+  const targetEm = width / fontSize;
 
   const [cells, setCells] = useState<Cell[]>([]);
   const [lineLengths, setLineLengths] = useState<number[]>([]);
-  const [clock, setClock] = useState(0); // current timeline position (drives the demo overlay)
+  const [clock, setClock] = useState(0);
 
   // Hold capture until the glyphs are actually on screen. The cells start empty and are only seeded
   // once the font loads, so without this the capture (which starts at fonts.ready) could grab a
@@ -215,15 +199,13 @@ export function Specimen({
       if (cancelled) return;
       const ctx = document.createElement("canvas").getContext("2d");
       if (!ctx) {
-        markPainted(); // never leave the capture runtime waiting on an unresolved ready gate
+        markPainted();
         return;
       }
       ctx.font = `${weight} 100px 'Specimen'`;
       const adv: Record<string, number> = {};
       for (const ch of spec.pool) adv[ch] = ctx.measureText(ch).width / 100;
 
-      // One seeded stream feeds the packing AND the schedule, in a fixed order — every context that
-      // runs this computes the byte-identical wall + animation.
       const rng = mulberry32(seed);
       const packed = packAndSeedLines({
         lines,
@@ -252,8 +234,6 @@ export function Specimen({
       );
       const cursor = createCursor(packed.cells, events);
 
-      // The ≤tol guarantee holds by construction unless the pool is too small to compensate — warn
-      // (don't fail) in that degenerate case so a constrained config is visible.
       const drift = maxLineDrift(packed.cells, events, adv, packed.lineLengths);
       if (drift > tol + 1e-6) {
         console.warn(
@@ -261,9 +241,6 @@ export function Specimen({
         );
       }
 
-      // The timeline hook: the runtime frame-steps this (seek) or drives it from a rAF clock (play).
-      // flushSync commits the DOM before the runtime's trailing rAF + screenshot, so every captured
-      // frame shows exactly the state for its time.
       window.__sceneSeek = (t: number) => {
         flushSync(() => {
           setCells(cursor.stateAt(t));
@@ -271,7 +248,6 @@ export function Specimen({
         });
       };
 
-      // Hook published and glyphs seeded — let the runtime start capturing once this paints.
       markPainted();
     };
     void (document.fonts?.ready ?? Promise.resolve()).then(setup);
@@ -292,6 +268,7 @@ export function Specimen({
     return out;
   }, [lineLengths]);
 
+  //TODO: replace `as` cast with proper typing
   const rootStyle = {
     position: "absolute",
     inset: 0,
@@ -331,8 +308,6 @@ export function Specimen({
                 color: "var(--sp-foreground)",
                 fontKerning: "none",
                 fontVariantLigatures: "none",
-                // Force lining figures: old-style (text) figures descend up to ~0.28em below the
-                // baseline, which the tight `leading` line box clips off the bottom of the row.
                 fontVariantNumeric: "lining-nums",
                 letterSpacing: 0,
                 overflow: "hidden",
@@ -365,18 +340,14 @@ export function Specimen({
               letterSpacing: "-0.01em",
               color: "var(--sp-label)",
               whiteSpace: "nowrap",
-              // Trim the line box to the cap height (top) and alphabetic baseline (bottom) so the
-              // font's ascent/descent leading doesn't add phantom space — without this the label's
-              // box extends a descender below the visible text, so `padding` reads larger at the
-              // bottom than at the sides. With the trim, `padding` is uniform on all four edges.
               display: "inline-block",
               lineHeight: 1,
+              //TODO: replace `as` cast with proper typing
               ...({ textBoxTrim: "trim-both", textBoxEdge: "cap alphabetic" } as React.CSSProperties),
             }}
           >
             {label}
           </span>
-          {/* Demo overlay stays pinned bottom-right of the gap so it doesn't move with the label. */}
           {demo && (
             <span
               style={{
@@ -396,7 +367,6 @@ export function Specimen({
             </span>
           )}
         </div>
-        {/* Keep UnoCSS aware of the attributify color tokens (these are never rendered). */}
         {false && (
           <>
             <i text="foreground" />

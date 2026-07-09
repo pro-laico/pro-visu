@@ -28,6 +28,14 @@ const MENU = [
   },
 ];
 
+function IconBag() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true">
+      <path d="M6 8h12l-1 12H7L6 8Z" strokeLinejoin="round" />
+      <path d="M9 8V6a3 3 0 0 1 6 0v2" strokeLinecap="round" />
+    </svg>
+  );
+}
 function IconSearch() {
   return (
     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true">
@@ -44,18 +52,10 @@ function IconAccount() {
     </svg>
   );
 }
-function IconBag() {
-  return (
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true">
-      <path d="M6 8h12l-1 12H7L6 8Z" strokeLinejoin="round" />
-      <path d="M9 8V6a3 3 0 0 1 6 0v2" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 export function Header() {
-  const { count, lines, subtotal, open, setOpen, remove } = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { count, lines, subtotal, open, setOpen, remove } = useCart();
 
   return (
     <header className="site-header">
@@ -129,7 +129,6 @@ export function Header() {
         </div>
       ) : null}
 
-      {/* Cart drawer — kept in the DOM so #cart-drawer always resolves; slides in on open. */}
       <div className={"drawer-scrim" + (open ? " is-open" : "")} onClick={() => setOpen(false)} aria-hidden="true" />
       <aside id="cart-drawer" className={"cart-drawer" + (open ? " is-open" : "")} aria-label="Shopping bag" aria-hidden={!open}>
         <div className="drawer-head">

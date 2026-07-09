@@ -1,8 +1,9 @@
 import type { ZodError } from "zod";
-import { ConfigNotFoundError, ConfigValidationError } from "@/config/load";
+
 import type { Logger } from "@/utils/logger";
 import type { AssetOutcome } from "@/pipeline/runner";
 import { renderSummary } from "@/cli/dashboard/Summary";
+import { ConfigNotFoundError, ConfigValidationError } from "@/config/load";
 
 /** Render a ZodError's issues as pointed `path: message` bullets (shared by config + option errors). */
 export function zodIssueLines(zodError: ZodError, pathPrefix = ""): string[] {
@@ -28,11 +29,7 @@ export function reportConfigError(logger: Logger, err: unknown): void {
 }
 
 /** Print the final results panel (a rendered Ink summary) and a one-line note when nothing matched. */
-export function printSummary(
-  logger: Logger,
-  outcomes: AssetOutcome[],
-  outDir: string,
-): void {
+export function printSummary(logger: Logger, outcomes: AssetOutcome[], outDir: string): void {
   if (outcomes.length === 0) {
     logger.warn("No assets matched.");
     return;

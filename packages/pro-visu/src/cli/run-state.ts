@@ -1,6 +1,7 @@
 import path from "node:path";
-import { readFile, writeFile, rm } from "node:fs/promises";
 import { spawn } from "node:child_process";
+import { readFile, writeFile, rm } from "node:fs/promises";
+
 import { removeDir } from "@/utils/fs";
 
 /**
@@ -25,7 +26,7 @@ function runStatePath(outDir: string): string {
 
 export async function readRunState(outDir: string): Promise<RunState | null> {
   try {
-    return JSON.parse(await readFile(runStatePath(outDir), "utf8")) as RunState;
+    return JSON.parse(await readFile(runStatePath(outDir), "utf8")) as RunState; //TODO: replace `as` cast with proper typing
   } catch {
     return null;
   }
@@ -34,9 +35,7 @@ export async function readRunState(outDir: string): Promise<RunState | null> {
 async function write(outDir: string, state: RunState): Promise<void> {
   try {
     await writeFile(runStatePath(outDir), `${JSON.stringify(state, null, 2)}\n`);
-  } catch {
-    /* best-effort — tracking is a convenience, never fail the run over it */
-  }
+  } catch {}
 }
 
 export async function startRunState(outDir: string): Promise<void> {
@@ -45,10 +44,7 @@ export async function startRunState(outDir: string): Promise<void> {
 
 /** Merge a patch into the on-disk state (tmpDirs are appended, deduped). */
 export async function updateRunState(outDir: string, patch: Partial<RunState>): Promise<void> {
-  const cur = (await readRunState(outDir)) ?? {
-    pid: process.pid,
-    startedAt: new Date().toISOString(),
-  };
+  const cur = (await readRunState(outDir)) ?? { pid: process.pid, startedAt: new Date().toISOString() };
   const tmpDirs = [...new Set([...(cur.tmpDirs ?? []), ...(patch.tmpDirs ?? [])])];
   await write(outDir, { ...cur, ...patch, tmpDirs });
 }
@@ -56,9 +52,7 @@ export async function updateRunState(outDir: string, patch: Partial<RunState>): 
 export async function clearRunState(outDir: string): Promise<void> {
   try {
     await rm(runStatePath(outDir), { force: true });
-  } catch {
-    /* already gone */
-  }
+  } catch {}
 }
 
 /**
@@ -67,10 +61,7 @@ export async function clearRunState(outDir: string): Promise<void> {
  * still alive (another run in progress, or a stuck one), leave it and warn. Called by `generate`
  * before starting; a clean previous exit means there's nothing to do.
  */
-export async function cleanStaleRunState(
-  outDir: string,
-  log: { info(m: string): void; warn(m: string): void },
-): Promise<void> {
+export async function cleanStaleRunState(outDir: string, log: { info(m: string): void; warn(m: string): void }): Promise<void> {
   const state = await readRunState(outDir);
   if (!state) return;
   if (isAlive(state.pid)) {
@@ -80,9 +71,7 @@ export async function cleanStaleRunState(
   const killedServer = await killTreeByPid(state.serverPid);
   for (const dir of state.tmpDirs ?? []) await removeDir(dir);
   await clearRunState(outDir);
-  log.info(
-    `Cleaned up after an interrupted run${killedServer ? ` (stopped orphaned server pid ${state.serverPid})` : ""}.`,
-  );
+  log.info(`Cleaned up after an interrupted run${killedServer ? ` (stopped orphaned server pid ${state.serverPid})` : ""}.`);
 }
 
 /** Is a pid still running? */
@@ -92,7 +81,7 @@ export function isAlive(pid: number): boolean {
     process.kill(pid, 0);
     return true;
   } catch (err) {
-    return (err as NodeJS.ErrnoException).code === "EPERM"; // exists but not ours to signal
+    return (err as NodeJS.ErrnoException).code === "EPERM"; //TODO: replace `as` cast with proper typing
   }
 }
 
@@ -107,13 +96,11 @@ export function killTreeByPid(pid?: number): Promise<boolean> {
       return;
     }
     try {
-      process.kill(-pid, "SIGKILL"); // detached children are group leaders → kills the tree
+      process.kill(-pid, "SIGKILL");
     } catch {
       try {
         process.kill(pid, "SIGKILL");
-      } catch {
-        /* already gone */
-      }
+      } catch {}
     }
     resolve(true);
   });

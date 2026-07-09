@@ -73,26 +73,17 @@ function ease(x: number, e: Easing | undefined): number {
  * `continuous + Σ(pulse distances)` is a whole number ≥ `loops` — so travel(D) is an integer and the
  * loop is seamless. Pulses that don't complete by `t` contribute only their eased fraction.
  */
-export function trackTravel(
-  pulses: PulseInput[],
-  loops: number,
-  t: number,
-  durationSeconds: number,
-): number {
+export function trackTravel(pulses: PulseInput[], loops: number, t: number, durationSeconds: number): number {
   const D = durationSeconds;
   if (!(D > 0)) return 0;
   const sumDistance = pulses.reduce((a, p) => a + Math.max(0, p.distance), 0);
   const base = Math.max(0, loops);
-  // Round the whole-clip travel up to a whole number of periods; the continuous scroll absorbs the
-  // fractional remainder so the track ends exactly on a period boundary (seamless).
   const total = Math.ceil(base + sumDistance - 1e-9);
   const continuous = total - sumDistance;
 
-  const u = clamp01(t / D); // clip progress, 0..1
+  const u = clamp01(t / D);
   let traveled = continuous * u;
   for (const p of pulses) {
-    // `span` is a fraction of the clip; shift `at` back so the pulse always ends by u=1 (a 0.2
-    // pulse at 0.9 starts at 0.8). This guarantees the pulse completes ⇒ the loop stays seamless.
     const dur = Math.min(1, Math.max(1e-6, p.span));
     const at = Math.min(Math.max(0, p.at), 1 - dur);
     traveled += Math.max(0, p.distance) * ease((u - at) / dur, p.easing);
@@ -105,12 +96,7 @@ export function trackTravel(
  * (in periods), so columns with similar content don't line up. Seamless: travel(D) is an integer and
  * the stagger is constant ⇒ offset(D) ≡ offset(0).
  */
-export function trackOffset(
-  track: Track,
-  t: number,
-  period: number,
-  durationSeconds: number,
-): number {
+export function trackOffset(track: Track, t: number, period: number, durationSeconds: number): number {
   if (period <= 0 || durationSeconds <= 0) return 0;
   const travel = track.dir * trackTravel(track.pulses, track.loops, t, durationSeconds);
   return mod((travel + (track.stagger ?? 0)) * period, period);

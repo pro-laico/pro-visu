@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { Placeholder } from "@/app/components/Placeholder";
-import { StatTile } from "@/app/components/StatTile";
 import { MEDIA } from "@/app/lib/media";
+import { StatTile } from "@/app/components/StatTile";
+import { Placeholder } from "@/app/components/Placeholder";
 
 export const metadata = {
   title: "The House — FASHION",

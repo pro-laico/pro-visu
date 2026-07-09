@@ -1,11 +1,11 @@
+import { wallGenerator } from "@/generators/wall";
 import type { Generator } from "@/generators/types";
+import { iconsGenerator } from "@/generators/icons";
+import { paletteGenerator } from "@/generators/palette";
+import { specimenGenerator } from "@/generators/specimen";
 import { scrollReelGenerator } from "@/generators/scroll-reel";
 import { interactionGenerator } from "@/generators/interaction";
 import { screenshotsGenerator } from "@/generators/screenshots";
-import { wallGenerator } from "@/generators/wall";
-import { specimenGenerator } from "@/generators/specimen";
-import { iconsGenerator } from "@/generators/icons";
-import { paletteGenerator } from "@/generators/palette";
 import { paletteReelGenerator } from "@/generators/palette-reel";
 
 const registry = new Map<string, Generator<unknown>>();

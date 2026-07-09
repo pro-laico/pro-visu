@@ -1,8 +1,9 @@
 import { existsSync } from "node:fs";
 import { spawn } from "node:child_process";
+
 import { ffmpegPath } from "@/media/ffmpeg";
-import { downloadFfmpeg, ffmpegIsSupported } from "@/binaries/ffmpeg-binary";
 import type { Logger } from "@/utils/logger";
+import { downloadFfmpeg, ffmpegIsSupported } from "@/binaries/ffmpeg-binary";
 
 /** Does the managed ffmpeg binary exist AND actually execute on this platform? */
 async function ffmpegWorks(): Promise<boolean> {
@@ -14,8 +15,6 @@ async function ffmpegWorks(): Promise<boolean> {
   }
   if (!existsSync(bin)) return false;
   return await new Promise<boolean>((resolve) => {
-    // A corrupt / wrong-platform binary fails here — on Windows spawn() throws synchronously
-    // (spawn UNKNOWN/EFTYPE); on POSIX it emits an async 'error'. Handle both.
     let child: ReturnType<typeof spawn>;
     try {
       child = spawn(bin, ["-version"], { stdio: "ignore" });
@@ -49,15 +48,12 @@ export async function ensureFfmpeg(opts: EnsureFfmpegOptions): Promise<boolean> 
     return false;
   }
   if (!ffmpegIsSupported()) {
-    opts.logger.error(
-      `No prebuilt ffmpeg for ${process.platform}/${process.arch}. Set FFMPEG_BIN to a local ffmpeg binary.`,
-    );
+    opts.logger.error(`No prebuilt ffmpeg for ${process.platform}/${process.arch}. Set FFMPEG_BIN to a local ffmpeg binary.`);
     return false;
   }
 
   opts.logger.info("Fetching ffmpeg (one-time, ~80 MB)…");
   try {
-    // Log at each quartile so a slow link shows life without spamming the log.
     let lastQuartile = 0;
     await downloadFfmpeg((downloaded, total) => {
       if (!total) return;

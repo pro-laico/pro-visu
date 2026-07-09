@@ -67,9 +67,7 @@ export class DashboardStore {
 
   private build(): DashboardSnapshot {
     return {
-      jobs: this.order
-        .map((id) => this.jobs.get(id))
-        .filter((v): v is JobView => Boolean(v)),
+      jobs: this.order.map((id) => this.jobs.get(id)).filter((v): v is JobView => Boolean(v)),
       logs: this.logs,
       startTime: this.startTime,
       cancelRequested: this.cancelRequested,
@@ -84,7 +82,6 @@ export class DashboardStore {
 
   add(row: RowInit): void {
     if (this.jobs.has(row.id)) return;
-    // The waiting reason is derived at render time from gate/dep state, so it stays accurate.
     this.jobs.set(row.id, { ...row, deps: row.deps ?? [], status: "waiting", step: "" });
     this.order.push(row.id);
     this.commit();
@@ -100,8 +97,7 @@ export class DashboardStore {
     if (status === "ok" || status === "failed" || status === "cached") {
       j.endedAt = now;
       if (status === "cached") j.step = "cached";
-      else if (status === "ok" && (j.step === "" || j.step === "starting…" || j.step === "queued"))
-        j.step = "done";
+      else if (status === "ok" && (j.step === "" || j.step === "starting…" || j.step === "queued")) j.step = "done";
     }
     j.status = status;
     this.commit();
@@ -118,9 +114,6 @@ export class DashboardStore {
     const j = this.jobs.get(id);
     if (!j) return;
     const next = Math.max(0, Math.min(1, value));
-    // Frame captures report per frame across parallel workers — hundreds of updates/sec. Committing
-    // each one rebuilds the snapshot and re-renders Ink for movement no bar can show; only commit
-    // whole-percent changes (or completion), which is the display's own resolution.
     if (j.progress !== undefined && next < 1 && Math.abs(next - j.progress) < 0.01) return;
     j.progress = next;
     this.commit();

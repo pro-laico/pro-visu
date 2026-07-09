@@ -1,8 +1,3 @@
-// The in-page capture contract. The Node capture engine drives a scene through this object
-// (via page.evaluate). Realtime capture calls ready()+play(); the deterministic frame-stepper
-// calls ready() then seek(t) per frame. Kept framework-agnostic: it just operates on the
-// <video> elements the scene rendered.
-
 import { loopTime } from "./scenes/wall-motion";
 
 export interface ShowcaseRuntime {
@@ -37,8 +32,7 @@ declare global {
   }
 }
 
-const nextFrame = (): Promise<void> =>
-  new Promise((resolve) => requestAnimationFrame(() => resolve()));
+const nextFrame = (): Promise<void> => new Promise((resolve) => requestAnimationFrame(() => resolve()));
 
 function setup(v: HTMLVideoElement): void {
   v.muted = true;
@@ -48,7 +42,7 @@ function setup(v: HTMLVideoElement): void {
 }
 
 function whenLoaded(v: HTMLVideoElement): Promise<void> {
-  if (v.readyState >= 2 /* HAVE_CURRENT_DATA */) return Promise.resolve();
+  if (v.readyState >= 2) return Promise.resolve();
   return new Promise((resolve) => {
     let timer: ReturnType<typeof setTimeout>;
     const done = (): void => {
@@ -57,7 +51,6 @@ function whenLoaded(v: HTMLVideoElement): Promise<void> {
       clearTimeout(timer);
       resolve();
     };
-    // Resolve on success OR error (a failed video must not hang readiness), with a hard cap.
     v.addEventListener("loadeddata", done);
     v.addEventListener("error", done);
     timer = setTimeout(done, 15_000);
@@ -90,12 +83,9 @@ const NON_PRESENTING_NET_MS = 250;
  * video can't add seconds to every frame).
  */
 function presented(v: HTMLVideoElement, expectNewFrame: boolean): Promise<void> {
-  const rvfc = (
-    v as unknown as { requestVideoFrameCallback?: (cb: () => void) => number }
-  ).requestVideoFrameCallback?.bind(v);
+  //TODO: replace `as unknown as` cast with proper typing
+  const rvfc = (v as unknown as { requestVideoFrameCallback?: (cb: () => void) => number }).requestVideoFrameCallback?.bind(v);
   if (!rvfc) return nextFrame();
-  // Steady state, nothing changed (same currentTime, already painted once): no new frame will be
-  // composited, so rVFC would never fire — don't arm it, just yield a paint.
   if (!expectNewFrame && everPresented.has(v)) return nextFrame();
   return new Promise((resolve) => {
     let done = false;
@@ -116,20 +106,14 @@ function presented(v: HTMLVideoElement, expectNewFrame: boolean): Promise<void> 
 }
 
 function seekTo(v: HTMLVideoElement, t: number): Promise<void> {
-  // Loop short videos across a longer clip (e.g. tiles in the media wall) instead of freezing on
-  // the last frame. For existing scenes the input reel ≈ the clip length, so t < duration and the
-  // wrap is a no-op (t % duration === t) — non-breaking.
   const dur = v.duration;
-  const target =
-    Number.isFinite(dur) && dur > 0 ? Math.min(loopTime(t, dur), dur - 1e-3) : t;
-  // Already at the target: still ensure a frame is presented (a cold context may not have painted).
+  const target = Number.isFinite(dur) && dur > 0 ? Math.min(loopTime(t, dur), dur - 1e-3) : t;
   if (Math.abs(v.currentTime - target) < 1e-4 && v.readyState >= 2) {
     return presented(v, false);
   }
   return new Promise((resolve) => {
     const onSeeked = (): void => {
       v.removeEventListener("seeked", onSeeked);
-      // Wait for the seeked frame to be presented before resolving, so the screenshot isn't blank.
       void presented(v, true).then(resolve);
     };
     v.addEventListener("seeked", onSeeked);
@@ -147,28 +131,19 @@ export function initRuntime(): void {
   scan();
 
   const readyPromise = (async () => {
-    await nextFrame(); // let late-mounted videos attach (and the scene publish __sceneReady)
+    await nextFrame();
     scan();
     const fontsReady = document.fonts?.ready ?? Promise.resolve(undefined);
-    // A scene can gate capture on its own first paint (e.g. the specimen, which seeds its glyphs
-    // asynchronously after the font loads). React's first render may not have run yet when this
-    // starts, so poll a few frames for the gate before proceeding without it (absent → no-op).
-    const read = (): Promise<void> | undefined =>
-      (globalThis as { __sceneReady?: Promise<void> }).__sceneReady;
+    //TODO: replace `as` cast with proper typing
+    const read = (): Promise<void> | undefined => (globalThis as { __sceneReady?: Promise<void> }).__sceneReady;
     let sceneReady = read();
     for (let i = 0; !sceneReady && i < 10; i++) {
       await nextFrame();
       sceneReady = read();
     }
     await Promise.all([fontsReady, sceneReady ?? Promise.resolve(), ...videos.map(whenLoaded)]);
-    // Warm every video's decode pipeline BEFORE capture starts: seek a hair off zero (forcing the
-    // seeked → presented path — a paused, never-painted video may not fire rVFC otherwise) and
-    // wait for a REAL first presentation. `whenLoaded` only guarantees data is buffered — on a
-    // cold context nothing has been decoded+painted yet, so without this the first captured
-    // frames of every parallel worker's range screenshot black tiles. The cost lands in the
-    // (un-recorded) prepare step, once per worker; capture frames then set their own times.
     await Promise.all(videos.map((v) => seekTo(v, 0.001)));
-    await nextFrame(); // ensure a first paint
+    await nextFrame();
   })();
   void readyPromise.then(() => {
     window.__showcaseReady = true;
@@ -203,17 +178,11 @@ export function initRuntime(): void {
       }
     },
     seek: async (t: number) => {
-      await Promise.all([
-        ...videos.map((v) => seekTo(v, t)),
-        Promise.resolve(window.__sceneSeek?.(t)),
-      ]);
+      await Promise.all([...videos.map((v) => seekTo(v, t)), Promise.resolve(window.__sceneSeek?.(t))]);
       await nextFrame();
     },
     get duration() {
-      return videos.reduce(
-        (m, v) => Math.max(m, Number.isFinite(v.duration) ? v.duration : 0),
-        0,
-      );
+      return videos.reduce((m, v) => Math.max(m, Number.isFinite(v.duration) ? v.duration : 0), 0);
     },
   };
 }

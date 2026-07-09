@@ -1,4 +1,6 @@
 import { z } from "zod";
+
+import { captureStrategyShape, frameCaptureShape, videoOutputShape } from "@/generators/shared-options";
 import {
   wallPanSchema,
   wallPulseSchema,
@@ -7,7 +9,6 @@ import {
   type WallPulseInput,
   type FauxTileInput,
 } from "@/scene-engine/scene-options";
-import { captureStrategyShape, frameCaptureShape, videoOutputShape } from "@/generators/shared-options";
 
 /**
  * A tile in a wall column: the NAME of another asset in the config (its output is stacked in the
@@ -15,46 +16,23 @@ import { captureStrategyShape, frameCaptureShape, videoOutputShape } from "@/gen
  */
 const wallTileSchema = z.union([
   z.string().min(1),
-  z
-    .object({
-      src: z
-        .string()
-        .min(1)
-        .describe("Path to a local image/video file (relative to the working dir, or absolute)."),
-    })
-    .strict(),
+  z.object({ src: z.string().min(1).describe("Path to a local image/video file (relative to the working dir, or absolute).") }).strict(),
 ]);
 
 /** One column of the wall (authoring shape): its tiles + its own optional Y motion. */
-const wallColumnSchema = z
-  .object({
+const wallColumnSchema = z.object({
     /** Tiles stacked in this column: asset names and/or `{ src }` files (cycled to fill the height). */
-    tiles: z
-      .array(wallTileSchema)
-      .min(1)
-      .describe(
-        "Tiles stacked in this column (cycled to fill the height): asset names and/or { src } files. At least one.",
-      ),
+    tiles: z.array(wallTileSchema).min(1)
+      .describe("Tiles stacked in this column (cycled to fill the height): asset names and/or { src } files. At least one."),
     /** Constant start-position shift, 0..1 of a tile-set — de-aligns columns with similar content. */
-    stagger: z
-      .number()
-      .min(0)
-      .max(1)
-      .default(0)
+    stagger: z.number().min(0).max(1).default(0)
       .describe("Start-position shift (0..1 of a tile-set) that de-aligns columns with similar content. Default 0."),
     /** Scroll direction. Defaults to "down". */
     direction: z.enum(["up", "down"]).optional().describe("Scroll direction. Default 'down'."),
     /** Continuous whole-clip loops for this column. Omit to inherit the wall-level `loops`. */
-    loops: z
-      .number()
-      .nonnegative()
-      .optional()
-      .describe("Continuous whole-clip loops for this column. Omit to inherit the wall-level loops."),
+    loops: z.number().nonnegative().optional().describe("Continuous whole-clip loops for this column. Omit to inherit the wall-level loops."),
     /** This column's pulses. Omit to inherit the wall-level `pulses`. */
-    pulses: z
-      .array(wallPulseSchema)
-      .optional()
-      .describe("This column's pulses. Omit to inherit the wall-level pulses."),
+    pulses: z.array(wallPulseSchema).optional().describe("This column's pulses. Omit to inherit the wall-level pulses."),
   })
   .strict();
 
@@ -73,44 +51,28 @@ const wallColumnSchema = z
  *   `pan`     — System 1: the whole wall pans on X.
  *   `columns` — System 2: each column scrolls on Y (its own `direction` / `loops` / `pulses`).
  */
-export const wallOptionsSchema = z
-  .object({
+export const wallOptionsSchema = z.object({
     // --- output (size + encoding) ---
-    output: z
-      .object({ ...videoOutputShape({ width: 1920, height: 1080, deviceScaleFactor: 2 }) })
-      .strict()
-      .default({}),
+    output: z.object({ ...videoOutputShape({ width: 1920, height: 1080, deviceScaleFactor: 2 }) }).strict().default({}),
 
     // --- render (capture strategy + frame format) ---
-    render: z
-      .object({ ...captureStrategyShape(), ...frameCaptureShape() })
-      .strict()
-      .default({}),
+    render: z.object({ ...captureStrategyShape(), ...frameCaptureShape() }).strict().default({}),
 
     // --- columns (System 2): each column = its tiles + its own motion ---
     /** The columns (≥3) — each its own tiles + motion. Count = array length (fewer = larger tiles). */
-    columns: z
-      .array(wallColumnSchema)
-      .min(3)
+    columns: z.array(wallColumnSchema).min(3)
       .describe("The columns (≥3) — each lists its stacked `tiles` (asset names and/or { src } files) and may carry its own motion. Count = columns.length."),
 
     // --- layout ---
-    layout: z
-      .object({
+    layout: z.object({
         /** Backdrop shown in the gutters between tiles. */
-        background: z
-          .string()
-          .default("#0b0b0f")
-          .describe('Backdrop shown in the gutters between tiles. Default "#0b0b0f".'),
+        background: z.string().default("#0b0b0f").describe('Backdrop shown in the gutters between tiles. Default "#0b0b0f".'),
         /** Gap between columns and between tiles (px). */
         gap: z.number().nonnegative().default(8).describe("Gap between columns and between tiles (px). Default 8."),
         /** Default/fallback tile aspect (width / height). Tiles fit the column width and take their OWN
          *  height from their media's aspect (16:9 → short, 9:16 → tall); this is only used for faux
          *  (`preview`) tiles that don't set their own `aspect`. 0.75 = 3:4 portrait. */
-        tileAspect: z
-          .number()
-          .positive()
-          .default(0.75)
+        tileAspect: z.number().positive().default(0.75)
           .describe("Default/fallback tile aspect (w/h) — only for faux (preview) tiles without their own `aspect`. 0.75 = 3:4 portrait. Default 0.75."),
         /** Tile corner radius (px). */
         cornerRadius: z.number().nonnegative().default(6).describe("Tile corner radius (px). Default 6."),
@@ -119,49 +81,33 @@ export const wallOptionsSchema = z
       .default({}),
 
     // --- motion (uniform pulse model) ---
-    motion: z
-      .object({
+    motion: z.object({
         /** Clip length (ms) — the whole loop. Tile videos should loop within a length dividing this. */
-        durationMs: z
-          .number()
-          .positive()
-          .default(16_000)
-          .describe("Clip length in ms — the whole loop. Default 16000."),
+        durationMs: z.number().positive().default(16_000).describe("Clip length in ms — the whole loop. Default 16000."),
         /** System 1 — the whole-wall X pan. */
-        pan: wallPanSchema
-          .default({})
+        pan: wallPanSchema.default({})
           .describe("System 1 — the whole wall's horizontal pan (`direction` / `loops` / `pulses`). Default: no pan."),
         /** Default continuous whole-clip loops for columns that omit their own `loops` (0 = static unless
          *  a pulse moves it; one pulse then rounds the total up to a single loop). */
-        loops: z
-          .number()
-          .nonnegative()
-          .default(0)
+        loops: z.number().nonnegative().default(0)
           .describe("Default continuous whole-clip loops for columns that omit their own `loops`. Default 0 (static unless a pulse moves it)."),
         /** Default pulses for columns that omit their own `pulses` (the uniform wall-level motion). */
-        pulses: z
-          .array(wallPulseSchema)
-          .default([])
+        pulses: z.array(wallPulseSchema).default([])
           .describe("Default pulses for columns that omit their own `pulses` (the uniform wall-level motion). Default none."),
       })
       .strict()
       .default({}),
 
     // --- preview (fast faux-tile mode) ---
-    preview: z
-      .object({
+    preview: z.object({
         /** Preview mode: render every tile as a flat labeled color box (see `tiles`) instead of the
          *  real assets. No producer assets run, so the wall renders in seconds — use it to dial in
          *  layout + motion, then turn it off for the real render. */
-        enabled: z
-          .boolean()
-          .default(false)
+        enabled: z.boolean().default(false)
           .describe("Preview mode: render every tile as a flat labeled color box instead of real assets, so the wall renders in seconds. Default false."),
         /** Per-tile faux appearance for preview mode, keyed by tile name. Tiles not listed get an
          *  auto-derived color and their name as the label. */
-        tiles: z
-          .record(z.string(), fauxTileSchema)
-          .default({})
+        tiles: z.record(z.string(), fauxTileSchema).default({})
           .describe("Per-tile faux appearance for preview mode, keyed by tile name (color + caption). Default {} (auto colors + names)."),
       })
       .strict()

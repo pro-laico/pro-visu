@@ -1,13 +1,14 @@
 import path from "node:path";
+import { createRequire } from "node:module";
 import { existsSync, readFileSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
+
 import { resolveCwd } from "@/utils/paths";
-import { ensureDir, ensureGitignoreEntry, pathExists } from "@/utils/fs";
 import { createLogger } from "@/utils/logger";
 import { ensureChromium } from "@/binaries/chromium";
 import { ensureFfmpeg } from "@/binaries/ensure-ffmpeg";
 import { CONFIG_DIR, DEFAULT_OUTDIR } from "@/config/defaults";
+import { ensureDir, ensureGitignoreEntry, pathExists } from "@/utils/fs";
 import { serializeConfigJsonSchema, DEFAULT_SCHEMA_FILE } from "@/config/json-schema";
 import { detectPackageManager, pmRun, type PackageManager } from "@/utils/package-manager";
 
@@ -47,25 +48,21 @@ const FRAMEWORKS: readonly [dep: string, name: string, port: number][] = [
 function detectProject(cwd: string): ProjectInfo {
   let pkg: Record<string, unknown> = {};
   try {
+    //TODO: replace `as` cast with proper typing
     pkg = JSON.parse(readFileSync(path.join(cwd, "package.json"), "utf8")) as Record<string, unknown>;
-  } catch {
-    /* no/unparseable package.json — fall back to plain defaults */
-  }
+  } catch {}
 
   const pm = detectPackageManager(cwd);
 
   const deps = {
-    ...(pkg.dependencies as Record<string, string> | undefined),
-    ...(pkg.devDependencies as Record<string, string> | undefined),
+    ...(pkg.dependencies as Record<string, string> | undefined), //TODO: replace `as` cast with proper typing
+    ...(pkg.devDependencies as Record<string, string> | undefined), //TODO: replace `as` cast with proper typing
   };
   const match = FRAMEWORKS.find(([dep]) => deps[dep]);
-  // An explicit port flag in the dev script beats the framework's conventional default.
-  const devScript = (pkg.scripts as Record<string, string> | undefined)?.dev ?? "";
+  const devScript = (pkg.scripts as Record<string, string> | undefined)?.dev ?? ""; //TODO: replace `as` cast with proper typing
   const flag = /(?:-p|--port)[ =](\d{2,5})/.exec(devScript);
   const devPort = flag ? Number(flag[1]) : match?.[2];
 
-  // Resolve like the config loader will: through the project's node_modules (walking up), so
-  // monorepo hoisting counts. No resolution → a TS config's `import "pro-visu"` would fail.
   let localDep = false;
   try {
     createRequire(path.join(cwd, "package.json")).resolve("pro-visu/package.json");
@@ -133,8 +130,6 @@ export default defineConfig({
 `;
 }
 
-// A dependency-free JSON config + a sibling JSON Schema (for editor autocomplete). Used when
-// running the tool via npx / a global install rather than as a project dev-dependency.
 function jsonConfigTemplate(info: ProjectInfo): string {
   const port = info.devPort ?? 3101;
   return `{
@@ -172,18 +167,15 @@ export async function runInit(options: InitOptions = {}): Promise<void> {
   if (info.framework) {
     logger.info(`detected ${info.framework} (${info.pm}${info.devPort ? `, dev port ${info.devPort}` : ""})`);
   }
-  // A TS config imports "pro-visu", which only resolves when the package is installed in the
-  // project. Running via npx/global? Fall back to the dependency-free JSON config automatically.
   let useJson = Boolean(options.json);
   if (!useJson && !info.localDep) {
     useJson = true;
     logger.info("pro-visu isn't a local dependency — scaffolding a JSON config (works via npx/global)");
   }
   const configFile = useJson ? "pro-visu.config.json" : "pro-visu.config.ts";
-  // Everything pro-visu owns lives under `pro-visu/`: the config, its schema, and the output.
   const configDir = path.join(cwd, CONFIG_DIR);
-  const configPath = path.join(CONFIG_DIR, configFile); // display + gitignore-relative
-  const ignoreEntry = `${CONFIG_DIR}/${DEFAULT_OUTDIR}/`; // pro-visu/output/
+  const configPath = path.join(CONFIG_DIR, configFile);
+  const ignoreEntry = `${CONFIG_DIR}/${DEFAULT_OUTDIR}/`;
 
   // 1. Config file (in pro-visu/)
   const existingConfig = findExistingConfig(configDir);
@@ -193,8 +185,6 @@ export async function runInit(options: InitOptions = {}): Promise<void> {
     await ensureDir(configDir);
     await writeFile(path.join(configDir, configFile), jsonConfigTemplate(info), "utf8");
     logger.success(`created ${configPath}`);
-    // Materialize the matching JSON Schema so the JSON config gets editor autocomplete + validation
-    // with no dependency on this package — it works the same whether run via npx, global, or a dep.
     await writeFile(path.join(configDir, DEFAULT_SCHEMA_FILE), serializeConfigJsonSchema(), "utf8");
     logger.success(`created ${path.join(CONFIG_DIR, DEFAULT_SCHEMA_FILE)}`);
     createdSomething = true;
@@ -242,13 +232,13 @@ export async function runInit(options: InitOptions = {}): Promise<void> {
     try {
       await ensureChromium({ logger });
     } catch (err) {
-      logger.warn(`Could not install Chromium now: ${(err as Error).message}`);
+      logger.warn(`Could not install Chromium now: ${(err as Error).message}`); //TODO: replace `as` cast with proper typing
       logger.warn("It will be installed on first `pro-visu generate`.");
     }
     try {
       await ensureFfmpeg({ logger });
     } catch (err) {
-      logger.warn(`Could not fetch ffmpeg now: ${(err as Error).message}`);
+      logger.warn(`Could not fetch ffmpeg now: ${(err as Error).message}`); //TODO: replace `as` cast with proper typing
       logger.warn("It will be fetched on first `pro-visu generate`.");
     }
   }

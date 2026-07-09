@@ -1,5 +1,6 @@
 import { createConsola } from "consola";
 import type { ConsolaInstance } from "consola";
+
 import type { LogLevel } from "@/config/schema";
 
 /** Map our friendly log levels onto consola's numeric levels. */

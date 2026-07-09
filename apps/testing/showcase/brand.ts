@@ -1,7 +1,5 @@
 import type { PaletteColorInput } from "pro-visu";
 
-// FASHION brand. Authoring feel: "quiet & slow" — ~10s clips, gentle easing (sine/cubic),
-// Ken Burns ≤ 1.04, cards in ink+paper, restrained copy, generous negative space.
 export const INK = "#1a1714";
 export const PAPER = "#f6f3ed";
 export const CAMEL = "#b49a77";

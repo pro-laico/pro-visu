@@ -31,12 +31,7 @@ export interface ResolvedTimeline {
   totalSeconds: number;
 }
 
-export interface DefaultTimelineArgs {
-  startDelayMs: number;
-  durationMs: number;
-  endDwellMs: number;
-  easing: EasingName;
-}
+export interface DefaultTimelineArgs { startDelayMs: number; durationMs: number; endDwellMs: number; easing: EasingName; }
 
 /**
  * The current scroll-reel behavior expressed as a timeline: hold at top, eased scroll 0→1, hold at
@@ -46,23 +41,12 @@ export interface DefaultTimelineArgs {
  */
 export function defaultTimelineSpec(a: DefaultTimelineArgs): TimelineSpec {
   const total = a.startDelayMs + a.durationMs + a.endDwellMs;
-  if (total <= 0) {
-    return { segments: [{ fromY: 0, toY: 0, durationFraction: 1, easing: "linear" }] };
-  }
+  if (total <= 0) return { segments: [{ fromY: 0, toY: 0, durationFraction: 1, easing: "linear" }] };
   const segments: ScrollSegment[] = [];
-  if (a.startDelayMs > 0) {
-    segments.push({ fromY: 0, toY: 0, durationFraction: a.startDelayMs / total, easing: "linear" });
-  }
-  if (a.durationMs > 0) {
-    segments.push({ fromY: 0, toY: 1, durationFraction: a.durationMs / total, easing: a.easing });
-  }
-  if (a.endDwellMs > 0) {
-    segments.push({ fromY: 1, toY: 1, durationFraction: a.endDwellMs / total, easing: "linear" });
-  }
-  // All-zero durations are guarded above, but keep a defined fallback for safety.
-  if (segments.length === 0) {
-    segments.push({ fromY: 0, toY: 0, durationFraction: 1, easing: "linear" });
-  }
+  if (a.startDelayMs > 0) segments.push({ fromY: 0, toY: 0, durationFraction: a.startDelayMs / total, easing: "linear" });
+  if (a.durationMs > 0) segments.push({ fromY: 0, toY: 1, durationFraction: a.durationMs / total, easing: a.easing });
+  if (a.endDwellMs > 0) segments.push({ fromY: 1, toY: 1, durationFraction: a.endDwellMs / total, easing: "linear" });
+  if (segments.length === 0) segments.push({ fromY: 0, toY: 0, durationFraction: 1, easing: "linear" });
   return { segments };
 }
 
@@ -93,11 +77,7 @@ export function normalizedScrollAt(spec: TimelineSpec, p: number): number {
 
 /** Bind a spec to a wall-clock length, yielding `scrollAt(tSeconds)`. */
 export function resolveTimeline(spec: TimelineSpec, totalSeconds: number): ResolvedTimeline {
-  return {
-    totalSeconds,
-    scrollAt: (tSeconds: number) =>
-      normalizedScrollAt(spec, totalSeconds > 0 ? tSeconds / totalSeconds : 1),
-  };
+  return { totalSeconds, scrollAt: (tSeconds: number) => normalizedScrollAt(spec, totalSeconds > 0 ? tSeconds / totalSeconds : 1) };
 }
 
 export function clamp01(n: number): number {
@@ -146,29 +126,17 @@ export interface ChoreographyTimelineArgs {
 export function choreographyTimelineSpec(a: ChoreographyTimelineArgs): TimelineSpec {
   let total = a.startDelayMs + a.endDwellMs;
   for (const s of a.steps) total += s.durationMs + s.holdMs;
-  if (total <= 0) {
-    return { segments: [{ fromY: 0, toY: 0, durationFraction: 1, easing: "linear" }] };
-  }
+  if (total <= 0) return { segments: [{ fromY: 0, toY: 0, durationFraction: 1, easing: "linear" }] };
   const segments: ScrollSegment[] = [];
   let fromY = 0;
-  if (a.startDelayMs > 0) {
-    segments.push({ fromY: 0, toY: 0, durationFraction: a.startDelayMs / total, easing: "linear" });
-  }
+  if (a.startDelayMs > 0) segments.push({ fromY: 0, toY: 0, durationFraction: a.startDelayMs / total, easing: "linear" });
   for (const s of a.steps) {
-    if (s.durationMs > 0) {
-      segments.push({ fromY, toY: s.toY, durationFraction: s.durationMs / total, easing: s.easing });
-    }
-    if (s.holdMs > 0) {
-      segments.push({ fromY: s.toY, toY: s.toY, durationFraction: s.holdMs / total, easing: "linear" });
-    }
+    if (s.durationMs > 0) segments.push({ fromY, toY: s.toY, durationFraction: s.durationMs / total, easing: s.easing });
+    if (s.holdMs > 0) segments.push({ fromY: s.toY, toY: s.toY, durationFraction: s.holdMs / total, easing: "linear" });
     fromY = s.toY;
   }
-  if (a.endDwellMs > 0) {
-    segments.push({ fromY, toY: fromY, durationFraction: a.endDwellMs / total, easing: "linear" });
-  }
-  if (segments.length === 0) {
-    segments.push({ fromY: 0, toY: fromY, durationFraction: 1, easing: "linear" });
-  }
+  if (a.endDwellMs > 0) segments.push({ fromY, toY: fromY, durationFraction: a.endDwellMs / total, easing: "linear" });
+  if (segments.length === 0) segments.push({ fromY: 0, toY: fromY, durationFraction: 1, easing: "linear" });
   return { segments };
 }
 
@@ -255,15 +223,9 @@ export function autoSectionSteps(a: AutoSectionStepsArgs): ResolvedChoreographyS
   for (let i = 0; i < n; i++) {
     const isLast = i === n - 1;
     const weight = useVelocity ? dists[i]! / sumD : 1 / n;
-    // Last step absorbs any rounding so travel sums exactly to travelTotal.
     const travel = isLast ? travelTotal - usedTravel : travelTotal * weight;
     usedTravel += travel;
-    steps.push({
-      toY: clamp01(a.offsets[i]!),
-      durationMs: Math.max(0, travel),
-      holdMs: holdEach,
-      easing: a.easing,
-    });
+    steps.push({ toY: clamp01(a.offsets[i]!), durationMs: Math.max(0, travel), holdMs: holdEach, easing: a.easing });
   }
   return steps;
 }
@@ -289,9 +251,7 @@ export function scrollTimelineTotalMs(o: ScrollTimelineTotalArgs): number {
     }
     return total;
   }
-  if (o.autoSections) {
-    return autoSectionsBudgetMs(o.autoSections);
-  }
+  if (o.autoSections) return autoSectionsBudgetMs(o.autoSections);
   return o.startDelayMs + o.durationMs + o.endDwellMs;
 }
 
@@ -308,11 +268,7 @@ export const STRAIGHT_RETURN_MS = 1000;
  * return glide occupies (clamped to 0..0.5); pass `straightReturnFraction` to derive it from
  * {@link STRAIGHT_RETURN_MS}.
  */
-export function straightLoopSpec(
-  spec: TimelineSpec,
-  returnFraction: number,
-  easing: EasingName,
-): TimelineSpec {
+export function straightLoopSpec(spec: TimelineSpec, returnFraction: number, easing: EasingName): TimelineSpec {
   const f = Math.min(Math.max(returnFraction, 0), 0.5);
   if (f === 0) return spec;
   const scaled = spec.segments.map((s) => ({ ...s, durationFraction: s.durationFraction * (1 - f) }));

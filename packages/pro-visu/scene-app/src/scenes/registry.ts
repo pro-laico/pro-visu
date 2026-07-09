@@ -1,8 +1,8 @@
-import type { SceneComponent } from "../types";
+import { Wall } from "./Wall";
 import { Icons } from "./Icons";
 import { Specimen } from "./Specimen";
-import { Wall } from "./Wall";
 import { PaletteReel } from "./PaletteReel";
+import type { SceneComponent } from "../types";
 
 /** Built-in scenes, keyed by the id used in config (`options.scene`). */
 export const scenes: Record<string, SceneComponent> = {

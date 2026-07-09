@@ -1,16 +1,14 @@
 import path from "node:path";
-import { existsSync, readFileSync } from "node:fs";
 import { loadConfig } from "c12";
 import type { ZodError } from "zod";
-import { showcaseConfigSchema, type ResolvedConfig } from "@/config/schema";
+import { existsSync, readFileSync } from "node:fs";
+
 import { CONFIG_NAME, CONFIG_DIR } from "@/config/defaults";
+import { showcaseConfigSchema, type ResolvedConfig } from "@/config/schema";
 
 export class ConfigNotFoundError extends Error {
   constructor(public readonly cwd: string) {
-    super(
-      `No pro-visu config found in ${path.join(cwd, CONFIG_DIR)}.\n` +
-        "Run `pro-visu init` to create one, or pass --config <path>.",
-    );
+    super(`No pro-visu config found in ${path.join(cwd, CONFIG_DIR)}.\n` + "Run `pro-visu init` to create one, or pass --config <path>.");
     this.name = "ConfigNotFoundError";
   }
 }

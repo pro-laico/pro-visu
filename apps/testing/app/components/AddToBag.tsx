@@ -8,8 +8,8 @@ const SIZES = ["XS", "S", "M", "L", "XL"];
 
 export function AddToBag({ product }: { product: Product }) {
   const { add, setOpen } = useCart();
-  const [size, setSize] = useState<string>("M");
   const [added, setAdded] = useState(false);
+  const [size, setSize] = useState<string>("M");
 
   function onAdd() {
     add({ slug: product.slug, name: product.name, price: product.price, colorway: product.colorway, size });

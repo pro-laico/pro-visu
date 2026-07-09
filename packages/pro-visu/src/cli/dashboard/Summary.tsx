@@ -1,6 +1,7 @@
+import path from "node:path";
 import type { ReactElement } from "react";
 import { Box, Text, renderToString } from "ink";
-import path from "node:path";
+
 import { formatBytes } from "@/utils/format";
 import type { AssetOutcome } from "@/pipeline/runner";
 
@@ -53,9 +54,7 @@ function Summary({ outcomes, outDir }: { outcomes: AssetOutcome[]; outDir: strin
   const failed = outcomes.length - ok.length;
   const totalBytes = ok.reduce((sum, o) => sum + o.records.reduce((s, r) => s + r.bytes, 0), 0);
 
-  const totals: { text: string; color?: string }[] = [
-    { text: `${generated} generated`, color: "green" },
-  ];
+  const totals: { text: string; color?: string }[] = [{ text: `${generated} generated`, color: "green" }];
   if (cached) totals.push({ text: `${cached} cached`, color: "blue" });
   totals.push({ text: `${failed} failed`, color: failed ? "red" : undefined });
   totals.push({ text: formatBytes(totalBytes), color: undefined });

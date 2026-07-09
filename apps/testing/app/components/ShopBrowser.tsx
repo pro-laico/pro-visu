@@ -1,12 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ProductCard } from "@/app/components/ProductCard";
 import type { Category, Product } from "@/app/lib/catalog";
+import { ProductCard } from "@/app/components/ProductCard";
 
-// Client-side shop grid with a search field that filters ON SUBMIT (Enter), not per keystroke — a
-// stable target for the interaction generator's `type` / `erase` / `press` actions (see the search
-// demo clip). `input` is what's being typed; `query` is the last submitted term the grid filters by.
 export function ShopBrowser({ products, categories }: { products: Product[]; categories: Category[] }) {
   const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
@@ -24,7 +21,16 @@ export function ShopBrowser({ products, categories }: { products: Product[]; cat
     <section id="shop-grid" className="section section-flush">
       <div className="filter-bar">
         <div className="search-field">
-          <svg className="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true">
+          <svg
+            className="search-icon"
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.3"
+            aria-hidden="true"
+          >
             <circle cx="11" cy="11" r="7" />
             <path d="m20 20-3.2-3.2" strokeLinecap="round" />
           </svg>
@@ -37,7 +43,6 @@ export function ShopBrowser({ products, categories }: { products: Product[]; cat
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              // Filter only on submit: Enter commits the typed term; nothing updates per keystroke.
               if (e.key === "Enter") {
                 e.preventDefault();
                 setQuery(input);

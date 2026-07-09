@@ -1,11 +1,11 @@
 import os from "node:os";
 import path from "node:path";
 import https from "node:https";
-import type { IncomingMessage } from "node:http";
-import { createWriteStream } from "node:fs";
-import { mkdir, rename, rm, chmod } from "node:fs/promises";
 import { createGunzip } from "node:zlib";
+import { createWriteStream } from "node:fs";
 import { pipeline } from "node:stream/promises";
+import type { IncomingMessage } from "node:http";
+import { mkdir, rename, rm, chmod } from "node:fs/promises";
 
 /**
  * ffmpeg binary provisioning, vendored so pro-visu carries NO `ffmpeg-static` dependency. That
@@ -22,9 +22,7 @@ import { pipeline } from "node:stream/promises";
 export const FFMPEG_RELEASE = process.env.FFMPEG_BINARY_RELEASE || "b6.1.1";
 
 /** Base URL for the release assets (override for a private mirror via FFMPEG_BINARIES_URL). */
-const BINARIES_URL =
-  process.env.FFMPEG_BINARIES_URL ||
-  "https://github.com/eugeneware/ffmpeg-static/releases/download";
+const BINARIES_URL = process.env.FFMPEG_BINARIES_URL || "https://github.com/eugeneware/ffmpeg-static/releases/download";
 
 /** Platform → arches with a published static binary (mirrors ffmpeg-static's matrix). */
 const SUPPORTED: Record<string, readonly string[]> = {
@@ -41,8 +39,7 @@ export function ffmpegIsSupported(): boolean {
 
 /** Shared cache dir for the managed binary (one copy across all projects). Override: PROVISU_FFMPEG_DIR. */
 export function ffmpegCacheDir(): string {
-  const base =
-    process.env.PROVISU_FFMPEG_DIR || path.join(os.homedir(), ".cache", "pro-visu", "ffmpeg");
+  const base = process.env.PROVISU_FFMPEG_DIR || path.join(os.homedir(), ".cache", "pro-visu", "ffmpeg");
   return path.join(base, FFMPEG_RELEASE);
 }
 
@@ -104,15 +101,9 @@ function withNetworkHint(err: Error): Error {
  * mark it executable. Targets the managed cache path — never an FFMPEG_BIN override. Returns its path.
  * `onProgress` receives (downloadedBytes, totalBytes|undefined) as the compressed stream arrives.
  */
-export async function downloadFfmpeg(
-  onProgress?: (downloaded: number, total: number | undefined) => void,
-): Promise<string> {
+export async function downloadFfmpeg(onProgress?: (downloaded: number, total: number | undefined) => void): Promise<string> {
   const url = ffmpegDownloadUrl();
-  if (!url) {
-    throw new Error(
-      `No prebuilt ffmpeg for ${process.platform}/${process.arch}. Set FFMPEG_BIN to a local ffmpeg binary.`,
-    );
-  }
+  if (!url) throw new Error(`No prebuilt ffmpeg for ${process.platform}/${process.arch}. Set FFMPEG_BIN to a local ffmpeg binary.`);
   const dest = ffmpegCachedBinary();
   const tmp = `${dest}.download`;
   await mkdir(path.dirname(dest), { recursive: true });
@@ -132,7 +123,7 @@ export async function downloadFfmpeg(
   } catch (err) {
     throw withNetworkHint(err as Error);
   }
-  await chmod(tmp, 0o755).catch(() => {}); // no-op / unsupported on Windows
+  await chmod(tmp, 0o755).catch(() => {});
   await rm(dest, { force: true });
   await rename(tmp, dest);
   return dest;

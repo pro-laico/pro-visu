@@ -1,41 +1,30 @@
-import { resolveCwd, resolveConfigDir, resolveOutDir } from "@/utils/paths";
+import os from "node:os";
+import v8 from "node:v8";
+import path from "node:path";
+
 import { ensureDir } from "@/utils/fs";
-import { createLogger, createReportingLogger, type Logger } from "@/utils/logger";
+import { TOOL_VERSION } from "@/version";
+import { didYouMean } from "@/utils/suggest";
+import { createReporter } from "@/cli/dashboard";
 import { loadShowcaseConfig } from "@/config/load";
-import type { ResolvedConfig } from "@/config/schema";
-import { resolveTargets } from "@/config/resolve-targets";
+import type { Reporter } from "@/pipeline/reporter";
 import { getGenerator } from "@/generators/registry";
 import { watchForInterrupt } from "@/cli/interrupt";
-import { reexecWithMemory, autoHeapTargetMB, currentHeapLimitMB } from "@/cli/reexec";
-import os from "node:os";
-import path from "node:path";
-import v8 from "node:v8";
-import { startRunState, updateRunState, clearRunState, cleanStaleRunState } from "@/cli/run-state";
-import { refreshSchemaFile } from "@/config/json-schema";
 import { ensureChromium } from "@/binaries/chromium";
-import { ensureFfmpeg } from "@/binaries/ensure-ffmpeg";
-import {
-  startManagedServer,
-  resolveServerUrl,
-  type ServerHandle,
-  type ServerTasks,
-  type TaskHandle,
-} from "@/server/manage-server";
-import {
-  runPipeline,
-  applyDerivedInputs,
-  applyQuality,
-  mergeGeneratorOptions,
-  type AssetOutcome,
-} from "@/pipeline/runner";
-import { resolveSelection, dependenciesOf } from "@/pipeline/graph";
-import { createReporter } from "@/cli/dashboard";
-import type { Reporter } from "@/pipeline/reporter";
-import { TOOL_VERSION } from "@/version";
-import { reportConfigError, printSummary } from "@/cli/ui";
 import { generatorIds } from "@/generators/registry";
+import type { ResolvedConfig } from "@/config/schema";
+import { ensureFfmpeg } from "@/binaries/ensure-ffmpeg";
+import { refreshSchemaFile } from "@/config/json-schema";
+import { resolveTargets } from "@/config/resolve-targets";
+import { reportConfigError, printSummary } from "@/cli/ui";
+import { resolveSelection, dependenciesOf } from "@/pipeline/graph";
+import { resolveCwd, resolveConfigDir, resolveOutDir } from "@/utils/paths";
 import { legacyGeneratorHint, legacyOptionHint } from "@/generators/migration";
-import { didYouMean } from "@/utils/suggest";
+import { createLogger, createReportingLogger, type Logger } from "@/utils/logger";
+import { reexecWithMemory, autoHeapTargetMB, currentHeapLimitMB } from "@/cli/reexec";
+import { startRunState, updateRunState, clearRunState, cleanStaleRunState } from "@/cli/run-state";
+import { runPipeline, applyDerivedInputs, applyQuality, mergeGeneratorOptions, type AssetOutcome } from "@/pipeline/runner";
+import { startManagedServer, resolveServerUrl, type ServerHandle, type ServerTasks, type TaskHandle } from "@/server/manage-server";
 
 export interface GenerateOptions {
   cwd?: string;
@@ -69,16 +58,10 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   const { config } = loaded;
   const configDir = resolveConfigDir(cwd, loaded.configFile);
 
-  // Keep a scaffolded pro-visu.schema.json current with this tool version (JSON-config editor
-  // autocomplete). Best-effort; looks next to the config file.
   await refreshSchemaFile(configDir, bootstrapLog);
 
-  // NOTE: everything up to the dashboard mounting logs through `bootstrapLog` — the reporting
-  // logger buffers lines into the not-yet-rendered dashboard, which would swallow early errors.
   const outDir = resolveOutDir(configDir, config.settings.outDir);
 
-  // Reject a malformed --concurrency loudly instead of silently falling back to the config value.
-  // (A bare `--concurrency` with no value reaches us as boolean true — also malformed.)
   let concurrencyOverride: number | undefined;
   if (options.concurrency != null) {
     const raw: unknown = options.concurrency;
@@ -103,14 +86,9 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     }
   }
 
-  // Resolve the full plan before any heavy work (browser install, ffmpeg fetch, site build):
-  // selection, per-asset option validation, and the managed-server decision. Config mistakes fail
-  // here in seconds — not after a minutes-long setup. Derive option-declared dependencies first
-  // (e.g. a wall's tile producers) so the selection sees them.
   applyDerivedInputs(config);
   const selected = resolveSelection(config.assets, requested, config.settings.enabled);
   if (selected.length === 0) {
-    // No requested names means the emptiness came from the enabled/group filter — say so plainly.
     if (!requested) {
       const { enabled } = config.settings;
       const why =
@@ -132,48 +110,29 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     return;
   }
 
-  // Heavy frame-stepped plans (real walls) can exceed Node's default heap: pick a bigger target
-  // from the machine's RAM and re-exec with --max-old-space-size before any heavy work. The child
-  // runs the whole command; nothing to do here afterwards.
   const heapTarget = autoHeapTargetMB(selected);
   if (await reexecWithMemory(heapTarget)) return;
-  if (heapTarget) {
-    bootstrapLog.debug(`Node heap limit: ${currentHeapLimitMB()} MB (auto target ${heapTarget} MB)`);
-  }
+  if (heapTarget) bootstrapLog.debug(`Node heap limit: ${currentHeapLimitMB()} MB (auto target ${heapTarget} MB)`);
 
-  // The managed server only matters to url-based generators (it captures web pages). If nothing in
-  // the selection needs a URL — e.g. only a `test`-mode wall, or other local generators — skip it
-  // automatically so previews don't pay for a site build/boot they never use.
   const anyNeedsServer = selected.some((s) => Boolean(getGenerator(s.generator)?.requiresUrl));
   if (config.settings.server && !options.skipServer && !anyNeedsServer) {
     bootstrapLog.info("No selected asset needs a URL — skipping the managed server.");
   }
   const baseServerCfg = options.skipServer || !anyNeedsServer ? undefined : config.settings.server;
-  // --skip-build keeps the managed server but drops its one-shot build (the site is unchanged).
-  // `build: false` (not undefined) is the explicit skip — undefined would fall back to the default.
-  const serverCfg =
-    baseServerCfg && options.skipBuild ? { ...baseServerCfg, build: false as const } : baseServerCfg;
+  const serverCfg = baseServerCfg && options.skipBuild ? { ...baseServerCfg, build: false as const } : baseServerCfg;
 
-  // The managed server's URL is the default base: a url-based asset that omits `url` captures its
-  // root, and a relative `url` resolves against it. (No server → assets as authored.)
   const serverBase = serverCfg ? resolveServerUrl(serverCfg) : undefined;
   const resolvedConfig: ResolvedConfig = {
     ...config,
-    assets: resolveTargets(config.assets, serverBase, (id) =>
-      Boolean(getGenerator(id)?.requiresUrl),
-    ),
+    assets: resolveTargets(config.assets, serverBase, (id) => Boolean(getGenerator(id)?.requiresUrl)),
   };
 
-  // No managed server → the asset URLs must already be live. Probe them now so a dead dev server
-  // fails with one actionable message instead of a per-asset Playwright navigation error later.
   if (!serverCfg && !(await preflightUrls(bootstrapLog, resolvedConfig, selected))) {
     process.exitCode = 1;
     return;
   }
 
-  // Ensure a managed Chromium unless a system channel/executable is configured, or skipped.
-  const usingManaged =
-    !config.settings.browser.channel && !config.settings.browser.executablePath;
+  const usingManaged = !config.settings.browser.channel && !config.settings.browser.executablePath;
   if (!options.skipBrowser && usingManaged) {
     const ready = await ensureChromium({ logger: bootstrapLog });
     if (!ready) {
@@ -183,8 +142,6 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     }
   }
 
-  // Self-heal ffmpeg: the video generators shell out to it, and the managed binary may be
-  // missing/corrupt when a previous fetch was interrupted.
   if (!(await ensureFfmpeg({ logger: bootstrapLog }))) {
     bootstrapLog.error("A working ffmpeg is required for video generators.");
     process.exitCode = 1;
@@ -192,57 +149,35 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   }
 
   const level = options.verbose ? "debug" : config.settings.logLevel;
-  // Live job tracker on an interactive TTY; per-asset logs feed each row's current step.
   const reporter = createReporter({ tty: Boolean(process.stdout.isTTY), verbose: !!options.verbose });
   const logger = reporter.isLive ? createReportingLogger(level, reporter) : createLogger(level);
 
-  // Self-heal: if a previous run was killed hard, tear down its orphaned server/temp dirs now.
-  // Then track THIS run on disk so the next startup can do the same for us, and let Esc /
-  // Ctrl+C stop it gracefully (a second press bails immediately).
   await ensureDir(outDir);
   await cleanStaleRunState(outDir, bootstrapLog);
   await startRunState(outDir);
   const abort = new AbortController();
   let interrupted = false;
   let lowMemory = false;
-  // The live dashboard owns the keyboard (Ink raw mode), so the watcher only handles signals there
-  // and the dashboard calls `trigger` on Esc/Ctrl+C — one keypress owner, no clash.
   const { dispose: disposeInterrupt, trigger: interruptTrigger } = watchForInterrupt(
     () => {
       interrupted = true;
-      abort.abort(); // graceful: stop launching new work, let in-flight finish, then tear down
-      // Acknowledge the keypress immediately: the live tracker flips to a "cancelling…" banner;
-      // without it (non-TTY/--verbose) print a line, since in-flight renders can take seconds.
+      abort.abort();
       if (reporter.isLive) reporter.cancelling();
       else logger.warn("Cancelling — finishing in-flight work… (press again to force-quit)");
     },
     () => {
       try {
-        process.stdin.setRawMode?.(false); // restore the terminal before bailing
-        process.stdout.write("\x1b[?25h"); // and the cursor (force-quit skips Ink's own cleanup)
-      } catch {
-        /* ignore */
-      }
+        process.stdin.setRawMode?.(false);
+        process.stdout.write("\x1b[?25h");
+      } catch {}
       process.exit(130);
     },
     { keyboard: !reporter.isLive },
   );
-  // Hand the cancel trigger to the live dashboard so its useInput handler drives the same flow.
   if (reporter.isLive) reporter.attachInput?.(interruptTrigger);
 
-  // From here the live tracker owns the terminal. Plan ALL rows up front — setup (build/server)
-  // then every asset, with the assets gated on setup so they read "waiting for build" until it
-  // finishes. The build no longer dumps raw CLI output; it feeds the "build" row's step. The
-  // tracker's footer shows the "esc to cancel" hint.
   reporter.begin();
 
-  // Memory watchdog, two triggers, each stopping the run gracefully (like Esc) with a clear message:
-  //  1. The Node heap nearing its V8 limit — instead of a hard "JavaScript heap out of memory" crash.
-  //     (Heavy wall plans already re-exec with a bigger heap; this catches everything else.)
-  //  2. SYSTEM memory nearly exhausted — the heavy usage lives in Chromium renderers and ffmpeg
-  //     encoders, which the Node heap number cannot see; when the OS runs out, the machine swap-
-  //     thrashes or the browser is OOM-killed mid-capture. Sampled via os.freemem(), and tripped only
-  //     on two consecutive low samples so a transient dip can't cancel a healthy run.
   const SYSTEM_FREE_FLOOR_BYTES = 512 * 1024 * 1024;
   let lowFreeSamples = 0;
   const stopForMemory = (plainMessage: string): void => {
@@ -257,9 +192,7 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     const limit = v8.getHeapStatistics().heap_size_limit;
     const used = process.memoryUsage().heapUsed;
     if (limit > 0 && used / limit > 0.88) {
-      stopForMemory(
-        "Low memory — stopping early to avoid a crash (lower settings.concurrency or the asset's workers).",
-      );
+      stopForMemory("Low memory — stopping early to avoid a crash (lower settings.concurrency or the asset's workers).");
       return;
     }
     lowFreeSamples = os.freemem() < SYSTEM_FREE_FLOOR_BYTES ? lowFreeSamples + 1 : 0;
@@ -274,7 +207,6 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   const gates: string[] = [];
   const tasks: ServerTasks = {};
   if (reporter.isLive && serverCfg) {
-    // A build runs unless explicitly disabled — undefined means "default to the project's build script".
     if (serverCfg.build !== false) {
       reporter.add({ id: "@build", name: "build", detail: "server", system: true });
       gates.push("@build");
@@ -286,13 +218,7 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   }
   if (reporter.isLive) {
     for (const spec of selected) {
-      reporter.add({
-        id: spec.name,
-        name: spec.name,
-        detail: spec.generator,
-        deps: dependenciesOf(spec),
-        gatedBy: gates,
-      });
+      reporter.add({ id: spec.name, name: spec.name, detail: spec.generator, deps: dependenciesOf(spec), gatedBy: gates });
     }
   }
 
@@ -323,22 +249,19 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   } catch (err) {
     reporter.stop();
     if (!interrupted) {
-      logger.error((err as Error).message);
+      logger.error((err as Error).message); //TODO: replace `as` cast with proper typing
       process.exitCode = 1;
       setupFailed = true;
     }
   } finally {
     clearInterval(memTimer);
-    reporter.stop(); // erase the live block before the final summary
+    reporter.stop();
     disposeInterrupt();
     await server?.stop();
     await clearRunState(outDir);
   }
 
   if (interrupted) {
-    // A graceful stop is a clean exit, not a failure — exit 0 so the shell/pnpm doesn't print a
-    // scary "command failed" wrapper. In-flight assets are aborted mid-work, so only the ones that
-    // actually completed are "finished".
     const finished = outcomes.filter((o) => o.status === "ok").length;
     if (lowMemory) {
       logger.warn(
@@ -351,12 +274,10 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
     process.exitCode = 0;
     return;
   }
-  if (setupFailed) return; // error already reported; no summary to show
+  if (setupFailed) return;
 
   printSummary(logger, outcomes, outDir);
-  if (outcomes.some((outcome) => outcome.status === "failed")) {
-    process.exitCode = 1;
-  }
+  if (outcomes.some((outcome) => outcome.status === "failed")) process.exitCode = 1;
 }
 
 /**
@@ -437,26 +358,19 @@ export async function preflightUrls(
   }
   if (relative.length) {
     log.error(
-      `Relative url(s) require the managed server: ${relative.join(", ")} — configure ` +
-        `settings.server, or use absolute URLs.`,
+      `Relative url(s) require the managed server: ${relative.join(", ")} — configure ` + `settings.server, or use absolute URLs.`,
     );
     ok = false;
   }
 
-  // One probe per origin. Any HTTP response — even a 4xx/5xx — proves something is listening;
-  // only connection-level failures (refused, DNS, timeout) count as unreachable.
   const origins = new Map<string, string>();
   for (const url of urls) {
     try {
       const origin = new URL(url).origin;
       if (!origins.has(origin)) origins.set(origin, url);
-    } catch {
-      /* shape already vetted by the config schema */
-    }
+    } catch {}
   }
-  const probes = await Promise.all(
-    [...origins.values()].map(async (url) => ((await urlResponds(url)) ? null : url)),
-  );
+  const probes = await Promise.all([...origins.values()].map(async (url) => ((await urlResponds(url)) ? null : url)));
   const unreachable = probes.filter((url): url is string => url !== null);
   if (unreachable.length) {
     for (const url of unreachable) log.error(`Nothing is responding at ${url}.`);

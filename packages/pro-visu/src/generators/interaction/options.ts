@@ -1,141 +1,74 @@
 import { z } from "zod";
-import { easingSchema, type Easing } from "@/generators/easing";
+
 import { videoOutputShape } from "@/generators/shared-options";
+import { easingSchema, type Easing } from "@/generators/easing";
 
 /** One step of a scripted interaction (see `actions` below). */
-const interactionActionSchema = z
-  .object({
-    do: z
-      .enum(["move", "click", "hover", "type", "erase", "press", "scrollTo", "wait"])
-      .describe("What this step does."),
+const interactionActionSchema = z.object({
+    do: z.enum(["move", "click", "hover", "type", "erase", "press", "scrollTo", "wait"]).describe("What this step does."),
     /** Target element for move/click/hover/type/erase. */
-    selector: z
-      .string()
-      .optional()
+    selector: z.string().optional()
       .describe("Target element for move/click/hover/type/erase (erase/type may omit it to act on the focused field)."),
     /** Viewport-relative target for `move` without a selector (0..1). Also steers the real pointer. */
-    x: z
-      .number()
-      .min(0)
-      .max(1)
-      .optional()
+    x: z.number().min(0).max(1).optional()
       .describe(
         "Viewport-relative X target for a selector-less `move` (0..1). Steers the real pointer too, so gliding into empty space lifts :hover off whatever was under it.",
       ),
-    y: z
-      .number()
-      .min(0)
-      .max(1)
-      .optional()
+    y: z.number().min(0).max(1).optional()
       .describe("Viewport-relative Y target for a selector-less `move` (0..1). Steers the real pointer too."),
     /** Text to type (for `type`). */
     text: z.string().optional().describe("Text to type (for `type`)."),
     /** Chars to remove from the caret (for `erase`). Omit to erase the whole field. */
-    count: z
-      .number()
-      .int()
-      .nonnegative()
-      .optional()
+    count: z.number().int().nonnegative().optional()
       .describe("For `erase`: how many characters to remove from the caret. Omit to erase the whole field."),
     /** Per-keystroke pace for `type`/`erase` (ms). 0 = instant. */
-    delayMs: z
-      .number()
-      .int()
-      .nonnegative()
-      .optional()
+    delayMs: z.number().int().nonnegative().optional()
       .describe(
         "For `type`/`erase`: milliseconds between keystrokes (0 = instant). Default 55 (type) / 80 (erase). Humanized with mild jitter.",
       ),
     /** Eases the per-keystroke cadence across a `type`/`erase` run. */
-    easing: easingSchema
-      .optional()
+    easing: easingSchema.optional()
       .describe(
         'For `type`/`erase`: eases the keystroke cadence across the run — "ease-in" starts quick and trails off, "ease-out" starts measured and quickens — without changing the total time. Default "linear".',
       ),
     /** Key to press (for `press`), e.g. "Enter", "Escape", "ArrowDown", "f". */
-    key: z
-      .string()
-      .optional()
-      .describe('For `press`: the key to press, e.g. "Enter", "Escape", "ArrowDown", or "f".'),
+    key: z.string().optional().describe('For `press`: the key to press, e.g. "Enter", "Escape", "ArrowDown", or "f".'),
     /** Modifier keys held during a `press` (chord), e.g. ["Control"] for Ctrl+F. */
-    modifiers: z
-      .array(z.enum(["Control", "Shift", "Alt", "Meta"]))
-      .optional()
+    modifiers: z.array(z.enum(["Control", "Shift", "Alt", "Meta"])).optional()
       .describe('For `press`: modifier keys held during the press, e.g. ["Control"] for Ctrl+F.'),
     /** Scroll target for `scrollTo`: a 0..1 number, an "NN%" string, or a CSS selector. */
-    to: z
-      .union([z.number(), z.string()])
-      .optional()
+    to: z.union([z.number(), z.string()]).optional()
       .describe('Scroll target for `scrollTo`: a 0..1 number, an "NN%" string, or a CSS selector.'),
     /** For `scrollTo` to a selector: where the target lands in the viewport. */
-    align: z
-      .enum(["top", "center", "bottom"])
-      .optional()
+    align: z.enum(["top", "center", "bottom"]).optional()
       .describe('For `scrollTo` to a selector: where the target lands in the viewport. Default "top".'),
     /** For `scrollTo`: px to nudge the resting position (top-align: +N leaves N px above the target; −N scrolls past it). */
-    offset: z
-      .number()
-      .int()
-      .optional()
+    offset: z.number().int().optional()
       .describe(
         "For `scrollTo`: px to nudge the final scroll position. Top-aligned, a positive offset leaves that many px of room above the target; negative scrolls past it.",
       ),
     /** Cursor travel / scroll animation time (ms). Default 700. */
-    durationMs: z
-      .number()
-      .int()
-      .nonnegative()
-      .optional()
-      .describe("Cursor travel / scroll animation time (ms). Default 700."),
+    durationMs: z.number().int().nonnegative().optional().describe("Cursor travel / scroll animation time (ms). Default 700."),
     /** Pause after the step (ms). Default 600. */
-    holdMs: z
-      .number()
-      .int()
-      .nonnegative()
-      .optional()
-      .describe("Pause after the step (ms). Default 600."),
+    holdMs: z.number().int().nonnegative().optional().describe("Pause after the step (ms). Default 600."),
   })
   .strict();
 
-export const interactionOptionsSchema = z
-  .object({
+export const interactionOptionsSchema = z.object({
     /** Video output: size, scale, frame rate, encoding, filename. */
-    output: z
-      .object({ ...videoOutputShape({ width: 1280, height: 800, deviceScaleFactor: 2 }) })
-      .strict()
-      .default({}),
+    output: z.object({ ...videoOutputShape({ width: 1280, height: 800, deviceScaleFactor: 2 }) }).strict().default({}),
     /** Page load + interaction timing. */
-    page: z
-      .object({
+    page: z.object({
         /** Dwell before the first step (ms). */
-        startDelayMs: z
-          .number()
-          .int()
-          .nonnegative()
-          .default(500)
-          .describe("Dwell before the first step (ms). Default 500."),
+        startDelayMs: z.number().int().nonnegative().default(500).describe("Dwell before the first step (ms). Default 500."),
         /** Dwell after the last step (ms). */
-        endDwellMs: z
-          .number()
-          .int()
-          .nonnegative()
-          .default(800)
-          .describe("Dwell after the last step (ms). Default 800."),
-        waitUntil: z
-          .enum(["load", "domcontentloaded", "networkidle", "commit"])
-          .default("networkidle")
+        endDwellMs: z.number().int().nonnegative().default(800).describe("Dwell after the last step (ms). Default 800."),
+        waitUntil: z.enum(["load", "domcontentloaded", "networkidle", "commit"]).default("networkidle")
           .describe('Page-load milestone to wait for before recording. Default "networkidle".'),
         /** Optional element to wait for before recording. */
-        waitForSelector: z
-          .string()
-          .optional()
-          .describe("Optional element to wait for before recording. Omit to skip."),
+        waitForSelector: z.string().optional().describe("Optional element to wait for before recording. Omit to skip."),
         /** Height (px) of a sticky/fixed header. `scrollTo` keeps targets clear of it (see align). */
-        stickyHeaderHeight: z
-          .number()
-          .int()
-          .nonnegative()
-          .default(0)
+        stickyHeaderHeight: z.number().int().nonnegative().default(0)
           .describe(
             "Height (px) of a sticky/fixed header. `scrollTo` keeps targets clear of it: top-align drops them fully below it (the step's `offset` stacks on top), center-align uses half of it, bottom-align is unaffected. Default 0.",
           ),
@@ -143,89 +76,48 @@ export const interactionOptionsSchema = z
       .strict()
       .default({}),
     /** Force a color scheme for the capture. */
-    colorScheme: z
-      .enum(["light", "dark"])
-      .optional()
-      .describe("Force a color scheme for the capture. Omit to leave as-is."),
+    colorScheme: z.enum(["light", "dark"]).optional().describe("Force a color scheme for the capture. Omit to leave as-is."),
     /**
      * The scripted steps (move / click / hover / type / erase / press / scrollTo / wait), performed
      * live with a visible synthetic cursor. Omit only when `focus` alone (scroll-into-view + hold) is
      * enough.
      */
-    actions: z
-      .array(interactionActionSchema)
-      .default([])
-      .describe(
-        "The scripted steps (move/click/hover/type/erase/press/scrollTo/wait), performed live with a visible cursor.",
-      ),
+    actions: z.array(interactionActionSchema).default([])
+      .describe("The scripted steps (move/click/hover/type/erase/press/scrollTo/wait), performed live with a visible cursor."),
     /**
      * Off-camera steps run before recording starts — pre-position the cursor, scroll, or set UI state
      * so frame 0 is exactly where you want it. Trimmed from the output. Key to a seamless loop: place
      * the cursor on the first target here (`durationMs: 0`) so the clip doesn't open with a glide-in.
      */
-    setup: z
-      .array(interactionActionSchema)
-      .default([])
-      .describe(
-        "Off-camera steps run before recording starts (position cursor, scroll, set UI state). Trimmed from the output.",
-      ),
+    setup: z.array(interactionActionSchema).default([])
+      .describe("Off-camera steps run before recording starts (position cursor, scroll, set UI state). Trimmed from the output."),
     /**
      * Off-camera steps run after recording ends — reset the page to its opening state so a loop can
      * cut cleanly. Trimmed from the output.
      */
-    teardown: z
-      .array(interactionActionSchema)
-      .default([])
-      .describe(
-        "Off-camera steps run after recording ends (reset state for a clean loop). Trimmed from the output.",
-      ),
+    teardown: z.array(interactionActionSchema).default([])
+      .describe("Off-camera steps run after recording ends (reset state for a clean loop). Trimmed from the output."),
     /** The synthetic cursor shown during the recording. */
-    cursor: z
-      .object({
+    cursor: z.object({
         show: z.boolean().optional().describe("Show the cursor. Default true."),
-        size: z
-          .number()
-          .int()
-          .positive()
-          .optional()
-          .describe("Cursor size (px). Default 22."),
+        size: z.number().int().positive().optional().describe("Cursor size (px). Default 22."),
         color: z.string().optional().describe("Cursor color. Default white-with-shadow."),
-      })
-      .strict()
-      .optional()
-      .describe("The synthetic cursor shown during the recording. Omit for the default cursor."),
+      }).strict().optional().describe("The synthetic cursor shown during the recording. Omit for the default cursor."),
     /**
      * Element-focused clip: scroll one component into view, optionally trigger it (`focus.actions`),
      * hold, and crop the output to its box (+padding).
      */
-    focus: z
-      .object({
-        selector: z
-          .string()
-          .describe("Selector of the element to scroll into view and crop to."),
+    focus: z.object({
+        selector: z.string().describe("Selector of the element to scroll into view and crop to."),
         /** Padding (px) around the element when cropping. Default 24. */
-        padding: z
-          .number()
-          .int()
-          .nonnegative()
-          .optional()
-          .describe("Padding (px) around the element when cropping. Default 24."),
+        padding: z.number().int().nonnegative().optional().describe("Padding (px) around the element when cropping. Default 24."),
         /** Optional steps to trigger the component (e.g. open a dropdown) before holding. */
-        actions: z
-          .array(interactionActionSchema)
-          .optional()
-          .describe(
-            "Optional steps to trigger the component (e.g. open a dropdown) before holding.",
-          ),
+        actions: z.array(interactionActionSchema).optional()
+          .describe("Optional steps to trigger the component (e.g. open a dropdown) before holding."),
         /** Time to dwell on the element after positioning/triggering (ms). Default 2000. */
-        holdMs: z
-          .number()
-          .int()
-          .nonnegative()
-          .optional()
+        holdMs: z.number().int().nonnegative().optional()
           .describe("Time to dwell on the element after positioning / triggering (ms). Default 2000."),
-      })
-      .strict()
+      }).strict()
       .optional()
       .describe(
         "Element-focused clip: scroll one component into view, optionally trigger it, hold, and crop the output to its box. Omit for a full-viewport recording.",
@@ -372,8 +264,5 @@ export type ResolvedInteractionOptions = z.infer<typeof interactionOptionsSchema
 
 // Compile-time guard: the documented authoring type must stay in sync with the schema's input shape.
 type Exact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
-const _interactionInputInSync: Exact<
-  InteractionOptionsInput,
-  z.input<typeof interactionOptionsSchema>
-> = true;
+const _interactionInputInSync: Exact<InteractionOptionsInput, z.input<typeof interactionOptionsSchema>> = true;
 void _interactionInputInSync;

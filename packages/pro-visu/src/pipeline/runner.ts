@@ -1,23 +1,24 @@
 import os from "node:os";
 import path from "node:path";
+import { ZodError } from "zod";
 import { existsSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import type { Browser } from "playwright-core";
+
+import { sha256File } from "@/utils/hash";
+import type { Logger } from "@/utils/logger";
+import { ensureDir, removeDir } from "@/utils/fs";
 import { launchBrowser } from "@/pipeline/browser";
 import { createContext } from "@/pipeline/context";
-import { resolveAssetCapture } from "@/pipeline/capture";
-import { buildGraph, dependenciesOf, resolveSelection } from "@/pipeline/graph";
 import { computeCacheKey } from "@/pipeline/cache";
 import type { Reporter } from "@/pipeline/reporter";
-import { getGenerator } from "@/generators/registry";
 import { ManifestStore } from "@/manifest/manifest";
-import { ensureDir, removeDir } from "@/utils/fs";
-import { sha256File } from "@/utils/hash";
-import { ZodError } from "zod";
-import { legacyGeneratorHint, legacyOptionHint } from "@/generators/migration";
-import type { ResolvedAssetSpec, ResolvedConfig } from "@/config/schema";
-import type { Logger } from "@/utils/logger";
+import { getGenerator } from "@/generators/registry";
 import type { AssetRecord } from "@/manifest/schema";
+import { resolveAssetCapture } from "@/pipeline/capture";
+import type { ResolvedAssetSpec, ResolvedConfig } from "@/config/schema";
+import { legacyGeneratorHint, legacyOptionHint } from "@/generators/migration";
+import { buildGraph, dependenciesOf, resolveSelection } from "@/pipeline/graph";
 
 /** Render option-validation issues as pointed `options.path: message` bullets (+ rename hints). */
 function describeOptionIssues(generatorId: string, err: ZodError): string {
@@ -69,10 +70,7 @@ export interface RunOptions {
  * Applied to the shared `output` group (fps / deviceScaleFactor / crf) across generators before
  * validation — only clamps fields that are explicitly set.
  */
-export function applyQuality(
-  options: Record<string, unknown>,
-  quality: "draft" | "final",
-): Record<string, unknown> {
+export function applyQuality(options: Record<string, unknown>, quality: "draft" | "final"): Record<string, unknown> {
   if (quality !== "draft") return options;
   const o = { ...options };
   if (!isPlainObject(o.output)) return o;
@@ -91,27 +89,22 @@ export function applyQuality(
  * shared browser + one manifest store for the whole run.
  */
 export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
-  applyDerivedInputs(opts.config); // generators that declare deps via options (e.g. wall columns)
-  buildGraph(opts.config.assets); // validate refs + reject cycles up front
+  applyDerivedInputs(opts.config);
+  buildGraph(opts.config.assets);
   const specs = resolveSelection(opts.config.assets, opts.assetNames, opts.config.settings.enabled);
   if (specs.length === 0) return [];
 
   await ensureDir(opts.outDir);
   const manifest = await ManifestStore.load(opts.outDir);
   const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "pro-visu-"));
-  // Launch Chromium lazily, on the first asset that actually renders: a fully-cached rerun (the
-  // common iteration loop) then skips browser startup entirely. Shared across concurrent assets.
   const browserRef: { current: Promise<Browser> | null } = { current: null };
-  const getBrowser = (): Promise<Browser> =>
-    (browserRef.current ??= launchBrowser(opts.config.settings.browser));
+  const getBrowser = (): Promise<Browser> => (browserRef.current ??= launchBrowser(opts.config.settings.browser));
   opts.onResources?.({ tmpDir: tmpRoot });
   const concurrency = Math.max(1, opts.concurrency ?? opts.config.settings.concurrency);
   const quality = opts.quality ?? "final";
   const cacheEnabled = opts.cache ?? opts.config.settings.cache;
   const reporter = opts.reporter;
-  for (const s of specs) {
-    reporter?.add({ id: s.name, name: s.name, detail: s.generator, deps: dependenciesOf(s) });
-  }
+  for (const s of specs) reporter?.add({ id: s.name, name: s.name, detail: s.generator, deps: dependenciesOf(s) });
 
   const outcomes = new Map<string, AssetOutcome>();
   /** Primary output (absolute path) per completed asset, for consumers' `inputs`. */
@@ -143,18 +136,11 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
         inputHashes[slot] = primaryHash.get(dep) ?? "";
       }
 
-      const merged = applyQuality(
-        mergeGeneratorOptions(opts.config.settings.defaults, spec),
-        quality,
-      );
+      const merged = applyQuality(mergeGeneratorOptions(opts.config.settings.defaults, spec), quality);
       const options = generator.optionsSchema.parse(merged);
 
-      // This asset's effective capture = the global settings.capture with its own override layered on.
       const capture = resolveAssetCapture(opts.config.settings.capture, spec.capture);
 
-      // Hash the content of declared file dependencies (e.g. fonts) into the cache key, so
-      // editing the file regenerates the asset. Missing files fail here, early and clearly,
-      // instead of producing a blank render from a 404'd URL later.
       let fileHashes: Record<string, string> | undefined;
       for (const dep of generator.fileDependencies?.(options) ?? []) {
         const resolved = path.isAbsolute(dep) ? dep : path.resolve(process.cwd(), dep);
@@ -174,38 +160,23 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
         files: fileHashes,
         quality,
         toolVersion: opts.toolVersion,
-        // Capture-mode toggles change the rendered output, so a change must bust the cache.
         capture,
       });
 
       if (cacheEnabled) {
-        // Match ALL of the spec's records (primary + suffixed variants) — generators like
-        // `screenshots` emit only suffixed records, so a bare find(spec.name) never hit for them
-        // and they recaptured (and relaunched the browser) on every run.
-        const existing = manifest
-          .recordsFor(spec.name)
-          .filter((record) => record.cacheKey === cacheKey);
-        if (
-          existing.length > 0 &&
-          existing.every((record) => existsSync(path.resolve(opts.outDir, record.file)))
-        ) {
+        const existing = manifest.recordsFor(spec.name).filter((record) => record.cacheKey === cacheKey);
+        if (existing.length > 0 && existing.every((record) => existsSync(path.resolve(opts.outDir, record.file)))) {
           log.info("cached — unchanged, skipped");
           reporter?.status(spec.name, "cached");
           recordDone(spec.name, existing[0]);
-          return {
-            name: spec.name,
-            generator: spec.generator,
-            status: "ok",
-            records: existing,
-            cached: true,
-          };
+          return { name: spec.name, generator: spec.generator, status: "ok", records: existing, cached: true };
         }
       }
 
       reporter?.status(spec.name, "running");
 
       const ctx = await createContext({
-        browser: await getBrowser(), // first uncached asset pays the launch; cached runs never do
+        browser: await getBrowser(),
         generatorId: generator.id,
         target: { name: spec.name, url: spec.url },
         resolvedInputs,
@@ -221,7 +192,6 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
       });
 
       const result = await generator.run(ctx, options);
-      // Stamp the cache key onto produced records (primary first) so reruns can skip.
       for (const record of result.assets) {
         record.cacheKey = cacheKey;
         await manifest.upsert(record);
@@ -230,16 +200,12 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
       reporter?.status(spec.name, "ok");
       return { name: spec.name, generator: spec.generator, status: "ok", records: result.assets };
     } catch (error) {
-      // A ZodError's own .message is a raw JSON dump of its issues — reshape it into the same
-      // pointed `options.path: message` bullets the config validator prints.
       const err =
         error instanceof ZodError
           ? new Error(`Invalid ${spec.generator} options:\n${describeOptionIssues(spec.generator, error)}`)
           : error instanceof Error
             ? error
             : new Error(String(error));
-      // A cancelled run aborts in-flight work mid-flight: that's an expected stop, not a failure —
-      // don't log a scary error or flag the row red; mark it cancelled and move on.
       if (opts.signal?.aborted) {
         return { name: spec.name, generator: spec.generator, status: "failed", records: [], error: err, cancelled: true };
       }
@@ -253,13 +219,10 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
     await scheduleDag(specs, concurrency, outcomes, runSpec, reporter, opts.signal);
     return specs.map((s) => outcomes.get(s.name)).filter((o): o is AssetOutcome => Boolean(o));
   } finally {
-    // The caller owns begin()/stop() (it spans the build/server setup rows too).
     if (browserRef.current) {
       try {
         await (await browserRef.current).close();
-      } catch {
-        /* launch failed (already surfaced per-asset) or browser already gone */
-      }
+      } catch {}
     }
     await removeDir(tmpRoot);
   }
@@ -292,8 +255,6 @@ async function scheduleDag(
   };
 
   while (remaining.size > 0 || inflight.size > 0) {
-    // Graceful stop: don't launch anything new; let in-flight assets finish, then drain. Un-started
-    // assets are simply omitted from the results (not marked failed).
     if (signal?.aborted) remaining.clear();
     for (const [name, spec] of [...remaining]) {
       if (inflight.size >= concurrency) break;
@@ -311,21 +272,13 @@ async function scheduleDag(
         reporter?.status(name, "failed");
         continue;
       }
-      const p = runSpec(spec)
-        .then((outcome) => {
-          outcomes.set(name, outcome);
-        })
-        .finally(() => {
-          inflight.delete(name);
-        });
+      const p = runSpec(spec).then((outcome) => void outcomes.set(name, outcome)).finally(() => inflight.delete(name));
       inflight.set(name, p);
     }
 
     if (inflight.size > 0) {
       await Promise.race(inflight.values());
     } else if (remaining.size > 0) {
-      // No work in flight and nothing became ready — only possible if every remaining spec is
-      // blocked by a skipped dep. Re-loop resolves them as "failed"; guard against a spin.
       const stuck = [...remaining.values()].every((s) => depState(s) === "blocked");
       if (stuck) break;
     }
@@ -359,10 +312,7 @@ export function applyDerivedInputs(config: ResolvedConfig): void {
  * Plain objects merge recursively — an asset that sets `cursor.color` keeps the default's
  * other `cursor` fields — while arrays and primitives replace wholesale.
  */
-export function mergeGeneratorOptions(
-  defaults: Record<string, Record<string, unknown>>,
-  spec: ResolvedAssetSpec,
-): Record<string, unknown> {
+export function mergeGeneratorOptions(defaults: Record<string, Record<string, unknown>>, spec: ResolvedAssetSpec): Record<string, unknown> {
   const generatorDefaults = defaults[spec.generator] ?? {};
   return deepMerge(generatorDefaults, spec.options);
 }
@@ -371,10 +321,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function deepMerge(
-  base: Record<string, unknown>,
-  override: Record<string, unknown>,
-): Record<string, unknown> {
+function deepMerge(base: Record<string, unknown>, override: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = { ...base };
   for (const [key, value] of Object.entries(override)) {
     const existing = out[key];

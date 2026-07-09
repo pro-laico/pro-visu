@@ -1,10 +1,10 @@
+import type { WallOptions } from "@/generators/wall/options";
+import type { IconsOptions } from "@/generators/icons/options";
+import type { PaletteOptions } from "@/generators/palette/options";
+import type { SpecimenOptions } from "@/generators/specimen/options";
 import type { ScrollReelOptions } from "@/generators/scroll-reel/options";
 import type { InteractionOptions } from "@/generators/interaction/options";
 import type { ScreenshotsOptions } from "@/generators/screenshots/options";
-import type { WallOptions } from "@/generators/wall/options";
-import type { SpecimenOptions } from "@/generators/specimen/options";
-import type { IconsOptions } from "@/generators/icons/options";
-import type { PaletteOptions } from "@/generators/palette/options";
 import type { PaletteReelOptions } from "@/generators/palette-reel/options";
 
 /**
