@@ -59,6 +59,12 @@ A palette revealed one swatch at a time.
 
 https://github.com/user-attachments/assets/a067fde2-c398-43b7-a84b-1ff1dbf65cca
 
+### `icon` · layered icon showcase
+
+A grid of icons with customizable animations/effects.
+
+https://github.com/user-attachments/assets/d8fa6c7d-7277-4e7c-a707-af2aeec94a8d
+
 …plus responsive **screenshots** (full-page and per-element, at every breakpoint) and social **9:16
 reframes**. See the [generator docs](https://pro-visu.com/docs/generators) for the full set.
 
