@@ -167,6 +167,13 @@ Provide at least one icon (via `icons` and/or `dir`); everything else has a sens
 > silhouettes — the mask takes the shape from the file's alpha. Turn `layout.recolor` off to show
 > multi-colour icons in their native colours.
 
+> **Layout.** The grid auto-fits and stays centred in the frame at any `width`×`height`: `columns`
+> defaults to a near-square count for the frame's aspect (set it to drive wide or tall layouts), the
+> icons size up to fill, and a **short final row is centred** under the full rows — so odd counts
+> (7, 10, 13…) still look balanced, not lopsided. Cells are square, so non-square icons letterbox
+> within their cell. `layout.iconSize` caps the cell (it's clamped so it can never overflow the
+> frame); leave it off to fill.
+
 ## Examples
 
 Reach for a `template` for an instant look, or compose your own `steps` — the interaction is just an

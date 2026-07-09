@@ -51,6 +51,25 @@ async function run(ctx: PipelineContext, o: ResolvedIconsOptions): Promise<{ ass
     );
   }
 
+  // Rough legibility check: if the auto-fit cell will be tiny, the showcase reads as noise. Estimate
+  // the fit the way the scene does (a near-square grid) and nudge the author before a long render.
+  if (o.layout.iconSize == null) {
+    const { width, height } = o.output;
+    const cols = o.layout.columns ?? Math.max(1, Math.round(Math.sqrt(iconPaths.length * (width / height))));
+    const rows = Math.ceil(iconPaths.length / cols);
+    const cell = Math.floor(
+      Math.min(
+        (width - o.layout.padding * 2 - o.layout.gap * (cols - 1)) / cols,
+        (height - o.layout.padding * 2 - o.layout.gap * (rows - 1)) / rows,
+      ),
+    );
+    if (cell > 0 && cell < 48) {
+      ctx.logger.warn(
+        `icons: ${iconPaths.length} icons at ${width}×${height} render ~${cell}px each — small for a showcase. Raise the frame size, trim the set, or split it across assets.`,
+      );
+    }
+  }
+
   // Each icon gets a stable, ordered served-file slot; the scene resolves the slot back to its URL.
   const files: Record<string, string> = {};
   const slots = iconPaths.map((p, i) => {

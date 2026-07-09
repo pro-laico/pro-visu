@@ -3,6 +3,7 @@ import {
   autoColumns,
   evalIcons,
   makeGrid,
+  positions,
   stepPhases,
   type BaseState,
   type EffectStep,
@@ -28,6 +29,23 @@ describe("icons-timeline: grid", () => {
     // A wide frame biases toward more columns.
     expect(autoColumns(16, 1920, 1080)).toBeGreaterThan(4);
     expect(autoColumns(1, 1000, 1000)).toBe(1);
+  });
+
+  it("balances uneven counts toward a near-square grid (a centred final row absorbs the remainder)", () => {
+    expect(autoColumns(9, 1080, 1080)).toBe(3); // perfect 3×3
+    expect(autoColumns(7, 1080, 1080)).toBe(3); // 3×3, last row of 1 (centred)
+    expect(autoColumns(10, 1080, 1080)).toBe(4); // 4×3, last row of 2 (centred)
+  });
+
+  it("centres a short final row's visual x, leaving full rows untouched", () => {
+    // 7 icons, 3 cols → rows 3, last row = 1 icon → centred under the middle column (vx 1 of 0..2).
+    const p = positions(makeGrid(7, 3));
+    expect(p[0]).toMatchObject({ row: 0, col: 0, vx: 0, vy: 0 }); // full row: no shift
+    expect(p[6]).toMatchObject({ row: 2, col: 0, vx: 1, vy: 2 }); // lone orphan centred
+    // 10 icons, 4 cols → last row of 2 centres at cols 1 and 2.
+    const q = positions(makeGrid(10, 4));
+    expect(q[8]!.vx).toBe(1);
+    expect(q[9]!.vx).toBe(2);
   });
 });
 

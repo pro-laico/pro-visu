@@ -129,23 +129,48 @@ export function makeGrid(count: number, columns: number): Grid {
   return { count, columns: cols, rows: Math.max(1, Math.ceil(count / cols)) };
 }
 
-/** Auto column count for `count` icons in a `w`×`h` frame — a near-square grid matching the aspect. */
+/**
+ * Auto column count for `count` icons in a `w`×`h` frame. Picks the grid whose aspect best matches
+ * the frame's (log-ratio distance), nudged toward the option that leaves the fewest orphans (empty
+ * cells in the last row) and, on ties, toward landscape. So a square frame of 16 → 4×4, of 10 → 4×3.
+ */
 export function autoColumns(count: number, w: number, h: number): number {
   if (count <= 1) return 1;
-  const aspect = w > 0 && h > 0 ? w / h : 1;
-  const cols = Math.round(Math.sqrt(count * aspect));
-  return clamp(cols, 1, count);
+  const target = Math.log(w > 0 && h > 0 ? w / h : 1);
+  let best = 1;
+  let bestScore = Infinity;
+  for (let cols = 1; cols <= count; cols++) {
+    const rows = Math.ceil(count / cols);
+    const orphans = (cols - (count % cols)) % cols; // empty cells in the last row
+    const score =
+      Math.abs(Math.log(cols / rows) - target) + orphans * 0.06 - (cols >= rows ? 1e-4 : 0);
+    if (score < bestScore) {
+      bestScore = score;
+      best = cols;
+    }
+  }
+  return best;
 }
 
-interface Pos {
+/** Grid coordinates for an icon: logical `row`/`col`, plus visual `vx`/`vy` (a short final row is
+ *  centred, so `vx` shifts by half the empty span). Geometric orders + the scene render use vx/vy. */
+export interface Pos {
   row: number;
   col: number;
+  vx: number;
+  vy: number;
 }
 
-function positions(grid: Grid): Pos[] {
+/** Per-icon positions, with the last partial row centred (its `vx` shifted by half the empty span). */
+export function positions(grid: Grid): Pos[] {
+  const lastRow = grid.rows - 1;
+  const lastRowCount = grid.count - lastRow * grid.columns;
+  const lastOffset = lastRowCount < grid.columns ? (grid.columns - lastRowCount) / 2 : 0;
   const out: Pos[] = [];
   for (let i = 0; i < grid.count; i++) {
-    out.push({ row: Math.floor(i / grid.columns), col: i % grid.columns });
+    const row = Math.floor(i / grid.columns);
+    const col = i % grid.columns;
+    out.push({ row, col, vx: col + (row === lastRow ? lastOffset : 0), vy: row });
   }
   return out;
 }
@@ -176,7 +201,9 @@ function participates(i: number, p: Pos, targets: Targets): boolean {
 function orderScore(order: Order, i: number, p: Pos, grid: Grid, rng: () => number): number {
   const cr = (grid.rows - 1) / 2;
   const cc = (grid.columns - 1) / 2;
-  const dist = Math.hypot(p.row - cr, p.col - cc);
+  // Geometric orders read from the VISUAL position (vx/vy) so a ripple/diagonal tracks the centred
+  // layout — a lone final-row icon sits under the middle, not the corner.
+  const dist = Math.hypot(p.vy - cr, p.vx - cc);
   switch (order) {
     case "reverse":
       return -i;
@@ -185,14 +212,14 @@ function orderScore(order: Order, i: number, p: Pos, grid: Grid, rng: () => numb
     case "columns":
       return p.col;
     case "diagonal":
-      return p.row + p.col;
+      return p.vy + p.vx;
     case "radial-out":
       return dist;
     case "radial-in":
       return -dist;
     case "spiral":
       // Rings outward, ordered by angle within each ring.
-      return dist + (Math.atan2(p.row - cr, p.col - cc) + Math.PI) / (2 * Math.PI);
+      return dist + (Math.atan2(p.vy - cr, p.vx - cc) + Math.PI) / (2 * Math.PI);
     case "random":
       return rng();
     default:

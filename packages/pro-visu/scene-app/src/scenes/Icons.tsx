@@ -49,8 +49,10 @@ function computeLayout(width: number, height: number, count: number, o: Record<s
   const availW = Math.max(1, width - padding * 2 - gap * (grid.columns - 1));
   const availH = Math.max(1, height - padding * 2 - gap * (grid.rows - 1));
   const fit = Math.floor(Math.min(availW / grid.columns, availH / grid.rows));
+  // `iconSize` caps the cell but never overflows the frame — a too-large override is clamped to the
+  // fit (icons smaller than the fit just leave more padding, and the grid stays centred).
   const override = typeof o.iconSize === "number" && o.iconSize > 0 ? Math.round(o.iconSize) : undefined;
-  const iconSize = Math.max(4, override ?? fit);
+  const iconSize = Math.max(4, override !== undefined ? Math.min(override, fit) : fit);
 
   const gridW = grid.columns * iconSize + (grid.columns - 1) * gap;
   const gridH = grid.rows * iconSize + (grid.rows - 1) * gap;
@@ -205,26 +207,40 @@ export function Icons({
     justifyContent: "center",
     overflow: "hidden",
   };
+  const cols = layout.grid.columns;
+  // Render row by row, each row flex-centred, so a short final row sits centred under the full ones
+  // (a plain CSS grid would leave the orphans hugging the left). Full rows fill the width → no shift.
+  const rows: string[][] = [];
+  for (let i = 0; i < urls.length; i += cols) rows.push(urls.slice(i, i + cols));
+
   const gridStyle: React.CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: `repeat(${layout.grid.columns}, ${layout.iconSize}px)`,
+    display: "flex",
+    flexDirection: "column",
     gap: layout.gap,
     width: layout.gridW,
     height: layout.gridH,
   };
+  const rowStyle: React.CSSProperties = { display: "flex", gap: layout.gap, justifyContent: "center" };
 
   return (
     <div style={root} ref={rootRef}>
       <div style={gridStyle}>
-        {urls.map((url, i) => (
-          <IconCell
-            key={i}
-            url={url}
-            size={layout.iconSize}
-            state={states[i] ?? { scale: base.scale ?? 1, color: base.color, opacity: base.opacity ?? 1, rotate: 0 }}
-            recolor={recolor}
-            background={bg}
-          />
+        {rows.map((rowUrls, r) => (
+          <div key={r} style={rowStyle}>
+            {rowUrls.map((url, c) => {
+              const i = r * cols + c;
+              return (
+                <IconCell
+                  key={i}
+                  url={url}
+                  size={layout.iconSize}
+                  state={states[i] ?? { scale: base.scale ?? 1, color: base.color, opacity: base.opacity ?? 1, rotate: 0 }}
+                  recolor={recolor}
+                  background={bg}
+                />
+              );
+            })}
+          </div>
         ))}
       </div>
     </div>
