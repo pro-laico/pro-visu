@@ -50,14 +50,14 @@ export async function recordSceneRealtime(args: RecordSceneArgs): Promise<Record
     args.logger.debug(`loading scene ${args.url}`);
     await page.goto(args.url, { waitUntil: "load" });
     try {
-      //TODO: replace `as` cast with proper typing
+      //EXCUSE: runs in the browser via waitForFunction; page globals aren't in Node's DOM lib types
       await page.waitForFunction(
         () => (globalThis as { __showcaseReady?: boolean }).__showcaseReady === true,
         undefined,
         { timeout: 30_000 },
       );
     } catch (err) {
-      //TODO: replace `as unknown as` cast with proper typing
+      //EXCUSE: runs in the browser via page.evaluate; page globals aren't in Node's DOM lib types
       const diag = await page
         .evaluate(() => {
           const g = globalThis as unknown as {
@@ -72,7 +72,7 @@ export async function recordSceneRealtime(args: RecordSceneArgs): Promise<Record
               src: v.currentSrc || v.src,
               readyState: v.readyState,
               networkState: v.networkState,
-              error: (v.error as { code?: number } | null)?.code ?? null, //TODO: replace `as` cast with proper typing
+              error: (v.error as { code?: number } | null)?.code ?? null, //EXCUSE: browser-eval value typed loosely as Record above
             })),
           };
         })
@@ -81,7 +81,7 @@ export async function recordSceneRealtime(args: RecordSceneArgs): Promise<Record
       throw err;
     }
     leadSeconds = (Date.now() - recStart) / 1000;
-    //TODO: replace `as` cast with proper typing
+    //EXCUSE: runs in the browser via page.evaluate; page globals aren't in Node's DOM lib types
     await page.evaluate(() => (globalThis as { __showcase?: { play(): void } }).__showcase?.play());
     await page.waitForTimeout(Math.round(args.durationSeconds * 1000));
   } finally {

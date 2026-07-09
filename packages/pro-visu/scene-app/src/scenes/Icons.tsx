@@ -18,7 +18,8 @@ import { autoColumns, evalIcons, makeGrid, type BaseState, type EffectStep, type
 
 /** Read a number from the loose scene-option bag with a default. */
 function num(o: Record<string, unknown>, k: string, d: number): number {
-  return typeof o[k] === "number" ? (o[k] as number) : d; //TODO: replace `as` cast with proper typing
+  const v = o[k];
+  return typeof v === "number" ? v : d;
 }
 
 interface Layout {
@@ -102,7 +103,8 @@ function IconCell({
 }
 
 export function Icons({ width, height, background, durationSeconds, files, options }: SceneProps): React.ReactElement {
-  const iconSlots = Array.isArray(options.icons) ? (options.icons as string[]) : []; //TODO: replace `as` cast with proper typing
+  //EXCUSE: `options` is the loose scene-option bag; element type can't be verified from Array.isArray
+  const iconSlots = Array.isArray(options.icons) ? (options.icons as string[]) : [];
   const urls = useMemo(
     () => iconSlots.map((slot) => files[slot]).filter((u): u is string => Boolean(u)),
     [JSON.stringify(iconSlots), JSON.stringify(files)], // eslint-disable-line react-hooks/exhaustive-deps
@@ -112,7 +114,8 @@ export function Icons({ width, height, background, durationSeconds, files, optio
   const bg = typeof options.background === "string" ? options.background : background;
   const recolor = options.recolor !== false;
   const seed = num(options, "seed", 1);
-  const steps = Array.isArray(options.steps) ? (options.steps as EffectStep[]) : []; //TODO: replace `as` cast with proper typing
+  //EXCUSE: `options` is the loose scene-option bag; element type can't be verified from Array.isArray
+  const steps = Array.isArray(options.steps) ? (options.steps as EffectStep[]) : [];
   const base: BaseState = {
     color: typeof options.baseColor === "string" ? options.baseColor : "#f4f4f5",
     scale: typeof options.baseScale === "number" ? options.baseScale : 1,

@@ -174,7 +174,7 @@ function deepMerge(base: Record<string, unknown>, override: Record<string, unkno
 /** Merge a selected template's steps underneath the user's explicit options (which win, deeply). */
 function applyTemplate(raw: unknown): unknown {
   if (!isPlainObject(raw)) return raw;
-  //TODO: replace `as` cast with proper typing
+  //EXCUSE: asserts the validated string is a known template name; unknown names are handled by templateSteps
   const name =
     typeof raw.template === "string" ? (raw.template as IconsTemplate) : raw.steps === undefined ? "showcase" : undefined;
   if (!name) return raw;

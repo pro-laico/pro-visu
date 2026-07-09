@@ -68,7 +68,7 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<void> {
       applyDerivedInputs(config);
       buildGraph(config.assets);
     } catch (err) {
-      fail((err as Error).message); //TODO: replace `as` cast with proper typing
+      fail(err instanceof Error ? err.message : String(err));
     }
   }
 

@@ -116,7 +116,7 @@ function labelAnchorStyle(anchor: string, padding: number): React.CSSProperties 
 export function Specimen({ width, height, background, files, options, durationSeconds }: SceneProps): React.ReactElement {
   const fontUrl = files.oracle ?? Object.values(files)[0] ?? "";
   const weight = typeof options.weight === "number" ? options.weight : 400;
-  //TODO: replace `as` cast with proper typing
+  //EXCUSE: `options` is the loose scene-option bag; object shape can't be verified structurally
   const labelOpt =
     typeof options.label === "string"
       ? { text: options.label }
@@ -142,19 +142,21 @@ export function Specimen({ width, height, background, files, options, durationSe
   const characterPool =
     typeof options.characterPool === "string" ? options.characterPool : undefined;
   const seed = typeof options.seed === "number" ? options.seed : 1;
-  //TODO: replace `as` cast with proper typing
+  //EXCUSE: `options` is the loose scene-option bag; element shape can't be verified from Array.isArray
   const pulses = Array.isArray(options.pulses) && options.pulses.length ? (options.pulses as Pulse[]) : DEFAULT_PULSES;
   const mirror = options.mirror !== false;
   const charIntensity = typeof options.characterIntensity === "number" ? options.characterIntensity : 1;
   const colorIntensity = typeof options.colorIntensity === "number" ? options.colorIntensity : 1;
-  const cw = (options.colorWeights ?? {}) as Partial<Record<Token, number>>; //TODO: replace `as` cast with proper typing
+  //EXCUSE: `options` is the loose scene-option bag; each field is read back with a typeof guard below
+  const cw = (options.colorWeights ?? {}) as Partial<Record<Token, number>>;
   const weights: Record<Token, number> = {
     foreground: typeof cw.foreground === "number" ? cw.foreground : DEFAULT_WEIGHTS.foreground,
     muted: typeof cw.muted === "number" ? cw.muted : DEFAULT_WEIGHTS.muted,
     accent: typeof cw.accent === "number" ? cw.accent : DEFAULT_WEIGHTS.accent,
   };
   const pulsesKey = `${JSON.stringify(pulses)}|${mirror}|${charIntensity}|${colorIntensity}|${JSON.stringify(weights)}|${seed}|${tol}`;
-  const colors = (options.colors ?? {}) as Record<string, string>; //TODO: replace `as` cast with proper typing
+  //EXCUSE: `options` is the loose scene-option bag; values are read with `?? fallback` below
+  const colors = (options.colors ?? {}) as Record<string, string>;
   const foreground = colors.foreground ?? "#16181d";
   const muted = colors.muted ?? "#a7adb6";
   const accent = colors.accent ?? background;
@@ -268,7 +270,7 @@ export function Specimen({ width, height, background, files, options, durationSe
     return out;
   }, [lineLengths]);
 
-  //TODO: replace `as` cast with proper typing
+  //EXCUSE: carries `--sp-*` CSS custom properties that React.CSSProperties doesn't type
   const rootStyle = {
     position: "absolute",
     inset: 0,
@@ -342,7 +344,7 @@ export function Specimen({ width, height, background, files, options, durationSe
               whiteSpace: "nowrap",
               display: "inline-block",
               lineHeight: 1,
-              //TODO: replace `as` cast with proper typing
+              //EXCUSE: text-box-trim CSS props aren't in React.CSSProperties yet
               ...({ textBoxTrim: "trim-both", textBoxEdge: "cap alphabetic" } as React.CSSProperties),
             }}
           >

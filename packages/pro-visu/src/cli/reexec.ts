@@ -24,7 +24,7 @@ export function autoHeapTargetMB(
   totalMemBytes: number = os.totalmem(),
 ): number | undefined {
   const heavy = selected.some(
-    (s) => s.generator === "wall" && (s.options as { test?: unknown }).test !== true, //TODO: replace `as` cast with proper typing
+    (s) => s.generator === "wall" && (s.options as { test?: unknown }).test !== true, //EXCUSE: probing one field of a generator-specific options union
   );
   if (!heavy) return undefined;
   return Math.min(8192, Math.floor(totalMemBytes / (1024 * 1024) / 2));

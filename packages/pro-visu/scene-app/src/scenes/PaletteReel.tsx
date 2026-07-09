@@ -32,12 +32,17 @@ const smooth = (x: number): number => {
 };
 
 export function PaletteReel({ width, height, background, files, options }: SceneProps): React.ReactElement {
-  const items: ReelItem[] = Array.isArray(options.items) ? (options.items as ReelItem[]) : []; //TODO: replace `as` cast with proper typing
+  //EXCUSE: `options` is the loose scene-option bag; element shape can't be verified from Array.isArray
+  const items: ReelItem[] = Array.isArray(options.items) ? (options.items as ReelItem[]) : [];
   const orientation = options.orientation === "columns" ? "columns" : "rows";
-  //TODO: replace `as` cast with proper typing
-  const num = (k: string, d: number): number => (typeof options[k] === "number" ? (options[k] as number) : d);
-  //TODO: replace `as` cast with proper typing
-  const bool = (k: string, d: boolean): boolean => (typeof options[k] === "boolean" ? (options[k] as boolean) : d);
+  const num = (k: string, d: number): number => {
+    const v = options[k];
+    return typeof v === "number" ? v : d;
+  };
+  const bool = (k: string, d: boolean): boolean => {
+    const v = options[k];
+    return typeof v === "boolean" ? v : d;
+  };
 
   const grownFlex = Math.max(1, num("grownFlex", 12));
   const gap = num("gap", 0);
@@ -70,7 +75,8 @@ export function PaletteReel({ width, height, background, files, options }: Scene
       holdSeconds: num("holdSeconds", 2),
       transitionSeconds: num("transitionSeconds", 0.7),
       bounce: bool("bounce", true),
-      easing: (typeof options.easing === "string" ? options.easing : "ease-in-out") as Easing, //TODO: replace `as` cast with proper typing
+      //EXCUSE: narrows to string then asserts it's a valid Easing keyword; invalid strings degrade in CSS
+      easing: (typeof options.easing === "string" ? options.easing : "ease-in-out") as Easing,
     }),
     [optionsKey], // eslint-disable-line react-hooks/exhaustive-deps
   );

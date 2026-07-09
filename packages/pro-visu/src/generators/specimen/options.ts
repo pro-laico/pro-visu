@@ -305,8 +305,9 @@ function deepMerge(base: Record<string, unknown>, override: Record<string, unkno
 /** Merge a selected template underneath the user's explicit options (which win, per-field, deeply). */
 function applyTemplate(raw: unknown): unknown {
   if (!isPlainObject(raw)) return raw;
-  const tmpl = typeof raw.template === "string" ? SPECIMEN_TEMPLATES[raw.template as SpecimenTemplate] : undefined; //TODO: replace `as` cast with proper typing
-  return tmpl ? deepMerge(tmpl as Record<string, unknown>, raw) : raw; //TODO: replace `as` cast with proper typing
+  //EXCUSE: indexes the template map by a validated string; an unknown key yields undefined
+  const tmpl = typeof raw.template === "string" ? SPECIMEN_TEMPLATES[raw.template as SpecimenTemplate] : undefined;
+  return tmpl ? deepMerge(tmpl as Record<string, unknown>, raw) : raw; //EXCUSE: template object widened to a plain record for deepMerge
 }
 
 /**

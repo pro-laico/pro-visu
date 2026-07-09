@@ -324,7 +324,10 @@ export const assetSpecSchema = z
       .describe("Per-asset capture overrides, merged over settings.capture (e.g. show a globally-hidden cookie banner here via cleanup.showSelectors)."),
   })
   .strict()
-  .transform((a) => ({ ...a, inputs: {} as Record<string, string> })); //TODO: replace `as` cast with proper typing
+  .transform((a) => {
+    const inputs: Record<string, string> = {};
+    return { ...a, inputs };
+  });
 export type ResolvedAssetSpec = z.infer<typeof assetSpecSchema>;
 
 export const showcaseConfigSchema = z

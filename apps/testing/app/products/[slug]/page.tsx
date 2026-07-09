@@ -24,6 +24,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   if (!product) notFound();
 
   const related = relatedProducts(product.slug);
+  const image = product.image; // narrowed const survives the thumbnail .map() closure below
 
   return (
     <main>
@@ -34,16 +35,16 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
       <section id="product" className="pdp">
         <div className="pdp-gallery">
-          {product.image ? (
+          {image ? (
             <>
-              <MiniGallery src={product.image} alt={product.name} ratio="4 / 5" />
+              <MiniGallery src={image} alt={product.name} ratio="4 / 5" />
               <div className="pdp-gallery-thumbs">
                 {["50% 18%", "50% 50%", "50% 82%"].map((pos) => (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     key={pos}
                     className="pdp-thumb"
-                    src={product.image as string} //TODO: replace `as` cast with proper typing
+                    src={image}
                     alt=""
                     style={{ objectPosition: pos }}
                   />

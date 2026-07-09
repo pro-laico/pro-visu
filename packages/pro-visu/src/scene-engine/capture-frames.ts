@@ -57,7 +57,7 @@ export async function captureSceneFrames(args: FrameCaptureArgs): Promise<void> 
     signal: args.signal,
     prepare: async (page) => {
       await page.goto(args.url, { waitUntil: "load" });
-      //TODO: replace `as` cast with proper typing
+      //EXCUSE: runs in the browser via waitForFunction; page globals aren't in Node's DOM lib types
       await page.waitForFunction(
         () => (globalThis as { __showcaseReady?: boolean }).__showcaseReady === true,
         undefined,
@@ -65,7 +65,7 @@ export async function captureSceneFrames(args: FrameCaptureArgs): Promise<void> 
       );
     },
     seekToFrame: async (page, t) => {
-      //TODO: replace `as` cast with proper typing
+      //EXCUSE: runs in the browser via page.evaluate; page globals aren't in Node's DOM lib types
       await page.evaluate((tt) => (globalThis as { __showcase?: { seek(t: number): Promise<void> } }).__showcase?.seek(tt), t);
     },
   });

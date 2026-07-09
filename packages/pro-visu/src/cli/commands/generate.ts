@@ -249,7 +249,7 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
   } catch (err) {
     reporter.stop();
     if (!interrupted) {
-      logger.error((err as Error).message); //TODO: replace `as` cast with proper typing
+      logger.error(err instanceof Error ? err.message : String(err));
       process.exitCode = 1;
       setupFailed = true;
     }

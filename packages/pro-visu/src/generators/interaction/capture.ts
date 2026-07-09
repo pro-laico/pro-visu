@@ -117,7 +117,7 @@ export function interactionTotalMs(
  * framework that wipes `<body>` on route change can't leave the cursor orphaned.
  */
 function installCursorRuntime(opts: { show: boolean; size: number; color: string }): void {
-  const g = globalThis as any; //TODO: replace `as` cast with proper typing
+  const g = globalThis as any; //EXCUSE: runs in the browser (page.evaluate/$eval/init script); DOM globals absent from Node lib types
   const doc = g.document;
   if (!doc) return;
 
@@ -297,7 +297,7 @@ async function isOnScreen(page: Page, selector: string): Promise<boolean> {
   try {
     return await page.evaluate((sel: string) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const g = globalThis as any; //TODO: replace `as` cast with proper typing
+      const g = globalThis as any; //EXCUSE: runs in the browser (page.evaluate/$eval/init script); DOM globals absent from Node lib types
       const el = g.document?.querySelector(sel);
       if (!el) return true;
       const r = el.getBoundingClientRect();
@@ -348,7 +348,7 @@ async function runAction(page: Page, a: InteractionAction, durationMs: number, l
           offset: a.offset ?? 0,
           headerH: stickyHeaderHeight,
         },
-      ); //TODO: replace `as` cast with proper typing
+      ); //EXCUSE: runs in the browser (page.evaluate/$eval/init script); DOM globals absent from Node lib types
       return;
     case "move":
       if (a.selector) {
@@ -359,7 +359,7 @@ async function runAction(page: Page, a: InteractionAction, durationMs: number, l
               p.ms,
             ),
           { sel: a.selector, ms: durationMs },
-        ); //TODO: replace `as` cast with proper typing
+        ); //EXCUSE: runs in the browser (page.evaluate/$eval/init script); DOM globals absent from Node lib types
       } else {
         const fx = a.x ?? 0.5;
         const fy = a.y ?? 0.5;
@@ -371,7 +371,7 @@ async function runAction(page: Page, a: InteractionAction, durationMs: number, l
               p.ms,
             ),
           { x: fx, y: fy, ms: durationMs },
-        ); //TODO: replace `as` cast with proper typing
+        ); //EXCUSE: runs in the browser (page.evaluate/$eval/init script); DOM globals absent from Node lib types
         const vp = page.viewportSize();
         if (vp) await page.mouse.move(fx * vp.width, fy * vp.height);
       }
@@ -384,7 +384,7 @@ async function runAction(page: Page, a: InteractionAction, durationMs: number, l
     case "click":
       if (!a.selector) return;
       await moveCursorToSelector(page, a.selector, durationMs);
-      await page.evaluate(() => (globalThis as { __sc?: { pulse(): void } }).__sc?.pulse()); //TODO: replace `as` cast with proper typing
+      await page.evaluate(() => (globalThis as { __sc?: { pulse(): void } }).__sc?.pulse()); //EXCUSE: runs in the browser (page.evaluate/$eval/init script); DOM globals absent from Node lib types
       await page.click(a.selector);
       return;
     case "type": {
@@ -410,7 +410,7 @@ async function runAction(page: Page, a: InteractionAction, durationMs: number, l
       const count =
         a.count ??
         (a.selector
-          ? await page.$eval(a.selector, (el) => (el as unknown as { value?: string }).value?.length ?? 0) //TODO: replace `as` cast with proper typing
+          ? await page.$eval(a.selector, (el) => (el as unknown as { value?: string }).value?.length ?? 0) //EXCUSE: runs in the browser (page.evaluate/$eval/init script); DOM globals absent from Node lib types
           : 0);
       await playKeystrokes(
         count,
@@ -456,7 +456,7 @@ function moveCursorToSelector(page: Page, selector: string, ms: number): Promise
         p.ms,
       ),
     { sel: selector, ms },
-  ); //TODO: replace `as` cast with proper typing
+  ); //EXCUSE: runs in the browser (page.evaluate/$eval/init script); DOM globals absent from Node lib types
 }
 
 export interface InteractionArgs {
@@ -511,7 +511,7 @@ export async function captureInteractionWebm(args: InteractionArgs): Promise<Int
     }
     await applyPostNav(page, args.capture, logger, { pauseMedia: false });
     try {
-      await page.evaluate(() => (globalThis as { document?: { fonts?: { ready?: Promise<unknown> } } }).document?.fonts?.ready); //TODO: replace `as` cast with proper typing
+      await page.evaluate(() => (globalThis as { document?: { fonts?: { ready?: Promise<unknown> } } }).document?.fonts?.ready); //EXCUSE: runs in the browser (page.evaluate/$eval/init script); DOM globals absent from Node lib types
     } catch {}
     const cursorOpts = {
       show: options.cursor?.show ?? true,
@@ -573,7 +573,7 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
     page.evaluate(
       () =>
         new Promise<void>((res) => {
-          const g = globalThis as unknown as { requestAnimationFrame(cb: () => void): void }; //TODO: replace `as` cast with proper typing
+          const g = globalThis as unknown as { requestAnimationFrame(cb: () => void): void }; //EXCUSE: runs in the browser (page.evaluate/$eval/init script); DOM globals absent from Node lib types
           g.requestAnimationFrame(() => g.requestAnimationFrame(() => res()));
         }),
     );
@@ -600,7 +600,7 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
     await page.evaluate(installCursorRuntime, cursorOpts);
     await page.evaluate((sel: string) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const el = (globalThis as any).document?.querySelector(sel); //TODO: replace `as` cast with proper typing
+      const el = (globalThis as any).document?.querySelector(sel); //EXCUSE: runs in the browser (page.evaluate/$eval/init script); DOM globals absent from Node lib types
       if (el) {
         try {
           el.scrollIntoView({ behavior: "instant", block: "center" });
@@ -617,7 +617,7 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
     await runActionList(page, actions, "focus", logger, options.page.stickyHeaderHeight);
     const box = await page.evaluate((sel: string) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const el = (globalThis as any).document?.querySelector(sel); //TODO: replace `as` cast with proper typing
+      const el = (globalThis as any).document?.querySelector(sel); //EXCUSE: runs in the browser (page.evaluate/$eval/init script); DOM globals absent from Node lib types
       if (!el) return null;
       const r = el.getBoundingClientRect();
       return { x: r.left, y: r.top, w: r.width, h: r.height };

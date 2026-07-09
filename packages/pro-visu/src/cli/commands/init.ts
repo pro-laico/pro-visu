@@ -48,18 +48,18 @@ const FRAMEWORKS: readonly [dep: string, name: string, port: number][] = [
 function detectProject(cwd: string): ProjectInfo {
   let pkg: Record<string, unknown> = {};
   try {
-    //TODO: replace `as` cast with proper typing
+    //EXCUSE: JSON.parse returns `any`; fields are read defensively with their own casts/guards below
     pkg = JSON.parse(readFileSync(path.join(cwd, "package.json"), "utf8")) as Record<string, unknown>;
   } catch {}
 
   const pm = detectPackageManager(cwd);
 
   const deps = {
-    ...(pkg.dependencies as Record<string, string> | undefined), //TODO: replace `as` cast with proper typing
-    ...(pkg.devDependencies as Record<string, string> | undefined), //TODO: replace `as` cast with proper typing
+    ...(pkg.dependencies as Record<string, string> | undefined), //EXCUSE: field of a parsed package.json (unknown)
+    ...(pkg.devDependencies as Record<string, string> | undefined), //EXCUSE: field of a parsed package.json (unknown)
   };
   const match = FRAMEWORKS.find(([dep]) => deps[dep]);
-  const devScript = (pkg.scripts as Record<string, string> | undefined)?.dev ?? ""; //TODO: replace `as` cast with proper typing
+  const devScript = (pkg.scripts as Record<string, string> | undefined)?.dev ?? ""; //EXCUSE: field of a parsed package.json (unknown)
   const flag = /(?:-p|--port)[ =](\d{2,5})/.exec(devScript);
   const devPort = flag ? Number(flag[1]) : match?.[2];
 
@@ -232,13 +232,13 @@ export async function runInit(options: InitOptions = {}): Promise<void> {
     try {
       await ensureChromium({ logger });
     } catch (err) {
-      logger.warn(`Could not install Chromium now: ${(err as Error).message}`); //TODO: replace `as` cast with proper typing
+      logger.warn(`Could not install Chromium now: ${err instanceof Error ? err.message : String(err)}`);
       logger.warn("It will be installed on first `pro-visu generate`.");
     }
     try {
       await ensureFfmpeg({ logger });
     } catch (err) {
-      logger.warn(`Could not fetch ffmpeg now: ${(err as Error).message}`); //TODO: replace `as` cast with proper typing
+      logger.warn(`Could not fetch ffmpeg now: ${err instanceof Error ? err.message : String(err)}`);
       logger.warn("It will be fetched on first `pro-visu generate`.");
     }
   }

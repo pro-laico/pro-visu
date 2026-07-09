@@ -70,10 +70,12 @@ interface Layout {
 }
 
 function computeLayout(width: number, inputs: Record<string, string>, files: Record<string, string>, o: Record<string, unknown>): Layout {
-  //TODO: replace `as` cast with proper typing
-  const num = (k: string, d: number): number => (typeof o[k] === "number" ? (o[k] as number) : d);
+  const num = (k: string, d: number): number => {
+    const v = o[k];
+    return typeof v === "number" ? v : d;
+  };
 
-  //TODO: replace `as` cast with proper typing
+  //EXCUSE: `o` is the loose scene-option bag; element shape can't be verified from Array.isArray
   const colDefs = Array.isArray(o.columns) ? (o.columns as WallColumnOpt[]) : [];
   const columnsN = Math.max(1, colDefs.length);
   const gap = Math.max(0, Math.round(num("gap", 8)));
@@ -81,14 +83,15 @@ function computeLayout(width: number, inputs: Record<string, string>, files: Rec
   const radius = Math.max(0, Math.round(num("cornerRadius", 6)));
 
   const test = o.test === true;
-  //TODO: replace `as` cast with proper typing
+  //EXCUSE: `o` is the loose scene-option bag; object shape can't be verified from a typeof check
   const testTiles = o.testTiles && typeof o.testTiles === "object" ? (o.testTiles as Record<string, FauxTileOpt>) : {};
 
   const defaultLoops = Math.max(0, num("loops", 0));
-  //TODO: replace `as` cast with proper typing
+  //EXCUSE: `o` is the loose scene-option bag; element shape can't be verified from Array.isArray
   const defaultPulses = Array.isArray(o.pulses) ? (o.pulses as PulseInput[]) : [];
 
-  const panOpt: WallPanOpt = o.pan && typeof o.pan === "object" ? (o.pan as WallPanOpt) : {}; //TODO: replace `as` cast with proper typing
+  //EXCUSE: `o` is the loose scene-option bag; object shape can't be verified from a typeof check
+  const panOpt: WallPanOpt = o.pan && typeof o.pan === "object" ? (o.pan as WallPanOpt) : {};
   const pan: Track = {
     pulses: panOpt.pulses ?? [],
     loops: Math.max(0, panOpt.loops ?? 0),
@@ -100,7 +103,6 @@ function computeLayout(width: number, inputs: Record<string, string>, files: Rec
 
   const columns = colDefs.map((c) => {
     const names = c.tiles ?? [];
-    //TODO: replace `as` cast with proper typing
     const cells: Cell[] = test
       ? names.map((name) => {
           const f = testTiles[name] ?? {};
@@ -112,7 +114,10 @@ function computeLayout(width: number, inputs: Record<string, string>, files: Rec
             aspect: typeof f.aspect === "number" && f.aspect > 0 ? f.aspect : fallbackAspect,
           };
         })
-      : (names.map((name) => inputs[name] ?? files[name]).filter(Boolean) as string[]).map((url) => ({
+      : names
+          .map((name) => inputs[name] ?? files[name])
+          .filter((url): url is string => Boolean(url))
+          .map((url) => ({
           kind: "asset" as const,
           url,
         }));

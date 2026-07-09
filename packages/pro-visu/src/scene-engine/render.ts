@@ -33,7 +33,7 @@ export async function renderScene(
   options: ResolvedSceneOptions,
   generatorId: string = SCENE_ID,
 ): Promise<{ assets: AssetRecord[] }> {
-  //TODO: replace `as` cast with proper typing
+  //EXCUSE: `options.scene` is a validated string key; the undefined case is handled just below
   const sceneSchema = SCENE_OPTION_SCHEMAS[options.scene as keyof typeof SCENE_OPTION_SCHEMAS];
   if (!sceneSchema) {
     throw new Error(`Unknown scene "${options.scene}". Available: ${Object.keys(SCENE_OPTION_SCHEMAS).join(", ")}.`);
@@ -90,13 +90,13 @@ export async function renderScene(
       try {
         const page = await context.newPage();
         await page.goto(sceneUrl.toString(), { waitUntil: "load" });
-        //TODO: replace `as` cast with proper typing
+        //EXCUSE: runs in the browser via waitForFunction; page globals aren't in Node's DOM lib types
         await page.waitForFunction(
           () => (globalThis as { __showcaseReady?: boolean }).__showcaseReady === true,
           undefined,
           { timeout: 30_000 },
         );
-        //TODO: replace `as` cast with proper typing
+        //EXCUSE: runs in the browser via page.evaluate; page globals aren't in Node's DOM lib types
         await page.evaluate(
           (t) =>
             (globalThis as { __showcase?: { seek(t: number): Promise<void> } }).__showcase?.seek(t),

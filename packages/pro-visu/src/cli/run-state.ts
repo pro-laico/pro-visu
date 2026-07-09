@@ -26,7 +26,7 @@ function runStatePath(outDir: string): string {
 
 export async function readRunState(outDir: string): Promise<RunState | null> {
   try {
-    return JSON.parse(await readFile(runStatePath(outDir), "utf8")) as RunState; //TODO: replace `as` cast with proper typing
+    return JSON.parse(await readFile(runStatePath(outDir), "utf8")) as RunState; //EXCUSE: JSON.parse returns `any`; a malformed file falls through to the catch below
   } catch {
     return null;
   }
@@ -81,7 +81,7 @@ export function isAlive(pid: number): boolean {
     process.kill(pid, 0);
     return true;
   } catch (err) {
-    return (err as NodeJS.ErrnoException).code === "EPERM"; //TODO: replace `as` cast with proper typing
+    return (err as NodeJS.ErrnoException).code === "EPERM"; //EXCUSE: Node errno errors have no class to instanceof; probing `.code`
   }
 }
 

@@ -44,7 +44,7 @@ async function run(ctx: PipelineContext, o: ResolvedPaletteOptions): Promise<{ a
   try {
     const page = await context.newPage();
     await page.setContent(html, { waitUntil: "load" });
-    if (dataUrl) await page.evaluate(() => (globalThis as { document?: { fonts?: { ready?: Promise<unknown> } } }).document?.fonts?.ready); //TODO: replace `as` cast with proper typing
+    if (dataUrl) await page.evaluate(() => (globalThis as { document?: { fonts?: { ready?: Promise<unknown> } } }).document?.fonts?.ready); //EXCUSE: runs in the browser via page.evaluate; DOM globals absent from Node lib types
     buffer = await page.screenshot({ type: "png" });
   } finally {
     await context.close();

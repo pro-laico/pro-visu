@@ -22,7 +22,7 @@ function cacheFile(): string {
 
 function readCache(): UpdateCache | null {
   try {
-    return JSON.parse(readFileSync(cacheFile(), "utf8")) as UpdateCache; //TODO: replace `as` cast with proper typing
+    return JSON.parse(readFileSync(cacheFile(), "utf8")) as UpdateCache; //EXCUSE: JSON.parse returns `any`; a bad shape is caught/ignored by callers
   } catch {
     return null;
   }
@@ -94,7 +94,7 @@ export async function runUpdateWorker(): Promise<void> {
     });
     clearTimeout(timer);
     if (res.ok) {
-      const body = (await res.json()) as { version?: string }; //TODO: replace `as` cast with proper typing
+      const body = (await res.json()) as { version?: string }; //EXCUSE: res.json() is `any`; `version` is re-checked with typeof below
       if (typeof body.version === "string") cache.latest = body.version;
     }
   } catch {}

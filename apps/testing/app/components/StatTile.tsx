@@ -20,7 +20,7 @@ export function StatTile({ value, unit, label, caption, animate = false }: StatT
         {isCount ? (
           <span
             className="stat-count"
-            style={{ ["--to" as string]: value }} //TODO: replace `as` cast with proper typing
+            style={{ ["--to" as string]: value }} //EXCUSE: sets a `--to` CSS custom property, which React.CSSProperties doesn't type
             role="img"
             aria-label={`${value}${unit ? ` ${unit}` : ""}`}
           />

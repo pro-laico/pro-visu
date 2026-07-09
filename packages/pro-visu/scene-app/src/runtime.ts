@@ -83,7 +83,7 @@ const NON_PRESENTING_NET_MS = 250;
  * video can't add seconds to every frame).
  */
 function presented(v: HTMLVideoElement, expectNewFrame: boolean): Promise<void> {
-  //TODO: replace `as unknown as` cast with proper typing
+  //EXCUSE: requestVideoFrameCallback is an optional API absent from this project's DOM lib types
   const rvfc = (v as unknown as { requestVideoFrameCallback?: (cb: () => void) => number }).requestVideoFrameCallback?.bind(v);
   if (!rvfc) return nextFrame();
   if (!expectNewFrame && everPresented.has(v)) return nextFrame();
@@ -134,8 +134,7 @@ export function initRuntime(): void {
     await nextFrame();
     scan();
     const fontsReady = document.fonts?.ready ?? Promise.resolve(undefined);
-    //TODO: replace `as` cast with proper typing
-    const read = (): Promise<void> | undefined => (globalThis as { __sceneReady?: Promise<void> }).__sceneReady;
+    const read = (): Promise<void> | undefined => window.__sceneReady;
     let sceneReady = read();
     for (let i = 0; !sceneReady && i < 10; i++) {
       await nextFrame();

@@ -90,7 +90,7 @@ function weightedColor(rng: Rng, weights: Record<Token, number>, exclude?: Token
     r -= weights[t] ?? 1;
     if (r <= 0) return t;
   }
-  return pool[pool.length - 1] as Token; //TODO: replace `as` cast with proper typing
+  return pool[pool.length - 1] as Token; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
 }
 
 /**
@@ -105,10 +105,11 @@ function evenCellPicker(rng: Rng, count: number): () => number {
       bag = Array.from({ length: count }, (_, i) => i);
       for (let i = bag.length - 1; i > 0; i--) {
         const j = Math.floor(rng() * (i + 1));
-        [bag[i], bag[j]] = [bag[j] as number, bag[i] as number]; //TODO: replace `as` casts with proper typing
+        [bag[i], bag[j]] = [bag[j] as number, bag[i] as number]; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
       }
     }
-    return bag.pop() as number; //TODO: replace `as` cast with proper typing
+    const next = bag.pop();
+    return next ?? 0; // bag is refilled above when empty, so this is never undefined
   };
 }
 
@@ -206,8 +207,8 @@ export function maxLineDrift(initial: Cell[], events: SetEvent[], adv: Record<st
   const lineOf = lineOfCells(lineLengths, initial.length);
   const advOf = (g: string): number => adv[g] ?? FALLBACK_ADV;
   initial.forEach((c, i) => {
-    const L = lineOf[i] as number; //TODO: replace `as` cast with proper typing
-    lineInitialEm[L] = (lineInitialEm[L] as number) + advOf(c.text); //TODO: replace `as` cast with proper typing
+    const L = lineOf[i] as number; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
+    lineInitialEm[L] = (lineInitialEm[L] as number) + advOf(c.text); //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
   });
   let i = 0;
   let maxRel = 0;
@@ -215,19 +216,19 @@ export function maxLineDrift(initial: Cell[], events: SetEvent[], adv: Record<st
   const text = initial.map((c) => c.text);
   const sorted = [...events].sort((a, b) => a.t - b.t);
   while (i < sorted.length) {
-    const t = (sorted[i] as SetEvent).t; //TODO: replace `as` cast with proper typing
-    while (i < sorted.length && (sorted[i] as SetEvent).t === t) { //TODO: replace `as` cast with proper typing
-      const ev = sorted[i] as SetEvent; //TODO: replace `as` cast with proper typing
+    const t = (sorted[i] as SetEvent).t; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
+    while (i < sorted.length && (sorted[i] as SetEvent).t === t) { //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
+      const ev = sorted[i] as SetEvent; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
       if (ev.kind === "char") {
-        const L = lineOf[ev.slot] as number; //TODO: replace `as` cast with proper typing
-        lineEm[L] = (lineEm[L] as number) + advOf(ev.value) - advOf(text[ev.slot] as string); //TODO: replace `as` casts with proper typing
+        const L = lineOf[ev.slot] as number; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
+        lineEm[L] = (lineEm[L] as number) + advOf(ev.value) - advOf(text[ev.slot] as string); //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
         text[ev.slot] = ev.value;
       }
       i++;
     }
     for (let L = 0; L < lineLengths.length; L++) {
-      const init = lineInitialEm[L] as number; //TODO: replace `as` cast with proper typing
-      const rel = init > 0 ? Math.abs((lineEm[L] as number) - init) / init : 0; //TODO: replace `as` cast with proper typing
+      const init = lineInitialEm[L] as number; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
+      const rel = init > 0 ? Math.abs((lineEm[L] as number) - init) / init : 0; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
       if (rel > maxRel) maxRel = rel;
     }
   }
@@ -266,8 +267,8 @@ export function buildEvents(
   const lineHi = lineInitialEm.map((e) => e * (1 + tol));
   const advOf = (g: string): number => adv[g] ?? FALLBACK_ADV;
   const inBudget = (L: number, deltaEm: number): boolean => {
-    const e = (lineEm[L] as number) + deltaEm; //TODO: replace `as` cast with proper typing
-    return e >= (lineLo[L] as number) && e <= (lineHi[L] as number); //TODO: replace `as` casts with proper typing
+    const e = (lineEm[L] as number) + deltaEm; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
+    return e >= (lineLo[L] as number) && e <= (lineHi[L] as number); //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
   };
 
   const differentFrom = (not: string): string => {
@@ -298,7 +299,7 @@ export function buildEvents(
       if (g === g0) continue;
       if (inBudget(L, advOf(g) - a0)) valid.push(g);
     }
-    if (valid.length) return valid[Math.floor(rng() * valid.length)] as string; //TODO: replace `as` cast with proper typing
+    if (valid.length) return valid[Math.floor(rng() * valid.length)] as string; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
     return closestAdvance(a0, g0);
   };
 
@@ -319,11 +320,11 @@ export function buildEvents(
     const applySingle = (t: number, slot: number): void => {
       const cell = sim[slot];
       if (!cell) return;
-      const L = lineOf[slot] as number; //TODO: replace `as` cast with proper typing
+      const L = lineOf[slot] as number; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
       const g1 = pickInBudget(L, cell.text);
       if (g1 === cell.text) return;
       forward.push({ t, slot, kind: "char", from: cell.text, to: g1 });
-      lineEm[L] = (lineEm[L] as number) + advOf(g1) - advOf(cell.text); //TODO: replace `as` cast with proper typing
+      lineEm[L] = (lineEm[L] as number) + advOf(g1) - advOf(cell.text); //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
       sim[slot] = { ...cell, text: g1 };
     };
     for (let i = 0; i < nPairs; i++) {
@@ -331,7 +332,7 @@ export function buildEvents(
       const cA = nextCharCell();
       const cellA = sim[cA];
       if (!cellA) continue;
-      const L = lineOf[cA] as number; //TODO: replace `as` cast with proper typing
+      const L = lineOf[cA] as number; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
       let cB = -1;
       if (cA + 1 < N && lineOf[cA + 1] === L) cB = cA + 1;
       else if (cA - 1 >= 0 && lineOf[cA - 1] === L) cB = cA - 1;
@@ -361,7 +362,7 @@ export function buildEvents(
       }
       forward.push({ t, slot: cA, kind: "char", from: g0, to: chosen.g1 });
       forward.push({ t, slot: cB, kind: "char", from: h0, to: chosen.h1 });
-      lineEm[L] = (lineEm[L] as number) + chosen.net; //TODO: replace `as` cast with proper typing
+      lineEm[L] = (lineEm[L] as number) + chosen.net; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
       sim[cA] = { ...cellA, text: chosen.g1 };
       sim[cB] = { ...cellB, text: chosen.h1 };
     }
@@ -410,11 +411,11 @@ export function createCursor(initial: Cell[], events: SetEvent[]): TimelineCurso
         idx = 0;
       }
       lastT = t;
-      while (idx < events.length && (events[idx] as SetEvent).t <= t) { //TODO: replace `as` cast with proper typing
-        const ev = events[idx] as SetEvent; //TODO: replace `as` cast with proper typing
+      while (idx < events.length && (events[idx] as SetEvent).t <= t) { //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
+        const ev = events[idx] as SetEvent; //EXCUSE: in-bounds index; noUncheckedIndexedAccess widens the element type to T | undefined
         const cur = cells[ev.slot];
         if (cur) {
-          //TODO: replace `as` cast with proper typing
+          //EXCUSE: color events carry a Token in their string `value` field by construction
           cells[ev.slot] =
             ev.kind === "char" ? { ...cur, text: ev.value } : { ...cur, token: ev.value as Token };
         }

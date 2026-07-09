@@ -24,7 +24,8 @@ function readConfig(): { scene: string; props: SceneProps } {
   let parsed: Partial<SceneProps> = {};
   if (raw) {
     try {
-      parsed = JSON.parse(raw) as Partial<SceneProps>; //TODO: replace `as` cast with proper typing
+      //EXCUSE: JSON.parse returns `any`; the scene renders defensively over a partial props bag
+      parsed = JSON.parse(raw) as Partial<SceneProps>;
     } catch {
       parsed = {};
     }
