@@ -17,7 +17,7 @@ All notable changes to `pro-visu` are documented here. The format is based on
   an `order` (forward, diagonal, radial, spiral, random, …) and a `stagger` (0 = all at once → 1 =
   one at a time). Steps fold in order, so they compose into layered sequences. The animation is a
   pure function of time — the video is frame-stepped (crisp, reproducible) and the still is that
-  timeline frozen at `output.posterTime`. Built-in `template`s: `showcase`, `scale-sweep`,
+  timeline frozen at `motion.posterTime`. Built-in `template`s: `showcase`, `scale-sweep`,
   `color-sweep`, `ripple`, `pattern`.
 - **Still-image scene output.** The scene engine can now freeze a scene at one moment and capture a
   PNG (`capture: "still"`), the path the `icons` image format uses.

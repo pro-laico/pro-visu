@@ -1,5 +1,5 @@
 import path from "node:path";
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { iconsOptionsSchema, type ResolvedIconsOptions } from "@/generators/icons/options";
 import { renderScene } from "@/scene-engine/render";
 import type { ResolvedSceneOptions } from "@/scene-engine/options";
@@ -46,8 +46,26 @@ function collectIcons(o: ResolvedIconsOptions): string[] {
 async function run(ctx: PipelineContext, o: ResolvedIconsOptions): Promise<{ assets: AssetRecord[] }> {
   const iconPaths = collectIcons(o);
   if (iconPaths.length === 0) {
+    // Point at the actual cause: a bad `dir`, an empty `dir`, or nothing supplied at all.
+    if (o.dir) {
+      const dirAbs = abs(o.dir);
+      if (!existsSync(dirAbs)) {
+        throw new Error(`icons: dir not found — "${o.dir}" (resolved to ${dirAbs}).`);
+      }
+      throw new Error(
+        `icons: no image files (svg/png/webp/jpg/gif/avif) in dir "${o.dir}"${o.icons.length ? " and no `icons` given" : ""}.`,
+      );
+    }
     throw new Error(
-      "icons: no icons found. Provide `icons` (paths and/or { src }) and/or a `dir` containing image files.",
+      "icons: no icons. Provide `icons` (paths and/or { src }) and/or a `dir` containing image files.",
+    );
+  }
+
+  // A `color` step needs the CSS-mask tint; with `recolor: false` it silently no-ops (the icons
+  // render in their native colours). Warn rather than let a recolour template quietly do nothing.
+  if (o.layout.recolor === false && o.steps.some((s) => s.kind === "color")) {
+    ctx.logger.warn(
+      "icons: `layout.recolor` is false, so `color` steps have no effect (icons render natively). Enable recolor or drop the color steps.",
     );
   }
 
@@ -78,7 +96,7 @@ async function run(ctx: PipelineContext, o: ResolvedIconsOptions): Promise<{ ass
     return slot;
   });
 
-  const durationSeconds = o.output.durationMs / 1000;
+  const durationSeconds = o.motion.durationMs / 1000;
   const isImage = o.output.format === "image";
 
   const sceneOptions: ResolvedSceneOptions = {
@@ -92,7 +110,7 @@ async function run(ctx: PipelineContext, o: ResolvedIconsOptions): Promise<{ ass
     // The animation is a deterministic function of time — frame-step it for a crisp, exact video;
     // a still just freezes the same timeline at one moment.
     capture: isImage ? "still" : "frames",
-    stillTimeSeconds: isImage ? o.output.posterTime * durationSeconds : 0,
+    stillTimeSeconds: isImage ? o.motion.posterTime * durationSeconds : 0,
     workers: o.output.workers,
     frameFormat: "png",
     crf: o.output.crf,

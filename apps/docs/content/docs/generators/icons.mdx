@@ -39,7 +39,7 @@ Every preset interaction is the **same step**, differing only in `order` and `st
 So "scale one at a time", "recolour one at a time", and "recolour many in a pattern" are all this one
 primitive. Steps **fold in order**, so you stack them into layered, creative sequences (a colour
 sweep riding over a scale ripple). The animation is a pure function of time, so the video is
-frame-stepped (crisp, reproducible) and the still is just that timeline frozen at `output.posterTime`.
+frame-stepped (crisp, reproducible) and the still is just that timeline frozen at `motion.posterTime`.
 
 ## Config options
 
@@ -54,11 +54,13 @@ export const options = [
     { name: 'height', type: 'number', default: '1080', description: `Output frame height in px.` },
     { name: 'deviceScaleFactor', type: 'number (≤4)', default: '2', description: `Render scale (higher = crisper capture, downscaled into the output).` },
     { name: 'fps', type: 'number (≤120)', default: '30', description: `Output frames per second (video).` },
-    { name: 'durationMs', type: 'number', default: '8000', description: `Clip length in ms (video). The steps' at/span are fractions of this.` },
     { name: 'crf', type: 'number (0–51)', default: '18', description: `x264 quality (lower = better quality / larger file) (video).` },
-    { name: 'posterTime', type: 'number (0–1)', default: '0.5', description: `For format: "image" — which clip moment to freeze, as a fraction of the timeline.` },
     { name: 'workers', type: 'number', description: `Parallel render workers (video). Omit to auto-pick from cores + free memory.` },
     { name: 'fileName', type: 'string', description: `Output filename. Defaults to "<slug(asset name)>.<mp4|png>".` },
+  ] },
+  { name: 'motion', type: 'object', default: '{}', description: `Animation timeline — clip length + still sample point. Override any subset.`, options: [
+    { name: 'durationMs', type: 'number', default: '8000', description: `Clip length in ms. The steps' at/span (and posterTime) are fractions of this.` },
+    { name: 'posterTime', type: 'number (0–1)', default: '0.5', description: `For output.format: "image" — which clip moment to freeze, as a fraction of the timeline.` },
   ] },
   { name: 'layout', type: 'object', default: '{}', description: `Grid layout + appearance. Override any subset.`, options: [
     { name: 'columns', type: 'number', description: `Fixed column count. Omit to auto-pick a near-square grid from the icon count + frame aspect.` },
@@ -143,16 +145,20 @@ Provide at least one icon (via `icons` and/or `dir`); everything else has a sens
       { kind: "color", at: 0.5, span: 0.42, order: "forward", stagger: 0.85, color: "#7c9cff", hold: 0.2 },
     ],
 
+    // --- the timeline ---
+    motion: {
+      durationMs: 8000,               // steps' at/span (and posterTime) are fractions of this
+      posterTime: 0.5,                // for output.format: "image" — which moment to freeze
+    },
+
     // --- output & encoding ---
     output: {
-      format: "video",                // "image" freezes one PNG at posterTime
+      format: "video",                // "image" freezes one PNG at motion.posterTime
       width: 1080,
       height: 1080,
       deviceScaleFactor: 2,
       fps: 30,
-      durationMs: 8000,
       crf: 18,
-      posterTime: 0.5,                // for format: "image"
       // fileName: "icon-set.mp4",    // optional; defaults to <slug(name)>.<mp4|png>
     },
   },
@@ -290,7 +296,8 @@ Set `output.format: "image"` to freeze one moment as a PNG — a clean grid of t
     accent: "#8a5a3c",
     layout: { background: "#1a1714" },
     base: { color: "#f6f3ed" },
-    output: { format: "image", posterTime: 0.25, width: 900, height: 900 },
+    output: { format: "image", width: 900, height: 900 },
+    motion: { posterTime: 0.25 },
   },
 }`}
 />

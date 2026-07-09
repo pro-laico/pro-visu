@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { iconEffectSchema, type IconEffectInput } from "@/scene-engine/scene-options";
+import { videoOutputShape } from "@/generators/shared-options";
 
 /**
  * Author-facing options for the `icons` generator — a showcase of a project's icon set: a centred
@@ -44,16 +45,20 @@ export interface IconsOutputInput {
   deviceScaleFactor?: number;
   /** Output frames per second (video). Default 30. */
   fps?: number;
-  /** Clip length in ms (video). Default 8000. */
-  durationMs?: number;
   /** x264 quality, 0–51 (lower = better quality / larger file) (video). Default 18. */
   crf?: number;
-  /** For "image": which clip moment to freeze, as a fraction of the timeline (0..1). Default 0.5. */
-  posterTime?: number;
   /** Parallel render workers (video). Omit to auto-pick from cores + free memory. */
   workers?: number;
   /** Output filename; defaults to "<slug(asset name)>.<mp4|png>". */
   fileName?: string;
+}
+
+/** The animation timeline: clip length, and where to freeze the still. */
+export interface IconsMotionInput {
+  /** Clip length in ms — the steps' `at`/`span` (and `posterTime`) are fractions of this. Default 8000. */
+  durationMs?: number;
+  /** For `output.format: "image"`: which clip moment to freeze, as a fraction of the timeline (0..1). Default 0.5. */
+  posterTime?: number;
 }
 
 /** Grid layout + appearance. Override any subset. */
@@ -106,8 +111,10 @@ export interface IconsOptionsInput {
    * - `"pattern"` — recolour a checkerboard pattern, then the alternate cells.
    */
   template?: IconsTemplate;
-  /** Output frame + encoding (format, width, height, deviceScaleFactor, fps, durationMs, crf, posterTime, workers, fileName). */
+  /** Output frame + encoding (format, width, height, deviceScaleFactor, fps, crf, workers, fileName). */
   output?: IconsOutputInput;
+  /** Animation timeline: clip length + still sample point (durationMs, posterTime). */
+  motion?: IconsMotionInput;
   /** Grid layout + appearance (columns, gap, padding, iconSize, background, recolor). */
   layout?: IconsLayoutInput;
   /** Resting icon appearance + animation seed (color, scale, opacity, seed). */
@@ -209,40 +216,37 @@ const iconsObjectSchema = z
           .enum(["video", "image"])
           .default("video")
           .describe('Emit a looping video ("video", mp4) or a single still ("image", png). Default "video".'),
-        width: z.number().int().positive().default(1080).describe("Output frame width in px. Default 1080."),
-        height: z.number().int().positive().default(1080).describe("Output frame height in px. Default 1080."),
-        deviceScaleFactor: z
-          .number()
-          .positive()
-          .max(4)
-          .default(2)
-          .describe("Render scale (higher = crisper capture, downscaled into the output). Default 2."),
-        fps: z.number().int().positive().max(120).default(30).describe("Output frames per second (video). Default 30."),
-        durationMs: z.number().positive().default(8000).describe("Clip length in ms (video). Default 8000."),
-        crf: z
-          .number()
-          .int()
-          .min(0)
-          .max(51)
-          .default(18)
-          .describe("x264 quality, 0–51 (lower = better quality / larger file) (video). Default 18."),
-        posterTime: z
-          .number()
-          .min(0)
-          .max(1)
-          .default(0.5)
-          .describe('For "image": which clip moment to freeze, as a fraction of the timeline (0..1). Default 0.5.'),
+        // Shared video-output block (width/height/deviceScaleFactor/fps/crf/fileName) — same knobs and
+        // wording as the other generators; fileName is overridden to note the .png case.
+        ...videoOutputShape({ width: 1080, height: 1080, deviceScaleFactor: 2 }),
+        fileName: z.string().optional().describe('Output filename; defaults to "<slug(asset name)>.<mp4|png>".'),
         workers: z
           .number()
           .int()
           .positive()
           .optional()
           .describe("Parallel render workers (video). Omit to auto-pick from cores + free memory."),
-        fileName: z.string().optional().describe('Output filename; defaults to "<slug(asset name)>.<mp4|png>".'),
       })
       .strict()
       .default({})
       .describe("Output frame + encoding settings."),
+    motion: z
+      .object({
+        durationMs: z
+          .number()
+          .positive()
+          .default(8000)
+          .describe("Clip length in ms — the steps' at/span (and posterTime) are fractions of this. Default 8000."),
+        posterTime: z
+          .number()
+          .min(0)
+          .max(1)
+          .default(0.5)
+          .describe('For output.format "image": which clip moment to freeze, as a fraction of the timeline (0..1). Default 0.5.'),
+      })
+      .strict()
+      .default({})
+      .describe("Animation timeline: clip length + still sample point."),
     layout: z
       .object({
         columns: z

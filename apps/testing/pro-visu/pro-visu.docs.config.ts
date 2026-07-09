@@ -383,7 +383,8 @@ export default defineConfig({
         dir: "public/icons",
         template: "showcase",
         accent: COGNAC,
-        output: { width: 800, height: 800, durationMs: 6000 },
+        output: { width: 800, height: 800 },
+        motion: { durationMs: 6000 },
         layout: { background: INK, gap: 40, padding: 80 },
         base: { color: PAPER },
       },
@@ -394,7 +395,8 @@ export default defineConfig({
       generator: "icons",
       options: {
         dir: "public/icons",
-        output: { width: 800, height: 800, durationMs: 6000 },
+        output: { width: 800, height: 800 },
+        motion: { durationMs: 6000 },
         layout: { background: INK, gap: 40, padding: 80 },
         base: { color: PAPER },
         steps: [{ kind: "scale", at: 0.05, span: 0.9, order: "forward", stagger: 0.85, scale: 1.6, hold: 0.2 }],
@@ -406,7 +408,8 @@ export default defineConfig({
       generator: "icons",
       options: {
         dir: "public/icons",
-        output: { width: 800, height: 800, durationMs: 6000 },
+        output: { width: 800, height: 800 },
+        motion: { durationMs: 6000 },
         layout: { background: INK, gap: 40, padding: 80 },
         base: { color: PAPER },
         steps: [
@@ -422,7 +425,8 @@ export default defineConfig({
       generator: "icons",
       options: {
         dir: "public/icons",
-        output: { width: 800, height: 800, durationMs: 7000 },
+        output: { width: 800, height: 800 },
+        motion: { durationMs: 7000 },
         layout: { background: INK, gap: 40, padding: 80 },
         base: { color: PAPER },
         steps: [
@@ -440,7 +444,8 @@ export default defineConfig({
         dir: "public/icons",
         template: "pattern",
         accent: COGNAC,
-        output: { format: "image", width: 900, height: 900, posterTime: 0.25 },
+        output: { format: "image", width: 900, height: 900 },
+        motion: { posterTime: 0.25 },
         layout: { background: INK, gap: 44, padding: 84 },
         base: { color: PAPER },
       },
