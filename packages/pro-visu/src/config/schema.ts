@@ -212,6 +212,41 @@ export const captureSettingsSchema = z
 export type ResolvedCaptureSettings = z.infer<typeof captureSettingsSchema>;
 
 /**
+ * Per-asset cleanup OVERRIDE — a sparse partial of the global `cleanup` (no field has a default, so
+ * an omitted key inherits the global). Array fields are ADDITIVE (unioned with the globals), and two
+ * subtraction escapes remove inherited entries: `showSelectors` un-hides globally-hidden elements,
+ * `unblockHosts` un-blocks globally-blocked hosts.
+ */
+const captureCleanupOverrideSchema = z
+  .object({
+    hideSelectors: z.array(z.string()).optional().describe("Extra selectors to hide, added on top of the global hideSelectors."),
+    showSelectors: z.array(z.string()).optional().describe("Un-hide: selectors to REMOVE from the inherited global hideSelectors (e.g. show a globally-hidden cookie banner in this one asset)."),
+    injectCss: z.string().optional().describe("Extra CSS, appended to the global injectCss for this asset."),
+    clickSelectors: z.array(z.string()).optional().describe("Extra selectors to click, added on top of the global clickSelectors."),
+    hideScrollbars: z.boolean().optional().describe("Override the global hideScrollbars for this asset. Omit to inherit."),
+    pauseAnimations: z.boolean().optional().describe("Override the global pauseAnimations for this asset. Omit to inherit."),
+    freezeClock: z.boolean().optional().describe("Override the global freezeClock for this asset. Omit to inherit."),
+    blockTrackers: z.boolean().optional().describe("Override the global blockTrackers for this asset. Omit to inherit."),
+    blockHosts: z.array(z.string()).optional().describe("Extra hostname substrings to block, added on top of the global blockHosts."),
+    unblockHosts: z.array(z.string()).optional().describe("Un-block: hostname substrings to REMOVE from the inherited global blockHosts."),
+    blockResourceTypes: z.array(z.string()).optional().describe("Extra Playwright resource types to block, added on top of the global blockResourceTypes."),
+  })
+  .strict();
+
+/**
+ * A single asset's capture override, deep-merged OVER `settings.capture` when the asset runs. Lets a
+ * globally-hidden element (say a cookie banner) be shown off in one asset, or any signal/cleanup be
+ * tuned per asset without touching the global. Omit a key to inherit the global value.
+ */
+export const captureOverrideSchema = z
+  .object({
+    signals: captureSignalsSchema.optional().describe("Per-asset capture signals, merged over the global ones (records merge; cookies merge by name)."),
+    cleanup: captureCleanupOverrideSchema.optional().describe("Per-asset cleanup overrides, merged over the global ones (arrays additive; showSelectors/unblockHosts subtract)."),
+  })
+  .strict();
+export type ResolvedCaptureOverride = z.infer<typeof captureOverrideSchema>;
+
+/**
  * Repo-level CLI behavior (the `settings` block). Fields are grouped: output & run behavior, then
  * the capture environment (browser + managed server), then capture-mode settings and per-generator
  * defaults. Render quality is not persisted here — it's an iteration-time choice, set with `--draft`.
@@ -305,6 +340,13 @@ export const assetSpecSchema = z
       .optional(),
     generator: z.string().min(1),
     options: z.record(z.string(), z.unknown()).default({}),
+    /**
+     * Per-asset overrides of `settings.capture`, deep-merged over it for this asset only — e.g. show
+     * a globally-hidden element (`cleanup: { showSelectors: ["#cookie-banner"] }`) or flip a toggle.
+     */
+    capture: captureOverrideSchema
+      .optional()
+      .describe("Per-asset capture overrides, merged over settings.capture (e.g. show a globally-hidden cookie banner here via cleanup.showSelectors)."),
   })
   .strict()
   .transform((a) => ({ ...a, inputs: {} as Record<string, string> }));

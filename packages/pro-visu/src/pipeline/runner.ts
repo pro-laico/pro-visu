@@ -5,6 +5,7 @@ import { mkdtemp } from "node:fs/promises";
 import type { Browser } from "playwright-core";
 import { launchBrowser } from "@/pipeline/browser";
 import { createContext } from "@/pipeline/context";
+import { resolveAssetCapture } from "@/pipeline/capture";
 import { buildGraph, dependenciesOf, resolveSelection } from "@/pipeline/graph";
 import { computeCacheKey } from "@/pipeline/cache";
 import type { Reporter } from "@/pipeline/reporter";
@@ -148,6 +149,9 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
       );
       const options = generator.optionsSchema.parse(merged);
 
+      // This asset's effective capture = the global settings.capture with its own override layered on.
+      const capture = resolveAssetCapture(opts.config.settings.capture, spec.capture);
+
       // Hash the content of declared file dependencies (e.g. fonts) into the cache key, so
       // editing the file regenerates the asset. Missing files fail here, early and clearly,
       // instead of producing a blank render from a 404'd URL later.
@@ -171,7 +175,7 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
         quality,
         toolVersion: opts.toolVersion,
         // Capture-mode toggles change the rendered output, so a change must bust the cache.
-        capture: opts.config.settings.capture,
+        capture,
       });
 
       if (cacheEnabled) {
@@ -211,7 +215,7 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
         toolVersion: opts.toolVersion,
         quality,
         manifest,
-        capture: opts.config.settings.capture,
+        capture,
         onProgress: reporter ? (v) => reporter.progress(spec.name, v) : undefined,
         signal: opts.signal,
       });

@@ -1,6 +1,6 @@
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type { ZodTypeAny } from "zod";
-import { settingsSchema } from "@/config/schema";
+import { settingsSchema, captureOverrideSchema } from "@/config/schema";
 import { listGenerators } from "@/generators/registry";
 import { TOOL_VERSION } from "@/version";
 
@@ -60,6 +60,11 @@ export function generateConfigJsonSchema(): JsonObject {
       options: {
         type: "object",
         description: "Generator-specific options — autocompletes once `generator` is set.",
+      },
+      capture: {
+        ...toJson(captureOverrideSchema),
+        description:
+          "Per-asset overrides of settings.capture, merged over it for this asset only (cleanup arrays are additive; showSelectors/unblockHosts subtract).",
       },
     },
     allOf: optionBranches,

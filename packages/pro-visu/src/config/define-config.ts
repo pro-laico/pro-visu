@@ -127,6 +127,49 @@ export interface CaptureSettingsInput {
   cleanup?: CaptureCleanupInput;
 }
 
+/**
+ * Per-asset cleanup override. A sparse partial of the global `cleanup` — omit a key to inherit it.
+ * Array fields (`hideSelectors`, `clickSelectors`, `blockHosts`, `blockResourceTypes`) are ADDITIVE:
+ * they layer on top of the globals. Use the subtraction escapes to remove inherited entries.
+ */
+export interface CaptureCleanupOverrideInput {
+  /** Extra selectors to hide, added on top of the global `hideSelectors`. */
+  hideSelectors?: string[];
+  /** Un-hide: selectors to REMOVE from the inherited global `hideSelectors` (e.g. show a globally-hidden cookie banner in this asset). */
+  showSelectors?: string[];
+  /** Extra CSS, appended to the global `injectCss` for this asset. */
+  injectCss?: string;
+  /** Extra selectors to click, added on top of the global `clickSelectors`. */
+  clickSelectors?: string[];
+  /** Override the global `hideScrollbars` for this asset. Omit to inherit. */
+  hideScrollbars?: boolean;
+  /** Override the global `pauseAnimations` for this asset. Omit to inherit. */
+  pauseAnimations?: boolean;
+  /** Override the global `freezeClock` for this asset. Omit to inherit. */
+  freezeClock?: boolean;
+  /** Override the global `blockTrackers` for this asset. Omit to inherit. */
+  blockTrackers?: boolean;
+  /** Extra hostname substrings to block, added on top of the global `blockHosts`. */
+  blockHosts?: string[];
+  /** Un-block: hostname substrings to REMOVE from the inherited global `blockHosts`. */
+  unblockHosts?: string[];
+  /** Extra Playwright resource types to block, added on top of the global `blockResourceTypes`. */
+  blockResourceTypes?: string[];
+}
+
+/**
+ * A single asset's capture override, deep-merged OVER `settings.capture` when the asset runs. Lets
+ * one asset show off something the global config hides (or tune any signal/cleanup) without touching
+ * the global. Signals merge (records by key, cookies by name); cleanup arrays are additive with
+ * `showSelectors`/`unblockHosts` to subtract; booleans/strings override. Omit a key to inherit.
+ */
+export interface CaptureOverrideInput {
+  /** Per-asset capture signals, merged over the global ones. */
+  signals?: CaptureSignalsInput;
+  /** Per-asset cleanup overrides, merged over the global ones. */
+  cleanup?: CaptureCleanupOverrideInput;
+}
+
 export interface ShowcaseSettingsInput {
   // --- output & run behavior ---
   /**
@@ -174,6 +217,12 @@ export interface AssetBaseInput {
    * it out; a group string (e.g. "quick-test") tags it for selection via `settings.enabled`.
    */
   enabled?: EnabledFlag;
+  /**
+   * Per-asset overrides of `settings.capture`, deep-merged over it for this asset only — e.g. show a
+   * globally-hidden element with `capture: { cleanup: { showSelectors: ["#cookie-banner"] } }`, or
+   * flip a toggle like `freezeClock`. Omit to inherit the global capture settings unchanged.
+   */
+  capture?: CaptureOverrideInput;
 }
 
 /**

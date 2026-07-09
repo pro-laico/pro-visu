@@ -81,7 +81,7 @@ export const settingsOptions = [
     { name: 'launchTimeoutMs', type: 'number', default: '30000', description: 'Browser launch timeout in ms.' },
   ] },
   { name: 'server', type: 'object', description: 'Optional managed server — the tool builds, starts, waits for, and stops your site (see below). Every field defaults, so `server: {}` works; build/command fall back to your project\'s package scripts.', options: serverFields },
-  { name: 'capture', type: 'object', description: 'Applied to every URL-based asset (scroll-reel, screenshots, interaction) and folded into the cache key. Two halves: signals into the site, and cleanup the tool applies itself.', options: [
+  { name: 'capture', type: 'object', description: 'Applied to every URL-based asset (scroll-reel, screenshots, interaction) and folded into the cache key — any asset can override it via its own `capture` block (see "Per-asset capture overrides"). Two halves: signals into the site, and cleanup the tool applies itself.', options: [
     { name: 'signals', type: 'object', description: 'Capture-mode flags delivered into the site. The site must READ one and render settled (reveals shown, count-ups final).', options: [
       { name: 'query', type: 'Record<string, string>', description: 'Query params appended to every URL-based asset, e.g. { capture: "1" } → ?capture=1.' },
       { name: 'cookies', type: '{ name, value }[]', description: "Cookies set on every capture context before navigation (scoped to the asset's origin). SSR-readable and persisted across in-app navigation — the best fit for multi-route reels. Also carries auth (a session cookie) to reach login-gated pages." },
@@ -304,6 +304,7 @@ export const assetFields = [
   { name: 'generator', type: 'string', required: true, description: 'One of the generator ids (/docs/generators).' },
   { name: 'url', type: 'string', description: 'Page to capture. Required by URL-based generators (scroll-reel, interaction, screenshots) unless a managed server is configured — then omitting it captures the server root, and a relative "/path" resolves against it. Local generators (wall, palette, palette-reel, specimen) take no url.' },
   { name: 'options', type: 'object', description: 'Generator-specific options, merged over settings.defaults for this generator (the asset wins). Validated by the target generator.' },
+  { name: 'capture', type: 'object', description: 'Per-asset overrides of settings.capture, merged over it for this asset only (see "Per-asset capture overrides" below). Signals merge; cleanup arrays are additive with showSelectors/unblockHosts to subtract; booleans override. Omit to inherit the global capture settings.' },
 ]
 
 **Reference** is the interactive view; **TypeScript** is the same shape in code.
@@ -371,6 +372,44 @@ export default defineConfig({
 
 `pro-visu doctor` prints the resolved plan and marks which assets will run under the current
 `enabled` setting.
+
+### Per-asset capture overrides
+
+`settings.capture` applies to every URL capture, but one asset can override it via its own `capture`
+block — the two are merged (global first, the asset on top) for that asset only. The classic case:
+you hide the cookie banner globally, but want one hero shot that shows it off.
+
+Cleanup **arrays are additive** — an asset's `hideSelectors` layer on top of the global ones rather
+than replacing them — and two subtraction escapes remove inherited entries: **`showSelectors`**
+un-hides globally-hidden elements, **`unblockHosts`** un-blocks globally-blocked hosts. Booleans
+(`freezeClock`, `blockTrackers`, …) and `injectCss` override (CSS is appended); signal records
+(`query`, `localStorage`) merge and `cookies` merge by name. Omit a key to inherit the global value.
+
+```ts
+export default defineConfig({
+  settings: {
+    capture: { cleanup: { hideSelectors: ["#cookie-banner", "#chat-widget"] } },
+  },
+  assets: [
+    // Inherits the global — hides both.
+    { name: "home", generator: "scroll-reel", url: "/" },
+    // Show the cookie banner off in this one, but keep hiding the chat widget:
+    {
+      name: "consent-hero",
+      generator: "screenshots",
+      url: "/",
+      capture: { cleanup: { showSelectors: ["#cookie-banner"] } },
+    },
+    // Let this reel animate live (the global froze the clock elsewhere):
+    {
+      name: "ticker",
+      generator: "scroll-reel",
+      url: "/pricing",
+      capture: { cleanup: { freezeClock: false } },
+    },
+  ],
+})
+```
 
 ## The asset graph
 

@@ -6,8 +6,27 @@ All notable changes to `pro-visu` are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-07-08
+
+A colocation and ergonomics release: everything pro-visu owns now lives in one `pro-visu/` folder,
+the managed server needs no configuration, and capture cleanup can be tuned per asset.
+
 ### Added
 
+- **Per-asset capture overrides.** `settings.capture` is global, but any asset can now override it
+  with its own `capture` block, merged over the global for that asset only — so you can hide the
+  cookie banner everywhere yet show it off in one hero shot. Cleanup arrays are **additive** (an
+  asset's `hideSelectors` layer onto the globals), with two subtraction escapes —
+  `cleanup.showSelectors` un-hides a globally-hidden element and `cleanup.unblockHosts` un-blocks a
+  globally-blocked host. Booleans (`freezeClock`, `blockTrackers`, …) override, `injectCss` is
+  appended, and signals merge (records by key, cookies by name). Omit a key to inherit the global.
+  New export: `CaptureOverrideInput`.
+- **The managed server needs no configuration.** `settings.server` can now be an empty `{}` — its
+  `build` and `command` default to the project's own package scripts (`<pm> build` / `<pm> start`,
+  detected from the lockfile), so pro-visu follows along with whatever those scripts do across
+  npm/pnpm/yarn/bun. Change your `build`/`start` scripts and pro-visu follows automatically. Set
+  `build: false` to skip the build step (already-built or dev-server targets); `command` is no
+  longer required.
 - **Enable, disable & group assets with `enabled`.** Every asset now takes a top-level `enabled`
   field (default `true`): set it to `false` to leave an asset out of a run without deleting or
   commenting it, or to a group string (e.g. `"quick-test"`) to tag it. Set `settings.enabled` to
@@ -16,6 +35,19 @@ All notable changes to `pro-visu` are documented here. The format is based on
   (default) runs everything not individually disabled. Explicit `--asset` selection still
   overrides the toggle, and dependencies of a running asset are always pulled in. `pro-visu doctor`
   marks which assets will run under the current setting.
+
+### Changed (BREAKING)
+
+- **Config and output now live in a `pro-visu/` folder.** The CLI discovers the config *inside*
+  `pro-visu/` (`pro-visu/pro-visu.config.{ts,js,mjs,cjs,json}` or `.pro-visurc`) rather than the
+  repo root, and `settings.outDir` now resolves relative to that folder — defaulting to `output`,
+  so generated assets land in `pro-visu/output/` with their own `manifest.json`. Asset source paths
+  (fonts, image `src`) and the managed-server working directory stay repo-root-relative, since they
+  point into your app. The `package.json "pro-visu"` key is no longer a discovery source; an
+  explicit `--config <path>` still escapes the convention. Migrate by moving your config into
+  `pro-visu/` (splitting any modules under `pro-visu/config/`), gitignoring `pro-visu/output/`
+  instead of `pro-visu/`, and updating any `--config` paths — or just run `pro-visu init`, which
+  scaffolds the new layout.
 
 ## [0.6.0] - 2026-07-08
 

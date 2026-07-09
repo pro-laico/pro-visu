@@ -163,6 +163,21 @@ scroll-snap relax to normal flow. Build the toggle in from the start on any site
 capture; it's far more reliable than trying to out-wait the animations from the capture side. A
 session cookie in `capture.signals.cookies` also gets captures past a login.
 
+**Per-asset overrides.** `settings.capture` is global, but any asset can override it with its own
+`capture` block (merged over the global for that asset only). Cleanup arrays are additive; use
+`cleanup.showSelectors` to un-hide a globally-hidden element in one asset (e.g. show off the cookie
+banner in a single hero shot) and `cleanup.unblockHosts` to un-block a host; booleans like
+`freezeClock` just override. Omit a key to inherit the global.
+
+```ts
+settings: { capture: { cleanup: { hideSelectors: ["#cookie-banner"] } } },
+assets: [
+  { name: "home", url: "/", generator: "scroll-reel" }, // banner hidden (inherits global)
+  { name: "consent-hero", url: "/", generator: "screenshots",
+    capture: { cleanup: { showSelectors: ["#cookie-banner"] } } }, // banner shown here
+],
+```
+
 ## Notes
 - Needs a **reachable URL or a managed server** — pro-visu won't boot a dev server unless
   `settings.server` is configured. With no managed server, `generate` probes the URLs up front and
