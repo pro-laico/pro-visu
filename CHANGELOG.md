@@ -6,6 +6,8 @@ All notable changes to `pro-visu` are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-07-09
+
 ### Added
 
 - **The `icons` generator.** Showcase the icon set a project ships: point it at a folder (`dir`)
