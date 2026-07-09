@@ -397,7 +397,7 @@ export default defineConfig({
         output: { width: 800, height: 800, durationMs: 6000 },
         layout: { background: INK, gap: 40, padding: 80 },
         base: { color: PAPER },
-        steps: [{ kind: "scale", at: 0.05, span: 0.9, order: "forward", stagger: 1, scale: 1.7, hold: 0.12 }],
+        steps: [{ kind: "scale", at: 0.05, span: 0.9, order: "forward", stagger: 0.85, scale: 1.6, hold: 0.2 }],
       },
     },
     // A pattern, all at once: stagger 0 fires a checkerboard together, then the alternate rows.
@@ -426,7 +426,7 @@ export default defineConfig({
         layout: { background: INK, gap: 40, padding: 80 },
         base: { color: PAPER },
         steps: [
-          { kind: "scale", at: 0.02, span: 0.5, order: "radial-out", stagger: 0.75, scale: 1.45 },
+          { kind: "scale", at: 0.02, span: 0.5, order: "radial-out", stagger: 0.6, scale: 1.45 },
           { kind: "color", at: 0.3, span: 0.5, order: "diagonal", stagger: 0.6, color: COGNAC },
           { kind: "spin", at: 0.55, span: 0.4, order: "random", stagger: 0.7, turns: 1 },
         ],
