@@ -39,25 +39,22 @@ export const options = [
     { name: 'endDwellMs', type: 'number', default: '800', description: `Dwell after the last step (ms).` },
     { name: 'waitUntil', type: "'load' | 'domcontentloaded' | 'networkidle' | 'commit'", default: "'networkidle'", description: `Page-load milestone to wait for before recording.` },
     { name: 'waitForSelector', type: 'string', description: `Optional element to wait for before recording, e.g. a hero section. Omit to skip.` },
-    { name: 'stickyHeaderHeight', type: 'number', default: '0', description: `Height (px) of a sticky/fixed header. scrollTo keeps targets clear of it: top-align drops them fully below it (offset stacks on top), center-align uses half of it, bottom-align is unaffected.` },
+    { name: 'stickyHeaderHeight', type: 'number', default: '0', description: `Height (px) of a sticky/fixed header. scrollTo keeps targets clear of it: top-align drops them below it (coalesced with the target's own CSS scroll-margin-top — the larger wins, not summed — then offset stacks on top), center-align uses half of it, bottom-align is unaffected.` },
   ] },
-  { name: 'actions', type: 'Action[]', default: '[]', description: `The scripted steps, performed live with a visible synthetic cursor. Each step's do value picks its shape (below). Omit only when focus alone (scroll-into-view + hold) is enough — an interaction needs actions and/or focus.`, variantKey: 'do', variants: [
+  { name: 'actions', type: 'Action[]', default: '[]', description: `The scripted steps, performed live with a visible synthetic cursor. Each step's do value picks its shape (below). Steps run back-to-back with no built-in pause — insert a wait step to hold between them. Omit only when focus alone (scroll-into-view + a wait) is enough — an interaction needs actions and/or focus.`, variantKey: 'do', variants: [
     { name: 'move', description: `Glide the cursor to a target without clicking. Give a selector, or x/y for empty space.`, options: [
       { name: 'selector', type: 'string', description: `Element to glide onto. Omit to steer by x/y.` },
       { name: 'x', type: 'number', description: `Viewport-relative X (0..1) when there is no selector. Steers the real pointer too, so gliding into empty space lifts :hover off whatever was under it.` },
       { name: 'y', type: 'number', description: `Viewport-relative Y (0..1) when there is no selector.` },
       { name: 'durationMs', type: 'number', default: '700', description: `Cursor travel time (ms).` },
-      { name: 'holdMs', type: 'number', default: '600', description: `Pause after arriving (ms).` },
     ] },
     { name: 'click', description: `Glide to an element and click it.`, options: [
       { name: 'selector', type: 'string', required: true, description: `Element to click.` },
       { name: 'durationMs', type: 'number', default: '700', description: `Cursor travel time to the element (ms).` },
-      { name: 'holdMs', type: 'number', default: '600', description: `Pause after the click (ms).` },
     ] },
-    { name: 'hover', description: `Glide onto an element and rest, firing :hover.`, options: [
+    { name: 'hover', description: `Glide onto an element and rest, firing :hover. Follow with a wait to dwell.`, options: [
       { name: 'selector', type: 'string', required: true, description: `Element to hover.` },
       { name: 'durationMs', type: 'number', default: '700', description: `Cursor travel time to the element (ms).` },
-      { name: 'holdMs', type: 'number', default: '600', description: `Pause while hovering (ms).` },
     ] },
     { name: 'type', description: `Type text into a field — the selector, or the already-focused field.`, options: [
       { name: 'text', type: 'string', required: true, description: `Text to type.` },
@@ -65,7 +62,6 @@ export const options = [
       { name: 'delayMs', type: 'number', default: '55', description: `Ms between keystrokes (0 = instant). Humanized with mild jitter.` },
       { name: 'easing', type: 'Easing', default: "'linear'", description: `Eases the keystroke cadence across the run — "ease-in" starts quick and trails off, "ease-out" starts measured and quickens — without changing total time.` },
       { name: 'durationMs', type: 'number', default: '700', description: `Cursor travel time when a selector is given (the cursor glides to the field first).` },
-      { name: 'holdMs', type: 'number', default: '600', description: `Pause after typing (ms).` },
     ] },
     { name: 'erase', description: `Delete characters from a field — the selector, or the already-focused field.`, options: [
       { name: 'selector', type: 'string', description: `Field to erase from. Omit to act on the already-focused field.` },
@@ -73,22 +69,21 @@ export const options = [
       { name: 'delayMs', type: 'number', default: '80', description: `Ms between keystrokes (0 = instant). Humanized with mild jitter.` },
       { name: 'easing', type: 'Easing', default: "'linear'", description: `Eases the keystroke cadence across the run without changing total time.` },
       { name: 'durationMs', type: 'number', default: '700', description: `Cursor travel time when a selector is given.` },
-      { name: 'holdMs', type: 'number', default: '600', description: `Pause after erasing (ms).` },
     ] },
     { name: 'press', description: `Press a key, optionally as a chord with modifiers.`, options: [
       { name: 'key', type: 'string', required: true, description: `The key to press, e.g. "Enter", "Escape", "ArrowDown", or "f".` },
       { name: 'modifiers', type: "('Control' | 'Shift' | 'Alt' | 'Meta')[]", description: `Modifier keys held during the press, e.g. ["Control"] for Ctrl+F.` },
-      { name: 'holdMs', type: 'number', default: '600', description: `Pause after the press (ms).` },
     ] },
     { name: 'scrollTo', description: `Scroll a target into view.`, options: [
       { name: 'to', type: 'number | string', required: true, description: `Scroll target: a 0..1 number, an "NN%" string, or a CSS selector.` },
       { name: 'align', type: "'top' | 'center' | 'bottom'", default: "'top'", description: `For a selector target: where it lands in the viewport.` },
       { name: 'offset', type: 'number', description: `Px to nudge the resting position. Top-aligned, a positive offset leaves that many px of room above the target; negative scrolls past it.` },
-      { name: 'durationMs', type: 'number', default: '700', description: `Scroll animation time (ms).` },
-      { name: 'holdMs', type: 'number', default: '600', description: `Pause after scrolling (ms).` },
+      { name: 'speed', type: 'number', default: '400', description: `Scroll speed in CSS px/second — the default pacing. The step runs for as long as the distance needs (distance ÷ speed), so every scroll moves at the same steady, human pace regardless of how far it travels.` },
+      { name: 'durationMs', type: 'number', description: `A FIXED scroll time (ms) that overrides the default speed pacing — use it for a constant-time scroll, or durationMs: 0 for an instant jump (handy in setup). Omit to let speed pace it.` },
+      { name: 'easing', type: 'Easing', default: "'ease-in-out'", description: `Shapes the scroll travel — "linear" holds a constant velocity (natural with speed), "ease-in-out" softens both ends.` },
     ] },
-    { name: 'wait', description: `Hold in place, doing nothing.`, options: [
-      { name: 'holdMs', type: 'number', default: '600', description: `How long to wait (ms).` },
+    { name: 'wait', description: `Hold in place, doing nothing — the way to pause between steps.`, options: [
+      { name: 'durationMs', type: 'number', default: '600', description: `How long to wait (ms).` },
     ] },
   ] },
   { name: 'setup', type: 'Action[]', default: '[]', description: `Off-camera steps run before recording starts — pre-position the cursor, scroll, or set UI state so frame 0 is exactly where you want it. Trimmed from the output. Key to a seamless loop: place the cursor on the first target here with durationMs 0 so the clip doesn't open with a glide-in from center.`, options: [
@@ -102,11 +97,10 @@ export const options = [
     { name: 'size', type: 'number', description: `Cursor size (px). Defaults to 22.` },
     { name: 'color', type: 'string', description: `Cursor color. Defaults to white-with-shadow.` },
   ] },
-  { name: 'focus', type: 'Focus', description: `Element-focused clip: scroll one component into view, optionally trigger it, hold, and crop the output to its box. The crop box is measured AFTER any trigger actions run, so an expanded dropdown/drawer stays in frame. Omit for a full-viewport recording.`, options: [
+  { name: 'focus', type: 'Focus', description: `Element-focused clip: scroll one component into view, optionally trigger/dwell it, and crop the output to its box. The crop box is measured AFTER any actions run, so an expanded dropdown/drawer stays in frame. Omit for a full-viewport recording.`, options: [
     { name: 'selector', type: 'string', required: true, description: `Selector of the element to scroll into view and crop to.` },
     { name: 'padding', type: 'number', description: `Padding (px) around the element when cropping. Defaults to 24.` },
-    { name: 'actions', type: 'Action[]', description: `Optional steps to trigger the component (e.g. open a dropdown) before holding.` },
-    { name: 'holdMs', type: 'number', description: `Time to dwell on the element after positioning / triggering (ms). Defaults to 2000.` },
+    { name: 'actions', type: 'Action[]', description: `Steps to trigger the component (e.g. open a dropdown) and/or dwell on it — end with a wait to hold on the element.` },
   ] },
   { name: 'colorScheme', type: "'light' | 'dark'", description: `Force a color scheme for the capture. Omit to leave as-is.` },
 ]
@@ -150,14 +144,14 @@ interactive view; **TypeScript** is the same shape in code, every option at its 
 
     // --- the scripted tour (needs actions and/or focus) ---
     actions: [
-      { do: "click", selector: "#menu-button" }, // per action: durationMs 700, holdMs 600
+      { do: "click", selector: "#menu-button" }, // durationMs 700 travel; add a { do: "wait" } to pause after
     ],
     // setup:    [], // off-camera steps before recording (pre-position cursor / scroll); trimmed out
     // teardown: [], // off-camera steps after recording (reset state); trimmed out
     // cursor: { show: true, size: 22, color: "#0b0b0f" }, // optional; default white-with-shadow
 
     // --- element-focused clip (alternative / addition to actions) ---
-    // focus: { selector: "#pricing-card", padding: 24, holdMs: 2000, actions: [] },
+    // focus: { selector: "#pricing-card", padding: 24, actions: [{ do: "wait", durationMs: 2000 }] },
 
     // --- variant ---
     // colorScheme: "dark",          // optional; force light or dark
@@ -191,17 +185,24 @@ pin the scroll to the top, landing exactly where it began.
   generator: "interaction",
   options: {
     cursor: { color: "#8c7355" }, // the tinted synthetic cursor on screen
-    setup: [{ do: "move", selector: ".wordmark", durationMs: 0, holdMs: 0 }], // park where the tour ends
+    setup: [{ do: "move", selector: ".wordmark", durationMs: 0 }], // park where the tour ends
     actions: [
-      { do: "click", selector: ".nav-inline a:nth-child(1)", holdMs: 1300 }, // → /shop
-      { do: "scrollTo", to: "#edit", durationMs: 1000, holdMs: 700 },
-      { do: "click", selector: ".edit-thumb:nth-child(2)", holdMs: 900 },
-      { do: "click", selector: ".edit-thumb:nth-child(3)", holdMs: 900 },
-      { do: "click", selector: ".edit-thumb:nth-child(4)", holdMs: 1000 },
-      { do: "click", selector: ".nav-inline a:nth-child(3)", holdMs: 1500 }, // → /about (hero)
-      { do: "wait", holdMs: 900 },
-      { do: "click", selector: ".wordmark", holdMs: 400 },                    // → home
-      { do: "scrollTo", to: 0, durationMs: 0, holdMs: 1400 },                 // pin to the top → loops
+      { do: "click", selector: ".nav-inline a:nth-child(1)" }, // → /shop
+      { do: "wait", durationMs: 1300 },
+      { do: "scrollTo", to: "#edit" },                         // speed-paced (~400 px/s)
+      { do: "wait", durationMs: 700 },
+      { do: "click", selector: ".edit-thumb:nth-child(2)" },
+      { do: "wait", durationMs: 900 },
+      { do: "click", selector: ".edit-thumb:nth-child(3)" },
+      { do: "wait", durationMs: 900 },
+      { do: "click", selector: ".edit-thumb:nth-child(4)" },
+      { do: "wait", durationMs: 1000 },
+      { do: "click", selector: ".nav-inline a:nth-child(3)" }, // → /about (hero)
+      { do: "wait", durationMs: 2400 },
+      { do: "click", selector: ".wordmark" },                  // → home
+      { do: "wait", durationMs: 400 },
+      { do: "scrollTo", to: 0, durationMs: 0 },                // instant pin to the top → loops
+      { do: "wait", durationMs: 1400 },
     ],
   },
 }`}
@@ -237,18 +238,22 @@ below the sizes in frame, so the whole component reads as one unit.
   options: {
     cursor: { color: "#8c7355" }, // the tinted synthetic cursor on screen
     // off-camera: select XS so the loop opens on the first size
-    setup: [{ do: "click", selector: ".size-options button:nth-of-type(1)", durationMs: 0, holdMs: 0 }],
+    setup: [{ do: "click", selector: ".size-options button:nth-of-type(1)", durationMs: 0 }],
     focus: {
       selector: ".addbag",
       padding: 24,
       actions: [
-        { do: "click", selector: ".size-options button:nth-of-type(2)", holdMs: 600 }, // S
-        { do: "click", selector: ".size-options button:nth-of-type(3)", holdMs: 600 }, // M
-        { do: "click", selector: ".size-options button:nth-of-type(4)", holdMs: 600 }, // L
-        { do: "click", selector: ".size-options button:nth-of-type(5)", holdMs: 600 }, // XL
-        { do: "click", selector: ".size-options button:nth-of-type(1)", holdMs: 900 }, // back to XS → loops
+        { do: "click", selector: ".size-options button:nth-of-type(2)" }, // S
+        { do: "wait", durationMs: 600 },
+        { do: "click", selector: ".size-options button:nth-of-type(3)" }, // M
+        { do: "wait", durationMs: 600 },
+        { do: "click", selector: ".size-options button:nth-of-type(4)" }, // L
+        { do: "wait", durationMs: 600 },
+        { do: "click", selector: ".size-options button:nth-of-type(5)" }, // XL
+        { do: "wait", durationMs: 600 },
+        { do: "click", selector: ".size-options button:nth-of-type(1)" }, // back to XS → loops
+        { do: "wait", durationMs: 900 },                                  // dwell on the element before the cut
       ],
-      holdMs: 300,
     },
   },
 }`}
@@ -288,23 +293,36 @@ first.
     cursor: { color: "#8c7355" }, // the tinted synthetic cursor on screen
     page: { waitForSelector: "#search-input", stickyHeaderHeight: 100 }, // header height → scrollTo lands below it
     setup: [
-      { do: "scrollTo", to: "#search-input", align: "top", offset: 40, durationMs: 0, holdMs: 0 }, // start on the field (40px below the header)
-      { do: "move", selector: "#search-input", durationMs: 0, holdMs: 0 },                          // park the cursor (frame 0)
+      { do: "scrollTo", to: "#search-input", align: "top", offset: 40, durationMs: 0 }, // start on the field (40px below the header)
+      { do: "move", selector: "#search-input", durationMs: 0 },                          // park the cursor (frame 0)
     ],
     actions: [
-      { do: "click", selector: "#search-input", holdMs: 400 },
-      { do: "type",  selector: "#search-input", text: "trousers", delayMs: 55, easing: "ease-out", holdMs: 300 },
-      { do: "press", key: "Enter", holdMs: 800 },                                     // submit → the list updates
-      { do: "hover", selector: ".product:first-child .product-media", holdMs: 1000 }, // ~1s on the result
-      { do: "erase", selector: "#search-input", delayMs: 80, easing: "ease-in", holdMs: 300 }, // clear the field
-      { do: "type",  selector: "#search-input", text: "knitwear", delayMs: 55, holdMs: 300 },   // edit the query
-      { do: "press", key: "Enter", holdMs: 800 },                                     // submit → two results
-      { do: "hover", selector: ".product:first-child .product-media", holdMs: 1000 }, // ~1s on the first
-      { do: "hover", selector: ".product:nth-child(2) .product-media", holdMs: 1000 }, // ~1s on the second
-      { do: "click", selector: ".product:nth-child(2) .product-link", holdMs: 2000 }, // open the second, dwell 2s
-      { do: "click", selector: ".nav-inline a:nth-child(1)", holdMs: 900 },           // → back to the list
-      { do: "scrollTo", to: "#search-input", align: "top", offset: 40, durationMs: 800, holdMs: 500 }, // glide to the start
-      { do: "move", selector: "#search-input", durationMs: 600, holdMs: 1000 },       // cursor back on the field → loops
+      { do: "click", selector: "#search-input" },
+      { do: "wait",  durationMs: 400 },
+      { do: "type",  selector: "#search-input", text: "trousers", delayMs: 55, easing: "ease-out" },
+      { do: "wait",  durationMs: 300 },
+      { do: "press", key: "Enter" },                                     // submit → the list updates
+      { do: "wait",  durationMs: 800 },
+      { do: "hover", selector: ".product:first-child .product-media" },  // glance at the result
+      { do: "wait",  durationMs: 1000 },
+      { do: "erase", selector: "#search-input", delayMs: 80, easing: "ease-in" }, // clear the field
+      { do: "wait",  durationMs: 300 },
+      { do: "type",  selector: "#search-input", text: "knitwear", delayMs: 55 },   // edit the query
+      { do: "wait",  durationMs: 300 },
+      { do: "press", key: "Enter" },                                     // submit → two results
+      { do: "wait",  durationMs: 800 },
+      { do: "hover", selector: ".product:first-child .product-media" },  // ~1s on the first
+      { do: "wait",  durationMs: 1000 },
+      { do: "hover", selector: ".product:nth-child(2) .product-media" }, // ~1s on the second
+      { do: "wait",  durationMs: 1000 },
+      { do: "click", selector: ".product:nth-child(2) .product-link" },  // open the second
+      { do: "wait",  durationMs: 2000 },                                 // dwell 2s
+      { do: "click", selector: ".nav-inline a:nth-child(1)" },           // → back to the list
+      { do: "wait",  durationMs: 900 },
+      { do: "scrollTo", to: "#search-input", align: "top", offset: 40, durationMs: 800 }, // fixed-time glide to the start
+      { do: "wait",  durationMs: 500 },
+      { do: "move", selector: "#search-input", durationMs: 600 },        // cursor back on the field → loops
+      { do: "wait",  durationMs: 1000 },
     ],
   },
 }`}
@@ -317,11 +335,24 @@ first.
 > Set `page.stickyHeaderHeight` to your header's height and top-aligned scrolls land **below** it —
 > `offset` then stacks on top (here, 40px under the header). If an action's target is off-screen, the
 > tool warns you to add a `scrollTo` rather than silently hard-jumping to it.
+>
+> **Scrolls are paced by distance, not a fixed time.** A `scrollTo` runs at `speed` (CSS px/second,
+> default `400`) for as long as the distance needs — `distance ÷ speed` — so every scroll moves at the
+> same steady, human pace whether it travels a whole page or a short hop. Raise or lower `speed` to taste;
+> pair it with `easing: "linear"` for a true constant velocity (the default `ease-in-out` softens both
+> ends, peaking ~2× mid-scroll). For a **fixed-time** scroll instead, set `durationMs` — and `durationMs: 0`
+> jumps instantly, which is how `setup` pins the camera without an on-screen scroll.
+>
+> ```ts
+> { do: "scrollTo", to: 1, speed: 1000, easing: "linear" } // to the bottom at a steady 1000 px/s
+> { do: "scrollTo", to: 0, durationMs: 0 }                 // instant jump to the top (e.g. in setup)
+> ```
 
 ### Element focus
 
-`focus` scrolls one component into view, optionally triggers it, holds, and crops the output to its
-box — the crop is measured after the trigger actions, so an expanded state stays in frame. This one
+`focus` scrolls one component into view, optionally triggers and dwells on it (end `focus.actions` with
+a `wait`), and crops the output to its box — the crop is measured after the actions, so an expanded
+state stays in frame. This one
 opens at rest with the cursor parked just off the card (a selector-less `move` steers the real pointer
 too, so nothing is hovered). The cursor glides on — the controls reveal and the image zooms — the
 wishlist fills, the button confirms **Added to bag**, the heart clears, then the cursor glides back off
@@ -337,18 +368,22 @@ the card, which lifts the hover and settles it to rest again: an exact match for
   generator: "interaction",
   options: {
     cursor: { color: "#8c7355" }, // the tinted synthetic cursor on screen
-    setup: [{ do: "move", x: 0.16, y: 0.87, durationMs: 0, holdMs: 0 }], // rest: cursor just off the card
+    setup: [{ do: "move", x: 0.16, y: 0.87, durationMs: 0 }], // rest: cursor just off the card
     focus: {
       selector: "#feature-card",
       padding: 26,
       actions: [
-        { do: "hover", selector: "#feature-card .product-media", holdMs: 900 }, // reveal + zoom
-        { do: "click", selector: "#feature-card .wishlist", holdMs: 1000 },      // heart fills
-        { do: "click", selector: "#feature-card .quick-add", holdMs: 1300 },     // → "Added to bag"
-        { do: "click", selector: "#feature-card .wishlist", holdMs: 700 },       // heart clears
-        { do: "move", x: 0.16, y: 0.87, durationMs: 600, holdMs: 1100 },         // glide off → card resets → frame 0
+        { do: "hover", selector: "#feature-card .product-media" }, // reveal + zoom
+        { do: "wait", durationMs: 900 },
+        { do: "click", selector: "#feature-card .wishlist" },      // heart fills
+        { do: "wait", durationMs: 1000 },
+        { do: "click", selector: "#feature-card .quick-add" },     // → "Added to bag"
+        { do: "wait", durationMs: 1300 },
+        { do: "click", selector: "#feature-card .wishlist" },      // heart clears
+        { do: "wait", durationMs: 700 },
+        { do: "move", x: 0.16, y: 0.87, durationMs: 600 },         // glide off → card resets → frame 0
+        { do: "wait", durationMs: 1100 },
       ],
-      holdMs: 300,
     },
   },
 }`}

@@ -12,8 +12,10 @@ import { applyPostNav, installNetworkHygiene, installPreNav } from "@/pipeline/c
 
 /** Default cursor travel / scroll-animation time for a step that omits `durationMs`. */
 export const DEFAULT_ACTION_DURATION_MS = 700;
-/** Default pause after a step that omits `holdMs`. */
-export const DEFAULT_ACTION_HOLD_MS = 600;
+/** Default `scrollTo` speed (CSS px/second) when a step gives neither `speed` nor `durationMs` — scrolls are distance-paced by default. */
+export const DEFAULT_SCROLL_SPEED = 400;
+/** Default pause for a `wait` step that omits `durationMs`. */
+export const DEFAULT_WAIT_MS = 600;
 /** Default per-keystroke pace for `type` (ms). */
 export const DEFAULT_TYPE_DELAY_MS = 55;
 /** Default per-keystroke pace for `erase` (ms). */
@@ -47,8 +49,6 @@ export function writeDurationMs(a: { do: string; text?: string; count?: number; 
   if (a.do === "erase") return (a.count ?? 0) * (a.delayMs ?? DEFAULT_ERASE_DELAY_MS);
   return 0;
 }
-/** Default dwell on the focused element. */
-const DEFAULT_FOCUS_HOLD_MS = 2000;
 /** Default padding around a focused element when cropping. */
 const DEFAULT_FOCUS_PADDING = 24;
 
@@ -86,21 +86,20 @@ export function clampCrop(
 type InteractionAction = ResolvedInteractionOptions["actions"][number];
 
 /**
- * Pure: estimated interaction clip length in ms (start delay + each step's travel + keystroke time +
- * hold + end dwell). An estimate only — the actual kept-window length is measured at run time (jitter
- * and `erase`-all length aren't known statically), so this is a lower bound used for tests/sanity.
+ * Pure: estimated interaction clip length in ms (start delay + each step's travel/pause + keystroke
+ * time + end dwell). An estimate only — the actual kept-window length is measured at run time (jitter,
+ * `erase`-all length and speed-paced scrolls aren't known statically), so this is a lower bound used
+ * for tests/sanity. A `wait` step contributes its `durationMs` (the pause); every other step its travel.
  */
 export function interactionTotalMs(
-  actions: Array<{ do?: string; text?: string; count?: number; delayMs?: number; durationMs?: number; holdMs?: number }>,
+  actions: Array<{ do?: string; text?: string; count?: number; delayMs?: number; durationMs?: number }>,
   startDelayMs: number,
   endDwellMs: number,
 ): number {
   let total = startDelayMs + endDwellMs;
   for (const a of actions) {
-    total +=
-      (a.durationMs ?? DEFAULT_ACTION_DURATION_MS) +
-      writeDurationMs({ do: a.do ?? "", text: a.text, count: a.count, delayMs: a.delayMs }) +
-      (a.holdMs ?? DEFAULT_ACTION_HOLD_MS);
+    const base = a.durationMs ?? (a.do === "wait" ? DEFAULT_WAIT_MS : DEFAULT_ACTION_DURATION_MS);
+    total += base + writeDurationMs({ do: a.do ?? "", text: a.text, count: a.count, delayMs: a.delayMs });
   }
   return total;
 }
@@ -166,6 +165,16 @@ function installCursorRuntime(opts: { show: boolean; size: number; color: string
       }
     };
     const ease = (t: number): number => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+    // The shared easing vocabulary (mirrors EASINGS in generators/easing.ts) so `scrollTo` can honor an author's `easing`.
+    const easeInOut = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+    const easings: Record<string, (t: number) => number> = {
+      linear: (t) => t,
+      "ease-in": (t) => t * t * t,
+      "ease-out": (t) => 1 - Math.pow(1 - t, 3),
+      "ease-in-out": easeInOut,
+      "ease-out-strong": (t) => 1 - Math.pow(1 - t, 5),
+      "ease-in-out-strong": (t) => (t < 0.5 ? 16 * t ** 5 : 1 - Math.pow(-2 * t + 2, 5) / 2),
+    };
     const tween = (x1: number, y1: number, ms: number): Promise<void> =>
       new Promise((resolve) => {
         const x0 = state.x;
@@ -198,7 +207,7 @@ function installCursorRuntime(opts: { show: boolean; size: number; color: string
         const rect = el.getBoundingClientRect();
         await tween(rect.left + rect.width / 2, rect.top + rect.height / 2, ms);
       },
-      scrollTo: async (to: any, ms: number, align?: string, offset?: number, headerH?: number): Promise<void> => {
+      scrollTo: async (to: any, ms: number, align?: string, offset?: number, headerH?: number, speed?: number, easing?: string): Promise<void> => {
         const se = doc.scrollingElement || doc.documentElement;
         const max = Math.max(0, se.scrollHeight - se.clientHeight);
         const off = offset || 0;
@@ -220,22 +229,28 @@ function installCursorRuntime(opts: { show: boolean; size: number; color: string
               } catch {
                 /* ignore */
               }
-              target = elTopDoc - margin - off - (headerH || 0);
+              // Coalesce (don't stack) the site's own scroll-margin-top with our stickyHeaderHeight — both
+              // exist to clear the same header, so use whichever is larger or a `.section` (margin) target
+              // lands twice as far down as a plain one.
+              target = elTopDoc - Math.max(margin, headerH || 0) - off;
             }
           }
         }
         target = Math.max(0, Math.min(max, target));
         const from = g.pageYOffset || se.scrollTop || 0;
-        if (ms <= 0) {
+        // A `speed` (px/s) derives the duration from the actual distance, so a long scroll takes longer at a steady human pace; else use the fixed `ms`.
+        const dur = speed && speed > 0 ? (Math.abs(target - from) / speed) * 1000 : ms;
+        if (dur <= 0) {
           g.scrollTo(0, target);
           return;
         }
+        const curve = (easing && easings[easing]) || easeInOut;
         await new Promise<void>((resolve) => {
           let start: number | null = null;
           const step = (now: number): void => {
             if (start === null) start = now;
-            const t = Math.min(1, (now - start) / ms);
-            g.scrollTo(0, from + (target - from) * ease(t));
+            const t = Math.min(1, (now - start) / dur);
+            g.scrollTo(0, from + (target - from) * curve(t));
             if (t < 1) g.requestAnimationFrame(step);
             else resolve();
           };
@@ -330,26 +345,33 @@ async function runAction(page: Page, a: InteractionAction, durationMs: number, l
   }
   switch (a.do) {
     case "wait":
+      await sleep(a.durationMs ?? DEFAULT_WAIT_MS);
       return;
-    case "scrollTo":
+    case "scrollTo": {
+      // scrollTo is distance-paced by default: with no `speed` and no explicit `durationMs`, use the default speed.
+      // An explicit `durationMs` (including 0 for an instant jump) opts back into a fixed-time scroll.
+      const scrollSpeed = a.speed ?? (a.durationMs == null ? DEFAULT_SCROLL_SPEED : 0);
       await page.evaluate(
-        (p: { to: number | string; ms: number; align: string; offset: number; headerH: number }) =>
+        (p: { to: number | string; ms: number; align: string; offset: number; headerH: number; speed: number; easing: string }) =>
           (
             globalThis as {
               __sc?: {
-                scrollTo(to: number | string, ms: number, align: string, offset: number, headerH: number): Promise<void>;
+                scrollTo(to: number | string, ms: number, align: string, offset: number, headerH: number, speed: number, easing: string): Promise<void>;
               };
             }
-          ).__sc?.scrollTo(p.to, p.ms, p.align, p.offset, p.headerH),
+          ).__sc?.scrollTo(p.to, p.ms, p.align, p.offset, p.headerH, p.speed, p.easing),
         {
           to: a.to ?? a.selector ?? 0,
-          ms: durationMs,
+          ms: a.durationMs ?? 0,
           align: a.align ?? "top",
           offset: a.offset ?? 0,
           headerH: stickyHeaderHeight,
+          speed: scrollSpeed,
+          easing: a.easing ?? "",
         },
       ); //EXCUSE: runs in the browser (page.evaluate/$eval/init script); DOM globals absent from Node lib types
       return;
+    }
     case "move":
       if (a.selector) {
         await page.evaluate(
@@ -429,7 +451,7 @@ async function runAction(page: Page, a: InteractionAction, durationMs: number, l
   }
 }
 
-/** Run a list of steps in sequence (cursor travel + real action + per-step hold), warning on failure. */
+/** Run a list of steps in sequence (cursor travel + real action), warning on failure. To pause between steps, insert a `wait`. */
 async function runActionList(
   page: Page,
   actions: InteractionAction[],
@@ -444,7 +466,6 @@ async function runActionList(
     } catch (e) {
       logger.warn(`${label} step "${a.do}"${a.selector ? ` (${a.selector})` : ""} failed: ${(e as Error).message}`);
     }
-    await sleep(a.holdMs ?? DEFAULT_ACTION_HOLD_MS);
   }
 }
 
@@ -567,7 +588,6 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
   const page = await context.newPage();
   const video = page.video();
   const actions = focus.actions ?? [];
-  const holdMs = focus.holdMs ?? DEFAULT_FOCUS_HOLD_MS;
   const padding = focus.padding ?? DEFAULT_FOCUS_PADDING;
   const twoFrames = (): Promise<void> =>
     page.evaluate(
@@ -627,7 +647,6 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
     } else {
       logger.warn(`focus: selector "${focus.selector}" not found — capturing the full viewport`);
     }
-    await sleep(holdMs);
     await sleep(options.page.endDwellMs);
     keptMs = Date.now() - keptStart;
 

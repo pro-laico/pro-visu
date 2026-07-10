@@ -179,7 +179,7 @@ export interface ShowcaseSettingsInput {
    * `enabled` matches it. Explicit `--asset` selection on the CLI overrides this.
    */
   enabled?: EnabledFlag;
-  /** Output directory for generated assets, relative to the repo root (default "pro-visu"). */
+  /** Output directory for generated assets, relative to the `pro-visu/` config dir (default "output", i.e. pro-visu/output/). */
   outDir?: string;
   /** How many assets to generate in parallel (shared browser, separate contexts). */
   concurrency?: number;

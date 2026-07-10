@@ -257,11 +257,13 @@ The viewport × color-scheme matrix is emitted as separate assets (`<name>-<suff
 }
 ```
 
-- `actions: [{ do: "move" | "click" | "hover" | "type" | "scrollTo" | "wait", selector?, x?, y?, text?, to?, durationMs?, holdMs? }]`
+- `actions: [{ do: "move" | "click" | "hover" | "type" | "scrollTo" | "wait", selector?, x?, y?, text?, to?, durationMs?, speed? }]`
   drives a scripted tour with a synthetic `cursor: { show?, size?, color? }`. Always records
-  **realtime** (interactions and their animations are time-based).
-- `focus: { selector, padding?, actions?, holdMs? }` — capture a single component (optionally trigger
-  it first), cropped to its box.
+  **realtime** (interactions and their animations are time-based). Steps run back-to-back with no
+  built-in pause — insert a `{ do: "wait", durationMs }` to hold. `scrollTo` is distance-paced by
+  `speed` (px/s, default 400) unless you set a fixed `durationMs`.
+- `focus: { selector, padding?, actions? }` — capture a single component (optionally trigger it and/or
+  end `actions` with a `wait` to dwell), cropped to its box.
 
 ## Media wall & composition
 

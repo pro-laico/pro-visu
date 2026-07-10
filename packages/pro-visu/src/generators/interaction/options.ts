@@ -26,10 +26,10 @@ const interactionActionSchema = z.object({
       .describe(
         "For `type`/`erase`: milliseconds between keystrokes (0 = instant). Default 55 (type) / 80 (erase). Humanized with mild jitter.",
       ),
-    /** Eases the per-keystroke cadence across a `type`/`erase` run. */
+    /** Eases a `scrollTo` motion, or the per-keystroke cadence of a `type`/`erase` run. */
     easing: easingSchema.optional()
       .describe(
-        'For `type`/`erase`: eases the keystroke cadence across the run — "ease-in" starts quick and trails off, "ease-out" starts measured and quickens — without changing the total time. Default "linear".',
+        'Eases the motion curve. For `scrollTo`: shapes the scroll travel — "linear" holds a constant velocity (natural with `speed`), "ease-in-out" (the default) softens both ends. For `type`/`erase`: eases the keystroke cadence across the run — "ease-in" starts quick and trails off, "ease-out" starts measured and quickens — without changing the total time (default "linear").',
       ),
     /** Key to press (for `press`), e.g. "Enter", "Escape", "ArrowDown", "f". */
     key: z.string().optional().describe('For `press`: the key to press, e.g. "Enter", "Escape", "ArrowDown", or "f".'),
@@ -47,10 +47,16 @@ const interactionActionSchema = z.object({
       .describe(
         "For `scrollTo`: px to nudge the final scroll position. Top-aligned, a positive offset leaves that many px of room above the target; negative scrolls past it.",
       ),
-    /** Cursor travel / scroll animation time (ms). Default 700. */
-    durationMs: z.number().int().nonnegative().optional().describe("Cursor travel / scroll animation time (ms). Default 700."),
-    /** Pause after the step (ms). Default 600. */
-    holdMs: z.number().int().nonnegative().optional().describe("Pause after the step (ms). Default 600."),
+    /** Cursor travel time (ms, default 700). For `scrollTo` a FIXED scroll time (0 = instant); for `wait` how long to pause (default 600). */
+    durationMs: z.number().int().nonnegative().optional()
+      .describe(
+        "Cursor travel time (ms), default 700. For `scrollTo` it instead sets a FIXED scroll time, overriding the default speed-based pacing — `durationMs: 0` jumps instantly (handy in `setup`). For `wait` it's how long to pause (default 600). Steps have no built-in trailing pause — insert a `wait` between steps to hold.",
+      ),
+    /** For `scrollTo`: scroll speed in CSS px/second — the clip runs as long as the distance needs. Default 400. */
+    speed: z.number().positive().optional()
+      .describe(
+        "For `scrollTo`: scroll speed in CSS px/second. Scrolls are speed-paced by default (400 px/s) — the step runs for as long as the distance needs (distance ÷ speed), so a long page scrolls for longer at a steady, human pace. Set an explicit `durationMs` to force a fixed-time scroll instead.",
+      ),
   })
   .strict();
 
@@ -70,7 +76,7 @@ export const interactionOptionsSchema = z.object({
         /** Height (px) of a sticky/fixed header. `scrollTo` keeps targets clear of it (see align). */
         stickyHeaderHeight: z.number().int().nonnegative().default(0)
           .describe(
-            "Height (px) of a sticky/fixed header. `scrollTo` keeps targets clear of it: top-align drops them fully below it (the step's `offset` stacks on top), center-align uses half of it, bottom-align is unaffected. Default 0.",
+            "Height (px) of a sticky/fixed header. `scrollTo` keeps targets clear of it: top-align drops them below it (coalesced with the target's own CSS `scroll-margin-top` — the larger wins, not summed — then the step's `offset` stacks on top), center-align uses half of it, bottom-align is unaffected. Default 0.",
           ),
       })
       .strict()
@@ -104,23 +110,20 @@ export const interactionOptionsSchema = z.object({
         color: z.string().optional().describe("Cursor color. Default white-with-shadow."),
       }).strict().optional().describe("The synthetic cursor shown during the recording. Omit for the default cursor."),
     /**
-     * Element-focused clip: scroll one component into view, optionally trigger it (`focus.actions`),
-     * hold, and crop the output to its box (+padding).
+     * Element-focused clip: scroll one component into view, optionally trigger/dwell via `focus.actions`,
+     * and crop the output to its box (+padding). To hold on the element, end `focus.actions` with a `wait`.
      */
     focus: z.object({
         selector: z.string().describe("Selector of the element to scroll into view and crop to."),
         /** Padding (px) around the element when cropping. Default 24. */
         padding: z.number().int().nonnegative().optional().describe("Padding (px) around the element when cropping. Default 24."),
-        /** Optional steps to trigger the component (e.g. open a dropdown) before holding. */
+        /** Steps to trigger the component and/or dwell on it — end with a `wait` to hold. */
         actions: z.array(interactionActionSchema).optional()
-          .describe("Optional steps to trigger the component (e.g. open a dropdown) before holding."),
-        /** Time to dwell on the element after positioning/triggering (ms). Default 2000. */
-        holdMs: z.number().int().nonnegative().optional()
-          .describe("Time to dwell on the element after positioning / triggering (ms). Default 2000."),
+          .describe("Steps to trigger the component (e.g. open a dropdown) and/or dwell on it — end with a `wait` to hold on the element."),
       }).strict()
       .optional()
       .describe(
-        "Element-focused clip: scroll one component into view, optionally trigger it, hold, and crop the output to its box. Omit for a full-viewport recording.",
+        "Element-focused clip: scroll one component into view, optionally trigger/dwell it, and crop the output to its box. End `focus.actions` with a `wait` to hold. Omit for a full-viewport recording.",
       ),
   })
   .strict()
@@ -150,7 +153,7 @@ export interface InteractionActionInput {
   count?: number;
   /** For `type`/`erase`: ms between keystrokes (0 = instant). Default 55 (type) / 80 (erase). Jittered. */
   delayMs?: number;
-  /** For `type`/`erase`: eases the keystroke cadence across the run (total time unchanged). Default "linear". */
+  /** Eases a `scrollTo` motion ("linear" = constant velocity, "ease-in-out" default), or the `type`/`erase` keystroke cadence (default "linear"). */
   easing?: Easing;
   /** For `press`: the key to press, e.g. "Enter", "Escape", "ArrowDown", "f". */
   key?: string;
@@ -162,10 +165,10 @@ export interface InteractionActionInput {
   align?: "top" | "center" | "bottom";
   /** For `scrollTo`: px to nudge the resting position (top-align: +N leaves N px above the target; −N scrolls past it). */
   offset?: number;
-  /** Cursor travel / scroll animation time (ms). Default 700. */
+  /** Cursor travel time (ms, default 700). For `scrollTo`: a FIXED scroll time (0 = instant). For `wait`: how long to pause (default 600). */
   durationMs?: number;
-  /** Pause after the step (ms). Default 600. */
-  holdMs?: number;
+  /** For `scrollTo`: scroll speed in CSS px/second. Scrolls are speed-paced by default (400) — runs as long as distance ÷ speed needs. Set `durationMs` for a fixed-time scroll. */
+  speed?: number;
 }
 
 /** The synthetic cursor shown during the recording. */
@@ -184,10 +187,8 @@ export interface FocusInput {
   selector: string;
   /** Padding (px) around the element when cropping. Default 24. */
   padding?: number;
-  /** Optional steps to trigger the component (e.g. open a dropdown) before holding. */
+  /** Steps to trigger the component and/or dwell on it — end with a `wait` to hold on the element. */
   actions?: InteractionActionInput[];
-  /** Time to dwell on the element after positioning / triggering (ms). Default 2000. */
-  holdMs?: number;
 }
 
 /** Video output: size, scale, frame rate, encoding, filename. */

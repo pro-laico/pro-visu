@@ -5,7 +5,7 @@ import {
   keystrokeGaps,
   writeDurationMs,
   DEFAULT_ACTION_DURATION_MS,
-  DEFAULT_ACTION_HOLD_MS,
+  DEFAULT_WAIT_MS,
   DEFAULT_TYPE_DELAY_MS,
   DEFAULT_ERASE_DELAY_MS,
 } from "@/generators/interaction/capture";
@@ -16,32 +16,26 @@ describe("interactionTotalMs", () => {
     expect(interactionTotalMs([], 500, 800)).toBe(1300);
   });
 
-  it("applies per-step defaults", () => {
+  it("applies the per-step travel default (no trailing hold)", () => {
     const total = interactionTotalMs([{}, {}], 0, 0);
-    expect(total).toBe(2 * (DEFAULT_ACTION_DURATION_MS + DEFAULT_ACTION_HOLD_MS));
+    expect(total).toBe(2 * DEFAULT_ACTION_DURATION_MS);
+  });
+
+  it("a `wait` step contributes its durationMs (default when omitted)", () => {
+    expect(interactionTotalMs([{ do: "wait" }], 0, 0)).toBe(DEFAULT_WAIT_MS);
+    expect(interactionTotalMs([{ do: "wait", durationMs: 1200 }], 0, 0)).toBe(1200);
   });
 
   it("honors explicit step timings", () => {
-    const total = interactionTotalMs(
-      [
-        { durationMs: 1000, holdMs: 500 },
-        { durationMs: 200, holdMs: 0 },
-      ],
-      100,
-      100,
-    );
-    // 100 + 100 + (1000 + 500) + (200 + 0) = 1900
-    expect(total).toBe(1900);
+    const total = interactionTotalMs([{ durationMs: 1000 }, { durationMs: 200 }], 100, 100);
+    // 100 + 100 + 1000 + 200 = 1400
+    expect(total).toBe(1400);
   });
 
   it("adds keystroke time for type/erase steps", () => {
-    // type "abcd" at 50ms/key = 200ms of keystrokes on top of travel + hold.
-    const total = interactionTotalMs(
-      [{ do: "type", text: "abcd", delayMs: 50, durationMs: 100, holdMs: 0 }],
-      0,
-      0,
-    );
-    expect(total).toBe(100 + 200 + 0);
+    // type "abcd" at 50ms/key = 200ms of keystrokes on top of travel.
+    const total = interactionTotalMs([{ do: "type", text: "abcd", delayMs: 50, durationMs: 100 }], 0, 0);
+    expect(total).toBe(100 + 200);
   });
 });
 
@@ -105,7 +99,7 @@ describe("interactionOptionsSchema setup/teardown", () => {
 
   it("parses setup/teardown steps using the same Action shape as actions", () => {
     const o = interactionOptionsSchema.parse({
-      setup: [{ do: "move", selector: "#menu-button", durationMs: 0, holdMs: 0 }],
+      setup: [{ do: "move", selector: "#menu-button", durationMs: 0 }],
       actions: [{ do: "click", selector: "#menu-button" }],
       teardown: [{ do: "click", selector: "#menu-button" }],
     });
