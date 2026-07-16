@@ -62,7 +62,7 @@ const interactionActionSchema = z.object({
 
 export const interactionOptionsSchema = z.object({
     /** Video output: size, scale, frame rate, encoding, filename. */
-    output: z.object({ ...videoOutputShape({ width: 1280, height: 800, deviceScaleFactor: 2 }) }).strict().default({}),
+    output: z.object({ ...videoOutputShape({ width: 1280, height: 800, deviceScaleFactor: 2 }) }).strict().prefault({}),
     /** Page load + interaction timing. */
     page: z.object({
         /** Dwell before the first step (ms). */
@@ -80,7 +80,7 @@ export const interactionOptionsSchema = z.object({
           ),
       })
       .strict()
-      .default({}),
+      .prefault({}),
     /** Force a color scheme for the capture. */
     colorScheme: z.enum(["light", "dark"]).optional().describe("Force a color scheme for the capture. Omit to leave as-is."),
     /**

@@ -45,7 +45,8 @@ const RENAMED_KEYS: Record<string, Record<string, string>> = {
 /**
  * A migration hint for a single option-validation issue, or undefined when the failure isn't a
  * known move/rename: strict-schema unrecognized keys that match a moved/renamed option, and enum
- * failures where the received value is a pre-unification easing name.
+ * failures where the received value is a pre-unification easing name. The enum branch needs the
+ * issue's `input`, which zod 4 only includes when parsing with `{ reportInput: true }`.
  */
 export function legacyOptionHint(generatorId: string, issue: ZodIssue): string | undefined {
   if (issue.code === "unrecognized_keys") {
@@ -54,9 +55,9 @@ export function legacyOptionHint(generatorId: string, issue: ZodIssue): string |
     const hints = issue.keys.filter((key) => renames[key]).map((key) => `"${key}" ${renames[key]}`);
     return hints.length ? hints.join("; ") : undefined;
   }
-  if (issue.code === "invalid_enum_value" && typeof issue.received === "string") {
-    const renamed = RENAMED_EASINGS[issue.received];
-    if (renamed && issue.options.includes(renamed)) return `easing names were unified — use "${renamed}"`;
+  if (issue.code === "invalid_value" && typeof issue.input === "string") {
+    const renamed = RENAMED_EASINGS[issue.input];
+    if (renamed && issue.values.includes(renamed)) return `easing names were unified — use "${renamed}"`;
   }
   return undefined;
 }

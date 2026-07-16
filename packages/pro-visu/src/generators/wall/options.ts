@@ -53,10 +53,10 @@ const wallColumnSchema = z.object({
  */
 export const wallOptionsSchema = z.object({
     // --- output (size + encoding) ---
-    output: z.object({ ...videoOutputShape({ width: 1920, height: 1080, deviceScaleFactor: 2 }) }).strict().default({}),
+    output: z.object({ ...videoOutputShape({ width: 1920, height: 1080, deviceScaleFactor: 2 }) }).strict().prefault({}),
 
     // --- render (capture strategy + frame format) ---
-    render: z.object({ ...captureStrategyShape(), ...frameCaptureShape() }).strict().default({}),
+    render: z.object({ ...captureStrategyShape(), ...frameCaptureShape() }).strict().prefault({}),
 
     // --- columns (System 2): each column = its tiles + its own motion ---
     /** The columns (≥3) — each its own tiles + motion. Count = array length (fewer = larger tiles). */
@@ -78,14 +78,14 @@ export const wallOptionsSchema = z.object({
         cornerRadius: z.number().nonnegative().default(6).describe("Tile corner radius (px). Default 6."),
       })
       .strict()
-      .default({}),
+      .prefault({}),
 
     // --- motion (uniform pulse model) ---
     motion: z.object({
         /** Clip length (ms) — the whole loop. Tile videos should loop within a length dividing this. */
         durationMs: z.number().positive().default(16_000).describe("Clip length in ms — the whole loop. Default 16000."),
         /** System 1 — the whole-wall X pan. */
-        pan: wallPanSchema.default({})
+        pan: wallPanSchema.prefault({})
           .describe("System 1 — the whole wall's horizontal pan (`direction` / `loops` / `pulses`). Default: no pan."),
         /** Default continuous whole-clip loops for columns that omit their own `loops` (0 = static unless
          *  a pulse moves it; one pulse then rounds the total up to a single loop). */
@@ -96,7 +96,7 @@ export const wallOptionsSchema = z.object({
           .describe("Default pulses for columns that omit their own `pulses` (the uniform wall-level motion). Default none."),
       })
       .strict()
-      .default({}),
+      .prefault({}),
 
     // --- preview (fast faux-tile mode) ---
     preview: z.object({
@@ -111,7 +111,7 @@ export const wallOptionsSchema = z.object({
           .describe("Per-tile faux appearance for preview mode, keyed by tile name (color + caption). Default {} (auto colors + names)."),
       })
       .strict()
-      .default({}),
+      .prefault({}),
   })
   .strict();
 

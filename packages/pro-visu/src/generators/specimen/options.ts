@@ -318,7 +318,7 @@ const specimenObjectSchema = z.object({
         fps: z.number().int().positive().max(120).default(30).describe("Output frames per second. Default 30."),
         crf: z.number().int().min(0).max(51).default(18).describe("x264 quality, 0–51 (lower = better quality / larger file). Default 18."),
         fileName: z.string().optional().describe('Output filename; defaults to "<slug(asset name)>.mp4".'),
-      }).strict().default({}).describe("Output frame + encoding settings (width, height, deviceScaleFactor, fps, crf, fileName)."),
+      }).strict().prefault({}).describe("Output frame + encoding settings (width, height, deviceScaleFactor, fps, crf, fileName)."),
     type: z.object({
         weight: z.number().int().min(100).max(1000).multipleOf(100).default(400)
           .describe("Glyph weight, in steps of 100 (100–1000) to match the weights a font actually ships. Default 400 (regular)."),
@@ -332,7 +332,7 @@ const specimenObjectSchema = z.object({
           .refine((s) => new Set([...s.trim()]).size >= 2, "characterPool needs ≥2 distinct characters")
           .optional()
           .describe("Override the glyph pool the specimen draws from (≥2 distinct characters). Default A–Z 0–9 + symbols. The tight default `leading` clips lowercase descenders (g j p q y) — raise `leading` to ~1 if the pool includes them."),
-      }).strict().default({}).describe("Glyph typography — weight, lines, fill, leading, blacklist, characterPool."),
+      }).strict().prefault({}).describe("Glyph typography — weight, lines, fill, leading, blacklist, characterPool."),
     label: z.object({
         anchor: z.enum([
             "top-left",
@@ -351,7 +351,7 @@ const specimenObjectSchema = z.object({
         weight: z.number().int().min(1).max(1000).default(500).describe("Font weight, 1–1000. Default 500."),
         color: z.string().optional().describe("Text color (any CSS color); defaults to `colors.foreground` if unset."),
       })
-      .default({})
+      .prefault({})
       .describe("Placement + styling of the `name` label within the bottom gap area (anchor, padding, size, weight, color)."),
     colors: z.object({
         background: z.string().default("#eceef1").describe("Backdrop behind the glyphs."),
@@ -360,7 +360,7 @@ const specimenObjectSchema = z.object({
         accent: z.string().optional()
           .describe("Accent color for occasional pops; defaults to `background` (accent glyphs blend in) if unset."),
       })
-      .default({})
+      .prefault({})
       .describe("Color tokens the glyphs cycle through (any CSS colors). Override any subset. Default: light-grey palette."),
     colorWeights: z.object({
         foreground: z.number().nonnegative().default(2)
@@ -368,7 +368,7 @@ const specimenObjectSchema = z.object({
         muted: z.number().nonnegative().default(2).describe("Relative likelihood of the muted token on a random color change. Default 2."),
         accent: z.number().nonnegative().default(1).describe("Relative likelihood of the accent token on a random color change. Default 1."),
       })
-      .default({})
+      .prefault({})
       .describe("Relative likelihood of each color token on a random (non-targeted) color change. Default 2 / 2 / 1."),
     pulses: z.array(pulseSchema).min(1).default(DEFAULT_PULSES)
       .describe("The animation storyboard: an ordered sequence of pulses (beats). Default: a lively built-in storyboard."),
@@ -389,7 +389,7 @@ const specimenObjectSchema = z.object({
           .describe("Demo mode: overlay the active pulse's name bottom-right, to see which beat is playing. Default false."),
       })
       .strict()
-      .default({})
+      .prefault({})
       .describe("Animation timing + behavior (durationMs, mirror, seed, characterIntensity, colorIntensity, maxLineDrift, demo)."),
   })
   .strict();

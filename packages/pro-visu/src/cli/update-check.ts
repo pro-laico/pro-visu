@@ -79,7 +79,9 @@ export function checkForUpdates(version: string = TOOL_VERSION): void {
       });
       child.unref();
     }
-  } catch {}
+  } catch {
+    // best-effort: the update notice must never break a command — a cache read or worker spawn failure just means no notice this run
+  }
 }
 
 /** The background worker body: fetch the latest version from npm and cache it. */
@@ -97,9 +99,13 @@ export async function runUpdateWorker(): Promise<void> {
       const body = (await res.json()) as { version?: string }; //EXCUSE: res.json() is `any`; `version` is re-checked with typeof below
       if (typeof body.version === "string") cache.latest = body.version;
     }
-  } catch {}
+  } catch {
+    // best-effort: registry fetch can fail (offline, 10s abort) — cache stays version-less and the check retries after the next interval
+  }
   try {
     mkdirSync(path.dirname(cacheFile()), { recursive: true });
     writeFileSync(cacheFile(), JSON.stringify(cache));
-  } catch {}
+  } catch {
+    // best-effort: an unwritable ~/.cache just loses the cached result — the detached worker has no user to report to and the check reruns next time
+  }
 }

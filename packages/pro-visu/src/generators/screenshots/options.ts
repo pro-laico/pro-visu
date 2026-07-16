@@ -25,7 +25,7 @@ export const screenshotsOptionsSchema = z.object({
         /** png only: capture with a transparent background. */
         omitBackground: z.boolean().default(false).describe("Capture with a transparent background (png only). Default false."),
       }).strict()
-      .default({}),
+      .prefault({}),
     /** Page load & settle timing. */
     page: z.object({
         waitUntil: z.enum(["load", "domcontentloaded", "networkidle", "commit"]).default("networkidle")
@@ -34,7 +34,7 @@ export const screenshotsOptionsSchema = z.object({
         /** Extra settle time after load before capturing (ms). */
         settleMs: z.number().int().nonnegative().default(0).describe("Extra settle time after load before capturing (ms). Default 0."),
       }).strict()
-      .default({}),
+      .prefault({}),
     /** Element captures taken at every viewport. */
     elements: z.array(elementShotSchema).default([])
       .describe("Specific elements to crop (in addition to the page) at every viewport. Default none."),

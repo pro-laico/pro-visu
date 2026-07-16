@@ -42,7 +42,7 @@ export function videoOutputShape(d: VideoOutputDefaults): {
 }
 
 /** workers / frameFormat — the frame-stepped render block. */
-export function frameCaptureShape(): { workers: z.ZodOptional<z.ZodNumber>; frameFormat: z.ZodDefault<z.ZodEnum<["jpeg", "png"]>>; } {
+export function frameCaptureShape(): { workers: z.ZodOptional<z.ZodNumber>; frameFormat: z.ZodDefault<z.ZodEnum<{ jpeg: "jpeg"; png: "png" }>>; } {
   return {
     workers: z
       .number()
@@ -60,7 +60,7 @@ export function frameCaptureShape(): { workers: z.ZodOptional<z.ZodNumber>; fram
 }
 
 /** The frames/realtime strategy switch — only for generators that genuinely offer both (wall). */
-export function captureStrategyShape(): { capture: z.ZodDefault<z.ZodEnum<["frames", "realtime"]>>; } {
+export function captureStrategyShape(): { capture: z.ZodDefault<z.ZodEnum<{ frames: "frames"; realtime: "realtime" }>>; } {
   return {
     capture: z
       .enum(["frames", "realtime"])

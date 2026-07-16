@@ -94,7 +94,9 @@ export function createSharedNetworkCache(args: SharedNetworkCacheArgs): SharedNe
     } catch {
       try {
         await route.fallback();
-      } catch {}
+      } catch {
+        // best-effort: fallback() throws when the page/route is already closed or the request was already handled — nothing left to serve either way
+      }
     } finally {
       resolveEntry(entry);
       inflight.delete(url);

@@ -183,7 +183,7 @@ const captureCleanupSchema = z
 export const captureSettingsSchema = z
   .object({
     signals: captureSignalsSchema.default({}).describe("Capture-mode flags delivered into the site (the site must read one)."),
-    cleanup: captureCleanupSchema.default({}).describe("Noise the tool removes itself (no site cooperation needed)."),
+    cleanup: captureCleanupSchema.prefault({}).describe("Noise the tool removes itself (no site cooperation needed)."),
   })
   .strict();
 export type ResolvedCaptureSettings = z.infer<typeof captureSettingsSchema>;
@@ -261,14 +261,14 @@ export const settingsSchema = z.object({
     .describe("Skip assets whose inputs+options+tool fingerprint is unchanged (opt-in; can be stale). Default false."),
 
   // --- capture environment ---
-  browser: browserSettingsSchema.default({}).describe("Playwright launch controls."),
+  browser: browserSettingsSchema.prefault({}).describe("Playwright launch controls."),
   /** Optional managed dev/prod server lifecycle (build → start → wait → … → stop). */
   server: serverSettingsSchema.optional().describe("Build → start → wait → capture → stop a server automatically."),
 
   // --- capture-mode + generator defaults ---
   /** Capture-mode settings (site signals + tool-side cleanup) applied to every URL capture. */
   capture: captureSettingsSchema
-    .default({})
+    .prefault({})
     .describe("Capture-mode settings applied to every URL-based asset (hide the cookie banner, block trackers, seed cookies, …)."),
   /**
    * Per-generator option defaults, keyed by generator id, merged underneath each asset's
@@ -333,7 +333,7 @@ export const showcaseConfigSchema = z
   .object({
     /** JSON configs may carry an editor `$schema` pointer; accepted and ignored at runtime. */
     $schema: z.string().optional(),
-    settings: settingsSchema.default({}),
+    settings: settingsSchema.prefault({}),
     assets: z.array(assetSpecSchema).min(1, "Define at least one asset in `assets`."),
   })
   .strict()

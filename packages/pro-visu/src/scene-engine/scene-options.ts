@@ -204,7 +204,7 @@ export const wallSceneOptionsSchema = z
     /** Backdrop shown in the gap gutters and behind tiles. Defaults to the scene's `background`. */
     background: z.string().optional(),
     /** System 1 — the X pan. */
-    pan: wallPanSchema.default({}),
+    pan: wallPanSchema.prefault({}),
     /** Default continuous whole-clip loops for columns that omit their own `loops` (0 = static unless
      *  a pulse moves it; one pulse then rounds the total up to a single loop). */
     loops: z.number().nonnegative().default(0),

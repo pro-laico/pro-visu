@@ -242,7 +242,9 @@ export function startFrameEncoder(a: FramePipeArgs, logger?: Logger, signal?: Ab
       stdin.destroy();
       try {
         child.kill();
-      } catch {}
+      } catch {
+        // best-effort: kill() throws (ESRCH) when ffmpeg already exited — this is teardown and a dead encoder is the goal
+      }
     },
   };
 }

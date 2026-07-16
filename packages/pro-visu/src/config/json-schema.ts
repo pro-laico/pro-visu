@@ -1,5 +1,4 @@
-import type { ZodTypeAny } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
+import { z } from "zod";
 
 import { TOOL_VERSION } from "@/version";
 import { listGenerators } from "@/generators/registry";
@@ -7,9 +6,13 @@ import { settingsSchema, captureOverrideSchema } from "@/config/schema";
 
 type JsonObject = Record<string, unknown>;
 
-/** Convert a zod schema to an inlined (no $ref) JSON Schema fragment, without its own $schema tag. */
-function toJson(schema: ZodTypeAny): JsonObject {
-  const out = zodToJsonSchema(schema, { $refStrategy: "none" }) as JsonObject; //EXCUSE: narrowing the library's broad return type to a plain object
+/**
+ * Convert a zod schema to an inlined (no $ref) JSON Schema fragment, without its own $schema tag.
+ * `io: "input"` describes the authoring shape (fields with defaults stay optional, defaults marked),
+ * matching what editor autocomplete for a hand-written config needs.
+ */
+function toJson(schema: z.ZodType): JsonObject {
+  const out = z.toJSONSchema(schema, { target: "draft-7", io: "input", reused: "inline" }) as JsonObject; //EXCUSE: narrowing the library's broad return type to a plain object
   delete out.$schema;
   return out;
 }
@@ -105,5 +108,7 @@ export async function refreshSchemaFile(dir: string, log?: { info(msg: string): 
     if (version === TOOL_VERSION) return;
     await writeFile(file, serializeConfigJsonSchema(), "utf8");
     log?.info(`refreshed ${DEFAULT_SCHEMA_FILE} for pro-visu ${TOOL_VERSION}`);
-  } catch {}
+  } catch {
+    // best-effort: a malformed schema file or unwritable dir just skips the refresh — this convenience must never fail generate/doctor
+  }
 }

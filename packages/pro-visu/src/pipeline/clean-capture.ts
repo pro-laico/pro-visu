@@ -170,7 +170,9 @@ export async function applyPostNav(
     try {
       await page.click(selector, { timeout: 1000 });
       logger.debug(`dismissed overlay via ${selector}`);
-    } catch {}
+    } catch {
+      // best-effort: the click times out when the overlay isn't present on this page/run — no overlay to dismiss is the normal case
+    }
   }
   if (extras.pauseMedia !== false) await page.evaluate(pauseAllMedia);
 }

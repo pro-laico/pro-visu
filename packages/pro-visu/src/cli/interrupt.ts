@@ -38,7 +38,9 @@ export function watchForInterrupt(
     readline.emitKeypressEvents(stdin);
     try {
       stdin.setRawMode(true);
-    } catch {}
+    } catch {
+      // best-effort: setRawMode can throw on odd pseudo-TTYs — Esc/Ctrl+C keypress detection degrades to the SIGINT/SIGTERM watchers below
+    }
     onKey = (_str, key) => {
       if (!key) return;
       if (key.name === "escape" || (key.ctrl && key.name === "c")) trigger();
@@ -58,7 +60,9 @@ export function watchForInterrupt(
       stdin.off("keypress", onKey);
       try {
         stdin.setRawMode(false);
-      } catch {}
+      } catch {
+        // best-effort: restoring raw mode can throw if stdin was closed mid-run; teardown must still detach the remaining listeners
+      }
       stdin.pause();
     }
   };

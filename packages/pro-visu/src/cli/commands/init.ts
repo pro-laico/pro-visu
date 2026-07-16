@@ -50,7 +50,9 @@ function detectProject(cwd: string): ProjectInfo {
   try {
     //EXCUSE: JSON.parse returns `any`; fields are read defensively with their own casts/guards below
     pkg = JSON.parse(readFileSync(path.join(cwd, "package.json"), "utf8")) as Record<string, unknown>;
-  } catch {}
+  } catch {
+    // best-effort: no/unparseable package.json (init in an empty dir) — detection proceeds on the empty object and scaffolds generic defaults
+  }
 
   const pm = detectPackageManager(cwd);
 

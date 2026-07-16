@@ -36,7 +36,9 @@ export async function readRunState(outDir: string): Promise<RunState | null> {
 async function write(outDir: string, state: RunState): Promise<void> {
   try {
     await writeFile(runStatePath(outDir), `${JSON.stringify(state, null, 2)}\n`);
-  } catch {}
+  } catch {
+    // best-effort: an unwritable outDir just loses crash-recovery bookkeeping — it must not fail the run it's protecting
+  }
 }
 
 export async function startRunState(outDir: string): Promise<void> {
@@ -53,7 +55,9 @@ export async function updateRunState(outDir: string, patch: Partial<RunState>): 
 export async function clearRunState(outDir: string): Promise<void> {
   try {
     await rm(runStatePath(outDir), { force: true });
-  } catch {}
+  } catch {
+    // best-effort: rm(force) can still throw (e.g. EPERM on a locked file on Windows); a leftover file is handled by the next run's stale cleanup
+  }
 }
 
 /**
@@ -107,7 +111,9 @@ export function killTreeByPid(pid?: number): Promise<boolean> {
     } catch {
       try {
         process.kill(pid, "SIGKILL");
-      } catch {}
+      } catch {
+        // best-effort: kill throws (ESRCH) when the process died between the isAlive probe and here — dead is the goal
+      }
     }
     resolve(true);
   });

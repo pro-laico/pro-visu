@@ -106,23 +106,36 @@ function runOnce(command: string, cwd: string, task?: TaskHandle, signal?: Abort
   });
 }
 
-/** Kill a process and its whole tree, cross-platform. */
+/** Kill a process and its whole tree, cross-platform. Resolves once the tree root has exited. */
 function killTree(child: ChildProcess): Promise<void> {
   return new Promise((resolve) => {
-    if (child.pid == null || child.exitCode != null) return resolve();
+    const pid = child.pid;
+    if (pid == null || child.exitCode != null) return resolve();
     if (process.platform === "win32") {
-      const killer = spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+      const killer = spawn("taskkill", ["/pid", String(pid), "/T", "/F"], { stdio: "ignore" });
       killer.on("error", () => resolve());
       killer.on("close", () => resolve());
     } else {
-      try {
-        process.kill(-child.pid, "SIGTERM");
-      } catch {
+      const signalTree = (sig: NodeJS.Signals): void => {
         try {
-          child.kill("SIGTERM");
-        } catch {}
-      }
-      resolve();
+          process.kill(-pid, sig);
+        } catch {
+          try {
+            child.kill(sig);
+          } catch {
+            // best-effort: kill() throws (ESRCH) when the child already exited — a dead tree root is exactly what we wanted
+          }
+        }
+      };
+      signalTree("SIGTERM");
+      // Wait for the root to actually die (so its port is free for the next run); a server that
+      // ignores SIGTERM gets SIGKILLed after a grace period.
+      const escalate = setTimeout(() => signalTree("SIGKILL"), 3000);
+      escalate.unref();
+      child.once("exit", () => {
+        clearTimeout(escalate);
+        resolve();
+      });
     }
   });
 }

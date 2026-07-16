@@ -105,7 +105,9 @@ export async function applyCapture(
     try {
       const origin = new URL(url).origin;
       await context.addCookies(cookies.map((c) => ({ name: c.name, value: c.value, url: origin })));
-    } catch {}
+    } catch {
+      // best-effort: `new URL` throws on a non-absolute url — no origin to scope the cookies to, so skip them; the capture still proceeds
+    }
   }
 
   const scripts: string[] = [];

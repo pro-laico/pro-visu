@@ -4,7 +4,7 @@ import type { Logger } from "@/utils/logger";
 import { mapLimit } from "@/utils/concurrency";
 import { applyCapture } from "@/pipeline/capture";
 import type { ResolvedCaptureSettings } from "@/config/schema";
-import { prepareScroll } from "@/generators/scroll-reel/scroll";
+import { installScrollRuntime, prepareScroll } from "@/generators/scroll-reel/scroll";
 import type { ResolvedScreenshotsOptions } from "@/generators/screenshots/options";
 import { applyPostNav, installNetworkHygiene, installPreNav } from "@/pipeline/clean-capture";
 
@@ -53,6 +53,7 @@ async function captureViewport<T>(args: CaptureArgs<T>, bp: ResolvedScreenshotsO
     try {
       await installNetworkHygiene(page, args.capture);
       await installPreNav(page, args.capture);
+      await page.addInitScript(installScrollRuntime);
       logger.debug(`[${bp.name}] navigating to ${url}`);
       await page.goto(url, { waitUntil: options.page.waitUntil });
       if (options.page.waitForSelector) await page.waitForSelector(options.page.waitForSelector, { state: "visible" });

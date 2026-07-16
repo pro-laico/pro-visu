@@ -1,5 +1,5 @@
 import type { Browser } from "playwright-core";
-import type { ZodType, ZodTypeDef } from "zod";
+import type { ZodType } from "zod";
 
 import type { Logger } from "@/utils/logger";
 import type { AssetRecord } from "@/manifest/schema";
@@ -68,7 +68,7 @@ export interface Generator<TOptions = unknown> {
    */
   requiresUrl?: boolean;
   /** zod schema validating + defaulting this generator's options. Input is loose. */
-  optionsSchema: ZodType<TOptions, ZodTypeDef, unknown>;
+  optionsSchema: ZodType<TOptions, unknown>;
   /**
    * Local files (beyond declared asset inputs) whose CONTENT affects the output — e.g. a font
    * file. Paths as authored (relative to the cwd, or absolute). The pipeline hashes their content

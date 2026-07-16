@@ -55,7 +55,7 @@ const outputGroupSchema = z.object({
     /** GIF / animated-WebP frame rate. Defaults to min(fps, 15). */
     gifFps: z.number().int().positive().max(50).optional().describe("GIF / animated-WebP frame rate. Defaults to min(fps, 15)."),
   }).strict()
-  .default({});
+  .prefault({});
 
 /** Page-load waiting + dwell at the ends of the scroll. */
 const pageGroupSchema = z.object({
@@ -68,7 +68,7 @@ const pageGroupSchema = z.object({
     /** Optional element to wait for before recording (e.g. a hero section). */
     waitForSelector: z.string().optional().describe("Optional element to wait for before recording (e.g. a hero section). Omit to skip."),
   }).strict()
-  .default({});
+  .prefault({});
 
 /** Frame-stepped render tuning (parallelism, frame format, per-frame settling). */
 const renderGroupSchema = z.object({
@@ -80,7 +80,7 @@ const renderGroupSchema = z.object({
     settleMaxMs: z.number().int().nonnegative().default(250)
       .describe("Max time (ms) to wait per frame for settling before screenshotting anyway. Default 250."),
   }).strict()
-  .default({});
+  .prefault({});
 
 /** How the scroll moves: duration/easing, loop, and choreography. */
 const motionGroupSchema = z.object({
@@ -115,7 +115,7 @@ const motionGroupSchema = z.object({
         "Auto-choreograph: detect sections and pan/hold through them. `true` for defaults, or an object to tune. Ignored if `choreography` is set.",
       ),
   }).strict()
-  .default({});
+  .prefault({});
 
 /** Variant matrix: each cell (color scheme × viewport) is emitted as its own asset. */
 const variantsGroupSchema = z.object({
@@ -129,7 +129,7 @@ const variantsGroupSchema = z.object({
     viewports: z.array(namedViewportSchema).optional()
       .describe("Also capture the reel at these viewports; each emits an asset (<name>-<viewport name>)."),
   }).strict()
-  .default({});
+  .prefault({});
 
 /** Reframe the output to a target aspect. */
 const reframeGroupSchema = z.object({
@@ -147,7 +147,7 @@ const reframeGroupSchema = z.object({
     /** Pad color used by "contain". */
     padColor: z.string().default("#0b0b0f").describe('Pad color used by "contain". Default "#0b0b0f".'),
   }).strict()
-  .default({});
+  .prefault({});
 
 export const scrollReelOptionsSchema = z.object({
     output: outputGroupSchema,

@@ -169,7 +169,9 @@ export async function runGenerate(options: GenerateOptions = {}): Promise<void> 
       try {
         process.stdin.setRawMode?.(false);
         process.stdout.write("\x1b[?25h");
-      } catch {}
+      } catch {
+        // best-effort: terminal restore (raw mode off, cursor back) can throw on a closed stdio — we're force-quitting via process.exit(130) regardless
+      }
       process.exit(130);
     },
     { keyboard: !reporter.isLive },
@@ -312,7 +314,7 @@ export function validatePlan(
       continue;
     }
     const merged = applyQuality(mergeGeneratorOptions(config.settings.defaults, spec), quality);
-    const parsed = generator.optionsSchema.safeParse(merged);
+    const parsed = generator.optionsSchema.safeParse(merged, { reportInput: true });
     if (!parsed.success) {
       log.error(`Asset "${spec.name}" has invalid ${spec.generator} options:`);
       for (const issue of parsed.error.issues) {
@@ -368,7 +370,11 @@ export async function preflightUrls(
     try {
       const origin = new URL(url).origin;
       if (!origins.has(origin)) origins.set(origin, url);
-    } catch {}
+    } catch {
+      // A malformed absolute URL would otherwise skip the probe and fail minutes later at navigation.
+      log.error(`Invalid url: ${url}`);
+      ok = false;
+    }
   }
   const probes = await Promise.all([...origins.values()].map(async (url) => ((await urlResponds(url)) ? null : url)));
   const unreachable = probes.filter((url): url is string => url !== null);

@@ -21,7 +21,20 @@ import path from "node:path";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const PKG_JSON = path.join(REPO_ROOT, "packages", "pro-visu", "package.json");
+const CHANGELOG = path.join(REPO_ROOT, "CHANGELOG.md");
 const RELEASE_TYPES = ["patch", "minor", "major", "prerelease"];
+
+/** True when `## [Unreleased]` still holds entries — they must be rolled into a version section first. */
+function unreleasedHasEntries() {
+  let text;
+  try {
+    text = readFileSync(CHANGELOG, "utf8");
+  } catch {
+    return false;
+  }
+  const match = text.match(/^## \[Unreleased\]([\s\S]*?)(?=^## \[|(?![\s\S]))/m);
+  return Boolean(match && match[1].trim() !== "");
+}
 
 /** Pure SemVer increment — no external deps. Matches `npm version` semantics: a stable bump on a
  * prerelease "graduates" it (1.2.3-beta.0 + patch -> 1.2.3), and switching preids keeps the core. */
@@ -97,6 +110,15 @@ async function main() {
   // the commit contains exactly the version stamp.
   if (!values["dry-run"] && !values["skip-git"] && gitOut(["status", "--porcelain"]) !== "") {
     console.error("[releaser] Working tree is not clean — commit or stash your changes first.");
+    process.exit(1);
+  }
+
+  // The CHANGELOG edit is a manual step done BEFORE the bump: rename `## [Unreleased]` to the new
+  // version section (with today's date) and open a fresh empty Unreleased. Catch the forgotten case.
+  if (!values["dry-run"] && unreleasedHasEntries()) {
+    console.error(
+      "[releaser] CHANGELOG.md still has entries under [Unreleased] — move them into a `## [X.Y.Z] - YYYY-MM-DD` section (and commit) before releasing.",
+    );
     process.exit(1);
   }
 

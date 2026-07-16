@@ -49,7 +49,9 @@ export function shouldReexec(targetMB: number | undefined, currentLimitMB: numbe
  */
 export async function reexecWithMemory(targetMB: number | undefined): Promise<boolean> {
   if (!shouldReexec(targetMB, currentHeapLimitMB(), process.env[REEXEC_FLAG] === "1")) return false;
-  const args = [`--max-old-space-size=${targetMB}`, process.argv[1]!, ...process.argv.slice(2)];
+  const entry = process.argv[1];
+  if (!entry) return false; // no script path to re-exec (e.g. `node -e`); run in-process instead
+  const args = [`--max-old-space-size=${targetMB}`, entry, ...process.argv.slice(2)];
   const child = spawn(process.execPath, args, {
     stdio: "inherit",
     env: { ...process.env, [REEXEC_FLAG]: "1" },
@@ -57,7 +59,9 @@ export async function reexecWithMemory(targetMB: number | undefined): Promise<bo
   const forward = (sig: NodeJS.Signals): void => {
     try {
       child.kill(sig);
-    } catch {}
+    } catch {
+      // best-effort: kill() throws (ESRCH) when the child already exited — nothing left to forward the signal to
+    }
   };
   process.on("SIGINT", forward);
   process.on("SIGTERM", forward);

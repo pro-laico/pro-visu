@@ -12,7 +12,9 @@ export function detectPackageManager(cwd: string): PackageManager {
   let pkg: Record<string, unknown> = {};
   try {
     pkg = JSON.parse(readFileSync(path.join(cwd, "package.json"), "utf8")) as Record<string, unknown>;
-  } catch {}
+  } catch {
+    // best-effort: a missing/unparseable package.json just skips the `packageManager` field — detection falls through to the lockfile sniff / npm default
+  }
   const pmField = typeof pkg.packageManager === "string" ? pkg.packageManager.split("@")[0] : "";
   if (pmField === "pnpm" || pmField === "yarn" || pmField === "bun" || pmField === "npm") return pmField;
   if (existsSync(path.join(cwd, "pnpm-lock.yaml"))) return "pnpm";

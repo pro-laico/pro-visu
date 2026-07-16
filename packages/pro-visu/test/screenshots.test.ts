@@ -58,6 +58,7 @@ describe("screenshots generator", () => {
     let shotsTaken = 0;
     const page = {
       goto: async () => {},
+      addInitScript: async () => {},
       evaluate: async () => {},
       screenshot: async () => {
         shotsTaken += 1;

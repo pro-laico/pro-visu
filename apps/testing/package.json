@@ -12,15 +12,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "next": "^16.2.9",
+    "next": "^16.2.10",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
-    "pro-visu": "workspace:*",
-    "@types/node": "^25.9.2",
+    "@types/node": "^25.9.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "pro-visu": "workspace:*",
     "typescript": "^6.0.3"
   }
 }

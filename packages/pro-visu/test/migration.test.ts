@@ -48,11 +48,11 @@ describe("legacyOptionHint", () => {
 
   it("points pre-unification easing names at their canonical replacement", () => {
     const issue = {
-      code: "invalid_enum_value",
-      received: "ease-in-out-cubic",
-      options: ["linear", "ease-in", "ease-out", "ease-in-out", "ease-out-strong", "ease-in-out-strong"],
+      code: "invalid_value",
+      input: "ease-in-out-cubic",
+      values: ["linear", "ease-in", "ease-out", "ease-in-out", "ease-out-strong", "ease-in-out-strong"],
       path: ["easing"],
-      message: "Invalid enum value",
+      message: "Invalid option",
     } as ZodIssue;
     expect(legacyOptionHint("scroll-reel", issue)).toContain('"ease-in-out"');
   });

@@ -7,7 +7,7 @@ import type { ResolvedCaptureSettings } from "@/config/schema";
 import { createSharedNetworkCache } from "@/recorder/network-cache";
 import type { ResolvedScrollReelOptions } from "@/generators/scroll-reel/options";
 import { applyPostNav, installNetworkHygiene, installPreNav } from "@/pipeline/clean-capture";
-import { detectSectionOffsets, measureNormalizedOffsets, measureTopInset, prepareScroll, seekFrame } from "@/generators/scroll-reel/scroll";
+import { detectSectionOffsets, installScrollRuntime, measureNormalizedOffsets, measureTopInset, prepareScroll, seekFrame } from "@/generators/scroll-reel/scroll";
 import {
   autoSectionSteps,
   autoSectionsBudgetMs,
@@ -215,6 +215,7 @@ export async function captureScrollFrames(a: ScrollFramesArgs): Promise<void> {
       if (netCache) await netCache.install(page);
       await installNetworkHygiene(page, a.capture);
       await installPreNav(page, a.capture, { themeClass: options.variants.themeClass });
+      await page.addInitScript(installScrollRuntime);
       logger.debug(`navigating to ${a.url} (waitUntil=${options.page.waitUntil})`);
       await page.goto(a.url, { waitUntil: options.page.waitUntil });
       if (options.page.waitForSelector) {

@@ -134,7 +134,7 @@ const paletteReelObjectSchema = z.object({
     details: z.array(fieldEnum).default(["hex", "oklch", "rgb"])
       .describe("Fields revealed when a color expands (the name is always shown, so it's ignored here). Default hex + oklch + rgb."),
 
-    output: z.object({ ...videoOutputShape({ width: 1920, height: 1080, deviceScaleFactor: 1 }) }).strict().default({}),
+    output: z.object({ ...videoOutputShape({ width: 1920, height: 1080, deviceScaleFactor: 1 }) }).strict().prefault({}),
 
     timing: z.object({
         holdMs: z.number().positive().default(2000)
@@ -147,7 +147,7 @@ const paletteReelObjectSchema = z.object({
           .describe("Clip length override (ms). Omit to derive (count x (hold + transition)) for a clean loop."),
       })
       .strict()
-      .default({}),
+      .prefault({}),
 
     layout: z.object({
         orientation: z.enum(["rows", "columns"]).default("rows")
@@ -163,7 +163,7 @@ const paletteReelObjectSchema = z.object({
         cornerRadius: z.number().nonnegative().default(0).describe("Band corner radius (px). Default 0 (square)."),
       })
       .strict()
-      .default({}),
+      .prefault({}),
 
     text: z.object({
         uppercase: z.boolean().default(false).describe("Uppercase the color names. Default false."),
@@ -177,7 +177,7 @@ const paletteReelObjectSchema = z.object({
           .describe("Detail-line font size as a fraction of the name size. Default 0.62."),
       })
       .strict()
-      .default({}),
+      .prefault({}),
 
     contrast: z.object({
         textLight: z.string().default("#ffffff").describe('Light text color, used on dark bands (picked by contrast). Default "#ffffff".'),
@@ -185,7 +185,7 @@ const paletteReelObjectSchema = z.object({
         contrastThreshold: z.number().min(0).max(1).default(0.5).describe("Luminance above which the dark text is used (0..1). Default 0.5."),
       })
       .strict()
-      .default({}),
+      .prefault({}),
   })
   .strict();
 

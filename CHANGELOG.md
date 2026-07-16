@@ -26,10 +26,22 @@ All notable changes to `pro-visu` are documented here. The format is based on
   `{ do: "wait", durationMs }` step wherever a hold is wanted (the `wait` action's `durationMs`
   defaults to 600), and ending `focus.actions` with a `wait` to dwell on the focused element.
 
+### Changed
+
+- Validation runs on zod 4 (was zod 3). No authoring-surface changes — options, defaults, and error
+  messages behave the same; the config JSON Schema is now generated natively (the
+  `zod-to-json-schema` dependency is gone).
+- The npm tarball no longer ships sourcemaps, cutting the installed package size roughly in half.
+
 ### Fixed
 
 - `scrollTo` targets with a CSS `scroll-margin-top` no longer land twice as far below a sticky
   header: the margin is coalesced with `stickyHeaderHeight` (max, not sum).
+- A malformed absolute asset `url` now fails the up-front preflight with a pointed error instead of
+  surfacing minutes later as a Playwright navigation failure.
+- On macOS/Linux the managed server's teardown now waits for the process tree to actually exit
+  (escalating to SIGKILL after a grace period), so a slow-dying server can't hold the port into the
+  next run.
 - A frame encode no longer hangs the run forever when ffmpeg crashes mid-asset: the encoder now
   records the child's exit as it happens, so a write or finish after an early exit fails fast with
   ffmpeg's stderr instead of waiting on an event that already fired.
@@ -476,3 +488,13 @@ gitignored `pro-visu/` folder. Pre-1.0: the option surface may still shift.
 
 - npm packaging metadata, MIT license, CI (typecheck + test + build), and a tag-driven release
   workflow using npm Trusted Publishing (OIDC) with provenance.
+
+[Unreleased]: https://github.com/pro-laico/pro-visu/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/pro-laico/pro-visu/compare/v0.6.1...v0.7.0
+[0.6.1]: https://github.com/pro-laico/pro-visu/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/pro-laico/pro-visu/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/pro-laico/pro-visu/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/pro-laico/pro-visu/compare/v0.3.1...v0.4.0
+[0.3.1]: https://github.com/pro-laico/pro-visu/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/pro-laico/pro-visu/compare/3068ebdfeccff26c7ac2b86449ae6ff75c4800d3...v0.3.0
+[0.2.0]: https://github.com/pro-laico/pro-visu/commits/3068ebdfeccff26c7ac2b86449ae6ff75c4800d3

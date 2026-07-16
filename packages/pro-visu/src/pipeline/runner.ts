@@ -75,10 +75,11 @@ export function applyQuality(options: Record<string, unknown>, quality: "draft" 
   if (quality !== "draft") return options;
   const o = { ...options };
   if (!isPlainObject(o.output)) return o;
-  const out = { ...o.output };
-  if (typeof out.fps === "number") out.fps = Math.min(out.fps as number, 15);
-  if (typeof out.deviceScaleFactor === "number") out.deviceScaleFactor = 1;
-  if (typeof out.crf === "number") out.crf = Math.max(out.crf as number, 30);
+  const out: Record<string, unknown> = { ...o.output };
+  const { fps, deviceScaleFactor, crf } = out;
+  if (typeof fps === "number") out.fps = Math.min(fps, 15);
+  if (typeof deviceScaleFactor === "number") out.deviceScaleFactor = 1;
+  if (typeof crf === "number") out.crf = Math.max(crf, 30);
   o.output = out;
   return o;
 }
@@ -140,7 +141,7 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
       }
 
       const merged = applyQuality(mergeGeneratorOptions(opts.config.settings.defaults, spec), quality);
-      const options = generator.optionsSchema.parse(merged);
+      const options = generator.optionsSchema.parse(merged, { reportInput: true });
 
       const capture = resolveAssetCapture(opts.config.settings.capture, spec.capture);
 
@@ -227,7 +228,9 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
     if (browserRef.current) {
       try {
         await (await browserRef.current).close();
-      } catch {}
+      } catch {
+        // best-effort: final teardown — the browser may have crashed or already closed (e.g. after a cancelled run); the temp dirs still get removed
+      }
     }
     await removeDir(tmpRoot);
   }

@@ -192,7 +192,7 @@ const iconsObjectSchema = z
           .describe("Parallel render workers (video). Omit to auto-pick from cores + free memory."),
       })
       .strict()
-      .default({})
+      .prefault({})
       .describe("Output frame + encoding settings."),
     motion: z
       .object({
@@ -209,7 +209,7 @@ const iconsObjectSchema = z
           .describe('For output.format "image": which clip moment to freeze, as a fraction of the timeline (0..1). Default 0.5.'),
       })
       .strict()
-      .default({})
+      .prefault({})
       .describe("Animation timeline: clip length + still sample point."),
     layout: z
       .object({
@@ -229,7 +229,7 @@ const iconsObjectSchema = z
           .describe("Tint each icon via a CSS mask so it can be recoloured (shape from the file's alpha). Off = native colours. Default true."),
       })
       .strict()
-      .default({})
+      .prefault({})
       .describe("Grid layout + appearance (columns, gap, padding, iconSize, background, recolor)."),
     base: z
       .object({
@@ -239,7 +239,7 @@ const iconsObjectSchema = z
         seed: z.number().int().default(1).describe("Seed for `random` sweep orders — same seed ⇒ identical animation. Default 1."),
       })
       .strict()
-      .default({})
+      .prefault({})
       .describe("Resting icon appearance + animation seed (color, scale, opacity, seed)."),
     accent: z.string().default(ACCENT).describe("Accent colour used by the recolour templates (any CSS color). Default #7c9cff."),
     steps: z

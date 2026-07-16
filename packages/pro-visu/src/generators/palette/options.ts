@@ -126,7 +126,7 @@ const paletteObjectSchema = z.object({
         fileName: z.string().optional().describe('Output filename; defaults to "<slug(asset name)>.png".'),
       })
       .strict()
-      .default({}),
+      .prefault({}),
     layout: z.object({
         layout: z.enum(["rows", "columns", "grid"]).default("rows")
           .describe('Swatch arrangement: full-width bands, full-height columns, or an N-wide grid. Default "rows".'),
@@ -138,7 +138,7 @@ const paletteObjectSchema = z.object({
           .describe("Inset of the labels from the swatch edges (px). Omit to derive from the width."),
       })
       .strict()
-      .default({}),
+      .prefault({}),
     fields: z.object({
         topLeft: z.array(fieldEnum).default(["name", "hex"]).describe("Fields stacked in the top-left corner. Default name + hex."),
         topRight: z.array(fieldEnum).default(["rgb", "oklch"]).describe("Fields stacked in the top-right corner. Default rgb + oklch."),
@@ -146,7 +146,7 @@ const paletteObjectSchema = z.object({
         bottomRight: z.array(fieldEnum).default([]).describe("Fields stacked in the bottom-right corner. Default none."),
       })
       .strict()
-      .default({}),
+      .prefault({}),
     text: z.object({
         uppercase: z.boolean().default(false).describe("Uppercase the color names. Default false."),
         rgbStyle: z.enum(["labeled", "css", "plain"]).default("labeled").describe('RGB string style. Default "labeled".'),
@@ -157,14 +157,14 @@ const paletteObjectSchema = z.object({
         fontWeight: z.number().int().min(1).max(1000).default(700).describe("Label font weight. Default 700."),
       })
       .strict()
-      .default({}),
+      .prefault({}),
     contrast: z.object({
         textLight: z.string().default("#ffffff").describe('Light text color, used on dark swatches (picked by contrast). Default "#ffffff".'),
         textDark: z.string().default("#141414").describe('Dark text color, used on light swatches (picked by contrast). Default "#141414".'),
         contrastThreshold: z.number().min(0).max(1).default(0.5).describe("Luminance above which the dark text is used (0..1). Default 0.5."),
       })
       .strict()
-      .default({}),
+      .prefault({}),
   })
   .strict();
 
