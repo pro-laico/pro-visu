@@ -217,11 +217,14 @@ export async function startManagedServer(
   const ready = await waitForUrl(url, server.readyTimeoutMs, signal);
   if (!ready) {
     tasks.server?.fail();
+    // Snapshot BEFORE killing: killTree now waits for the exit it causes, so reading `exited`
+    // afterwards would misreport our own teardown as "the server command died on its own".
+    const exitedOnItsOwn = exited;
     await killTree(child);
     throw new Error(
       signal?.aborted
         ? "Aborted."
-        : exited
+        : exitedOnItsOwn
           ? `Server command exited before ${url} became reachable.`
           : `Server did not become reachable at ${url} within ${server.readyTimeoutMs}ms.`,
     );
