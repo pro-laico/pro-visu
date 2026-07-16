@@ -6,6 +6,12 @@ All notable changes to `pro-visu` are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-07-16
+
+Interaction pacing reworked around real distances, plus a hardening pass from a full repo audit:
+integrity-verified ffmpeg downloads, a test-gated publish path, and a batch of correctness fixes.
+Note the BREAKING interaction change below — `holdMs` is gone in favor of `wait` steps.
+
 ### Added
 
 - **Speed-paced `scrollTo`.** Interaction scrolls are now paced by a `speed` (CSS px/second,
@@ -59,6 +65,13 @@ All notable changes to `pro-visu` are documented here. The format is based on
 - Startup cleanup after an interrupted run now only deletes temp dirs inside the OS temp
   directory's `pro-visu-*` namespace, so a tampered `.pro-visu-run.json` can't point it at
   arbitrary paths.
+
+### Upgrade notes
+
+1. Replace any interaction `holdMs` (per-action or `focus.holdMs`) with an explicit
+   `{ do: "wait", durationMs }` step after the action; end `focus.actions` with a `wait` to dwell.
+2. Long scrolls now run longer by default (speed-paced at 400 px/s) — set a step's `durationMs`
+   if you need the old fixed-time behavior.
 
 ## [0.7.0] - 2026-07-09
 
@@ -489,7 +502,8 @@ gitignored `pro-visu/` folder. Pre-1.0: the option surface may still shift.
 - npm packaging metadata, MIT license, CI (typecheck + test + build), and a tag-driven release
   workflow using npm Trusted Publishing (OIDC) with provenance.
 
-[Unreleased]: https://github.com/pro-laico/pro-visu/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/pro-laico/pro-visu/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/pro-laico/pro-visu/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/pro-laico/pro-visu/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/pro-laico/pro-visu/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/pro-laico/pro-visu/compare/v0.5.0...v0.6.0
