@@ -2,8 +2,6 @@ import { z } from "zod";
 
 import { namedViewportSchema, type ViewportInput } from "@/generators/shared-options";
 
-export type ScreenshotViewport = z.infer<typeof namedViewportSchema>;
-
 /** A specific element to capture (in addition to the page) at each viewport. */
 const elementShotSchema = z.object({
     selector: z.string().min(1).describe("CSS selector of the element to shoot."),

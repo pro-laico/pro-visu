@@ -14,7 +14,7 @@
     "build:lib": "turbo run build --filter=pro-visu",
     "docs": "turbo run dev --filter=docs",
     "testing": "turbo run dev --filter=testing",
-    "generate": "pnpm --filter=testing generate",
+    "generate": "turbo run generate --filter=testing",
     "release": "node tools/releaser/release.mjs",
     "publish-packages": "node tools/releaser/publish.mjs"
   },

@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  startFrameEncoder,
   buildTranscodeArgs,
   buildFramePipeArgs,
   buildConcatArgs,
@@ -316,4 +317,32 @@ describe("buildStillSegmentArgs", () => {
     });
     expect(a[a.indexOf("-vf") + 1]!).not.toContain("fade");
   });
+});
+
+describe("startFrameEncoder early-exit", () => {
+  const fakeArgs = { width: 100, height: 100, fps: 30, crf: 18, outPath: "out.mp4" };
+  let binBefore: string | undefined;
+
+  beforeEach(() => {
+    binBefore = process.env.FFMPEG_BIN;
+    // node rejects ffmpeg's argv immediately and exits non-zero — simulates an encoder crash.
+    process.env.FFMPEG_BIN = process.execPath;
+  });
+
+  afterEach(() => {
+    if (binBefore === undefined) delete process.env.FFMPEG_BIN;
+    else process.env.FFMPEG_BIN = binBefore;
+  });
+
+  it("done() settles when the child exited before it was called", async () => {
+    const enc = startFrameEncoder(fakeArgs);
+    await new Promise((r) => setTimeout(r, 750)); // let the child die first
+    await expect(enc.done()).rejects.toThrow(/ffmpeg frame encode failed/);
+  }, 10_000);
+
+  it("write() rejects instead of waiting on a dead child", async () => {
+    const enc = startFrameEncoder(fakeArgs);
+    await new Promise((r) => setTimeout(r, 750));
+    await expect(enc.write(Buffer.alloc(64))).rejects.toThrow();
+  }, 10_000);
 });

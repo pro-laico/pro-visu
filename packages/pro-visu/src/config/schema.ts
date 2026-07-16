@@ -279,7 +279,6 @@ export const settingsSchema = z.object({
     .default({})
     .describe("Per-generator option defaults, keyed by generator id, merged underneath each asset's own options."),
 }).strict();
-export type ResolvedSettings = z.infer<typeof settingsSchema>;
 
 /**
  * One thing to generate. Options are validated by the target generator at run time.

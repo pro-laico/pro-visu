@@ -89,15 +89,6 @@ export class ManifestStore {
     return this.chain;
   }
 
-  get records(): readonly AssetRecord[] {
-    return this.manifest.assets;
-  }
-
-  /** Look up the existing record for an asset id (for cache checks). */
-  find(id: string): AssetRecord | undefined {
-    return this.manifest.assets.find((a) => a.id === id);
-  }
-
   /**
    * All records belonging to an asset spec, primary first: the exact-id record (when the
    * generator emits one, e.g. a reel's mp4) followed by suffixed variants (`name-desktop`,

@@ -13,7 +13,7 @@ import { applyPostNav, installNetworkHygiene, installPreNav } from "@/pipeline/c
 /** Default cursor travel / scroll-animation time for a step that omits `durationMs`. */
 export const DEFAULT_ACTION_DURATION_MS = 700;
 /** Default `scrollTo` speed (CSS px/second) when a step gives neither `speed` nor `durationMs` — scrolls are distance-paced by default. */
-export const DEFAULT_SCROLL_SPEED = 400;
+const DEFAULT_SCROLL_SPEED = 400;
 /** Default pause for a `wait` step that omits `durationMs`. */
 export const DEFAULT_WAIT_MS = 600;
 /** Default per-keystroke pace for `type` (ms). */
@@ -451,20 +451,27 @@ async function runAction(page: Page, a: InteractionAction, durationMs: number, l
   }
 }
 
-/** Run a list of steps in sequence (cursor travel + real action), warning on failure. To pause between steps, insert a `wait`. */
+/**
+ * Run a list of steps in sequence (cursor travel + real action). A failed step warns and continues
+ * by default; with `strict` (the `strictSteps` option) it fails the asset instead, so a clip missing
+ * a click never ships silently. To pause between steps, insert a `wait`.
+ */
 async function runActionList(
   page: Page,
   actions: InteractionAction[],
   label: string,
   logger: Logger,
   stickyHeaderHeight: number,
+  strict: boolean,
 ): Promise<void> {
   for (const a of actions) {
     const durationMs = a.durationMs ?? DEFAULT_ACTION_DURATION_MS;
     try {
       await runAction(page, a, durationMs, logger, stickyHeaderHeight);
     } catch (e) {
-      logger.warn(`${label} step "${a.do}"${a.selector ? ` (${a.selector})` : ""} failed: ${(e as Error).message}`);
+      const step = `${label} step "${a.do}"${a.selector ? ` (${a.selector})` : ""}`;
+      if (strict) throw new Error(`${step} failed: ${(e as Error).message}`, { cause: e });
+      logger.warn(`${step} failed: ${(e as Error).message}`);
     }
   }
 }
@@ -542,16 +549,16 @@ export async function captureInteractionWebm(args: InteractionArgs): Promise<Int
     await page.addInitScript(installCursorRuntime, cursorOpts);
     await page.evaluate(installCursorRuntime, cursorOpts);
 
-    await runActionList(page, options.setup, "setup", logger, options.page.stickyHeaderHeight);
+    await runActionList(page, options.setup, "setup", logger, options.page.stickyHeaderHeight, options.strictSteps);
 
     const keptStart = Date.now();
     leadSeconds = (keptStart - recStart) / 1000;
     await sleep(options.page.startDelayMs);
-    await runActionList(page, actions, "interaction", logger, options.page.stickyHeaderHeight);
+    await runActionList(page, actions, "interaction", logger, options.page.stickyHeaderHeight, options.strictSteps);
     await sleep(options.page.endDwellMs);
     keptMs = Date.now() - keptStart;
 
-    await runActionList(page, options.teardown, "teardown", logger, options.page.stickyHeaderHeight);
+    await runActionList(page, options.teardown, "teardown", logger, options.page.stickyHeaderHeight, options.strictSteps);
   } finally {
     await context.close();
   }
@@ -629,12 +636,12 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
     }, focus.selector);
     await twoFrames();
 
-    await runActionList(page, options.setup, "setup", logger, options.page.stickyHeaderHeight);
+    await runActionList(page, options.setup, "setup", logger, options.page.stickyHeaderHeight, options.strictSteps);
 
     const keptStart = Date.now();
     leadSeconds = (keptStart - recStart) / 1000;
     await sleep(options.page.startDelayMs);
-    await runActionList(page, actions, "focus", logger, options.page.stickyHeaderHeight);
+    await runActionList(page, actions, "focus", logger, options.page.stickyHeaderHeight, options.strictSteps);
     const box = await page.evaluate((sel: string) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const el = (globalThis as any).document?.querySelector(sel); //EXCUSE: runs in the browser (page.evaluate/$eval/init script); DOM globals absent from Node lib types
@@ -650,7 +657,7 @@ export async function captureFocusWebm(args: InteractionArgs): Promise<FocusResu
     await sleep(options.page.endDwellMs);
     keptMs = Date.now() - keptStart;
 
-    await runActionList(page, options.teardown, "teardown", logger, options.page.stickyHeaderHeight);
+    await runActionList(page, options.teardown, "teardown", logger, options.page.stickyHeaderHeight, options.strictSteps);
   } finally {
     await context.close();
   }

@@ -1,12 +1,14 @@
 import { z } from "zod";
 
+import { deepMerge, isPlainObject } from "@/utils/object";
+
 /**
  * A "pulse" is one beat of the specimen's animation: a named span of time during which some
  * fraction of the glyph cells change letter and/or color. An empty pulse (no changes) is a hold.
  * Compose a sequence of pulses to author the whole clip — varying each one's length, change
  * fractions, and pacing gives every beat its own feel. The clip length is the sum of the durations.
  */
-export const pulseSchema = z
+const pulseSchema = z
   .object({
     /** Human label for the beat, e.g. "color sweep" — purely to keep the config readable. */
     name: z.string().default("").describe('Human label for the beat, e.g. "color sweep" — purely to keep the config readable.'),
@@ -38,7 +40,7 @@ export const pulseSchema = z
   })
   .strict();
 
-export type Pulse = z.infer<typeof pulseSchema>;
+type Pulse = z.infer<typeof pulseSchema>;
 
 /** One "pulse" (beat) of the animation storyboard. */
 export interface PulseInput {
@@ -286,21 +288,6 @@ const SPECIMEN_TEMPLATES: Record<SpecimenTemplate, Partial<SpecimenOptionsInput>
   demo: { animation: { demo: true, mirror: false }, type: { lines: 4 }, pulses: DEMO_PULSES },
   sweep: { animation: { mirror: true }, type: { lines: 4 }, colors: SWEEP_COLORS, pulses: SWEEP_PULSES },
 };
-
-/** Is `v` a plain object we should recurse into (not an array, not null)? */
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
-/** Deep-merge `override` onto `base` (user values win per-field; arrays/primitives replace, nested objects merge). */
-function deepMerge(base: Record<string, unknown>, override: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = { ...base };
-  for (const [k, v] of Object.entries(override)) {
-    const b = out[k];
-    out[k] = isPlainObject(b) && isPlainObject(v) ? deepMerge(b, v) : v;
-  }
-  return out;
-}
 
 /** Merge a selected template underneath the user's explicit options (which win, per-field, deeply). */
 function applyTemplate(raw: unknown): unknown {

@@ -19,6 +19,12 @@ const assetRecordSchema = z.object({
   toolVersion: z.string(),
   /** Inputs+options+tool fingerprint; lets `--cache` skip unchanged assets. */
   cacheKey: z.string().optional(),
+  /**
+   * Marks the spec's primary output — the record consumers' `inputs` resolve to. Persisted because
+   * the manifest is disk-sorted by id: without it a cache hit would pick the lexicographically
+   * first variant, which can differ from the fresh run's primary. Absent in pre-flag manifests.
+   */
+  primary: z.boolean().optional(),
 });
 export type AssetRecord = z.infer<typeof assetRecordSchema>;
 

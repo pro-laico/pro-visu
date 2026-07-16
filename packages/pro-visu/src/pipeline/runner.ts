@@ -8,6 +8,7 @@ import type { Browser } from "playwright-core";
 import { sha256File } from "@/utils/hash";
 import type { Logger } from "@/utils/logger";
 import { ensureDir, removeDir } from "@/utils/fs";
+import { deepMerge, isPlainObject } from "@/utils/object";
 import { launchBrowser } from "@/pipeline/browser";
 import { createContext } from "@/pipeline/context";
 import { computeCacheKey } from "@/pipeline/cache";
@@ -132,8 +133,10 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
       for (const [slot, dep] of Object.entries(spec.inputs)) {
         const file = primaryOutput.get(dep);
         if (!file) throw new Error(`Input "${slot}" (asset "${dep}") produced no file.`);
+        const hash = primaryHash.get(dep);
+        if (!hash) throw new Error(`Input "${slot}" (asset "${dep}") has no content hash — cannot key the cache.`);
         resolvedInputs[slot] = file;
-        inputHashes[slot] = primaryHash.get(dep) ?? "";
+        inputHashes[slot] = hash;
       }
 
       const merged = applyQuality(mergeGeneratorOptions(opts.config.settings.defaults, spec), quality);
@@ -168,7 +171,8 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
         if (existing.length > 0 && existing.every((record) => existsSync(path.resolve(opts.outDir, record.file)))) {
           log.info("cached — unchanged, skipped");
           reporter?.status(spec.name, "cached");
-          recordDone(spec.name, existing[0]);
+          // Pre-flag manifests have no `primary` marker; fall back to manifest order for those.
+          recordDone(spec.name, existing.find((record) => record.primary) ?? existing[0]);
           return { name: spec.name, generator: spec.generator, status: "ok", records: existing, cached: true };
         }
       }
@@ -192,8 +196,9 @@ export async function runPipeline(opts: RunOptions): Promise<AssetOutcome[]> {
       });
 
       const result = await generator.run(ctx, options);
-      for (const record of result.assets) {
+      for (const [index, record] of result.assets.entries()) {
         record.cacheKey = cacheKey;
+        record.primary = index === 0;
         await manifest.upsert(record);
       }
       recordDone(spec.name, result.assets[0]);
@@ -315,17 +320,4 @@ export function applyDerivedInputs(config: ResolvedConfig): void {
 export function mergeGeneratorOptions(defaults: Record<string, Record<string, unknown>>, spec: ResolvedAssetSpec): Record<string, unknown> {
   const generatorDefaults = defaults[spec.generator] ?? {};
   return deepMerge(generatorDefaults, spec.options);
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function deepMerge(base: Record<string, unknown>, override: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = { ...base };
-  for (const [key, value] of Object.entries(override)) {
-    const existing = out[key];
-    out[key] = isPlainObject(existing) && isPlainObject(value) ? deepMerge(existing, value) : value;
-  }
-  return out;
 }

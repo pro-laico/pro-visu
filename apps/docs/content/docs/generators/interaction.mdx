@@ -103,6 +103,7 @@ export const options = [
     { name: 'actions', type: 'Action[]', description: `Steps to trigger the component (e.g. open a dropdown) and/or dwell on it — end with a wait to hold on the element.` },
   ] },
   { name: 'colorScheme', type: "'light' | 'dark'", description: `Force a color scheme for the capture. Omit to leave as-is.` },
+  { name: 'strictSteps', type: 'boolean', default: 'false', description: `Fail the asset when any step fails (missing selector, click timeout), instead of logging a warning and shipping the clip without that step.` },
 ]
 
 An interaction needs `actions`, `focus`, or both; everything else is optional. **Reference** is the
@@ -155,6 +156,7 @@ interactive view; **TypeScript** is the same shape in code, every option at its 
 
     // --- variant ---
     // colorScheme: "dark",          // optional; force light or dark
+    // strictSteps: true,            // optional; fail the asset when a step fails (default: warn + continue)
   },
 }
 ```

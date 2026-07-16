@@ -6,6 +6,48 @@ All notable changes to `pro-visu` are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Speed-paced `scrollTo`.** Interaction scrolls are now paced by a `speed` (CSS px/second,
+  default 400): a step runs for `distance ÷ speed`, so every scroll moves at the same steady human
+  pace regardless of length. An explicit `durationMs` still forces a fixed-time scroll
+  (`durationMs: 0` jumps instantly — handy in `setup`).
+- **Per-step `easing` on interaction actions.** `scrollTo` honors the shared six-curve easing
+  vocabulary (default `"ease-in-out"`; `"linear"` holds a constant velocity), and `type`/`erase`
+  can ease their keystroke cadence across the run without changing its total time.
+- **`strictSteps` on the `interaction` generator.** Set it to fail the asset when any step fails
+  (missing selector, click timeout) instead of the default warn-and-continue, so a demo clip
+  missing a click never ships silently. Default `false` (unchanged behavior).
+
+### Changed
+
+- **BREAKING (interaction):** the per-action `holdMs` and `focus.holdMs` are removed. Steps run
+  back-to-back with no built-in trailing pause. **Migrate by** inserting a
+  `{ do: "wait", durationMs }` step wherever a hold is wanted (the `wait` action's `durationMs`
+  defaults to 600), and ending `focus.actions` with a `wait` to dwell on the focused element.
+
+### Fixed
+
+- `scrollTo` targets with a CSS `scroll-margin-top` no longer land twice as far below a sticky
+  header: the margin is coalesced with `stickyHeaderHeight` (max, not sum).
+- A frame encode no longer hangs the run forever when ffmpeg crashes mid-asset: the encoder now
+  records the child's exit as it happens, so a write or finish after an early exit fails fast with
+  ffmpeg's stderr instead of waiting on an event that already fired.
+- A cached asset now resolves to the same primary output a fresh run would produce. The manifest
+  records which output is primary; previously a cache hit picked the alphabetically-first variant,
+  so downstream consumers (e.g. a `wall`) could get a different input file on hit vs miss.
+- `ffmpegIsSupported()` no longer claims win32-ia32 and freebsd-x64 support the pinned release
+  doesn't actually ship (those downloads would 404).
+
+### Security
+
+- The managed ffmpeg download is now integrity-verified: the compressed asset's SHA-256 must match
+  the digest pinned per platform before the binary is installed. A custom mirror or release
+  (`FFMPEG_BINARIES_URL` / `FFMPEG_BINARY_RELEASE`) can pin its own via `FFMPEG_SHA256`.
+- Startup cleanup after an interrupted run now only deletes temp dirs inside the OS temp
+  directory's `pro-visu-*` namespace, so a tampered `.pro-visu-run.json` can't point it at
+  arbitrary paths.
+
 ## [0.7.0] - 2026-07-09
 
 ### Added

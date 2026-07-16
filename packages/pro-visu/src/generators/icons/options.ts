@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { deepMerge, isPlainObject } from "@/utils/object";
 import { videoOutputShape } from "@/generators/shared-options";
 import { iconEffectSchema, type IconEffectInput } from "@/scene-engine/scene-options";
 
@@ -154,21 +155,6 @@ function templateSteps(name: IconsTemplate, accent: string): IconEffectInput[] {
         { kind: "color", at: 0.52, span: 0.44, order: "forward", stagger: 0.8, color: accent, hold: 0.25 },
       ];
   }
-}
-
-/** Is `v` a plain object we should recurse into (not an array, not null)? */
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
-/** Deep-merge `override` onto `base` (user values win per-field; arrays/primitives replace, nested objects merge). */
-function deepMerge(base: Record<string, unknown>, override: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = { ...base };
-  for (const [k, v] of Object.entries(override)) {
-    const b = out[k];
-    out[k] = isPlainObject(b) && isPlainObject(v) ? deepMerge(b, v) : v;
-  }
-  return out;
 }
 
 /** Merge a selected template's steps underneath the user's explicit options (which win, deeply). */

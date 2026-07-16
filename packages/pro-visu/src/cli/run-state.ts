@@ -1,3 +1,4 @@
+import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { readFile, writeFile, rm } from "node:fs/promises";
@@ -69,7 +70,13 @@ export async function cleanStaleRunState(outDir: string, log: { info(m: string):
     return;
   }
   const killedServer = await killTreeByPid(state.serverPid);
-  for (const dir of state.tmpDirs ?? []) await removeDir(dir);
+  // The run-state file is on-disk input a repo could ship pre-seeded; only ever delete our own
+  // temp dirs (runner.ts creates them all as `<os.tmpdir()>/pro-visu-*`), never arbitrary paths.
+  const tmpPrefix = path.join(os.tmpdir(), "pro-visu-");
+  for (const dir of state.tmpDirs ?? []) {
+    if (path.resolve(dir).startsWith(tmpPrefix)) await removeDir(dir);
+    else log.warn(`Skipping suspicious tmp dir in run state (outside ${tmpPrefix}*): ${dir}`);
+  }
   await clearRunState(outDir);
   log.info(`Cleaned up after an interrupted run${killedServer ? ` (stopped orphaned server pid ${state.serverPid})` : ""}.`);
 }

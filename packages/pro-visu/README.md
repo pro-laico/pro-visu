@@ -96,7 +96,7 @@ Signals INTO the site (query params, cookies, localStorage, an init script) let 
 the camera; cleanup BY the tool (hide/click selectors, injected CSS, tracker blocking, a frozen
 clock) suppresses what the site won't remove itself. Applied to every URL-based asset. (A
 session cookie also carries auth for login-gated pages.) See the
-[settings docs](https://pro-visu.com/docs/configuration/settings#capture).
+[settings docs](https://pro-visu.com/docs/configuration#capture).
 
 Prefer JSON (or running via `npx`/global)? `pro-visu init --json` writes the same config as
 `pro-visu/pro-visu.config.json` plus a sibling `pro-visu/pro-visu.schema.json`, wired up with `"$schema": "./pro-visu.schema.json"`
@@ -188,7 +188,7 @@ options: {
   `ease-out-strong`, `ease-in-out-strong`.
 - `motion.choreography: [{ to, durationMs?, holdMs?, easing? }]` — replaces the single sweep with an
   authored sequence (`to` = a `0..1` number, an `"NN%"` string, or a CSS selector to bring into view).
-- `motion.autoSections: true | { minHeightFraction?, selector?, holdMs?, durationMs?, maxSections?, constantVelocity?, includeFooter? }`
+- `motion.autoSections: true | { minHeightFraction?, selector?, holdMs?, durationMs?, maxSections?, constantVelocity?, includeFooter?, headerSelector?, headerHeight? }`
   — auto-detect the page's sections and pan/hold through them within a fixed `durationMs` budget.
   The footer is skipped by default (`includeFooter: true` to scroll all the way down).
 - `motion.loop: "none" | "boomerang" | "straight"` — applies to whichever motion drives the reel
@@ -257,11 +257,14 @@ The viewport × color-scheme matrix is emitted as separate assets (`<name>-<suff
 }
 ```
 
-- `actions: [{ do: "move" | "click" | "hover" | "type" | "scrollTo" | "wait", selector?, x?, y?, text?, to?, durationMs?, speed? }]`
+- `actions: [{ do: "move" | "click" | "hover" | "type" | "erase" | "press" | "scrollTo" | "wait", selector?, x?, y?, text?, count?, delayMs?, key?, modifiers?, to?, align?, offset?, durationMs?, speed?, easing? }]`
   drives a scripted tour with a synthetic `cursor: { show?, size?, color? }`. Always records
   **realtime** (interactions and their animations are time-based). Steps run back-to-back with no
   built-in pause — insert a `{ do: "wait", durationMs }` to hold. `scrollTo` is distance-paced by
-  `speed` (px/s, default 400) unless you set a fixed `durationMs`.
+  `speed` (px/s, default 400) unless you set a fixed `durationMs`, lands `align: "top" | "center" | "bottom"`
+  (nudged by `offset` px), and honors `easing`. `type`/`erase` pace keystrokes with `delayMs`;
+  `press` sends `key` (+ `modifiers`). Set `strictSteps: true` to fail the asset when a step fails
+  instead of warning and continuing.
 - `focus: { selector, padding?, actions? }` — capture a single component (optionally trigger it and/or
   end `actions` with a `wait` to dwell), cropped to its box.
 

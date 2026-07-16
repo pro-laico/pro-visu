@@ -22,6 +22,7 @@ output (`pro-visu/output/`). Your job with this skill: install pro-visu, write a
 | `wall` | mp4 — a seamless-looping media wall of your other assets and local `{ src }` files |
 | `specimen` | mp4 — a looping type specimen from a font file |
 | `palette` / `palette-reel` | png / mp4 — a colour palette (still / animated reveal) |
+| `icons` | mp4/png — a layered icon-set showcase: animated grid (looping video) or a single still |
 
 ## 1. Install
 ```bash

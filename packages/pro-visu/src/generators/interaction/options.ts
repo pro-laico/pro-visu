@@ -103,6 +103,11 @@ export const interactionOptionsSchema = z.object({
      */
     teardown: z.array(interactionActionSchema).default([])
       .describe("Off-camera steps run after recording ends (reset state for a clean loop). Trimmed from the output."),
+    /** Fail the asset when any step fails, instead of warning and continuing. */
+    strictSteps: z.boolean().default(false)
+      .describe(
+        "Fail the asset when any step fails (missing selector, click timeout), instead of logging a warning and shipping the clip without that step. Default false.",
+      ),
     /** The synthetic cursor shown during the recording. */
     cursor: z.object({
         show: z.boolean().optional().describe("Show the cursor. Default true."),
@@ -249,6 +254,11 @@ export interface InteractionOptionsInput {
    * cleanly. Trimmed from the output.
    */
   teardown?: InteractionActionInput[];
+  /**
+   * Fail the asset when any step fails (missing selector, click timeout), instead of logging a
+   * warning and shipping the clip without that step. Default false.
+   */
+  strictSteps?: boolean;
   /** The synthetic cursor shown during the recording. Omit for the default cursor. */
   cursor?: CursorInput;
   /**

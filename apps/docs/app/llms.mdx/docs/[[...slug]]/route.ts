@@ -15,6 +15,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug?: 
   });
 }
 
+// fallow-ignore-next-line unused-export
 export function generateStaticParams() {
   return source.generateParams();
 }

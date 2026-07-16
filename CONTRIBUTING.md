@@ -16,7 +16,7 @@ pnpm install
 pnpm typecheck                    # typecheck the workspace
 pnpm test                         # unit tests (vitest)
 pnpm build:lib                    # build the publishable package
-pnpm --filter testing generate    # render the sample storefront's showcase assets
+pnpm generate                     # render the sample storefront's showcase assets (builds the CLI first)
 pnpm docs                         # run the docs site locally
 ```
 

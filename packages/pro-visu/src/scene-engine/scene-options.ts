@@ -138,7 +138,7 @@ export const wallPanSchema = z
  * height) plus its own optional Y motion. Omitted `loops`/`pulses` inherit the wall-level defaults;
  * an omitted `direction` defaults to "down".
  */
-export const wallColumnSchema = z
+const wallColumnSchema = z
   .object({
     /** Assets stacked in this column, by name (cycled to fill the height). At least one. */
     tiles: z.array(z.string().min(1)).min(1).describe("Assets stacked in this column, by name (cycled to fill the height). At least one."),
@@ -338,7 +338,7 @@ export const iconEffectSchema = z
  * `recolor` is false. Produced by the friendly `icons` *generator* (its options are the authoring
  * surface); the ordered `icons` here are served-file slot names.
  */
-export const iconsSceneOptionsSchema = z
+const iconsSceneOptionsSchema = z
   .object({
     /** Ordered served-file slot names for the icons (the generator populates the matching `files`). */
     icons: z.array(z.string().min(1)).min(1),
@@ -375,8 +375,6 @@ export const SCENE_OPTION_SCHEMAS = {
   "palette-reel": paletteReelSceneOptionsSchema,
 } as const;
 
-export type SceneId = keyof typeof SCENE_OPTION_SCHEMAS;
-
 /** The wall's easing curves. */
 export type WallEasing = z.infer<typeof wallEasingEnum>;
 
@@ -403,7 +401,7 @@ export interface WallPanInput {
 }
 
 /** One column of the wall: its tiles (assets by name) + its own optional Y motion. */
-export interface WallColumnInput {
+interface WallColumnInput {
   /** Assets stacked in this column, by name (cycled to fill the height). At least one. */
   tiles: string[];
   /** Constant start-position shift, 0..1 of a tile-set — de-aligns columns with similar content. Default 0. */
@@ -427,7 +425,7 @@ export interface FauxTileInput {
   aspect?: number;
 }
 
-export interface WallSceneOptionsInput {
+interface WallSceneOptionsInput {
   /** The columns (≥3), each its own tiles + motion. Count = array length (fewer = bigger tiles). */
   columns: WallColumnInput[];
   /** Gap between columns and between their tile contents (px). Default 16. */
@@ -454,7 +452,7 @@ export interface WallSceneOptionsInput {
 }
 
 /** One precomputed color in a palette-reel (the generator builds these from the friendly options). */
-export interface ReelItem {
+interface ReelItem {
   /** Color display name (already cased per `uppercase`). */
   name: string;
   /** Swatch background hex (`#RRGGBB`). */
@@ -465,7 +463,7 @@ export interface ReelItem {
   details: string[];
 }
 
-export interface PaletteReelSceneOptionsInput {
+interface PaletteReelSceneOptionsInput {
   /** Precomputed colors to reveal (at least one). */
   items: ReelItem[];
   /** Sliver arrangement. Default "rows". */
@@ -539,7 +537,7 @@ export interface IconEffectInput {
   turns?: number;
 }
 
-export interface IconsSceneOptionsInput {
+interface IconsSceneOptionsInput {
   /** Ordered served-file slot names for the icons (the generator populates the matching `files`). */
   icons: string[];
   /** Fixed column count. Omit to auto-pick a near-square grid from the count + frame aspect. */

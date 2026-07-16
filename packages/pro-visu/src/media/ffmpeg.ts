@@ -193,6 +193,10 @@ export function startFrameEncoder(a: FramePipeArgs, logger?: Logger, signal?: Ab
   const child = spawn(ffmpegPath(), buildFramePipeArgs(a), { stdio: ["pipe", "ignore", "pipe"], signal });
   let stderr = "";
   let failed: Error | null = null;
+  // Recorded at spawn time: `close` fires once, so listeners attached inside write()/done() after
+  // an early exit would wait forever — every wait below must consult this first.
+  let exited: { code: number | null } | null = null;
+  const exitError = (code: number | null) => new Error(`ffmpeg frame encode failed (${code}):\n${stderr.slice(-2000)}`);
   child.stderr.on("data", (d: Buffer) => {
     const text = d.toString();
     stderr = (stderr + text).slice(-STDERR_TAIL_CAP);
@@ -201,27 +205,38 @@ export function startFrameEncoder(a: FramePipeArgs, logger?: Logger, signal?: Ab
   child.on("error", (e) => {
     failed = e;
   });
+  child.on("close", (code) => {
+    exited = { code };
+  });
   const stdin = child.stdin;
 
   return {
     write: (frame) =>
       new Promise<void>((resolve, reject) => {
         if (failed) return reject(failed);
+        if (exited) return reject(exitError(exited.code));
         const flushed = stdin.write(frame, (err) => {
           if (err) reject(err);
         });
-        if (flushed) resolve();
-        else stdin.once("drain", resolve);
+        if (flushed) return resolve();
+        const onDrain = () => {
+          child.off("close", onClose);
+          resolve();
+        };
+        const onClose = (code: number | null) => {
+          stdin.off("drain", onDrain);
+          reject(exitError(code));
+        };
+        stdin.once("drain", onDrain);
+        child.once("close", onClose);
       }),
     done: () =>
       new Promise<void>((resolve, reject) => {
         if (failed) return reject(failed);
+        const settle = (code: number | null) => (code === 0 ? resolve() : reject(exitError(code)));
+        if (exited) return settle(exited.code);
         stdin.end();
-        child.on("close", (code) =>
-          code === 0
-            ? resolve()
-            : reject(new Error(`ffmpeg frame encode failed (${code}):\n${stderr.slice(-2000)}`)),
-        );
+        child.once("close", settle);
       }),
     kill: () => {
       stdin.destroy();

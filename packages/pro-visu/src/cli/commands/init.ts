@@ -102,7 +102,7 @@ export default defineConfig({
     // server: {},
     // Capture mode — cleanest captures. \`signals\` tell your site to render settled (kill
     // reveal-on-scroll gaps and count-up zeros — the site must read the flag); \`cleanup\` is
-    // applied by the tool (no site changes needed). See /docs/configuration/settings#capture.
+    // applied by the tool (no site changes needed). See /docs/configuration#capture.
     // capture: {
     //   signals: { query: { capture: "1" } },        // your site reads ?capture=1 and renders settled
     //   cleanup: { hideSelectors: ["#cookie-banner"], freezeClock: true },

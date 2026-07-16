@@ -23,7 +23,8 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 const PKG_JSON = path.join(REPO_ROOT, "packages", "pro-visu", "package.json");
 const RELEASE_TYPES = ["patch", "minor", "major", "prerelease"];
 
-/** Pure SemVer increment — no external deps. */
+/** Pure SemVer increment — no external deps. Matches `npm version` semantics: a stable bump on a
+ * prerelease "graduates" it (1.2.3-beta.0 + patch -> 1.2.3), and switching preids keeps the core. */
 function incVersion(current, type, preid) {
   const [core, pre] = current.split("-");
   const parts = core.split(".").map(Number);
@@ -33,17 +34,18 @@ function incVersion(current, type, preid) {
   const [major, minor, patch] = parts;
   switch (type) {
     case "major":
-      return `${major + 1}.0.0`;
+      return pre && minor === 0 && patch === 0 ? core : `${major + 1}.0.0`;
     case "minor":
-      return `${major}.${minor + 1}.0`;
+      return pre && patch === 0 ? `${major}.${minor}.0` : `${major}.${minor + 1}.0`;
     case "patch":
-      return `${major}.${minor}.${patch + 1}`;
+      return pre ? core : `${major}.${minor}.${patch + 1}`;
     case "prerelease": {
       const prefix = `${preid}.`;
       if (pre?.startsWith(prefix)) {
         const n = Number(pre.slice(prefix.length));
         return `${major}.${minor}.${patch}-${preid}.${Number.isNaN(n) ? 0 : n + 1}`;
       }
+      if (pre) return `${core}-${preid}.0`;
       return `${major}.${minor}.${patch + 1}-${preid}.0`;
     }
     default:
@@ -70,6 +72,10 @@ function git(args) {
   execFileSync("git", args, { cwd: REPO_ROOT, stdio: "inherit" });
 }
 
+function gitOut(args) {
+  return execFileSync("git", args, { cwd: REPO_ROOT, encoding: "utf8" }).trim();
+}
+
 async function main() {
   const { values } = parseArgs({
     options: {
@@ -84,6 +90,13 @@ async function main() {
   const bump = values.bump;
   if (!RELEASE_TYPES.includes(bump)) {
     console.error(`[releaser] Invalid --bump "${bump}". Expected one of: ${RELEASE_TYPES.join(", ")}`);
+    process.exit(1);
+  }
+
+  // A dirty worktree would otherwise be swept into the release commit; require a clean start so
+  // the commit contains exactly the version stamp.
+  if (!values["dry-run"] && !values["skip-git"] && gitOut(["status", "--porcelain"]) !== "") {
+    console.error("[releaser] Working tree is not clean — commit or stash your changes first.");
     process.exit(1);
   }
 
@@ -107,7 +120,7 @@ async function main() {
   console.log(`✓ Stamped v${next} into ${pkg.name}.`);
 
   if (!values["skip-git"]) {
-    git(["add", "-A"]);
+    git(["add", "--", PKG_JSON]);
     git(["commit", "-m", `chore(release): v${next}`]);
     git(["tag", "-a", `v${next}`, "-m", `v${next}`]);
     console.log(`✓ Committed and tagged v${next}.`);

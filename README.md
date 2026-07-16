@@ -59,7 +59,7 @@ A palette revealed one swatch at a time.
 
 https://github.com/user-attachments/assets/a067fde2-c398-43b7-a84b-1ff1dbf65cca
 
-### `icon` · layered icon showcase
+### `icons` · layered icon showcase
 
 A grid of icons with customizable animations/effects.
 

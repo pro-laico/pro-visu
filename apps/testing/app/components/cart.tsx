@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 
-export interface CartLine {
+interface CartLine {
   slug: string;
   name: string;
   price: number;

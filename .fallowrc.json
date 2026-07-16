@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  // Loaded at runtime, invisible to static analysis: pro-visu configs are executed by the CLI via
+  // c12/jiti, and scene-app is a self-contained vite app (its own index.html entry) whose scenes
+  // resolve through the registry at render time.
+  "dynamicallyLoaded": [
+    "apps/testing/pro-visu/**",
+    "apps/testing/showcase/**",
+    "packages/pro-visu/scene-app/**"
+  ],
+  // Dispatched via instances/interfaces the syntactic analysis can't follow: ManifestStore methods
+  // (called through the pipeline context) and the logger LogSink contract.
+  "usedClassMembers": ["upsert", "recordsFor", "route"]
+}

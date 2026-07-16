@@ -91,17 +91,6 @@ export const DEFAULT_STEP_DURATION_MS = 1200;
 /** Default per-step hold time when a choreography step omits `holdMs`. */
 export const DEFAULT_STEP_HOLD_MS = 800;
 
-/** An authored choreography step (raw, before targets are resolved to a position). */
-export interface ChoreographyStep {
-  /** Where to scroll to: a normalized 0..1 number, an "NN%" string, or a CSS selector to bring into view. */
-  to: number | string;
-  /** Time to travel to this target (ms). Defaults to {@link DEFAULT_STEP_DURATION_MS}. */
-  durationMs?: number;
-  /** Time to hold at this target after arriving (ms). Defaults to {@link DEFAULT_STEP_HOLD_MS}. */
-  holdMs?: number;
-  easing?: EasingName;
-}
-
 /** A choreography step whose target has been resolved to a normalized position. */
 export interface ResolvedChoreographyStep {
   toY: number;
@@ -258,7 +247,7 @@ export function scrollTimelineTotalMs(o: ScrollTimelineTotalArgs): number {
 // --- loops (boomerang / straight) ---
 
 /** Travel time (ms) for the "straight" loop's glide back to the top, capped at a quarter of the clip. */
-export const STRAIGHT_RETURN_MS = 1000;
+const STRAIGHT_RETURN_MS = 1000;
 
 /**
  * Pure: append a single glide from wherever the spec ends straight back to the top, compressing the

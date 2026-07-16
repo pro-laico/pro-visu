@@ -6,7 +6,7 @@ import { renderSummary } from "@/cli/dashboard/Summary";
 import { ConfigNotFoundError, ConfigValidationError } from "@/config/load";
 
 /** Render a ZodError's issues as pointed `path: message` bullets (shared by config + option errors). */
-export function zodIssueLines(zodError: ZodError, pathPrefix = ""): string[] {
+function zodIssueLines(zodError: ZodError, pathPrefix = ""): string[] {
   return zodError.issues.map((issue) => {
     const joined = issue.path.join(".");
     const where = [pathPrefix, joined].filter(Boolean).join(".") || "(root)";

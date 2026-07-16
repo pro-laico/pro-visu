@@ -35,7 +35,8 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -55,7 +56,6 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p scene-app/tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepare": "pnpm build",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
